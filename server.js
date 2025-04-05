@@ -37,9 +37,10 @@ app.post('/chat', async (req, res) => {
       }
     );
 
-    res.json({ reply: response.data.choices[0].message.content });
+    const reply = response.data.choices?.[0]?.message?.content || 'Sorry, I had trouble responding.';
+    res.json({ reply });
   } catch (err) {
-    console.error(err.response?.data || err.message);
+    console.error('OpenAI error:', err.response?.data || err.message);
     res.status(500).json({ error: 'Failed to contact OpenAI' });
   }
 });
