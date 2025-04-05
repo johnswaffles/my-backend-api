@@ -20,20 +20,19 @@ app.post('/chat', async (req, res) => {
       'https://api.openai.com/v1/chat/completions',
       {
         model: 'gpt-4o-mini-search-preview',
+        // Minimal approach: Only system + user messages, no other params
         messages: [
           {
             role: 'system',
             content: `
-You are Virtual Church Assistant. For every query, provide a concise answer that first states the scientific explanation and then briefly explains the Christian (biblical) perspective. Keep your answer to one or two short sentences total, and avoid extraneous details.
+You are Virtual Church Assistant. Provide a concise scientific explanation, then add a brief Christian (biblical) perspective. If asked about weather, keep it short. Do not provide extra disclaimers or multiple days of data unless asked.
             `.trim()
           },
           {
             role: 'user',
             content: userMessage
           }
-        ],
-        max_tokens: 200,
-        temperature: 0.7
+        ]
       },
       {
         headers: {
@@ -43,14 +42,15 @@ You are Virtual Church Assistant. For every query, provide a concise answer that
       }
     );
 
-    const reply = response.data.choices?.[0]?.message?.content;
+    const reply = response?.data?.choices?.[0]?.message?.content;
     if (!reply) {
       return res.status(500).json({ error: 'No reply received.' });
     }
+
     res.json({ reply });
   } catch (error) {
-    console.error('OpenAI error:', error.response?.data || error.message);
-    res.status(500).json({ error: 'Error: Failed to contact OpenAI.' });
+    console.error('OpenAI error:', error?.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to contact OpenAI.' });
   }
 });
 
