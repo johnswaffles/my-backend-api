@@ -10,7 +10,6 @@ app.use(express.json());
 
 app.post('/chat', async (req, res) => {
   const userMessage = req.body.message;
-
   if (!userMessage) {
     return res.status(400).json({ error: 'No message provided.' });
   }
@@ -23,35 +22,31 @@ app.post('/chat', async (req, res) => {
         messages: [
           {
             role: 'system',
-            content:
-              'You are the Virtual Church Assistant. Always be kind and concise. For questions about weather or location, just give a brief one-sentence answer.'
+            content: `You are Virtual Church Assistant. Always respond briefly. For weather or location info, give one short sentence only. No extra background or disclaimers.`
           },
-          {
-            role: 'user',
-            content: userMessage
-          }
+          { role: 'user', content: userMessage }
         ],
-        temperature: 0.6,
+        temperature: 0.5,
         max_tokens: 150
       },
       {
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+          Authorization: `Bearer ${process.env.API_KEY}`
         }
       }
     );
 
     const reply = response.data.choices?.[0]?.message?.content;
-
     if (!reply) {
-      return res.status(500).json({ error: 'No content returned from OpenAI.' });
+      return res.status(500).json({ reply: 'Error: No reply received.' });
     }
 
     res.json({ reply });
+
   } catch (error) {
     console.error('OpenAI error:', error.response?.data || error.message);
-    res.status(500).json({ error: 'Error: Failed to contact OpenAI.' });
+    res.status(500).json({ reply: 'Error: Failed to contact OpenAI.' });
   }
 });
 
