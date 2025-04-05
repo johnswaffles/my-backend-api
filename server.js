@@ -2,15 +2,18 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
-
 const app = express();
+const PORT = process.env.PORT || 3000;
+
 app.use(cors());
 app.use(express.json());
 
-const PORT = process.env.PORT || 3000;
-
 app.post('/chat', async (req, res) => {
   const userMessage = req.body.message;
+
+  if (!userMessage) {
+    return res.status(400).json({ error: 'No message provided.' });
+  }
 
   try {
     const response = await axios.post(
@@ -20,42 +23,35 @@ app.post('/chat', async (req, res) => {
         messages: [
           {
             role: 'system',
-            content: `
-You are Virtual Church Assistant. Always respond briefly and clearly.
-
-When asked about the weather:
-- Only give today's forecast.
-- Use one sentence max.
-- Include only the temperature, basic conditions, and rain/snow chance.
-- Do not include humidity, wind, or multiple days unless asked.
-- If you search the web, summarize in a simple sentence.
-            `.trim()
+            content:
+              'You are the Virtual Church Assistant. Always be kind and concise. For questions about weather or location, just give a brief one-sentence answer.'
           },
           {
             role: 'user',
             content: userMessage
           }
         ],
-        temperature: 0.7
+        temperature: 0.6,
+        max_tokens: 150
       },
       {
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.API_KEY}`
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
         }
       }
     );
 
-    const reply = response.data?.choices?.[0]?.message?.content;
+    const reply = response.data.choices?.[0]?.message?.content;
 
     if (!reply) {
-      return res.status(500).json({ reply: 'Error: No content returned from OpenAI.' });
+      return res.status(500).json({ error: 'No content returned from OpenAI.' });
     }
 
     res.json({ reply });
   } catch (error) {
-    console.error('OpenAI API Error:', error.response?.data || error.message);
-    res.status(500).json({ reply: 'Error: Failed to contact OpenAI.' });
+    console.error('OpenAI error:', error.response?.data || error.message);
+    res.status(500).json({ error: 'Error: Failed to contact OpenAI.' });
   }
 });
 
