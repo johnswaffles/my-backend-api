@@ -1,37 +1,43 @@
 require('dotenv').config(); // Load .env file
+
 const express = require('express');
 const axios = require('axios');
-
 const app = express();
-app.use(express.json()); // Parse JSON bodies
+
+app.use(express.json()); // Enable parsing of JSON bodies
 
 const PORT = process.env.PORT || 3000;
 
-// Basic route to test server
 app.get('/', (req, res) => {
   res.send('API is running!');
 });
 
-// New route to talk to OpenAI
 app.post('/chat', async (req, res) => {
-  const userMessage = req.body.message;
-
   try {
+    const userMessage = req.body.message;
+
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
-        model: 'gpt-4o-mini', // your desired model
-        messages: [{ role: 'user', content: userMessage }],
+        model: 'gpt-4o', // or "gpt-4o-mini-search-preview" if supported
+        messages: [
+          {
+            role: 'user',
+            content: userMessage,
+          },
+        ],
       },
       {
         headers: {
-          'Authorization': `Bearer ${process.env.API_KEY}`,
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.API_KEY}`,
         },
       }
     );
 
-    res.json({ reply: response.data.choices[0].message.content });
+    res.json({
+      reply: response.data.choices[0].message.content,
+    });
   } catch (err) {
     console.error(err.response?.data || err.message);
     res.status(500).json({ error: 'Failed to contact OpenAI' });
