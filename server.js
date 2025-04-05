@@ -1,18 +1,18 @@
-require('dotenv').config();
+require('dotenv').config(); // Load .env file
 const express = require('express');
-const axios = require('axios');
 const cors = require('cors');
+const axios = require('axios');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-
 app.use(cors());
 app.use(express.json());
 
-app.post('/chat', async (req, res) => {
-  const userMessage = req.body.message;
+const PORT = process.env.PORT || 3000;
 
+app.post('/chat', async (req, res) => {
   try {
+    const userMessage = req.body.message;
+
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
@@ -20,14 +20,13 @@ app.post('/chat', async (req, res) => {
         messages: [
           {
             role: 'system',
-            content: 'You are a helpful church assistant named Virtual Church Assistant.',
+            content: 'You are a friendly church assistant named Virtual Church Assistant who helps answer questions and provide spiritual support.',
           },
           {
             role: 'user',
             content: userMessage,
           },
         ],
-        temperature: 0.7,
       },
       {
         headers: {
@@ -37,19 +36,19 @@ app.post('/chat', async (req, res) => {
       }
     );
 
-    const aiReply = response.data.choices && response.data.choices[0]?.message?.content;
+    const reply = response.data?.choices?.[0]?.message?.content;
 
-    if (!aiReply) {
-      return res.status(500).json({ reply: 'Error: No content returned from OpenAI.' });
+    if (!reply) {
+      return res.status(500).json({ reply: 'No content returned from OpenAI.' });
     }
 
-    res.json({ reply: aiReply });
+    res.json({ reply });
   } catch (error) {
-    console.error('OpenAI API Error:', error.response?.data || error.message);
+    console.error('OpenAI Error:', error.response?.data || error.message);
     res.status(500).json({ reply: 'Error: Failed to contact OpenAI.' });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`✅ Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
