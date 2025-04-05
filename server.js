@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -10,6 +11,7 @@ app.use(express.json());
 
 app.post('/chat', async (req, res) => {
   const userMessage = req.body.message;
+
   if (!userMessage) {
     return res.status(400).json({ error: 'No message provided.' });
   }
@@ -22,31 +24,37 @@ app.post('/chat', async (req, res) => {
         messages: [
           {
             role: 'system',
-            content: `You are Virtual Church Assistant. Always respond briefly. For weather or location info, give one short sentence only. No extra background or disclaimers.`
+            content:
+              'You are the Virtual Church Assistant. Always reply clearly and briefly. When asked about weather or local info, give a short, one-sentence answer with only today’s details. Avoid disclaimers or extra commentary.',
           },
-          { role: 'user', content: userMessage }
+          {
+            role: 'user',
+            content: userMessage,
+          },
         ],
+        max_tokens: 150,
         temperature: 0.5,
-        max_tokens: 150
       },
       {
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.API_KEY}`
-        }
+          Authorization: `Bearer ${process.env.API_KEY}`,
+        },
       }
     );
 
     const reply = response.data.choices?.[0]?.message?.content;
+
     if (!reply) {
-      return res.status(500).json({ reply: 'Error: No reply received.' });
+      return res
+        .status(500)
+        .json({ error: 'No reply received from OpenAI.' });
     }
 
     res.json({ reply });
-
   } catch (error) {
     console.error('OpenAI error:', error.response?.data || error.message);
-    res.status(500).json({ reply: 'Error: Failed to contact OpenAI.' });
+    res.status(500).json({ error: 'Failed to contact OpenAI.' });
   }
 });
 
