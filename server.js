@@ -11,7 +11,6 @@ app.use(express.json());
 
 app.post('/chat', async (req, res) => {
   const userMessage = req.body.message;
-
   if (!userMessage) {
     return res.status(400).json({ error: 'No message provided.' });
   }
@@ -25,15 +24,15 @@ app.post('/chat', async (req, res) => {
           {
             role: 'system',
             content:
-              'You are the Virtual Church Assistant. Always reply clearly and briefly. When asked about weather or local info, give a short, one-sentence answer with only today’s details. Avoid disclaimers or extra commentary.',
+              'You are the Virtual Church Assistant. Give direct and brief answers. If asked about weather or location, answer in one short sentence. No disclaimers.',
           },
           {
             role: 'user',
             content: userMessage,
           },
         ],
-        max_tokens: 150,
         temperature: 0.5,
+        max_tokens: 150,
       },
       {
         headers: {
@@ -43,12 +42,10 @@ app.post('/chat', async (req, res) => {
       }
     );
 
-    const reply = response.data.choices?.[0]?.message?.content;
-
+    const reply = response?.data?.choices?.[0]?.message?.content;
     if (!reply) {
-      return res
-        .status(500)
-        .json({ error: 'No reply received from OpenAI.' });
+      console.warn('Empty reply received:', response.data);
+      return res.status(500).json({ error: 'No reply received.' });
     }
 
     res.json({ reply });
