@@ -1,4 +1,4 @@
-require('dotenv').config(); // Load .env
+require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
@@ -27,7 +27,7 @@ app.post('/chat', async (req, res) => {
             content: userMessage,
           },
         ],
-        temperature: 0.7
+        temperature: 0.7,
       },
       {
         headers: {
@@ -37,14 +37,19 @@ app.post('/chat', async (req, res) => {
       }
     );
 
-    const reply = response.data.choices?.[0]?.message?.content || 'Sorry, I had trouble responding.';
-    res.json({ reply });
-  } catch (err) {
-    console.error('OpenAI error:', err.response?.data || err.message);
-    res.status(500).json({ error: 'Failed to contact OpenAI' });
+    const aiReply = response.data.choices && response.data.choices[0]?.message?.content;
+
+    if (!aiReply) {
+      return res.status(500).json({ reply: 'Error: No content returned from OpenAI.' });
+    }
+
+    res.json({ reply: aiReply });
+  } catch (error) {
+    console.error('OpenAI API Error:', error.response?.data || error.message);
+    res.status(500).json({ reply: 'Error: Failed to contact OpenAI.' });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`✅ Server running on port ${PORT}`);
 });
