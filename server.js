@@ -24,7 +24,7 @@ app.post('/chat', async (req, res) => {
           {
             role: 'system',
             content:
-              'You are the Virtual Church Assistant. Be kind and helpful. Always reply briefly. If asked for weather or directions, reply in a single short sentence.',
+              'You are Virtual Church Assistant. Reply with brief, friendly answers. For weather, only give the current temperature and condition for today.',
           },
           {
             role: 'user',
@@ -43,20 +43,20 @@ app.post('/chat', async (req, res) => {
     );
 
     const choices = response?.data?.choices;
-    if (!choices || choices.length === 0) {
-      console.error('No choices in response:', response.data);
-      return res.status(500).json({ error: 'No reply received.' });
-    }
+    console.log('🟢 OpenAI Response:', JSON.stringify(response.data, null, 2));
 
-    const reply = choices[0].message?.content || choices[0]?.text;
-    if (!reply) {
-      console.error('Reply format unexpected:', choices[0]);
+    const reply =
+      choices?.[0]?.message?.content ||
+      choices?.[0]?.text ||
+      '[No content returned]';
+
+    if (!reply || reply === '[No content returned]') {
       return res.status(500).json({ error: 'No reply received.' });
     }
 
     res.json({ reply });
   } catch (error) {
-    console.error('OpenAI API Error:', error.response?.data || error.message);
+    console.error('🔴 OpenAI API Error:', error.response?.data || error.message);
     res.status(500).json({ error: 'Failed to contact OpenAI.' });
   }
 });
