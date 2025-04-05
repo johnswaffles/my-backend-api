@@ -1,15 +1,13 @@
-require('dotenv').config(); // Load .env file
+require('dotenv').config();
 const express = require('express');
+const cors = require('cors');
 const axios = require('axios');
 
 const app = express();
-app.use(express.json());
-
 const PORT = process.env.PORT || 3000;
 
-app.get('/', (req, res) => {
-  res.send('API is running!');
-});
+app.use(cors()); // Allow CORS from all domains
+app.use(express.json());
 
 app.post('/chat', async (req, res) => {
   try {
@@ -18,8 +16,9 @@ app.post('/chat', async (req, res) => {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
-        model: 'gpt-4o',
+        model: 'gpt-4o', // or gpt-3.5-turbo if you're using the free tier
         messages: [{ role: 'user', content: userMessage }],
+        temperature: 0.7,
       },
       {
         headers: {
@@ -29,9 +28,7 @@ app.post('/chat', async (req, res) => {
       }
     );
 
-    res.json({
-      reply: response.data.choices[0].message.content,
-    });
+    res.json({ reply: response.data.choices[0].message.content });
   } catch (err) {
     console.error(err.response?.data || err.message);
     res.status(500).json({ error: 'Failed to contact OpenAI' });
