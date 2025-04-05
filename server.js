@@ -2,7 +2,6 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -11,6 +10,7 @@ app.use(express.json());
 
 app.post('/chat', async (req, res) => {
   const userMessage = req.body.message;
+
   if (!userMessage) {
     return res.status(400).json({ error: 'No message provided.' });
   }
@@ -20,15 +20,14 @@ app.post('/chat', async (req, res) => {
       'https://api.openai.com/v1/chat/completions',
       {
         model: 'gpt-4o-mini-search-preview',
-        messages: [
-          { role: 'user', content: userMessage }
-        ],
+        messages: [{ role: 'user', content: userMessage }],
+        max_tokens: 300,
         temperature: 0.7
       },
       {
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.API_KEY}`
+          Authorization: `Bearer ${process.env.API_KEY}`
         }
       }
     );
@@ -40,7 +39,7 @@ app.post('/chat', async (req, res) => {
 
     res.json({ reply });
   } catch (error) {
-    console.error('OpenAI error:', error.response?.data || error.message);
+    console.error('OpenAI error:', error?.response?.data || error.message);
     res.status(500).json({ error: 'Error: Failed to contact OpenAI.' });
   }
 });
