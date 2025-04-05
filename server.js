@@ -1,11 +1,11 @@
-require('dotenv').config();
+require('dotenv').config(); // Load .env file
 const express = require('express');
 const axios = require('axios');
+
 const app = express();
+app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
-
-app.use(express.json());
 
 app.get('/', (req, res) => {
   res.send('API is running!');
@@ -18,7 +18,7 @@ app.post('/chat', async (req, res) => {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
-        model: 'gpt-4o-mini',
+        model: 'gpt-4o',
         messages: [{ role: 'user', content: userMessage }],
       },
       {
