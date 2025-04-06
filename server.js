@@ -11,7 +11,6 @@ app.use(express.json());
 
 app.post('/chat', async (req, res) => {
   const userMessage = req.body.message;
-  
   if (!userMessage) {
     return res.status(400).json({ error: 'No message provided.' });
   }
@@ -24,13 +23,7 @@ app.post('/chat', async (req, res) => {
         messages: [
           {
             role: 'system',
-            content: `
-You are Virtual Church Assistant. 
-- Give concise scientific answers. 
-- Only add a brief Christian perspective if there's a known conflict (e.g., evolution, age of universe, abortion, porn). 
-- For weather, answer only about today. 
-- No disclaimers or multiple-day forecasts unless asked.
-            `.trim()
+            content: `You are Virtual Church Assistant. Provide concise scientific explanations. For weather queries, give only today's forecast in one short sentence with no extra details.`
           },
           {
             role: 'user',
@@ -46,7 +39,7 @@ You are Virtual Church Assistant.
       }
     );
     
-    const reply = response?.data?.choices?.[0]?.message?.content;
+    const reply = response.data.choices?.[0]?.message?.content;
     if (!reply) {
       console.error('No reply received from OpenAI. Full response:', response.data);
       return res.status(500).json({ error: 'No reply received.' });
