@@ -14,7 +14,7 @@ app.post('/chat', async (req, res) => {
   if (!userMessage) {
     return res.status(400).json({ error: 'No message provided.' });
   }
-  
+
   try {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
@@ -23,7 +23,13 @@ app.post('/chat', async (req, res) => {
         messages: [
           {
             role: 'system',
-            content: `You are Virtual Church Assistant. Provide concise scientific explanations. For weather queries, give only today's forecast in one short sentence with no extra details.`
+            content: `
+You are Virtual Church Assistant. Provide a concise scientific explanation. 
+Only add a brief Christian perspective if the topic involves a known difference 
+between science and Christianity (e.g., evolution, abortion, etc.). 
+For weather, keep it short and cover only today's conditions. 
+No disclaimers or multiple-day forecasts unless asked.
+            `.trim()
           },
           {
             role: 'user',
@@ -38,13 +44,13 @@ app.post('/chat', async (req, res) => {
         }
       }
     );
-    
-    const reply = response.data.choices?.[0]?.message?.content;
+
+    const reply = response?.data?.choices?.[0]?.message?.content;
     if (!reply) {
       console.error('No reply received from OpenAI. Full response:', response.data);
       return res.status(500).json({ error: 'No reply received.' });
     }
-    
+
     res.json({ reply });
   } catch (error) {
     console.error('OpenAI API error:', error.response?.data || error.message);
