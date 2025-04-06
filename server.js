@@ -24,11 +24,7 @@ app.post('/chat', async (req, res) => {
           {
             role: 'system',
             content: `
-You are Virtual Church Assistant. Provide a concise scientific explanation. 
-Only add a brief Christian perspective if the topic involves a known difference 
-between science and Christianity (e.g., evolution, abortion, etc.). 
-For weather, keep it short and cover only today's conditions. 
-No disclaimers or multiple-day forecasts unless asked.
+You are Virtual Church Assistant. Provide a concise scientific explanation, then add a brief Christian (biblical) perspective. If asked about weather, keep it short. Do not provide extra disclaimers or multiple days of data unless asked.
             `.trim()
           },
           {
@@ -53,7 +49,7 @@ No disclaimers or multiple-day forecasts unless asked.
 
     res.json({ reply });
   } catch (error) {
-    console.error('OpenAI API error:', error.response?.data || error.message);
+    console.error('OpenAI error:', error.response?.data || error.message);
     res.status(500).json({ error: 'Failed to contact OpenAI.' });
   }
 });
