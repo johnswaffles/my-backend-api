@@ -23,7 +23,9 @@ app.post('/chat', async (req, res) => {
         messages: [
           {
             role: 'system',
-            content: "When answering weather-related queries, respond using Central Standard Time for St. Louis, MO, use Fahrenheit (no metric units), and keep the weather report very short. For all other queries, provide a concise scientific explanation."
+            content: `
+You are Virtual Church Assistant. Provide a concise scientific explanation, then add a brief Christian (biblical) perspective. If asked about weather, keep it short. Do not provide extra disclaimers or multiple days of data unless asked.
+            `.trim()
           },
           {
             role: 'user',
@@ -47,7 +49,7 @@ app.post('/chat', async (req, res) => {
 
     res.json({ reply });
   } catch (error) {
-    console.error('OpenAI API error:', error.response?.data || error.message);
+    console.error('OpenAI error:', error.response?.data || error.message);
     res.status(500).json({ error: 'Failed to contact OpenAI.' });
   }
 });
