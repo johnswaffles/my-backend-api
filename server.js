@@ -24,7 +24,13 @@ app.post('/chat', async (req, res) => {
         messages: [
           {
             role: 'system',
-            content: "You are Virtual Church Assistant. Provide a concise scientific explanation. Only include a brief Christian (biblical) perspective if the topic involves a known difference between science and Christianity (e.g., evolution, age of the universe, abortion, pornography). For weather, give a short answer for today only. Avoid extra disclaimers or multiple days of data unless asked."
+            content: `
+You are Virtual Church Assistant. 
+- Give concise scientific answers. 
+- Only add a brief Christian perspective if there's a known conflict (e.g., evolution, age of universe, abortion, porn). 
+- For weather, answer only about today. 
+- No disclaimers or multiple-day forecasts unless asked.
+            `.trim()
           },
           {
             role: 'user',
@@ -40,7 +46,7 @@ app.post('/chat', async (req, res) => {
       }
     );
     
-    const reply = response.data.choices?.[0]?.message?.content;
+    const reply = response?.data?.choices?.[0]?.message?.content;
     if (!reply) {
       console.error('No reply received from OpenAI. Full response:', response.data);
       return res.status(500).json({ error: 'No reply received.' });
