@@ -22,6 +22,10 @@ app.post('/chat', async (req, res) => {
         model: 'gpt-4o-mini-search-preview',
         messages: [
           {
+            role: 'system',
+            content: "When answering weather-related queries, respond using Central Standard Time for St. Louis, MO, use Fahrenheit (no metric units), and keep the weather report very short. For all other queries, provide a concise scientific explanation."
+          },
+          {
             role: 'user',
             content: userMessage
           }
@@ -35,7 +39,6 @@ app.post('/chat', async (req, res) => {
       }
     );
 
-    // Attempt to parse the assistant's reply
     const reply = response?.data?.choices?.[0]?.message?.content;
     if (!reply) {
       console.error('No reply received. Full response:', response.data);
