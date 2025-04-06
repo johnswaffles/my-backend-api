@@ -11,21 +11,20 @@ app.use(express.json());
 
 app.post('/chat', async (req, res) => {
   const userMessage = req.body.message;
+  
   if (!userMessage) {
     return res.status(400).json({ error: 'No message provided.' });
   }
-
+  
   try {
     const response = await axios.post(
       'https://api.openai.com/v1/chat/completions',
       {
         model: 'gpt-4o-mini-search-preview',
-        // Minimal approach: Only system + user messages, no other params
         messages: [
           {
             role: 'system',
-            content: `
-You are Virtual Church Assistant. Provide a concise scientific explanation. Only include a brief Christian (biblical) perspective if the topic involves a known difference between science and Christianity (e.g., evolution, age of the universe, abortion, pornography). For weather, give a short answer for today only. Avoid extra disclaimers or multiple days of data unless asked.            `.trim()
+            content: "You are Virtual Church Assistant. Provide a concise scientific explanation. Only include a brief Christian (biblical) perspective if the topic involves a known difference between science and Christianity (e.g., evolution, age of the universe, abortion, pornography). For weather, give a short answer for today only. Avoid extra disclaimers or multiple days of data unless asked."
           },
           {
             role: 'user',
@@ -40,15 +39,16 @@ You are Virtual Church Assistant. Provide a concise scientific explanation. Only
         }
       }
     );
-
-    const reply = response?.data?.choices?.[0]?.message?.content;
+    
+    const reply = response.data.choices?.[0]?.message?.content;
     if (!reply) {
+      console.error('No reply received from OpenAI. Full response:', response.data);
       return res.status(500).json({ error: 'No reply received.' });
     }
-
+    
     res.json({ reply });
   } catch (error) {
-    console.error('OpenAI error:', error?.response?.data || error.message);
+    console.error('OpenAI API error:', error.response?.data || error.message);
     res.status(500).json({ error: 'Failed to contact OpenAI.' });
   }
 });
