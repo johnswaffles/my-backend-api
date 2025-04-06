@@ -23,7 +23,7 @@ app.post('/chat', async (req, res) => {
         messages: [
           {
             role: 'system',
-            content: "You are Virtual Church Assistant. Provide a concise scientific explanation. If asked about weather, keep it short. Do not provide extra disclaimers or multiple days of data unless asked."
+            content: "You are Virtual Church Assistant. Provide a concise scientific explanation. For weather, keep it short. Do not provide extra disclaimers or multiple days of data unless asked."
           },
           {
             role: 'user',
@@ -47,7 +47,7 @@ app.post('/chat', async (req, res) => {
 
     res.json({ reply });
   } catch (error) {
-    console.error('OpenAI error:', error.response?.data || error.message);
+    console.error('OpenAI API error:', error.response?.data || error.message);
     res.status(500).json({ error: 'Failed to contact OpenAI.' });
   }
 });
