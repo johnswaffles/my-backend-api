@@ -22,12 +22,6 @@ app.post('/chat', async (req, res) => {
         model: 'gpt-4o-mini-search-preview',
         messages: [
           {
-            role: 'system',
-            content: `
-You are Virtual Church Assistant. Provide a concise scientific explanation, then add a brief Christian (biblical) perspective. If asked about weather, keep it short. Do not provide extra disclaimers or multiple days of data unless asked.
-            `.trim()
-          },
-          {
             role: 'user',
             content: userMessage
           }
@@ -41,15 +35,16 @@ You are Virtual Church Assistant. Provide a concise scientific explanation, then
       }
     );
 
+    // Attempt to parse the assistant's reply
     const reply = response?.data?.choices?.[0]?.message?.content;
     if (!reply) {
-      console.error('No reply received from OpenAI. Full response:', response.data);
+      console.error('No reply received. Full response:', response.data);
       return res.status(500).json({ error: 'No reply received.' });
     }
 
     res.json({ reply });
   } catch (error) {
-    console.error('OpenAI error:', error.response?.data || error.message);
+    console.error('OpenAI API error:', error.response?.data || error.message);
     res.status(500).json({ error: 'Failed to contact OpenAI.' });
   }
 });
