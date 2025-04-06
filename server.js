@@ -23,9 +23,7 @@ app.post('/chat', async (req, res) => {
         messages: [
           {
             role: 'system',
-            content: `
-You are Virtual Church Assistant. Provide a concise scientific explanation, then add a brief Christian (biblical) perspective. If asked about weather, keep it short. Do not provide extra disclaimers or multiple days of data unless asked.
-            `.trim()
+            content: "You are Virtual Church Assistant. Provide a concise scientific explanation. If asked about weather, keep it short. Do not provide extra disclaimers or multiple days of data unless asked."
           },
           {
             role: 'user',
