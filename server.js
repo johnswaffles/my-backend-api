@@ -7,7 +7,7 @@ import OpenAI  from "openai";
 dotenv.config();
 
 const PORT        = process.env.PORT || 3000;
-const CHAT_MODEL  = process.env.MODEL      || "gpt-4o-mini";
+const CHAT_MODEL  = process.env.MODEL      || "gpt-4.1-nano";
 const S2T_MODEL   = process.env.S2T_MODEL  || "gpt-4o-mini-transcribe";
 const TTS_MODEL   = process.env.TTS_MODEL  || "gpt-4o-mini-tts";
 
