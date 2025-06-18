@@ -1,2 +1,5 @@
 # Ignore environment files and secrets
 .env
+
+# macOS Finder files
+.DS_Store
