@@ -19,32 +19,48 @@ function addBubble(role, content){
   chatbox.scrollTop = chatbox.scrollHeight;
 }
 
+function showError(msg){
+  console.error(msg);
+  addBubble("ai", `[error] ${msg}`);
+}
+
 async function askLLM(prompt){
   history.push({ role:"user", content:prompt });
   addBubble("user", prompt);
 
-  const { reply } = await fetch(`${BASE}/api/chat`,{
+  const chatRes = await fetch(`${BASE}/api/chat`,{
     method:"POST",
     headers:{ "Content-Type":"application/json" },
     body:JSON.stringify({ history })
-  }).then(r=>r.json());
+  });
+  const chatData = await chatRes.json();
+  if(chatData.error){ return showError(chatData.error); }
+  const reply = chatData.reply;
 
   history.push({ role:"assistant", content:reply });
   addBubble("ai", reply);
 
-  const audioBuf = await fetch(`${BASE}/api/speech`,{
+  const speechRes = await fetch(`${BASE}/api/speech`,{
     method:"POST",
     headers:{ "Content-Type":"application/json" },
     body:JSON.stringify({ text:reply })
-  }).then(r=>r.arrayBuffer());
+  });
+  if(!speechRes.ok){
+    const err = await speechRes.json().catch(()=>({error:"speech failed"}));
+    return showError(err.error || "speech failed");
+  }
+  const audioBuf = await speechRes.arrayBuffer();
 
   const ctx = new AudioContext();
-  ctx.decodeAudioData(audioBuf, buf=>{
+  try{
+    const buf = await ctx.decodeAudioData(audioBuf);
     const src = ctx.createBufferSource();
     src.buffer = buf;
     src.connect(ctx.destination);
     src.start();
-  });
+  }catch(err){
+    showError("could not play audio");
+  }
 }
 
 sendBtn.onclick = ()=>{
@@ -68,13 +84,14 @@ micBtn.onmousedown = async ()=>{
 };
 micBtn.onmouseup = ()=>{
   micBtn.textContent="🎙️";
-  recorder.stop();
   recorder.onstop = async ()=>{
     const blob = new Blob(chunks,{ type:"audio/webm" });
-    const form = new FormData(); form.append("audio", blob, "speech.webm");
-    const { text } = await fetch(`${BASE}/api/transcribe`,{
-      method:"POST", body:form
-    }).then(r=>r.json());
-    askLLM(text);
+    const form = new FormData();
+    form.append("audio", blob, "speech.webm");
+    const resp = await fetch(`${BASE}/api/transcribe`,{ method:"POST", body:form });
+    const data = await resp.json();
+    if(data.error){ return showError(data.error); }
+    askLLM(data.text);
   };
+  recorder.stop();
 };
