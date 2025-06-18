@@ -1,4 +1,5 @@
-const BASE = "https://four-1-backend-api.onrender.com";
+// Use the current page's origin so API requests work in any environment
+const BASE = window.location.origin;
 
 const chatbox = document.getElementById("chatbox");
 const micBtn  = document.getElementById("mic");
