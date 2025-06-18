@@ -1,4 +1,4 @@
-/* ─── server.js – working version (multipart fix) ────────── */
+/* ─── server.js – v2  (uses gpt-4o-audio-preview) ──────────── */
 import express from "express";
 import multer  from "multer";
 import cors    from "cors";
@@ -7,11 +7,11 @@ import OpenAI  from "openai";
 
 dotenv.config();
 
-/* env & model defaults */
+/* model defaults */
 const PORT        = process.env.PORT || 3000;
-const CHAT_MODEL  = process.env.MODEL      || "gpt-4.1-nano";
-const S2T_MODEL   = process.env.S2T_MODEL  || "whisper-1";            // safe
-const TTS_MODEL   = process.env.TTS_MODEL  || "gpt-4o-mini-tts";
+const CHAT_MODEL  = process.env.MODEL      || "gpt-4o-audio-preview";   // text+audio chat
+const S2T_MODEL   = process.env.S2T_MODEL  || "gpt-4o-mini-transcribe"; // speech→text
+const TTS_MODEL   = process.env.TTS_MODEL  || "gpt-4o-audio-preview";   // text→speech
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -21,59 +21,59 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static("public"));
 
-/* multer: in-memory */
+/* multer in-memory (25 MB max) */
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits : { fileSize: 25_000_000 }   // 25 MB
+  limits : { fileSize: 25_000_000 }
 });
 
-/* ── Speech → text ───────────────────────────────────────── */
+/* ── Speech → text ─────────────────────────────────────────── */
 app.post("/api/transcribe", upload.single("audio"), async (req, res) => {
   try {
-    if (!req.file?.buffer) throw new Error("Empty audio buffer");
+    if(!req.file?.buffer) throw new Error("Empty audio buffer");
 
-    const transcript = await openai.audio.transcriptions.create({
+    const transcription = await openai.audio.transcriptions.create({
       model: S2T_MODEL,
       file : { data: req.file.buffer,
                name: req.file.originalname || "speech.webm" },
       response_format: "text"
     });
 
-    res.json({ text: transcript.text || transcript });
+    res.json({ text: transcription.text || transcription });
   } catch (err) {
     console.error("transcribe error:", err.response?.data || err.message || err);
     res.status(500).json({ error: "transcription failed" });
   }
 });
 
-/* ── Chat completion ─────────────────────────────────────── */
+/* ── Chat completion ──────────────────────────────────────── */
 app.post("/api/chat", async (req, res) => {
   try {
     const { history } = req.body;
-    const resp = await openai.chat.completions.create({
+    const chat = await openai.chat.completions.create({
       model   : CHAT_MODEL,
       messages: history,
       stream  : false
     });
-    res.json({ reply: resp.choices[0].message.content });
+    res.json({ reply: chat.choices[0].message.content });
   } catch (err) {
     console.error("chat error:", err.response?.data || err.message || err);
     res.status(500).json({ error: "chat failed" });
   }
 });
 
-/* ── Text → speech ───────────────────────────────────────── */
+/* ── Text → speech ─────────────────────────────────────────── */
 app.post("/api/speech", async (req, res) => {
   try {
     const { text } = req.body;
-    const tts = await openai.audio.speech.create({
+    const audio = await openai.audio.speech.create({
       model : TTS_MODEL,
-      voice : "alloy",
+      voice : "shimmer",      // works with gpt-4o-audio-preview
       input : text,
       format: "wav"
     });
     res.set({ "Content-Type": "audio/wav" });
-    res.send(Buffer.from(await tts.arrayBuffer()));
+    res.send(Buffer.from(await audio.arrayBuffer()));
   } catch (err) {
     console.error("tts error:", err.response?.data || err.message || err);
     res.status(500).json({ error: "tts failed" });
