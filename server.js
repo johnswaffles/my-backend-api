@@ -1,4 +1,4 @@
-/* ─── server.js – full working version ───────────────────── */
+/* ─── server.js – working version (multipart fix) ────────── */
 import express from "express";
 import multer  from "multer";
 import cors    from "cors";
@@ -7,36 +7,38 @@ import OpenAI  from "openai";
 
 dotenv.config();
 
-/* ── env & model defaults ───────────────────────────────── */
+/* env & model defaults */
 const PORT        = process.env.PORT || 3000;
 const CHAT_MODEL  = process.env.MODEL      || "gpt-4.1-nano";
-const S2T_MODEL   = process.env.S2T_MODEL  || "whisper-1";          // ← safe default
+const S2T_MODEL   = process.env.S2T_MODEL  || "whisper-1";            // safe
 const TTS_MODEL   = process.env.TTS_MODEL  || "gpt-4o-mini-tts";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-/* ── express app ────────────────────────────────────────── */
+/* express */
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static("public"));
 
-/* Multer in-memory storage → req.file.buffer */
+/* multer: in-memory */
 const upload = multer({
   storage: multer.memoryStorage(),
   limits : { fileSize: 25_000_000 }   // 25 MB
 });
 
-/* Speech → text */
+/* ── Speech → text ───────────────────────────────────────── */
 app.post("/api/transcribe", upload.single("audio"), async (req, res) => {
   try {
     if (!req.file?.buffer) throw new Error("Empty audio buffer");
 
     const transcript = await openai.audio.transcriptions.create({
       model: S2T_MODEL,
-      file : { buffer: req.file.buffer, name: req.file.originalname || "speech.webm" }
-      /* default response_format=json */
+      file : { data: req.file.buffer,
+               name: req.file.originalname || "speech.webm" },
+      response_format: "text"
     });
+
     res.json({ text: transcript.text || transcript });
   } catch (err) {
     console.error("transcribe error:", err.response?.data || err.message || err);
@@ -44,7 +46,7 @@ app.post("/api/transcribe", upload.single("audio"), async (req, res) => {
   }
 });
 
-/* Chat completion */
+/* ── Chat completion ─────────────────────────────────────── */
 app.post("/api/chat", async (req, res) => {
   try {
     const { history } = req.body;
@@ -60,7 +62,7 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
-/* Text → speech */
+/* ── Text → speech ───────────────────────────────────────── */
 app.post("/api/speech", async (req, res) => {
   try {
     const { text } = req.body;
@@ -78,7 +80,7 @@ app.post("/api/speech", async (req, res) => {
   }
 });
 
-/* Health check */
+/* health */
 app.get("/health", (_, res) => res.json({ status: "ok" }));
 
 app.listen(PORT, () =>
