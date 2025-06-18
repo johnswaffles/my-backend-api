@@ -20,7 +20,7 @@ app.use(express.static("public"));
 
 const upload = multer({ limits: { fileSize: 25_000_000 } }); // 25 MB
 
-/* Speech → text */
+/* ── Speech → text ────────────────────────────── */
 app.post("/api/transcribe", upload.single("audio"), async (req, res) => {
   try {
     const { buffer } = req.file;
@@ -36,7 +36,7 @@ app.post("/api/transcribe", upload.single("audio"), async (req, res) => {
   }
 });
 
-/* Chat */
+/* ── Chat completion ──────────────────────────── */
 app.post("/api/chat", async (req, res) => {
   try {
     const { history } = req.body;
@@ -52,7 +52,7 @@ app.post("/api/chat", async (req, res) => {
   }
 });
 
-/* Text → speech */
+/* ── Text → speech ────────────────────────────── */
 app.post("/api/speech", async (req, res) => {
   try {
     const { text } = req.body;
@@ -76,3 +76,4 @@ app.get("/health", (_, res) => res.json({ status: "ok" }));
 app.listen(PORT, () =>
   console.log(`✅  Server ready  →  http://localhost:${PORT}`)
 );
+
