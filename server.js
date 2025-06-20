@@ -33,7 +33,7 @@ app.post('/chat', async (req, res) => {
   ];
 
   const completion = await openai.chat.completions.create({
-    model: 'gpt-4.1-nano',
+    model: process.env.OPENAI_MODEL || "o3-mini",
     messages
   });
 
