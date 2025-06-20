@@ -40,7 +40,7 @@ app.post('/speech', async (req, res) => {
       },
       body: JSON.stringify({
         text: req.body.text,
-        model_id: 'eleven_tts_v2',
+        model_id: "eleven_multilingual_v2",
         voice_settings: { stability: 0.45, similarity_boost: 0.8 }
       })
     }
