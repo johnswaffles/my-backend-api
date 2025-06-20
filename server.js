@@ -55,3 +55,5 @@ app.post('/speech', async (req, res) => {
 });
 
 app.listen(port, () => console.log(`Johnny listening on ${port}`));
+
+console.log("ELEVEN key ►", (process.env.ELEVENLABS_API_KEY||"").slice(0,8), "… len", (process.env.ELEVENLABS_API_KEY||"").trim().length);
