@@ -14,7 +14,8 @@ app.use(express.static(path.join(process.cwd(), 'public')));
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const VOICE_ID   = process.env.ELEVENLABS_VOICE_ID;
-const ELEVEN_KEY = process.env.ELEVENLABS_API_KEY;
+const ELEVEN_KEY = (process.env.ELEVENLABS_API_KEY || "").trim();
+console.log("ELEVEN key prefix:", (process.env.ELEVENLABS_API_KEY||"").slice(0,6), "len", (process.env.ELEVENLABS_API_KEY||"").length);
 
 app.post('/chat', async (req, res) => {
   const completion = await openai.chat.completions.create({
