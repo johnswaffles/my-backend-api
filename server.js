@@ -29,7 +29,7 @@ app.post('/chat', async (req, res) => {
 
 app.post('/speech', async (req, res) => {
   const r = await fetch(
-    \`https://api.elevenlabs.io/v1/text-to-speech/\${VOICE_ID}/stream\`,
+    `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}/stream`,
     {
       method: 'POST',
       headers: {
@@ -53,4 +53,4 @@ app.post('/speech', async (req, res) => {
   r.body.pipe(res);
 });
 
-app.listen(port, () => console.log(\`Johnny listening on \${port}\`));
+app.listen(port, () => console.log(`Johnny listening on ${port}`));
