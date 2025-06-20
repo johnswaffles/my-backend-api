@@ -29,7 +29,7 @@ app.post('/chat', async (req, res) => {
         "Keep answers short and concise unless the user explicitly asks for more. " +
         "Always be helpful."
     },
-    ...history.map(m => ({ role: m.role, content: m.text }))
+    ...history.map(m => ({ role: m.role === "ai" ? "assistant" : m.role, content: m.text }))
   ];
 
   const completion = await openai.chat.completions.create({
