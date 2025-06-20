@@ -14,20 +14,33 @@ app.use(express.static(path.join(process.cwd(), 'public')));
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const VOICE_ID   = process.env.ELEVENLABS_VOICE_ID;
-const ELEVEN_KEY = (process.env.ELEVENLABS_API_KEY || "").trim();
-console.log("ELEVEN key prefix:", (process.env.ELEVENLABS_API_KEY||"").slice(0,6), "len", (process.env.ELEVENLABS_API_KEY||"").length);
+const ELEVEN_KEY = process.env.ELEVENLABS_API_KEY;
 
+// ── CHAT ──────────────────────────────────────────────────────────────
 app.post('/chat', async (req, res) => {
+  const history = req.body.history ?? [];               // [{role,text},…]
+
+  // build OpenAI messages
+  const messages = [
+    {
+      role: 'system',
+      content:
+        "You are Johnny, a friendly personal assistant. " +
+        "Keep answers short and concise unless the user explicitly asks for more. " +
+        "Always be helpful."
+    },
+    ...history.map(m => ({ role: m.role, content: m.text }))
+  ];
+
   const completion = await openai.chat.completions.create({
     model: 'gpt-4.1-nano',
-    messages: [
-      { role: 'system', content: 'You are Johnny, a helpful personal assistant.' },
-      { role: 'user',   content: req.body.message }
-    ]
+    messages
   });
+
   res.json({ reply: completion.choices[0].message.content });
 });
 
+// ── TTS ───────────────────────────────────────────────────────────────
 app.post('/speech', async (req, res) => {
   const r = await fetch(
     `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}/stream`,
@@ -36,15 +49,16 @@ app.post('/speech', async (req, res) => {
       headers: {
         'xi-api-key': ELEVEN_KEY,
         'Content-Type': 'application/json',
-        'Accept': 'audio/mpeg'
+        Accept: 'audio/mpeg'
       },
       body: JSON.stringify({
         text: req.body.text,
-        model_id: "eleven_multilingual_v2",
+        model_id: 'eleven_multilingual_v2',
         voice_settings: { stability: 0.45, similarity_boost: 0.8 }
       })
     }
   );
+
   if (!r.ok) {
     const msg = await r.text();
     console.error('TTS failed', r.status, msg);
@@ -56,4 +70,3 @@ app.post('/speech', async (req, res) => {
 
 app.listen(port, () => console.log(`Johnny listening on ${port}`));
 
-console.log("ELEVEN key ►", (process.env.ELEVENLABS_API_KEY||"").slice(0,8), "… len", (process.env.ELEVENLABS_API_KEY||"").trim().length);
