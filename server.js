@@ -101,19 +101,16 @@ app.post("/vision", async (req, res) => {
 /* ------------ /image  (GPT-Image-1 generation) ------------------- */
 app.post("/image", async (req, res) => {
   try {
-    const { prompt, size = "1024x1024" } = req.body;          // one simple prompt
+    const { prompt, size = "1024x1024" } = req.body;
 
-    /* GPT-Image-1 is served through the Images endpoint,            */
-    /* NOT the Responses/Tools endpoint. No tools[] and no messages. */
+    /* gpt-image-1 returns a hosted URL; b64 is not required. */
     const gen = await openai.images.generate({
-      model:  "gpt-image-1",
+      model : "gpt-image-1",
       prompt,
-      size,                           // 256x256 · 512x512 · 1024x1024
-      response_format: "b64_json"     //     <-- base-64 PNG
+      size               // 256x256 • 512x512 • 1024x1024
     });
 
-    const b64 = gen.data[0].b64_json;
-    res.json({ b64 });                // { b64:"iVBORw0K…" } back to browser
+    res.json({ url: gen.data[0].url });        // { url:"https://…png" }
   } catch (err) {
     console.error(err);
     res.status(502).json({ error: "img_gen_failed" });
