@@ -33,23 +33,43 @@ app.post("/chat", async (req,res)=>{
   }catch(e){ console.error(e); res.status(500).json({error:"chat-error"});}
 });
 
-/* ---- /vision ------------------------------------------------------ */
-app.post("/vision", async (req,res)=>{
-  try{
-    const {b64,prompt,detail="auto"} = req.body;
-    const messages=[{
-      role:"user",
-      content:[
-        {type:"text",     text: prompt||"Describe this image"},
-        {type:"image_url",image_url:{url:b64,detail}}
-      ]
-    }];
-    const {choices}=await openai.chat.completions.create({
-      model:"gpt-4.1-nano",
-      messages
-    });
-    res.json({reply:choices[0].message.content.trim()});
-  }catch(e){ console.error(e); res.status(500).json({error:"vision-error"});}
+// ---------- /vision -------------------------------------------------
+app.post("/vision", async (req, res) => {
+   try {
+-    const { b64, prompt, detail = "auto" } = req.body;
+-    const messages = [{
+-      role: "user",
+-      content: [
+-        { type: "text",      text: prompt || "Describe this image" },
+-        { type: "image_url", image_url: { url: b64, detail } }
+-      ]
+-    }];
++    const { b64, prompt, detail = "auto" } = req.body;
++
++    /*  GPT-4-vision expects   content: [ {type:"text", text:...},
++                                          {type:"image_url", image_url:{url,detail}} ]  */
++    const messages = [{
++      role: "user",
++      content: [
++        { type: "text",      text: prompt || "Describe this image" },
++        { type: "image_url", image_url: {  url: b64, detail } }   //  << object, not string
++      ]
++    }];
+
+-    const { choices } = await openai.chat.completions.create({
+-      model: "gpt-4.1-nano",
+-      messages
+-    });
++    const { choices } = await openai.chat.completions.create({
++      model: "gpt-4.1-nano",
++      messages
++    });
+
+     res.json({ reply: choices[0].message.content.trim() });
+   } catch (e) {
+     console.error(e);
+     res.status(500).json({ error: "vision-error" });
+   }
 });
 
 /* ---- /image  (GPT-image-1) --------------------------------------- */
