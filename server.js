@@ -98,28 +98,27 @@ app.post("/vision", async (req, res) => {
   }
 });
 
-/* ---------- /image  (generate PNG with gpt-image-1) ----------------
-   Expects { prompt:string, size?:"512x512"|"1024x1024"|… }
-   ------------------------------------------------------------------ */
+/* ------------ /image  (GPT-Image-1 generation) ------------------- */
 app.post("/image", async (req, res) => {
   try {
-    const { prompt, size = "1024x1024" } = req.body;
+    const { prompt } = req.body;               // <-- only the prompt
 
-    const rsp = await openai.responses.create({
-      model : "gpt-image-1",
-      input : prompt,
-      tools : [{ type: "image_generation", parameters: { size } }]
+    /* One-shot call; no parameters object allowed */
+    const { output } = await openai.responses.create({
+      model: "gpt-image-1",
+      input: prompt,
+      tools: [{ type: "image_generation" }]    // <-- keep it this simple
     });
 
-    const imgB64 = rsp.output.find(
-      o => o.type === "image_generation_call"
-    )?.result;
+    /* Extract the first generated PNG */
+    const img64 = output
+      .find(o => o.type === "image_generation_call")?.result;
 
-    if (!imgB64) throw new Error("no-image");
-    res.json({ b64: imgB64 });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "image-error" });
+    if (!img64) return res.status(502).json({ error: "no_image" });
+    res.json({ b64: img64 });
+  } catch (err) {
+    console.error(err);
+    res.status(502).json({ error: "img_gen_failed" });
   }
 });
 
