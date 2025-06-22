@@ -1,95 +1,131 @@
 //--------------------------------------------------------------------
-// NovaMind o4  • GPT-4-nano chat • GPT-image-1 generation • Vision
+//  NovaMind o4 - tiny API for Chat, Vision, Image & optional TTS
 //--------------------------------------------------------------------
 import OpenAI  from "openai";
 import express from "express";
 import cors    from "cors";
 import dotenv  from "dotenv";
+import fetch   from "node-fetch";         // node ≥20 already has fetch; harmless if duplicated
 dotenv.config();
 
-/* ------------ sanity checks --------------------------------------- */
+/* ------------ required keys --------------------------------------- */
 if (!process.env.OPENAI_API_KEY) {
-  console.error("❌  OPENAI_API_KEY missing"); process.exit(1);
+  console.error("❌  Missing OPENAI_API_KEY"); process.exit(1);
 }
+const haveTTS = process.env.ELEVENLABS_API_KEY && process.env.ELEVENLABS_VOICE_ID;
 
-/* ------------ OpenAI client --------------------------------------- */
+/* ------------ clients --------------------------------------------- */
 const openai = new OpenAI();
 
-/* ------------ app -------------------------------------------------- */
+/* ------------ express --------------------------------------------- */
 const app = express();
 app.use(cors());
-app.use(express.json({limit:"10mb"}));          // <-- raise JSON size
+app.use(express.json({ limit: "8mb" }));    // large enough for base-64 images
 
-/* ---- /chat -------------------------------------------------------- */
-app.post("/chat", async (req,res)=>{
-  try{
-    const history=req.body.history??[];
-    const messages=history.map(({role,text})=>({role,content:text}));
-    const {choices}=await openai.chat.completions.create({
-      model: process.env.CHAT_MODEL||"gpt-4.1-nano",
+/* ---------- /chat -------------------------------------------------- */
+app.post("/chat", async (req, res) => {
+  try {
+    const history  = req.body.history ?? [];
+    const messages = history.map(({ role, text }) => ({
+      role   : role === "ai" ? "assistant" : role,
+      content: text
+    }));
+
+    const { choices } = await openai.chat.completions.create({
+      model   : process.env.CHAT_MODEL || "gpt-4.1-nano",
       messages
     });
-    res.json({reply:choices[0].message.content.trim()});
-  }catch(e){ console.error(e); res.status(500).json({error:"chat-error"});}
+
+    res.json({ reply: choices[0].message.content.trim() });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "chat-error" });
+  }
 });
 
-// ---------- /vision -------------------------------------------------
+/* ---------- /speech  (ElevenLabs) --------------------------------- */
+app.post("/speech", async (req, res) => {
+  if (!haveTTS) return res.status(501).end();   // not configured
+  try {
+    const text = req.body.text || "Hello from Johnny Five!";
+    const tts  = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${process.env.ELEVENLABS_VOICE_ID}/stream`,
+      {
+        method : "POST",
+        headers: {
+          "xi-api-key"  : process.env.ELEVENLABS_API_KEY,
+          "Content-Type": "application/json",
+          Accept        : "audio/mpeg"
+        },
+        body   : JSON.stringify({ text })
+      }
+    );
+    if (!tts.ok) {
+      console.error("ElevenLabs", await tts.text());
+      return res.status(502).end();
+    }
+    res.setHeader("Content-Type", "audio/mpeg");
+    tts.body.pipe(res);
+  } catch (e) {
+    console.error(e); res.status(502).end();
+  }
+});
+
+/* ---------- /vision  (image ➜ text) --------------------------------
+   Expects { b64:"data:image/…", prompt?:string, detail?:"low|high|auto" }
+   ------------------------------------------------------------------ */
 app.post("/vision", async (req, res) => {
-   try {
--    const { b64, prompt, detail = "auto" } = req.body;
--    const messages = [{
--      role: "user",
--      content: [
--        { type: "text",      text: prompt || "Describe this image" },
--        { type: "image_url", image_url: { url: b64, detail } }
--      ]
--    }];
-+    const { b64, prompt, detail = "auto" } = req.body;
-+
-+    /*  GPT-4-vision expects   content: [ {type:"text", text:...},
-+                                          {type:"image_url", image_url:{url,detail}} ]  */
-+    const messages = [{
-+      role: "user",
-+      content: [
-+        { type: "text",      text: prompt || "Describe this image" },
-+        { type: "image_url", image_url: {  url: b64, detail } }   //  << object, not string
-+      ]
-+    }];
+  try {
+    const { b64, prompt, detail = "auto" } = req.body;
 
--    const { choices } = await openai.chat.completions.create({
--      model: "gpt-4.1-nano",
--      messages
--    });
-+    const { choices } = await openai.chat.completions.create({
-+      model: "gpt-4.1-nano",
-+      messages
-+    });
+    const messages = [{
+      role   : "user",
+      content: [
+        { type: "text",      text: prompt || "What’s in this image?" },
+        { type: "image_url", image_url: { url: b64, detail } }      // ⭐ object, not raw string
+      ]
+    }];
 
-     res.json({ reply: choices[0].message.content.trim() });
-   } catch (e) {
-     console.error(e);
-     res.status(500).json({ error: "vision-error" });
-   }
-});
-
-/* ---- /image  (GPT-image-1) --------------------------------------- */
-app.post("/image", async (req,res)=>{
-  try{
-    const {prompt="A happy cat"} = req.body;
-    const resp = await openai.responses.create({
-      model:"gpt-image-1",
-      input: prompt,
-      tools:[{type:"image_generation"}],
+    const { choices } = await openai.chat.completions.create({
+      model   : "gpt-4.1-nano",
+      messages
     });
-    const b64 = resp.output.find(o=>o.type==="image_generation_call")?.result;
-    res.json({b64});
-  }catch(e){ console.error(e); res.status(500).json({error:"image-error"});}
+
+    res.json({ reply: choices[0].message.content.trim() });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "vision-error" });
+  }
 });
 
-/* ---- speech unchanged (ElevenLabs) ------------------------------- */
-... keep your existing /speech route ...
+/* ---------- /image  (generate PNG with gpt-image-1) ----------------
+   Expects { prompt:string, size?:"512x512"|"1024x1024"|… }
+   ------------------------------------------------------------------ */
+app.post("/image", async (req, res) => {
+  try {
+    const { prompt, size = "1024x1024" } = req.body;
 
-/* ---- static & launch --------------------------------------------- */
+    const rsp = await openai.responses.create({
+      model : "gpt-image-1",
+      input : prompt,
+      tools : [{ type: "image_generation", parameters: { size } }]
+    });
+
+    const imgB64 = rsp.output.find(
+      o => o.type === "image_generation_call"
+    )?.result;
+
+    if (!imgB64) throw new Error("no-image");
+    res.json({ b64: imgB64 });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "image-error" });
+  }
+});
+
+/* ---------- static files (optional) ------------------------------- */
 app.use(express.static("public"));
-const PORT=process.env.PORT||10000;
-app.listen(PORT,()=>console.log("NovaMind o4 API on :"+PORT));
+
+/* ---------- go! ---------------------------------------------------- */
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => console.log(`NovaMind o4 listening on :${PORT}`));
