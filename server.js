@@ -101,21 +101,19 @@ app.post("/vision", async (req, res) => {
 /* ------------ /image  (GPT-Image-1 generation) ------------------- */
 app.post("/image", async (req, res) => {
   try {
-    const { prompt } = req.body;               // <-- only the prompt
+    const { prompt, size = "1024x1024" } = req.body;          // one simple prompt
 
-    /* One-shot call; no parameters object allowed */
-    const { output } = await openai.responses.create({
-      model: "gpt-image-1",
-      input: prompt,
-      tools: [{ type: "image_generation" }]    // <-- keep it this simple
+    /* GPT-Image-1 is served through the Images endpoint,            */
+    /* NOT the Responses/Tools endpoint. No tools[] and no messages. */
+    const gen = await openai.images.generate({
+      model:  "gpt-image-1",
+      prompt,
+      size,                           // 256x256 · 512x512 · 1024x1024
+      response_format: "b64_json"     //     <-- base-64 PNG
     });
 
-    /* Extract the first generated PNG */
-    const img64 = output
-      .find(o => o.type === "image_generation_call")?.result;
-
-    if (!img64) return res.status(502).json({ error: "no_image" });
-    res.json({ b64: img64 });
+    const b64 = gen.data[0].b64_json;
+    res.json({ b64 });                // { b64:"iVBORw0K…" } back to browser
   } catch (err) {
     console.error(err);
     res.status(502).json({ error: "img_gen_failed" });
