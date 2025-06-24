@@ -107,36 +107,20 @@ app.post("/api/speech", async (req, res) => {
   }
 });
 
-/* ───────────────────────────────────────────────────────────────
-   POST /api/analyze – vision + text  (NEW)
-────────────────────────────────────────────────────────────────── */
-app.post("/api/analyze", upload.single("file"), async (req, res) => {
-  try {
-    if (!req.file?.buffer) throw new Error("No image uploaded");
-    const { prompt = "" } = req.body;
-
-    const base64 = req.file.buffer.toString("base64");
-    const dataUrl = `data:${req.file.mimetype};base64,${base64}`;
-
-    const chat = await openai.chat.completions.create({
-      model   : MODEL,
-      messages: [
-        {
-          role   : "user",
-          content: [
-            { type: "text",   text: prompt || "Describe this image." },
-            { type: "image",  image_url: dataUrl }
-          ]
-        }
-      ],
-      stream  : false
-    });
-
-    res.json({ answer: chat.choices[0].message.content });
-  } catch (err) {
-    console.error("analyze error:", err.response?.data || err.message || err);
-    res.status(500).json({ error: "analysis failed" });
-  }
+/* /api/analyze --------------------------------------------------------- */
+app.post("/api/analyze", upload.single("file"), async (req,res)=>{
+  try{
+    if(!req.file?.buffer) return res.status(400).json({error:"file missing"});
+    const url=`data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+    const q=(req.body.prompt||"").trim();
+    const msgs=q?
+      [{role:"system",content:"Answer using ONLY the image."},
+       {role:"user",content:[{type:"image_url",image_url:{url}},{type:"text",text:q}]}]:
+      [{role:"user",content:[{type:"image_url",image_url:{url}},
+                             {type:"text",text:"Describe image in two sentences then ask a follow-up."}]}];
+    const out=await openai.chat.completions.create({model:MODEL,messages:msgs});
+    res.json({answer:out.choices[0].message.content});
+  }catch(e){console.error("analyze error:",e.message);res.status(500).json({error:"analyze failed"});}
 });
 
 /* health check */
