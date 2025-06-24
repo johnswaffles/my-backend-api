@@ -1,34 +1,34 @@
 /* ───────────────────────────  server.js  ──────────────────────────
    • /api/chat      – GPT-4o-mini text chat
-   • /api/analyze   – vision Q&A with image context
+   • /api/analyze   – Vision Q&A with an uploaded image
    • /api/speech    – OpenAI TTS (mp3)
    • /api/health    – simple health check
-   Node 18+  ·  ES-module syntax
+   ES-module syntax · Node 18+
 ──────────────────────────────────────────────────────────────────── */
 
 import express from "express";
 import cors    from "cors";
 import dotenv  from "dotenv";
 import OpenAI  from "openai";
-import multer  from "multer";           // ← only ONE import
+import multer  from "multer";            // single import — don’t duplicate!
 
 dotenv.config();
 
 /* ── config ─────────────────────────────────────────────────────── */
-const PORT          = process.env.PORT          || 3000;
-const CHAT_MODEL    = process.env.CHAT_MODEL    || "gpt-4o-mini";
-const VISION_MODEL  = process.env.VISION_MODEL  || "gpt-4o-mini";
-const TTS_MODEL     = process.env.TTS_MODEL     || "tts-1";
+const PORT          = process.env.PORT         || 3000;
+const CHAT_MODEL    = process.env.CHAT_MODEL   || "gpt-4o-mini";
+const VISION_MODEL  = process.env.VISION_MODEL || "gpt-4o-mini";
+const TTS_MODEL     = process.env.TTS_MODEL    || "tts-1";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 /* ── express setup ──────────────────────────────────────────────── */
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: "2mb" }));                // chat payloads
-const upload = multer({                                 // image payloads
+app.use(express.json({ limit: "2mb" }));                     // chat & tts JSON
+const upload = multer({                                      // image uploads
   storage: multer.memoryStorage(),
-  limits : { fileSize: 25 * 1024 * 1024 }               // 25 MB
+  limits : { fileSize: 25 * 1024 * 1024 }                    // 25 MB
 });
 
 /* ───────────────────────────  /api/chat  ──────────────────────── */
@@ -36,12 +36,15 @@ app.post("/api/chat", async (req, res) => {
   try {
     const { history = [] } = req.body;
     const msgs = Array.isArray(history) ? history : [];
+
+    /* prepend dummy user msg if first is assistant (OpenAI requirement) */
     if (msgs[0]?.role === "assistant") msgs.unshift({ role: "user", content: "" });
 
     const out = await openai.chat.completions.create({
       model   : CHAT_MODEL,
       messages: msgs
     });
+
     res.json({ reply: out.choices[0].message.content });
   } catch (err) {
     console.error("chat error:", err.message);
@@ -54,21 +57,21 @@ app.post("/api/analyze", upload.single("file"), async (req, res) => {
   try {
     if (!req.file?.buffer) return res.status(400).json({ error: "file missing" });
 
-    const url = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
-    const q   = (req.body.prompt || "").trim();
+    const dataURL = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+    const prompt  = (req.body.prompt || "").trim();
 
-    const messages = q
+    const messages = prompt
       ? [
-          { role: "system", content: "Answer the user's question using ONLY the image. Do NOT ask further questions." },
+          { role: "system", content: "Answer the user's question using ONLY the image. Do NOT ask follow-up questions." },
           { role: "user",   content: [
-              { type: "image_url", image_url: { url } },
-              { type: "text",      text: q }
+              { type:"image_url", image_url:{ url: dataURL } },
+              { type:"text",      text: prompt }
           ]}
         ]
       : [
           { role: "user", content: [
-              { type: "image_url", image_url: { url } },
-              { type: "text", text: "Describe this image in two sentences, then ask what the user would like to know." }
+              { type:"image_url", image_url:{ url: dataURL } },
+              { type:"text", text: "Describe this image in two short sentences, then ask what the user would like to know about it." }
           ]}
         ];
 
@@ -76,6 +79,7 @@ app.post("/api/analyze", upload.single("file"), async (req, res) => {
       model   : VISION_MODEL,
       messages
     });
+
     res.json({ answer: out.choices[0].message.content });
   } catch (err) {
     console.error("analyze error:", err.message);
@@ -104,5 +108,5 @@ app.post("/api/speech", async (req, res) => {
 /* ───────────────────────────  /api/health  ────────────────────── */
 app.get("/api/health", (_, res) => res.json({ status: "ok" }));
 
-/* ───────────────────────────  start  ──────────────────────────── */
-app.listen(PORT, () => console.log(`✅  Server ready → http://localhost:${PORT}`));
+/* ───────────────────────────  start server  ───────────────────── */
+app.listen(PORT, () => console.log(`✅  Server ready  →  http://localhost:${PORT}`));
