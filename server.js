@@ -1,124 +1,109 @@
-/* ─────────────────────────  server.js  ───────────────────────────
-   • /api/chat      – GPT-4o-mini text chat
-   • /api/analyze   – Vision Q-and-A with uploaded image
-   • /api/speech    – OpenAI TTS (mp3)
-   • /api/health    – simple health check
-   ES-module syntax · Node 18+ / 20+
-─────────────────────────────────────────────────────────────────── */
+/* ─────────────────────────────  server.js  ─────────────────────────────
+   Routes
+     /api/chat     – text chat  (GPT-4.1-nano)
+     /api/analyze  – vision Q&A (GPT-4.1-nano)
+     /api/speech   – ElevenLabs-only TTS
+     /api/health   – health check
+   Node 18+  ·  ES-module syntax
+───────────────────────────────────────────────────────────────────────── */
 
 import express from "express";
 import cors    from "cors";
 import dotenv  from "dotenv";
 import OpenAI  from "openai";
-import multer  from "multer";          // ← single import; don’t duplicate
-
+import multer  from "multer";
 dotenv.config();
 
-/* ── configuration ─────────────────────────────────────────────── */
-const PORT          = process.env.PORT         || 3000;
-const CHAT_MODEL    = process.env.CHAT_MODEL   || "gpt-4o-mini";
-const VISION_MODEL  = process.env.VISION_MODEL || "gpt-4o-mini";
-const TTS_MODEL     = process.env.TTS_MODEL    || "tts-1";
+/* ── env + defaults ─────────────────────────────────────────────── */
+const PORT        = process.env.PORT || 3000;
+const MODEL       = process.env.MODEL || "gpt-4.1-nano";  // one var for both
+const ELEVEN_KEY  = process.env.ELEVENLABS_API_KEY  || "";
+const ELEVEN_ID   = process.env.ELEVENLABS_VOICE_ID || "Bella";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-/* ── Express setup ─────────────────────────────────────────────── */
+/* ── express middleware ─────────────────────────────────────────── */
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: "2mb" }));               // chat / TTS JSON
+app.use(express.json({ limit: "2mb" }));             // chat / TTS JSON
+const upload = multer({ storage: multer.memoryStorage(),
+                        limits : { fileSize: 25 * 1024 * 1024 }}); // 25 MB
 
-const upload = multer({                                // image uploads
-  storage: multer.memoryStorage(),
-  limits : { fileSize: 25 * 1024 * 1024 }              // 25 MB
-});
-
-/* ───────────────────────────  /api/chat  ─────────────────────── */
+/* ───────────────────────────  /api/chat  ───────────────────────── */
 app.post("/api/chat", async (req, res) => {
   try {
-    const { history = [] } = req.body;
-    const messages = Array.isArray(history) ? history : [];
+    const msgs = Array.isArray(req.body.history) ? req.body.history : [];
+    if (msgs[0]?.role === "assistant") msgs.unshift({ role: "user", content: "" });
 
-    /* OpenAI requires first message not be assistant-role */
-    if (messages[0]?.role === "assistant") {
-      messages.unshift({ role: "user", content: "" });
-    }
-
-    const completion = await openai.chat.completions.create({
-      model   : CHAT_MODEL,
-      messages
+    const out = await openai.chat.completions.create({
+      model   : MODEL,
+      messages: msgs
     });
-
-    res.json({ reply: completion.choices[0].message.content });
+    res.json({ reply: out.choices[0].message.content });
   } catch (err) {
     console.error("chat error:", err.message);
     res.status(500).json({ error: "chat failed" });
   }
 });
 
-/* ───────────────────────────  /api/analyze  ──────────────────── */
+/* ───────────────────────────  /api/analyze  ────────────────────── */
 app.post("/api/analyze", upload.single("file"), async (req, res) => {
   try {
     if (!req.file?.buffer) return res.status(400).json({ error: "file missing" });
 
-    const imgDataURL =
-      `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
-    const prompt = (req.body.prompt || "").trim();
+    const img = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+    const q   = (req.body.prompt || "").trim();
 
-    const messages = prompt
+    const messages = q
       ? [
-          { role: "system",
-            content: "Answer the user's question using ONLY the image. "
-                   + "Do NOT ask follow-up questions." },
-          { role: "user",
-            content: [
-              { type: "image_url", image_url: { url: imgDataURL } },
-              { type: "text",      text: prompt }
-            ]}
+          { role:"system",
+            content:"Answer the user's question using ONLY the image. Do NOT ask follow-up questions."},
+          { role:"user",
+            content:[ {type:"image_url",image_url:{url:img}},{type:"text",text:q} ]}
         ]
       : [
-          { role: "user",
-            content: [
-              { type: "image_url", image_url: { url: imgDataURL } },
-              { type: "text",
-                text: "Describe this image in two short sentences, then ask "
-                    + "what the user would like to know." }
-            ]}
+          { role:"user",
+            content:[ {type:"image_url",image_url:{url:img}},
+                      {type:"text",
+                       text:"Describe this image in two short sentences, then ask what the user wants to know."} ]}
         ];
 
-    const completion = await openai.chat.completions.create({
-      model   : VISION_MODEL,
-      messages
-    });
-
-    res.json({ answer: completion.choices[0].message.content });
+    const out = await openai.chat.completions.create({ model: MODEL, messages });
+    res.json({ answer: out.choices[0].message.content });
   } catch (err) {
     console.error("analyze error:", err.message);
     res.status(500).json({ error: "analyze failed" });
   }
 });
 
-/* ───────────────────────────  /api/speech  ───────────────────── */
+/* ───────────────────────────  /api/speech  ─────────────────────── */
 app.post("/api/speech", async (req, res) => {
   try {
-    const { text = "" } = req.body;
-    const audio = await openai.audio.speech.create({
-      model : TTS_MODEL,
-      voice : "alloy",
-      input : text,
-      format: "mp3"
+    if (!ELEVEN_KEY || !ELEVEN_ID)
+      throw new Error("ElevenLabs credentials missing");
+
+    const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_ID}`,{
+      method :"POST",
+      headers:{
+        "xi-api-key"  : ELEVEN_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ text:req.body.text||"", model_id:"eleven_multilingual_v2" })
     });
-    res.set({ "Content-Type": "audio/mpeg" });
-    res.send(Buffer.from(await audio.arrayBuffer()));
+
+    if (!r.ok) throw new Error(`ElevenLabs error ${r.status}`);
+    const buf = Buffer.from(await r.arrayBuffer());
+    res.set({ "Content-Type":"audio/mpeg" }).send(buf);
   } catch (err) {
     console.error("tts error:", err.message);
     res.status(500).json({ error: "tts failed" });
   }
 });
 
-/* ───────────────────────────  /api/health  ───────────────────── */
-app.get("/api/health", (_, res) => res.json({ status: "ok" }));
+/* ───────────────────────────  /api/health  ─────────────────────── */
+app.get("/api/health", (_, res) => res.json({ status:"ok" }));
 
-/* ───────────────────────────  start  ─────────────────────────── */
+/* ───────────────────────────  start  ───────────────────────────── */
 app.listen(PORT, () =>
-  console.log(`✅  Server ready  →  http://localhost:${PORT}`)
+  console.log(`✅  Server ready  → http://localhost:${PORT}`)
 );
