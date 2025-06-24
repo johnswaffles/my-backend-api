@@ -9,6 +9,7 @@
     "cors": "2.8.5",
     "dotenv": "16.4.5",
     "express": "4.19.2",
+    "multer": "^2.0.1",
     "node-fetch": "3.3.2",
     "openai": "^5.5.1"
   }
