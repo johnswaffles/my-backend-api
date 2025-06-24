@@ -41,27 +41,20 @@ app.post("/api/chat", async (req,res)=>{
   }
 });
 
-/* ───────────────── /api/analyze ────────────────────────────── */
+/* /api/analyze --------------------------------------------------------- */
 app.post("/api/analyze", upload.single("file"), async (req,res)=>{
   try{
     if(!req.file?.buffer) return res.status(400).json({error:"file missing"});
-    const prompt = (req.body.prompt||"").trim();
-    const dataURL = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
-
-    const messages = [{
-      role:"user",
-      content:[
-        {type:"text",text: prompt || "Describe this image in two sentences then ask a follow-up."},
-        {type:"image_url",image_url:{url:dataURL}}
-      ]
-    }];
-
-    const out = await openai.chat.completions.create({model:VISION_MODEL,messages});
+    const url=`data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+    const q=(req.body.prompt||"").trim();
+    const msgs=q?
+      [{role:"system",content:"Answer using ONLY the image."},
+       {role:"user",content:[{type:"image_url",image_url:{url}},{type:"text",text:q}]}]:
+      [{role:"user",content:[{type:"image_url",image_url:{url}},
+                             {type:"text",text:"Describe image in two sentences then ask a follow-up."}]}];
+    const out=await openai.chat.completions.create({model:MODEL,messages:msgs});
     res.json({answer:out.choices[0].message.content});
-  }catch(e){
-    console.error("analyze:",e.response?.data||e.message);
-    res.status(500).json({error:"analyze failed"});
-  }
+  }catch(e){console.error("analyze error:",e.message);res.status(500).json({error:"analyze failed"});}
 });
 
 /* ───────────────── /api/speech ─────────────────────────────── */
