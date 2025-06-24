@@ -1,112 +1,117 @@
-/* ───────────────────────────  server.js  ──────────────────────────
-   • /api/chat      – GPT-4o-mini text chat
-   • /api/analyze   – Vision Q&A with an uploaded image
-   • /api/speech    – OpenAI TTS (mp3)
-   • /api/health    – simple health check
-   ES-module syntax · Node 18+
-──────────────────────────────────────────────────────────────────── */
+k/* ───────────────────────────────────────────────────────────────
+   server.js  ·  English‑only voice + chat backend
+   • Speech → text  (gpt‑4o‑transcribe or whisper‑1)
+   • Chat completion (gpt‑4o‑audio‑preview)
+   • Text → speech  (gpt‑4o‑audio‑preview – "shimmer" voice)
+   • Temp‑file upload avoids multipart parse errors
+────────────────────────────────────────────────────────────────── */
 
-import express from "express";
-import cors    from "cors";
-import dotenv  from "dotenv";
-import OpenAI  from "openai";
-import multer  from "multer";            // single import — don’t duplicate!
+import express             from "express";
+import multer              from "multer";
+import cors                from "cors";
+import dotenv              from "dotenv";
+import OpenAI              from "openai";
+import { writeFile, unlink } from "fs/promises";
+import { createReadStream }  from "fs";
+import { randomUUID }        from "crypto";
 
 dotenv.config();
 
-/* ── config ─────────────────────────────────────────────────────── */
-const PORT          = process.env.PORT         || 3000;
-const CHAT_MODEL    = process.env.CHAT_MODEL   || "gpt-4o-mini";
-const VISION_MODEL  = process.env.VISION_MODEL || "gpt-4o-mini";
-const TTS_MODEL     = process.env.TTS_MODEL    || "tts-1";
+/* ── model defaults (env vars override) ───────────────────────── */
+const PORT        = process.env.PORT || 3000;
+const CHAT_MODEL  = process.env.MODEL      || "gpt-4o-audio-preview";
+const S2T_MODEL   = process.env.S2T_MODEL  || "gpt-4o-transcribe";   // or whisper-1
+const TTS_MODEL   = process.env.TTS_MODEL  || "gpt-4o-audio-preview";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-/* ── express setup ──────────────────────────────────────────────── */
+/* ── express setup ────────────────────────────────────────────── */
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: "2mb" }));                     // chat & tts JSON
-const upload = multer({                                      // image uploads
+app.use(express.json());
+
+const upload = multer({
   storage: multer.memoryStorage(),
-  limits : { fileSize: 25 * 1024 * 1024 }                    // 25 MB
+  limits : { fileSize: 25_000_000 }     // 25 MB
 });
 
-/* ───────────────────────────  /api/chat  ──────────────────────── */
+/* ───────────────────────────────────────────────────────────────
+   POST /api/transcribe  – speech → text (English)
+────────────────────────────────────────────────────────────────── */
+app.post("/api/transcribe", upload.single("audio"), async (req, res) => {
+  try {
+    if (!req.file?.buffer) throw new Error("Empty audio buffer");
+
+    // write buffer to a temp file and stream to OpenAI
+    const tmp = `/tmp/${randomUUID()}.webm`;
+    await writeFile(tmp, req.file.buffer);
+
+    const transcription = await openai.audio.transcriptions.create({
+      model : S2T_MODEL,
+      file  : createReadStream(tmp),   // <<< critical line
+      language: "en",
+      response_format: "text"
+    });
+
+    await unlink(tmp).catch(() => {});
+    res.json({ text: transcription.text });
+  } catch (err) {
+    console.error("transcribe error:", err.response?.data || err.message || err);
+    res.status(500).json({ error: "transcription failed" });
+  }
+});
+
+/* ───────────────────────────────────────────────────────────────
+   POST /api/chat  – LLM completion (English)
+────────────────────────────────────────────────────────────────── */
 app.post("/api/chat", async (req, res) => {
   try {
     const { history = [] } = req.body;
-    const msgs = Array.isArray(history) ? history : [];
 
-    /* prepend dummy user msg if first is assistant (OpenAI requirement) */
-    if (msgs[0]?.role === "assistant") msgs.unshift({ role: "user", content: "" });
+    const messages = Array.isArray(history) ? history.filter(
+      m => m && typeof m.content === "string" && m.content.trim().length
+    ) : [];
 
-    const out = await openai.chat.completions.create({
+    const chat = await openai.chat.completions.create({
       model   : CHAT_MODEL,
-      messages: msgs
+      messages,
+      stream  : false
     });
 
-    res.json({ reply: out.choices[0].message.content });
+    res.json({ reply: chat.choices[0].message.content });
   } catch (err) {
-    console.error("chat error:", err.message);
+    console.error("chat error:", err.response?.data || err.message || err);
     res.status(500).json({ error: "chat failed" });
   }
 });
 
-/* ───────────────────────────  /api/analyze  ───────────────────── */
-app.post("/api/analyze", upload.single("file"), async (req, res) => {
-  try {
-    if (!req.file?.buffer) return res.status(400).json({ error: "file missing" });
-
-    const dataURL = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
-    const prompt  = (req.body.prompt || "").trim();
-
-    const messages = prompt
-      ? [
-          { role: "system", content: "Answer the user's question using ONLY the image. Do NOT ask follow-up questions." },
-          { role: "user",   content: [
-              { type:"image_url", image_url:{ url: dataURL } },
-              { type:"text",      text: prompt }
-          ]}
-        ]
-      : [
-          { role: "user", content: [
-              { type:"image_url", image_url:{ url: dataURL } },
-              { type:"text", text: "Describe this image in two short sentences, then ask what the user would like to know about it." }
-          ]}
-        ];
-
-    const out = await openai.chat.completions.create({
-      model   : VISION_MODEL,
-      messages
-    });
-
-    res.json({ answer: out.choices[0].message.content });
-  } catch (err) {
-    console.error("analyze error:", err.message);
-    res.status(500).json({ error: "analyze failed" });
-  }
-});
-
-/* ───────────────────────────  /api/speech  ────────────────────── */
+/* ───────────────────────────────────────────────────────────────
+   POST /api/speech  – text → speech (wav, shimmer)
+────────────────────────────────────────────────────────────────── */
 app.post("/api/speech", async (req, res) => {
   try {
-    const { text = "" } = req.body;
+    const { text } = req.body;
     const audio = await openai.audio.speech.create({
       model : TTS_MODEL,
-      voice : "alloy",
+      voice : "shimmer",
       input : text,
-      format: "mp3"
+      format: "wav"
     });
-    res.set({ "Content-Type": "audio/mpeg" });
+    res.set({
+      "Content-Type": "audio/wav; codecs=1",
+      "Content-Disposition": 'inline; filename="reply.wav"'
+    });
     res.send(Buffer.from(await audio.arrayBuffer()));
   } catch (err) {
-    console.error("tts error:", err.message);
+    console.error("tts error:", err.response?.data || err.message || err);
     res.status(500).json({ error: "tts failed" });
   }
 });
 
-/* ───────────────────────────  /api/health  ────────────────────── */
-app.get("/api/health", (_, res) => res.json({ status: "ok" }));
+/* health */
+app.get("/health", (_, res) => res.json({ status: "ok" }));
 
-/* ───────────────────────────  start server  ───────────────────── */
-app.listen(PORT, () => console.log(`✅  Server ready  →  http://localhost:${PORT}`));
+app.listen(PORT, () =>
+  console.log(`✅  Server ready  →  http://localhost:${PORT}`)
+);
+
