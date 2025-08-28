@@ -14,7 +14,7 @@ const CHAT_MODEL  = process.env.GEMINI_CHAT_MODEL  || "gemini-2.5-flash";
 const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image-preview";
 const API_KEY     = process.env.GEMINI_API_KEY;
 
-async function gen(model, body) {
+async function gemini(model, body) {
   const r = await fetch(`${BASE}/${model}:generateContent`, {
     method: "POST",
     headers: { "x-goog-api-key": API_KEY, "Content-Type": "application/json" },
@@ -33,76 +33,54 @@ app.get("/health", (_req, res) =>
   res.json({ ok: true, chat_model: CHAT_MODEL, image_model: IMAGE_MODEL })
 );
 
-// analyze
-app.post("/analyze", async (req, res) => {
-  try {
-    const { images = [] } = req.body || {};
-    if (!images.length) return res.status(400).json({ error: "images[] required" });
-    const body = {
-      systemInstruction: { parts: [{ text:
-        "You analyze images. Reply with concise bullet points: subject, scene, colors, style, mood, camera angle, visible text, notable details."
-      }]},
-      contents: [{
-        parts: images.map(b64 => ({
-          inlineData: {
-            mimeType: b64.startsWith("iVBORw0") ? "image/png" : "image/jpeg",
-            data: b64
-          }
-        }))
-      }]
-    };
-    const out = await gen(CHAT_MODEL, body);
-    res.json({ summary: out.text });
-  } catch (e) { res.status(500).json({ error: String(e.message||e) }); }
-});
+// 1) Analyze helper (image(s) -> scene description)
+async function analyzeImages(b64s) {
+  const body = {
+    systemInstruction: { parts: [{ text:
+      "Summarize the image(s) in compact, factual bullet points covering: subjects, pose, clothing/fur/colors, background, camera angle/framing, lighting, style cues. No opinions."
+    }]},
+    contents: [{ parts: b64s.map(x => ({
+      inlineData: { mimeType: x.startsWith("iVBORw0") ? "image/png" : "image/jpeg", data: x }
+    })) }]
+  };
+  const out = await gemini(CHAT_MODEL, body);
+  return out.text.trim();
+}
 
-// text → image
+// 2) Text -> image
 app.post("/image", async (req, res) => {
   try {
     const { prompt = "" } = req.body || {};
     if (!prompt) return res.status(400).json({ error: "prompt required" });
-    const body = { contents: [{ parts: [{ text: prompt }]}] };
-    const out = await gen(IMAGE_MODEL, body);
+    const out = await gemini(IMAGE_MODEL, { contents: [{ parts: [{ text: prompt }]}] });
     if (!out.image_b64) return res.status(502).json({ error: "no image" });
-    res.json({ provider: "google-gemini", model: IMAGE_MODEL, image_b64: out.image_b64 });
+    res.json({ image_b64: out.image_b64, model: IMAGE_MODEL });
   } catch (e) { res.status(500).json({ error: String(e.message||e) }); }
 });
 
-// image edit
+// 3) Edit (pipeline: analyze -> re-render with style)
 app.post("/image-edit", async (req, res) => {
   try {
     const { prompt = "", images = [] } = req.body || {};
     if (!prompt) return res.status(400).json({ error: "prompt required" });
     if (!images.length) return res.status(400).json({ error: "images[] required" });
 
-    const SYSTEM =
-      "You are an IMAGE EDITOR. Always apply a VISIBLE transformation. " +
-      "Preserve subject identity and composition unless told otherwise. " +
-      "Re-render in the requested STYLE (e.g., watercolor/oil/pencil). " +
-      "Never return the unedited source image. Return exactly one EDITED image.";
+    // A) Analyze uploaded image(s)
+    const scene = await analyzeImages(images);
 
-    const STYLE_HINTS =
-      "If asked for watercolor: add brush strokes, pigment pooling, paper texture. " +
-      "Do NOT copy source pixels; re-render in the new style.";
+    // B) Re-render scene with requested style (no inline source -> avoids echo)
+    const styleGuide =
+      "Recreate the same scene and composition described. Preserve subject identity and arrangement. " +
+      "Apply the requested artistic restyle so the change is clearly visible. Return one image only.";
+    const fullPrompt =
+      `Scene description (from user photo):\n${scene}\n\n` +
+      `Edits to apply: ${prompt}.\n` +
+      styleGuide;
 
-    const parts = [
-      ...images.map(b64 => ({
-        inlineData: {
-          mimeType: b64.startsWith("iVBORw0") ? "image/png" : "image/jpeg",
-          data: b64
-        }
-      })),
-      { text: `EDIT INSTRUCTIONS: ${prompt}\n${STYLE_HINTS}\nReturn only the edited image.` }
-    ];
-
-    const body = {
-      systemInstruction: { parts: [{ text: SYSTEM }] },
-      contents: [{ parts }]
-    };
-
-    const out = await gen(IMAGE_MODEL, body);
+    const out = await gemini(IMAGE_MODEL, { contents: [{ parts: [{ text: fullPrompt }]}] });
     if (!out.image_b64) return res.status(502).json({ error: "no image" });
-    res.json({ provider: "google-gemini", model: IMAGE_MODEL, image_b64: out.image_b64 });
+
+    res.json({ image_b64: out.image_b64, model: IMAGE_MODEL });
   } catch (e) { res.status(500).json({ error: String(e.message||e) }); }
 });
 
