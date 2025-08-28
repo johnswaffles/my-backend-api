@@ -6,26 +6,26 @@ import fetch from "node-fetch";
 
 const app = express();
 app.use(cors({ origin: "*" }));
-app.use(express.json({ limit: "15mb" })); // large base64
+app.use(express.json({ limit: "20mb" }));
 app.use(morgan("tiny"));
 
 const BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const CHAT_MODEL  = process.env.GEMINI_CHAT_MODEL  || "gemini-2.5-flash";
 const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image-preview";
-const API_KEY = process.env.GEMINI_API_KEY;
+const API_KEY     = process.env.GEMINI_API_KEY;
 
-async function callGemini(model, parts) {
+async function gen(model, body) {
   const r = await fetch(`${BASE}/${model}:generateContent`, {
     method: "POST",
     headers: { "x-goog-api-key": API_KEY, "Content-Type": "application/json" },
-    body: JSON.stringify({ contents: [{ parts }] })
+    body: JSON.stringify(body)
   });
   const data = await r.json();
   if (!r.ok) throw new Error(data?.error?.message || `google ${r.status}`);
-  const out = data?.candidates?.[0]?.content?.parts || [];
+  const parts = data?.candidates?.[0]?.content?.parts || [];
   return {
-    text: out.find(p => p.text)?.text || "",
-    image_b64: out.find(p => p.inlineData)?.inlineData?.data || null
+    text: parts.find(p => p.text)?.text || "",
+    image_b64: parts.find(p => p.inlineData)?.inlineData?.data || null
   };
 }
 
@@ -33,51 +33,67 @@ app.get("/health", (_req, res) =>
   res.json({ ok: true, chat_model: CHAT_MODEL, image_model: IMAGE_MODEL })
 );
 
-// Analyze image(s) -> bullets
+// Analyze
 app.post("/analyze", async (req, res) => {
   try {
     const { images = [] } = req.body || {};
     if (!images.length) return res.status(400).json({ error: "images[] required" });
-    const parts = [
-      { text: "Describe the image(s) in concise bullet points: subjects, scene, colors, style, mood, camera angle, visible text, notable details." },
-      ...images.map(b64 => ({ inlineData: { mimeType: "image/jpeg", data: b64 } }))
-    ];
-    const out = await callGemini(CHAT_MODEL, parts);
+
+    const body = {
+      systemInstruction: { parts: [{ text:
+        "You analyze images. Reply with concise bullet points: subject, scene, colors, style, mood, camera angle, visible text, notable details."
+      }]},
+      contents: [{
+        parts: [
+          ...images.map(b64 => ({ inlineData: { mimeType: "image/jpeg", data: b64 }}))
+        ]
+      }]
+    };
+
+    const out = await gen(CHAT_MODEL, body);
     res.json({ summary: out.text });
   } catch (e) { res.status(500).json({ error: String(e.message||e) }); }
 });
 
-// Text -> image
+// Text → image
 app.post("/image", async (req, res) => {
   try {
     const { prompt = "" } = req.body || {};
     if (!prompt) return res.status(400).json({ error: "prompt required" });
-    const out = await callGemini(IMAGE_MODEL, [{ text: prompt }]);
+
+    const body = { contents: [{ parts: [{ text: prompt }]}] };
+    const out = await gen(IMAGE_MODEL, body);
     if (!out.image_b64) return res.status(502).json({ error: "no image" });
     res.json({ provider: "google-gemini", model: IMAGE_MODEL, image_b64: out.image_b64, synthid: true });
   } catch (e) { res.status(500).json({ error: String(e.message||e) }); }
 });
 
-// Image edit (true transform)
+// Image edit (force true style transform)
 app.post("/image-edit", async (req, res) => {
   try {
     const { prompt = "", images = [] } = req.body || {};
     if (!prompt) return res.status(400).json({ error: "prompt required" });
     if (!images.length) return res.status(400).json({ error: "images[] required" });
 
-    // Strong directive to avoid echoing original
-    const directive =
-      "Transform the following image(s) according to the instructions. " +
-      "Preserve composition and identity unless explicitly changed. " +
-      "Apply the requested ARTISTIC RESTYLE to the entire image. " +
-      "Return ONLY the edited image, not the original.";
+    // Hard guardrails: never return the original unchanged image
+    const systemText =
+      "You are an image editor. Always apply visible edits. If instructions request a style change " +
+      "(e.g., watercolor/oil/pencil), transform the rendering style across the whole image while " +
+      "preserving identity and composition unless told otherwise. Never return the source image unchanged. " +
+      "Output exactly one edited image.";
 
-    const parts = [
-      { text: `${directive}\n\nINSTRUCTIONS: ${prompt}` },
-      ...images.map(b64 => ({ inlineData: { mimeType: "image/jpeg", data: b64 } }))
-    ];
+    // Important: put images FIRST, then the instruction text
+    const body = {
+      systemInstruction: { parts: [{ text: systemText }] },
+      contents: [{
+        parts: [
+          ...images.map(b64 => ({ inlineData: { mimeType: "image/jpeg", data: b64 }})),
+          { text: `EDIT INSTRUCTIONS: ${prompt}\nMake the change obvious. Do not return the original.` }
+        ]
+      }]
+    };
 
-    const out = await callGemini(IMAGE_MODEL, parts);
+    const out = await gen(IMAGE_MODEL, body);
     if (!out.image_b64) return res.status(502).json({ error: "no image" });
     res.json({ provider: "google-gemini", model: IMAGE_MODEL, image_b64: out.image_b64, synthid: true });
   } catch (e) { res.status(500).json({ error: String(e.message||e) }); }
