@@ -6,113 +6,106 @@ import fetch from "node-fetch";
 
 const app = express();
 app.use(cors({ origin: "*" }));
-app.use(express.json({ limit: "2mb" }));
+app.use(express.json({ limit: "6mb" })); // allow base64 image posts
 app.use(morgan("tiny"));
 
-// ---- Models ----
-const CHAT_MODEL = process.env.GEMINI_CHAT_MODEL || "gemini-2.5-flash";
+const CHAT_MODEL  = process.env.GEMINI_CHAT_MODEL  || "gemini-2.5-flash";
 const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image-preview";
-const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
+const BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
-// ---- Simple in-memory store ----
+// health
+app.get("/health", (_req, res) =>
+  res.json({ ok: true, chat_model: CHAT_MODEL, image_model: IMAGE_MODEL })
+);
+
+// chat with short memory (optional simple session)
 const sessions = {};
 const MAX_HISTORY = 10;
 
-// ---- Health ----
-app.get("/health", (_req, res) => {
-  res.json({ ok: true, chat_model: CHAT_MODEL, image_model: IMAGE_MODEL });
-});
-
-// ---- Chat with memory ----
 app.post("/chat", async (req, res) => {
   try {
-    const { prompt, sessionId } = req.body || {};
+    const { prompt, sessionId="default" } = req.body || {};
     if (!prompt) return res.status(400).json({ error: "prompt required" });
-    const sid = sessionId || "default";
+    sessions[sessionId] ||= [];
+    sessions[sessionId].push({ role: "user", text: prompt });
+    if (sessions[sessionId].length > MAX_HISTORY) sessions[sessionId] = sessions[sessionId].slice(-MAX_HISTORY);
 
-    // Initialize history if not exists
-    if (!sessions[sid]) sessions[sid] = [];
-
-    // Add user message
-    sessions[sid].push({ role: "user", text: prompt });
-    if (sessions[sid].length > MAX_HISTORY) sessions[sid] = sessions[sid].slice(-MAX_HISTORY);
-
-    // Build contents
-    const contents = sessions[sid].map(m => ({
+    const contents = sessions[sessionId].map(m => ({
       role: m.role === "user" ? "user" : "model",
       parts: [{ text: m.text }]
     }));
 
-    const url = `${GEMINI_BASE}/${CHAT_MODEL}:generateContent`;
-
-    const resp = await fetch(url, {
+    const resp = await fetch(`${BASE}/${CHAT_MODEL}:generateContent`, {
       method: "POST",
-      headers: {
-        "x-goog-api-key": process.env.GEMINI_API_KEY,
-        "Content-Type": "application/json"
-      },
+      headers: { "x-goog-api-key": process.env.GEMINI_API_KEY, "Content-Type": "application/json" },
       body: JSON.stringify({ contents })
     });
-
-    if (!resp.ok) {
-      const txt = await resp.text();
-      return res.status(resp.status).json({ error: `google: ${txt}` });
-    }
     const data = await resp.json();
+    if (!resp.ok) return res.status(resp.status).json({ error: data.error?.message || "google error" });
 
-    let out = null;
     const parts = data?.candidates?.[0]?.content?.parts || [];
-    for (const p of parts) if (p.text) { out = p.text; break; }
-
+    const out = parts.find(p => p.text)?.text || null;
     if (!out) return res.status(502).json({ error: "no text in response" });
 
-    // Save assistant reply
-    sessions[sid].push({ role: "model", text: out });
-    if (sessions[sid].length > MAX_HISTORY) sessions[sid] = sessions[sid].slice(-MAX_HISTORY);
-
-    res.json({ provider: "google-gemini", model: CHAT_MODEL, output: out, sessionId: sid });
+    sessions[sessionId].push({ role: "model", text: out });
+    if (sessions[sessionId].length > MAX_HISTORY) sessions[sessionId] = sessions[sessionId].slice(-MAX_HISTORY);
+    res.json({ provider: "google-gemini", model: CHAT_MODEL, output: out, sessionId });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
   }
 });
 
-// ---- Image ----
+// image generation
 app.post("/image", async (req, res) => {
   try {
-    const { prompt } = req.body || {};
+    const { prompt, size } = req.body || {};
     if (!prompt) return res.status(400).json({ error: "prompt required" });
 
-    const url = `${GEMINI_BASE}/${IMAGE_MODEL}:generateContent`;
-
-    const resp = await fetch(url, {
+    const resp = await fetch(`${BASE}/${IMAGE_MODEL}:generateContent`, {
       method: "POST",
-      headers: {
-        "x-goog-api-key": process.env.GEMINI_API_KEY,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }]}]
-      })
+      headers: { "x-goog-api-key": process.env.GEMINI_API_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }]}] })
     });
-
-    if (!resp.ok) {
-      const txt = await resp.text();
-      return res.status(resp.status).json({ error: `google: ${txt}` });
-    }
     const data = await resp.json();
+    if (!resp.ok) return res.status(resp.status).json({ error: data.error?.message || "google error" });
 
-    let b64 = null;
     const parts = data?.candidates?.[0]?.content?.parts || [];
-    for (const p of parts) if (p.inlineData?.data) { b64 = p.inlineData.data; break; }
-
+    const b64 = parts.find(p => p.inlineData?.data)?.inlineData?.data || null;
     if (!b64) return res.status(502).json({ error: "no image in response" });
-    res.json({ provider: "google-gemini", model: IMAGE_MODEL, image_b64: b64, synthid: true });
+
+    res.json({ provider: "google-gemini", model: IMAGE_MODEL, image_b64: b64, synthid: true, size: size || "auto" });
   } catch (e) {
     res.status(500).json({ error: String(e.message || e) });
   }
 });
 
-// ---- Listen ----
+// NEW: analyze image(s) → description bullets
+app.post("/analyze", async (req, res) => {
+  try {
+    const { images = [] } = req.body || {}; // array of base64 strings (no data: prefix)
+    if (!images.length) return res.status(400).json({ error: "images[] base64 required" });
+
+    const parts = [];
+    images.forEach(b64 => parts.push({ inlineData: { mimeType: "image/jpeg", data: b64 }}));
+    parts.push({
+      text: "Describe the image(s) precisely in short bullet points: subjects, scene, colors, style, mood, camera angle, text present, notable details. Be concise."
+    });
+
+    const resp = await fetch(`${BASE}/${CHAT_MODEL}:generateContent`, {
+      method: "POST",
+      headers: { "x-goog-api-key": process.env.GEMINI_API_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify({ contents: [{ parts }] })
+    });
+    const data = await resp.json();
+    if (!resp.ok) return res.status(resp.status).json({ error: data.error?.message || "google error" });
+
+    const txt = data?.candidates?.[0]?.content?.parts?.find(p => p.text)?.text || "";
+    res.json({ summary: txt });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`listening on :${port}`));
 
