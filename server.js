@@ -33,21 +33,7 @@ app.get("/health", (_req, res) =>
   res.json({ ok: true, chat_model: CHAT_MODEL, image_model: IMAGE_MODEL })
 );
 
-// 1) Analyze helper (image(s) -> scene description)
-async function analyzeImages(b64s) {
-  const body = {
-    systemInstruction: { parts: [{ text:
-      "Summarize the image(s) in compact, factual bullet points covering: subjects, pose, clothing/fur/colors, background, camera angle/framing, lighting, style cues. No opinions."
-    }]},
-    contents: [{ parts: b64s.map(x => ({
-      inlineData: { mimeType: x.startsWith("iVBORw0") ? "image/png" : "image/jpeg", data: x }
-    })) }]
-  };
-  const out = await gemini(CHAT_MODEL, body);
-  return out.text.trim();
-}
-
-// 2) Text -> image
+// This endpoint is for generating an image from only text.
 app.post("/image", async (req, res) => {
   try {
     const { prompt = "" } = req.body || {};
@@ -58,30 +44,36 @@ app.post("/image", async (req, res) => {
   } catch (e) { res.status(500).json({ error: String(e.message||e) }); }
 });
 
-// 3) Edit (pipeline: analyze -> re-render with style)
+// *** REWRITTEN ENDPOINT FOR IMAGE EDITING ***
 app.post("/image-edit", async (req, res) => {
   try {
     const { prompt = "", images = [] } = req.body || {};
     if (!prompt) return res.status(400).json({ error: "prompt required" });
     if (!images.length) return res.status(400).json({ error: "images[] required" });
 
-    // A) Analyze uploaded image(s)
-    const scene = await analyzeImages(images);
+    // This is the new, more effective instruction for direct image editing.
+    const systemInstruction = {
+      parts: [{ text:
+        "You are an expert photo editor. The user has provided an image and a text prompt. " +
+        "Your task is to edit the image based on the instructions in the text prompt. " +
+        "Preserve the original image's subjects, poses, and composition exactly. " +
+        "Only apply the specific stylistic changes requested. " +
+        "Return only the single, edited image."
+      }]
+    };
 
-    // B) Re-render scene with requested style (no inline source -> avoids echo)
-    const styleGuide =
-      "You are an expert photo editor. Your task is to edit the provided image based on a scene description and user instructions. " +
-      "Follow these rules strictly:\n" +
-      "1. **Preserve Core Elements**: You MUST preserve the original image's subject identity, pose, arrangement, and composition. Do not change the subjects or how they are placed. The background should also remain fundamentally the same unless the user explicitly asks to change it.\n" +
-      "2. **Apply Edits**: Apply ONLY the artistic and stylistic changes requested by the user in the 'Edits to apply' section.\n" +
-      "3. **Single Image Output**: Return only one edited image. Do not return the original or multiple variations.";
+    // Construct the multimodal payload: text prompt + all reference images.
+    const contents = [{
+      parts: [
+        { text: prompt },
+        ...images.map(x => ({
+          inlineData: { mimeType: x.startsWith("iVBORw0") ? "image/png" : "image/jpeg", data: x }
+        }))
+      ]
+    }];
     
-    const fullPrompt =
-      `Scene description (from user photo):\n${scene}\n\n` +
-      `Edits to apply: ${prompt}.\n\n` +
-      styleGuide;
-
-    const out = await gemini(IMAGE_MODEL, { contents: [{ parts: [{ text: fullPrompt }]}] });
+    // Call the image model with the system instruction and the multimodal content.
+    const out = await gemini(IMAGE_MODEL, { systemInstruction, contents });
     if (!out.image_b64) return res.status(502).json({ error: "no image" });
 
     res.json({ image_b64: out.image_b64, model: IMAGE_MODEL });
