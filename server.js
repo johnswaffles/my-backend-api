@@ -70,11 +70,15 @@ app.post("/image-edit", async (req, res) => {
 
     // B) Re-render scene with requested style (no inline source -> avoids echo)
     const styleGuide =
-      "Recreate the same scene and composition described. Preserve subject identity and arrangement. " +
-      "Apply the requested artistic restyle so the change is clearly visible. Return one image only.";
+      "You are an expert photo editor. Your task is to edit the provided image based on a scene description and user instructions. " +
+      "Follow these rules strictly:\n" +
+      "1. **Preserve Core Elements**: You MUST preserve the original image's subject identity, pose, arrangement, and composition. Do not change the subjects or how they are placed. The background should also remain fundamentally the same unless the user explicitly asks to change it.\n" +
+      "2. **Apply Edits**: Apply ONLY the artistic and stylistic changes requested by the user in the 'Edits to apply' section.\n" +
+      "3. **Single Image Output**: Return only one edited image. Do not return the original or multiple variations.";
+    
     const fullPrompt =
       `Scene description (from user photo):\n${scene}\n\n` +
-      `Edits to apply: ${prompt}.\n` +
+      `Edits to apply: ${prompt}.\n\n` +
       styleGuide;
 
     const out = await gemini(IMAGE_MODEL, { contents: [{ parts: [{ text: fullPrompt }]}] });
