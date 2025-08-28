@@ -1,87 +1,118 @@
-/* ───────────────────────────────────────────────────────────────
-   server.js
-   • CHAT & VISION : gpt-4.1-nano
-   • TTS           : gpt-4o-mini-tts  (or any model you set)
-────────────────────────────────────────────────────────────────── */
+import "dotenv/config";
+import express from "express";
+import cors from "cors";
+import morgan from "morgan";
+import fetch from "node-fetch";
 
-import express  from "express";
-import cors     from "cors";
-import dotenv   from "dotenv";
-import OpenAI   from "openai";
-import multer   from "multer";
-dotenv.config();
-
-/* ── config ──────────────────────────────────────────────────── */
-const PORT   = process.env.PORT        || 3000;
-const MODEL  = process.env.MODEL       || "gpt-4.1-nano";   // chat & vision
-const TTS    = process.env.TTS_MODEL   || "gpt-4o-mini-tts";
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-/* ── express & uploads ───────────────────────────────────────── */
 const app = express();
-app.use(cors());
-app.use(express.json({ limit:"4mb" }));
-const upload = multer({ storage:multer.memoryStorage(),
-                        limits :{fileSize:25*1024*1024} });
+app.use(cors({ origin: "*" }));
+app.use(express.json({ limit: "2mb" }));
+app.use(morgan("tiny"));
 
-/* ── /api/chat (text) ────────────────────────────────────────── */
-app.post("/api/chat", async (req,res)=>{
-  try{
-    const messages = Array.isArray(req.body.history)?req.body.history:[];
-    if(messages[0]?.role==="assistant") messages.unshift({role:"user",content:""});
-    const out = await openai.chat.completions.create({model:MODEL,messages});
-    res.json({reply:out.choices[0].message.content});
-  }catch(e){
-    console.error("chat:",e.response?.data||e.message);
-    res.status(500).json({error:"chat failed"});
-  }
+// ---- Models ----
+const CHAT_MODEL = process.env.GEMINI_CHAT_MODEL || "gemini-2.5-flash";
+const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image-preview";
+const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
+
+// ---- Simple in-memory store ----
+const sessions = {};
+const MAX_HISTORY = 10;
+
+// ---- Health ----
+app.get("/health", (_req, res) => {
+  res.json({ ok: true, chat_model: CHAT_MODEL, image_model: IMAGE_MODEL });
 });
 
-/* ── /api/analyze (vision) ───────────────────────────────────── */
-app.post("/api/analyze", upload.single("file"), async (req,res)=>{
-  try{
-    if(!req.file?.buffer) return res.status(400).json({error:"file missing"});
-    const prompt = (req.body.prompt||"").trim();
-    const dataURL = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+// ---- Chat with memory ----
+app.post("/chat", async (req, res) => {
+  try {
+    const { prompt, sessionId } = req.body || {};
+    if (!prompt) return res.status(400).json({ error: "prompt required" });
+    const sid = sessionId || "default";
 
-    const messages = [{
-      role:"user",
-      content:[
-        {type:"text",text: prompt || "Describe this image in two sentences then ask a follow-up."},
-        {type:"image_url",image_url:{url:dataURL}}
-      ]
-    }];
+    // Initialize history if not exists
+    if (!sessions[sid]) sessions[sid] = [];
 
-    const out = await openai.chat.completions.create({model:MODEL,messages});
-    res.json({answer:out.choices[0].message.content});
-  }catch(e){
-    console.error("analyze:",e.response?.data||e.message);
-    res.status(500).json({error:"analyze failed"});
-  }
-});
+    // Add user message
+    sessions[sid].push({ role: "user", text: prompt });
+    if (sessions[sid].length > MAX_HISTORY) sessions[sid] = sessions[sid].slice(-MAX_HISTORY);
 
-/* ── /api/speech (OpenAI TTS) ────────────────────────────────── */
-app.post("/api/speech", async (req,res)=>{
-  try{
-    const { text="", voice="onyx" } = req.body;
-    const audio = await openai.audio.speech.create({
-      model : TTS,
-      voice,
-      input : text,
-      format: "wav"
+    // Build contents
+    const contents = sessions[sid].map(m => ({
+      role: m.role === "user" ? "user" : "model",
+      parts: [{ text: m.text }]
+    }));
+
+    const url = `${GEMINI_BASE}/${CHAT_MODEL}:generateContent`;
+
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: {
+        "x-goog-api-key": process.env.GEMINI_API_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ contents })
     });
-    res.set({
-      "Content-Type":"audio/wav; codecs=1",
-      "Content-Disposition":'inline; filename="reply.wav"'
-    });
-    res.send(Buffer.from(await audio.arrayBuffer()));
-  }catch(e){
-    console.error("tts:",e.response?.data||e.message);
-    res.status(500).json({error:"speech failed"});
+
+    if (!resp.ok) {
+      const txt = await resp.text();
+      return res.status(resp.status).json({ error: `google: ${txt}` });
+    }
+    const data = await resp.json();
+
+    let out = null;
+    const parts = data?.candidates?.[0]?.content?.parts || [];
+    for (const p of parts) if (p.text) { out = p.text; break; }
+
+    if (!out) return res.status(502).json({ error: "no text in response" });
+
+    // Save assistant reply
+    sessions[sid].push({ role: "model", text: out });
+    if (sessions[sid].length > MAX_HISTORY) sessions[sid] = sessions[sid].slice(-MAX_HISTORY);
+
+    res.json({ provider: "google-gemini", model: CHAT_MODEL, output: out, sessionId: sid });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
   }
 });
 
-/* ── health ─────────────────────────────────────────────────── */
-app.get("/api/health",(_,res)=>res.json({status:"ok"}));
-app.listen(PORT,()=>console.log(`✅  Server ready → http://localhost:${PORT}`));
+// ---- Image ----
+app.post("/image", async (req, res) => {
+  try {
+    const { prompt } = req.body || {};
+    if (!prompt) return res.status(400).json({ error: "prompt required" });
+
+    const url = `${GEMINI_BASE}/${IMAGE_MODEL}:generateContent`;
+
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: {
+        "x-goog-api-key": process.env.GEMINI_API_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }]}]
+      })
+    });
+
+    if (!resp.ok) {
+      const txt = await resp.text();
+      return res.status(resp.status).json({ error: `google: ${txt}` });
+    }
+    const data = await resp.json();
+
+    let b64 = null;
+    const parts = data?.candidates?.[0]?.content?.parts || [];
+    for (const p of parts) if (p.inlineData?.data) { b64 = p.inlineData.data; break; }
+
+    if (!b64) return res.status(502).json({ error: "no image in response" });
+    res.json({ provider: "google-gemini", model: IMAGE_MODEL, image_b64: b64, synthid: true });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
+// ---- Listen ----
+const port = process.env.PORT || 3000;
+app.listen(port, () => console.log(`listening on :${port}`));
+
