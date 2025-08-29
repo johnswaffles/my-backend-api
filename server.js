@@ -44,19 +44,19 @@ app.post("/image", async (req, res) => {
   } catch (e) { res.status(500).json({ error: String(e.message||e) }); }
 });
 
-// *** REWRITTEN ENDPOINT FOR IMAGE EDITING ***
+// This endpoint handles multimodal editing (image + text prompt).
 app.post("/image-edit", async (req, res) => {
   try {
     const { prompt = "", images = [] } = req.body || {};
     if (!prompt) return res.status(400).json({ error: "prompt required" });
     if (!images.length) return res.status(400).json({ error: "images[] required" });
 
-    // This is the new, more effective instruction for direct image editing.
+    // System instruction for direct image editing.
     const systemInstruction = {
       parts: [{ text:
         "You are an expert photo editor. The user has provided an image and a text prompt. " +
         "Your task is to edit the image based on the instructions in the text prompt. " +
-        "Preserve the original image's subjects, poses, and composition exactly. " +
+        "Preserve the original image's subjects, poses, and composition exactly, unless specifically told otherwise. " +
         "Only apply the specific stylistic changes requested. " +
         "Return only the single, edited image."
       }]
