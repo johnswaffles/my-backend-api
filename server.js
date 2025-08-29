@@ -62,13 +62,14 @@ app.post("/image-edit", async (req, res) => {
       }]
     };
 
-    // Construct the multimodal payload: text prompt + all reference images.
+    // Construct the multimodal payload: images first, then the text prompt.
+    // This ordering is often more reliable for edit-style multimodal requests.
     const contents = [{
       parts: [
-        { text: prompt },
         ...images.map(x => ({
           inlineData: { mimeType: x.startsWith("iVBORw0") ? "image/png" : "image/jpeg", data: x }
-        }))
+        })),
+        { text: prompt }
       ]
     }];
     
