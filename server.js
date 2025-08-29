@@ -20,8 +20,12 @@ async function gemini(model, body) {
     headers: { "x-goog-api-key": API_KEY, "Content-Type": "application/json" },
     body: JSON.stringify(body)
   });
+  if (!r.ok) {
+    const errorText = await r.text();
+    console.error("Google API Error:", errorText);
+    throw new Error(`Google API Error: ${errorText}`);
+  }
   const data = await r.json();
-  if (!r.ok) throw new Error(data?.error?.message || `google ${r.status}`);
   const parts = data?.candidates?.[0]?.content?.parts || [];
   return {
     text: parts.find(p => p.text)?.text || "",
@@ -33,7 +37,6 @@ app.get("/health", (_req, res) =>
   res.json({ ok: true, chat_model: CHAT_MODEL, image_model: IMAGE_MODEL })
 );
 
-// This endpoint is for generating an image from only text.
 app.post("/image", async (req, res) => {
   try {
     const { prompt = "" } = req.body || {};
@@ -44,41 +47,39 @@ app.post("/image", async (req, res) => {
   } catch (e) { res.status(500).json({ error: String(e.message||e) }); }
 });
 
-// This endpoint handles multimodal editing (image + text prompt).
 app.post("/image-edit", async (req, res) => {
   try {
     const { prompt = "", images = [] } = req.body || {};
     if (!prompt) return res.status(400).json({ error: "prompt required" });
     if (!images.length) return res.status(400).json({ error: "images[] required" });
-
-    // System instruction for direct image editing.
-    const systemInstruction = {
-      parts: [{ text:
-        "You are an expert photo editor. The user has provided an image and a text prompt. " +
-        "Your task is to edit the image based on the instructions in the text prompt. " +
-        "Preserve the original image's subjects, poses, and composition exactly, unless specifically told otherwise. " +
-        "Only apply the specific stylistic changes requested. " +
-        "Return only the single, edited image."
-      }]
-    };
-
-    // Construct the multimodal payload: images first, then the text prompt.
-    // This ordering is often more reliable for edit-style multimodal requests.
+    const systemInstruction = { parts: [{ text: "You are an expert photo editor..." }] };
     const contents = [{
       parts: [
-        ...images.map(x => ({
-          inlineData: { mimeType: x.startsWith("iVBORw0") ? "image/png" : "image/jpeg", data: x }
-        })),
+        ...images.map(x => ({ inlineData: { mimeType: x.startsWith("iVBORw0") ? "image/png" : "image/jpeg", data: x }})),
         { text: prompt }
       ]
     }];
-    
-    // Call the image model with the system instruction and the multimodal content.
     const out = await gemini(IMAGE_MODEL, { systemInstruction, contents });
     if (!out.image_b64) return res.status(502).json({ error: "no image" });
-
     res.json({ image_b64: out.image_b64, model: IMAGE_MODEL });
   } catch (e) { res.status(500).json({ error: String(e.message||e) }); }
+});
+
+// CHAT ENDPOINT
+app.post("/chat", async (req, res) => {
+  try {
+    const { history = [], message = "" } = req.body || {};
+    if (!message) return res.status(400).json({ error: "message required" });
+    const contents = history.map(item => ({
+      role: item.role === 'ai' ? 'model' : 'user',
+      parts: [{ text: item.text }]
+    }));
+    contents.push({ role: "user", parts: [{ text: message }] });
+    const out = await gemini(CHAT_MODEL, { contents });
+    res.json({ text: out.text, model: CHAT_MODEL });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message||e) });
+  }
 });
 
 const port = process.env.PORT || 3000;
