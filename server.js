@@ -28,21 +28,13 @@ function stripGrounding(obj) {
   })(obj);
   return obj;
 }
-
 function parseCandidates(data) {
-  let parts = [];
-  try {
-    const c = data && data.candidates && data.candidates[0];
-    parts = c && c.content && c.content.parts ? c.content.parts : [];
-  } catch {}
-  let text = "", image_b64 = null;
-  for (const p of parts) {
-    if (!text && p.text) text = p.text;
-    if (!image_b64 && p.inlineData && p.inlineData.data) image_b64 = p.inlineData.data;
-  }
-  return { text, image_b64 };
+  const parts = data?.candidates?.[0]?.content?.parts || [];
+  return {
+    text: parts.find(p => p.text)?.text || "",
+    image_b64: parts.find(p => p.inlineData)?.inlineData?.data || null
+  };
 }
-
 async function callGoogle(model, body) {
   const url = `${BASE}/${model}:generateContent`;
   const clean = stripGrounding(JSON.parse(JSON.stringify(body)));
@@ -83,9 +75,7 @@ app.post("/image", async (req, res) => {
     });
     if (!out.image_b64) return res.status(502).json({ error: "no image" });
     res.json({ image_b64: out.image_b64, model: IMAGE_MODEL });
-  } catch (e) {
-    res.status(500).json({ error: String(e.message||e) });
-  }
+  } catch (e) { res.status(500).json({ error: String(e.message||e) }); }
 });
 
 app.post("/image-edit", async (req, res) => {
@@ -93,21 +83,17 @@ app.post("/image-edit", async (req, res) => {
     const { prompt = "", images = [] } = req.body || {};
     if (!prompt) return res.status(400).json({ error: "prompt required" });
     if (!images.length) return res.status(400).json({ error: "images[] required" });
-    const systemInstruction = { parts: [{ text: "You are an expert photo editor. Respect identity and palette; change camera, composition, and scene as instructed." }] };
+    const systemInstruction = { parts: [{ text: "You are an expert photo editor. Keep identity and palette, but change camera, composition, and scene as instructed." }] };
     const contents = [{
       parts: [
-        ...images.map(x => ({
-          inlineData: { mimeType: x.startsWith("iVBORw0") ? "image/png" : "image/jpeg", data: x }
-        })),
+        ...images.map(x => ({ inlineData: { mimeType: x.startsWith("iVBORw0") ? "image/png" : "image/jpeg", data: x }})),
         { text: prompt }
       ]
     }];
     const out = await callGoogle(IMAGE_MODEL, { systemInstruction, contents });
     if (!out.image_b64) return res.status(502).json({ error: "no image" });
     res.json({ image_b64: out.image_b64, model: IMAGE_MODEL });
-  } catch (e) {
-    res.status(500).json({ error: String(e.message||e) });
-  }
+  } catch (e) { res.status(500).json({ error: String(e.message||e) }); }
 });
 
 app.post("/chat", async (req, res) => {
@@ -124,9 +110,7 @@ app.post("/chat", async (req, res) => {
       generationConfig: { response_mime_type: "text/plain" }
     });
     res.json({ text: out.text, model: CHAT_MODEL });
-  } catch (e) {
-    res.status(500).json({ error: String(e.message||e) });
-  }
+  } catch (e) { res.status(500).json({ error: String(e.message||e) }); }
 });
 
 const port = process.env.PORT || 3000;
