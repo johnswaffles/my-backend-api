@@ -46,13 +46,11 @@ function parseCandidates(data) {
 async function callGoogle(model, body) {
   const url = `${BASE}/${model}:generateContent`;
   const clean = stripGrounding(JSON.parse(JSON.stringify(body)));
-
   let r = await fetch(url, {
     method: "POST",
     headers: { "x-goog-api-key": API_KEY, "Content-Type": "application/json" },
     body: JSON.stringify(clean)
   });
-
   if (!r.ok) {
     const firstErr = await r.text();
     if (/Search Grounding|google_search/i.test(firstErr)) {
@@ -95,7 +93,6 @@ app.post("/image-edit", async (req, res) => {
     const { prompt = "", images = [] } = req.body || {};
     if (!prompt) return res.status(400).json({ error: "prompt required" });
     if (!images.length) return res.status(400).json({ error: "images[] required" });
-
     const systemInstruction = { parts: [{ text: "You are an expert photo editor. Respect identity and palette; change camera, composition, and scene as instructed." }] };
     const contents = [{
       parts: [
@@ -105,7 +102,6 @@ app.post("/image-edit", async (req, res) => {
         { text: prompt }
       ]
     }];
-
     const out = await callGoogle(IMAGE_MODEL, { systemInstruction, contents });
     if (!out.image_b64) return res.status(502).json({ error: "no image" });
     res.json({ image_b64: out.image_b64, model: IMAGE_MODEL });
@@ -123,7 +119,6 @@ app.post("/chat", async (req, res) => {
       parts: [{ text: item.text }]
     }));
     contents.push({ role: "user", parts: [{ text: message }] });
-
     const out = await callGoogle(CHAT_MODEL, {
       contents,
       generationConfig: { response_mime_type: "text/plain" }
