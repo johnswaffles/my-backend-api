@@ -14,7 +14,12 @@ const CHAT_MODEL  = process.env.GEMINI_CHAT_MODEL  || "gemini-2.5-flash";
 const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image-preview";
 const API_KEY     = process.env.GEMINI_API_KEY;
 
+function assertKey() {
+  if (!API_KEY) throw new Error("Missing GEMINI_API_KEY");
+}
+
 async function gemini(model, body) {
+  assertKey();
   const r = await fetch(`${BASE}/${model}:generateContent`, {
     method: "POST",
     headers: { "x-goog-api-key": API_KEY, "Content-Type": "application/json" },
@@ -23,13 +28,30 @@ async function gemini(model, body) {
   if (!r.ok) {
     const errorText = await r.text();
     console.error("Google API Error:", errorText);
-    throw new Error(`Google API Error: ${errorText}`);
+    throw new Error(errorText);
   }
   const data = await r.json();
-  const parts = data?.candidates?.[0]?.content?.parts || [];
+  const cand  = data?.candidates?.[0] || {};
+  const parts = cand?.content?.parts || [];
+  const text  = parts.map(p => p?.text).filter(Boolean).join("\n\n");
+  const gm    = cand?.groundingMetadata;
+
+  // collect citations when search is used
+  const sources = [];
+  if (gm?.groundingChunks?.length) {
+    const seen = new Set();
+    for (const c of gm.groundingChunks) {
+      const w = c.web;
+      if (w?.uri && !seen.has(w.uri)) {
+        seen.add(w.uri);
+        sources.push({ uri: w.uri, title: w.title || w.uri });
+      }
+    }
+  }
   return {
-    text: parts.find(p => p.text)?.text || "",
-    image_b64: parts.find(p => p.inlineData)?.inlineData?.data || null
+    text,
+    image_b64: parts.find(p => p.inlineData)?.inlineData?.data || null,
+    sources
   };
 }
 
@@ -53,7 +75,7 @@ app.post("/image-edit", async (req, res) => {
     if (!prompt.trim()) return res.status(400).json({ error: "prompt required" });
     if (!Array.isArray(images) || images.length === 0) return res.status(400).json({ error: "images[] required" });
 
-    const systemInstruction = { parts: [{ text: "You are an expert photo editor. Follow the prompt faithfully while preserving subjects and composition when asked." }] };
+    const systemInstruction = { parts: [{ text: "You are an expert photo editor. Follow the prompt while preserving key subjects when asked." }] };
     const parts = [
       ...images.map(x => ({
         inlineData: { mimeType: x.startsWith("iVBORw0") ? "image/png" : "image/jpeg", data: x }
@@ -67,20 +89,20 @@ app.post("/image-edit", async (req, res) => {
   } catch (e) { res.status(500).json({ error: String(e.message||e) }); }
 });
 
-// CHAT ENDPOINT
+// CHAT with Google Search grounding
 app.post("/chat", async (req, res) => {
   try {
     const { history = [], message = "" } = req.body || {};
     const userMsg = String(message ?? "").trim();
     if (!userMsg) return res.status(400).json({ error: "message required" });
 
-    const toGeminiRole = r => (r === "ai" || r === "assistant" || r === "model" ? "model" : "user");
-
+    const toRole = r => (r === "ai" || r === "assistant" || r === "model" ? "model" : "user");
     const prior = Array.isArray(history) ? history : [];
+
     const contents = [
       ...prior
         .map(m => ({
-          role: toGeminiRole(m?.role),
+          role: toRole(m?.role),
           text: String(m?.content ?? m?.text ?? "").trim()
         }))
         .filter(m => m.text.length > 0)
@@ -88,8 +110,13 @@ app.post("/chat", async (req, res) => {
       { role: "user", parts: [{ text: userMsg }] }
     ];
 
-    const out = await gemini(CHAT_MODEL, { contents });
-    res.json({ text: out.text, model: CHAT_MODEL });
+    const out = await gemini(CHAT_MODEL, {
+      contents,
+      tools: [{ google_search_retrieval: {} }],   // enable live web search
+      generationConfig: { temperature: 0.7 }
+    });
+
+    res.json({ text: out.text, sources: out.sources, model: CHAT_MODEL });
   } catch (e) {
     res.status(500).json({ error: String(e.message||e) });
   }
