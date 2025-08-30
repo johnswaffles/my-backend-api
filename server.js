@@ -40,7 +40,7 @@ app.get("/health", (_req, res) =>
 app.post("/image", async (req, res) => {
   try {
     const { prompt = "" } = req.body || {};
-    if (!prompt) return res.status(400).json({ error: "prompt required" });
+    if (!prompt.trim()) return res.status(400).json({ error: "prompt required" });
     const out = await gemini(IMAGE_MODEL, { contents: [{ parts: [{ text: prompt }]}] });
     if (!out.image_b64) return res.status(502).json({ error: "no image" });
     res.json({ image_b64: out.image_b64, model: IMAGE_MODEL });
@@ -50,16 +50,18 @@ app.post("/image", async (req, res) => {
 app.post("/image-edit", async (req, res) => {
   try {
     const { prompt = "", images = [] } = req.body || {};
-    if (!prompt) return res.status(400).json({ error: "prompt required" });
-    if (!images.length) return res.status(400).json({ error: "images[] required" });
-    const systemInstruction = { parts: [{ text: "You are an expert photo editor..." }] };
-    const contents = [{
-      parts: [
-        ...images.map(x => ({ inlineData: { mimeType: x.startsWith("iVBORw0") ? "image/png" : "image/jpeg", data: x }})),
-        { text: prompt }
-      ]
-    }];
-    const out = await gemini(IMAGE_MODEL, { systemInstruction, contents });
+    if (!prompt.trim()) return res.status(400).json({ error: "prompt required" });
+    if (!Array.isArray(images) || images.length === 0) return res.status(400).json({ error: "images[] required" });
+
+    const systemInstruction = { parts: [{ text: "You are an expert photo editor. Follow the prompt faithfully while preserving subjects and composition when asked." }] };
+    const parts = [
+      ...images.map(x => ({
+        inlineData: { mimeType: x.startsWith("iVBORw0") ? "image/png" : "image/jpeg", data: x }
+      })),
+      { text: prompt }
+    ];
+
+    const out = await gemini(IMAGE_MODEL, { systemInstruction, contents: [{ parts }] });
     if (!out.image_b64) return res.status(502).json({ error: "no image" });
     res.json({ image_b64: out.image_b64, model: IMAGE_MODEL });
   } catch (e) { res.status(500).json({ error: String(e.message||e) }); }
@@ -69,12 +71,23 @@ app.post("/image-edit", async (req, res) => {
 app.post("/chat", async (req, res) => {
   try {
     const { history = [], message = "" } = req.body || {};
-    if (!message) return res.status(400).json({ error: "message required" });
-    const contents = history.map(item => ({
-      role: item.role === 'ai' ? 'model' : 'user',
-      parts: [{ text: item.text }]
-    }));
-    contents.push({ role: "user", parts: [{ text: message }] });
+    const userMsg = String(message ?? "").trim();
+    if (!userMsg) return res.status(400).json({ error: "message required" });
+
+    const toGeminiRole = r => (r === "ai" || r === "assistant" || r === "model" ? "model" : "user");
+
+    const prior = Array.isArray(history) ? history : [];
+    const contents = [
+      ...prior
+        .map(m => ({
+          role: toGeminiRole(m?.role),
+          text: String(m?.content ?? m?.text ?? "").trim()
+        }))
+        .filter(m => m.text.length > 0)
+        .map(m => ({ role: m.role, parts: [{ text: m.text }] })),
+      { role: "user", parts: [{ text: userMsg }] }
+    ];
+
     const out = await gemini(CHAT_MODEL, { contents });
     res.json({ text: out.text, model: CHAT_MODEL });
   } catch (e) {
