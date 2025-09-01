@@ -14,89 +14,91 @@ const CHAT_MODEL  = process.env.GEMINI_CHAT_MODEL  || "gemini-2.5-flash";
 const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image-preview";
 const API_KEY     = process.env.GEMINI_API_KEY;
 
-function parseCandidates(data) {
-  const parts = data?.candidates?.[0]?.content?.parts || [];
-  const text = parts.find(p => p.text)?.text || "";
-  const imgp = parts.find(p => p.inlineData || p.inline_data);
-  const image_b64 = imgp?.inlineData?.data || imgp?.inline_data?.data || null;
-  return { text, image_b64 };
+function partsOut(d){
+  const parts = d?.candidates?.[0]?.content?.parts || [];
+  const txt = parts.find(p => p.text)?.text || "";
+  const img = parts.find(p => p.inlineData || p.inline_data);
+  const b64 = img?.inlineData?.data || img?.inline_data?.data || null;
+  return { text: txt, image_b64: b64 };
 }
-async function callGemini(model, body) {
-  const url = `${BASE}/${model}:generateContent`;
-  const r = await fetch(url, {
+async function gen(model, body){
+  const r = await fetch(`${BASE}/${model}:generateContent`, {
     method: "POST",
     headers: { "x-goog-api-key": API_KEY, "Content-Type": "application/json" },
     body: JSON.stringify(body)
   });
   if (!r.ok) throw new Error(await r.text());
-  const data = await r.json();
-  return parseCandidates(data);
+  const j = await r.json();
+  return partsOut(j);
 }
-async function callChat(messages) {
+
+/* minimal, tool-free chat */
+async function chat(messages){
   const contents = messages.map(m => ({ role: m.role, parts: [{ text: m.text }]}));
-  try {
-    return await callGemini(CHAT_MODEL, { contents });
-  } catch (e) {
+  try { return await gen(CHAT_MODEL, { contents }); }
+  catch (e) {
     if (String(e).includes("Search Grounding")) {
-      const bare = { contents: contents.map(c => ({ role: c.role || "user", parts: c.parts.map(p => ({ text: String(p.text || "") })) })) };
-      return await callGemini(CHAT_MODEL, bare);
+      return await gen(CHAT_MODEL, { contents: contents.map(c => ({ role: c.role||"user", parts: c.parts.map(p=>({ text:String(p.text||"") })) })) });
     }
     throw e;
   }
 }
 
-app.get("/health", (_req, res) => res.json({ ok: true, chat_model: CHAT_MODEL, image_model: IMAGE_MODEL }));
+app.get("/health", (_req,res)=>res.json({ ok:true, chat_model:CHAT_MODEL, image_model:IMAGE_MODEL }));
 
-app.post("/image", async (req, res) => {
-  try {
-    const { prompt = "" } = req.body || {};
-    if (!prompt) return res.status(400).json({ error: "prompt required" });
-    const out = await callGemini(IMAGE_MODEL, {
-      contents: [{ parts: [{ text: prompt }]}],
-      generationConfig: { response_mime_type: "image/png" }
-    });
-    if (!out.image_b64) return res.status(502).json({ error: "no image" });
-    res.json({ image_b64: out.image_b64, model: IMAGE_MODEL });
-  } catch (e) {
-    res.status(500).json({ error: String(e.message || e) });
-  }
+/* IMAGE: harden model + fallback */
+app.post("/image", async (req,res)=>{
+  try{
+    const { prompt="" } = req.body||{};
+    if(!prompt) return res.status(400).json({ error:"prompt required" });
+
+    let model = IMAGE_MODEL.includes("image") ? IMAGE_MODEL : "gemini-2.5-flash-image-preview";
+    try {
+      const out = await gen(model, {
+        contents: [{ parts: [{ text: prompt }]}],
+        generationConfig: { response_mime_type: "image/png" }
+      });
+      if (!out.image_b64) throw new Error("no image");
+      return res.json({ image_b64: out.image_b64, model });
+    } catch (e) {
+      if (String(e).includes("generation_config.response_mime_type")) {
+        const alt = await gen(model, { contents: [{ parts: [{ text: prompt }]}] });
+        if (!alt.image_b64) throw new Error("no image");
+        return res.json({ image_b64: alt.image_b64, model });
+      }
+      throw e;
+    }
+  } catch(e){ res.status(500).json({ error: String(e.message||e) }); }
 });
 
-app.post("/image-edit", async (req, res) => {
-  try {
-    const { prompt = "", images = [] } = req.body || {};
-    if (!prompt) return res.status(400).json({ error: "prompt required" });
-    if (!images.length) return res.status(400).json({ error: "images[] required" });
-    const contents = [{
-      parts: [
-        ...images.map(b64 => ({
-          inlineData: { mimeType: b64.startsWith("iVBORw0") ? "image/png" : "image/jpeg", data: b64 }
-        })),
-        { text: prompt }
-      ]
-    }];
-    const out = await callGemini(IMAGE_MODEL, { contents });
-    if (!out.image_b64) return res.status(502).json({ error: "no image" });
-    res.json({ image_b64: out.image_b64, model: IMAGE_MODEL });
-  } catch (e) {
-    res.status(500).json({ error: String(e.message || e) });
-  }
+/* IMAGE EDIT */
+app.post("/image-edit", async (req,res)=>{
+  try{
+    const { prompt="", images=[] } = req.body||{};
+    if(!prompt) return res.status(400).json({ error:"prompt required" });
+    if(!images.length) return res.status(400).json({ error:"images[] required" });
+
+    const model = IMAGE_MODEL.includes("image") ? IMAGE_MODEL : "gemini-2.5-flash-image-preview";
+    const contents=[{ parts:[
+      ...images.map(b64=>({ inlineData:{ mimeType: b64.startsWith("iVBORw0")?"image/png":"image/jpeg", data:b64 } })),
+      { text: prompt }
+    ]}];
+    const out = await gen(model, { contents });
+    if (!out.image_b64) return res.status(502).json({ error:"no image" });
+    res.json({ image_b64: out.image_b64, model });
+  } catch(e){ res.status(500).json({ error: String(e.message||e) }); }
 });
 
-app.post("/chat", async (req, res) => {
-  try {
-    const { history = [], message = "" } = req.body || {};
-    if (!message) return res.status(400).json({ error: "message required" });
-    const msgs = [
-      ...history.map(h => ({ role: h.role === "ai" ? "model" : "user", text: h.text })),
-      { role: "user", text: message }
-    ];
-    const out = await callChat(msgs);
+/* CHAT */
+app.post("/chat", async (req,res)=>{
+  try{
+    const { history=[], message="" } = req.body||{};
+    if(!message) return res.status(400).json({ error:"message required" });
+    const msgs=[ ...history.map(h=>({ role: h.role==="ai"?"model":"user", text:h.text })), { role:"user", text:message } ];
+    const out = await chat(msgs);
     res.json({ text: out.text, model: CHAT_MODEL });
-  } catch (e) {
-    res.status(500).json({ error: String(e.message || e) });
-  }
+  } catch(e){ res.status(500).json({ error: String(e.message||e) }); }
 });
 
 const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`listening on :${port}`));
+app.listen(port, ()=>console.log(`listening on :${port}`));
