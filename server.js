@@ -31,8 +31,6 @@ async function gen(model, body){
   const j = await r.json();
   return partsOut(j);
 }
-
-/* minimal, tool-free chat */
 async function chat(messages){
   const contents = messages.map(m => ({ role: m.role, parts: [{ text: m.text }]}));
   try { return await gen(CHAT_MODEL, { contents }); }
@@ -46,18 +44,13 @@ async function chat(messages){
 
 app.get("/health", (_req,res)=>res.json({ ok:true, chat_model:CHAT_MODEL, image_model:IMAGE_MODEL }));
 
-/* IMAGE: harden model + fallback */
 app.post("/image", async (req,res)=>{
   try{
     const { prompt="" } = req.body||{};
     if(!prompt) return res.status(400).json({ error:"prompt required" });
-
-    let model = IMAGE_MODEL.includes("image") ? IMAGE_MODEL : "gemini-2.5-flash-image-preview";
+    const model = IMAGE_MODEL.includes("image") ? IMAGE_MODEL : "gemini-2.5-flash-image-preview";
     try {
-      const out = await gen(model, {
-        contents: [{ parts: [{ text: prompt }]}],
-        generationConfig: { response_mime_type: "image/png" }
-      });
+      const out = await gen(model, { contents: [{ parts: [{ text: prompt }]}], generationConfig: { response_mime_type: "image/png" } });
       if (!out.image_b64) throw new Error("no image");
       return res.json({ image_b64: out.image_b64, model });
     } catch (e) {
@@ -71,25 +64,19 @@ app.post("/image", async (req,res)=>{
   } catch(e){ res.status(500).json({ error: String(e.message||e) }); }
 });
 
-/* IMAGE EDIT */
 app.post("/image-edit", async (req,res)=>{
   try{
     const { prompt="", images=[] } = req.body||{};
     if(!prompt) return res.status(400).json({ error:"prompt required" });
     if(!images.length) return res.status(400).json({ error:"images[] required" });
-
     const model = IMAGE_MODEL.includes("image") ? IMAGE_MODEL : "gemini-2.5-flash-image-preview";
-    const contents=[{ parts:[
-      ...images.map(b64=>({ inlineData:{ mimeType: b64.startsWith("iVBORw0")?"image/png":"image/jpeg", data:b64 } })),
-      { text: prompt }
-    ]}];
+    const contents=[{ parts:[ ...images.map(b64=>({ inlineData:{ mimeType: b64.startsWith("iVBORw0")?"image/png":"image/jpeg", data:b64 } })), { text: prompt } ]}];
     const out = await gen(model, { contents });
     if (!out.image_b64) return res.status(502).json({ error:"no image" });
     res.json({ image_b64: out.image_b64, model });
   } catch(e){ res.status(500).json({ error: String(e.message||e) }); }
 });
 
-/* CHAT */
 app.post("/chat", async (req,res)=>{
   try{
     const { history=[], message="" } = req.body||{};
