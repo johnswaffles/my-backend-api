@@ -14,68 +14,52 @@ const CHAT_MODEL  = process.env.GEMINI_CHAT_MODEL  || "gemini-2.5-flash";
 const IMAGE_MODEL = process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image-preview";
 const API_KEY     = process.env.GEMINI_API_KEY;
 
-function stripGrounding(obj) {
-  const bad = new Set([
-    "tools","toolConfig","groundingSpec","groundingConfig",
-    "googleSearchRetrieval","google_search_retrieval","searchGrounding"
-  ]);
-  (function walk(o){
-    if (!o || typeof o !== "object") return;
-    for (const k of Object.keys(o)) {
-      if (bad.has(k)) delete o[k];
-      else walk(o[k]);
-    }
-  })(obj);
-  return obj;
-}
 function parseCandidates(data) {
   const parts = data?.candidates?.[0]?.content?.parts || [];
-  return {
-    text: parts.find(p => p.text)?.text || "",
-    image_b64: parts.find(p => p.inlineData)?.inlineData?.data || null
-  };
+  const text = parts.find(p => p.text)?.text || "";
+  const imgp = parts.find(p => p.inlineData || p.inline_data);
+  const image_b64 = imgp?.inlineData?.data || imgp?.inline_data?.data || null;
+  return { text, image_b64 };
 }
-async function callGoogle(model, body) {
+async function callGemini(model, body) {
   const url = `${BASE}/${model}:generateContent`;
-  const clean = stripGrounding(JSON.parse(JSON.stringify(body)));
-  let r = await fetch(url, {
+  const r = await fetch(url, {
     method: "POST",
     headers: { "x-goog-api-key": API_KEY, "Content-Type": "application/json" },
-    body: JSON.stringify(clean)
+    body: JSON.stringify(body)
   });
-  if (!r.ok) {
-    const firstErr = await r.text();
-    if (/Search Grounding|google_search/i.test(firstErr)) {
-      const minimal = stripGrounding(clean);
-      r = await fetch(url, {
-        method: "POST",
-        headers: { "x-goog-api-key": API_KEY, "Content-Type": "application/json" },
-        body: JSON.stringify(minimal)
-      });
-      if (!r.ok) throw new Error(firstErr);
-    } else {
-      throw new Error(firstErr);
-    }
-  }
+  if (!r.ok) throw new Error(await r.text());
   const data = await r.json();
   return parseCandidates(data);
 }
+async function callChat(messages) {
+  const contents = messages.map(m => ({ role: m.role, parts: [{ text: m.text }]}));
+  try {
+    return await callGemini(CHAT_MODEL, { contents });
+  } catch (e) {
+    if (String(e).includes("Search Grounding")) {
+      const bare = { contents: contents.map(c => ({ role: c.role || "user", parts: c.parts.map(p => ({ text: String(p.text || "") })) })) };
+      return await callGemini(CHAT_MODEL, bare);
+    }
+    throw e;
+  }
+}
 
-app.get("/health", (_req, res) =>
-  res.json({ ok: true, chat_model: CHAT_MODEL, image_model: IMAGE_MODEL })
-);
+app.get("/health", (_req, res) => res.json({ ok: true, chat_model: CHAT_MODEL, image_model: IMAGE_MODEL }));
 
 app.post("/image", async (req, res) => {
   try {
     const { prompt = "" } = req.body || {};
     if (!prompt) return res.status(400).json({ error: "prompt required" });
-    const out = await callGoogle(IMAGE_MODEL, {
+    const out = await callGemini(IMAGE_MODEL, {
       contents: [{ parts: [{ text: prompt }]}],
       generationConfig: { response_mime_type: "image/png" }
     });
     if (!out.image_b64) return res.status(502).json({ error: "no image" });
     res.json({ image_b64: out.image_b64, model: IMAGE_MODEL });
-  } catch (e) { res.status(500).json({ error: String(e.message||e) }); }
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
 });
 
 app.post("/image-edit", async (req, res) => {
@@ -83,34 +67,35 @@ app.post("/image-edit", async (req, res) => {
     const { prompt = "", images = [] } = req.body || {};
     if (!prompt) return res.status(400).json({ error: "prompt required" });
     if (!images.length) return res.status(400).json({ error: "images[] required" });
-    const systemInstruction = { parts: [{ text: "You are an expert photo editor. Keep identity and palette, but change camera, composition, and scene as instructed." }] };
     const contents = [{
       parts: [
-        ...images.map(x => ({ inlineData: { mimeType: x.startsWith("iVBORw0") ? "image/png" : "image/jpeg", data: x }})),
+        ...images.map(b64 => ({
+          inlineData: { mimeType: b64.startsWith("iVBORw0") ? "image/png" : "image/jpeg", data: b64 }
+        })),
         { text: prompt }
       ]
     }];
-    const out = await callGoogle(IMAGE_MODEL, { systemInstruction, contents });
+    const out = await callGemini(IMAGE_MODEL, { contents });
     if (!out.image_b64) return res.status(502).json({ error: "no image" });
     res.json({ image_b64: out.image_b64, model: IMAGE_MODEL });
-  } catch (e) { res.status(500).json({ error: String(e.message||e) }); }
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
 });
 
 app.post("/chat", async (req, res) => {
   try {
     const { history = [], message = "" } = req.body || {};
     if (!message) return res.status(400).json({ error: "message required" });
-    const contents = history.map(item => ({
-      role: item.role === "ai" ? "model" : "user",
-      parts: [{ text: item.text }]
-    }));
-    contents.push({ role: "user", parts: [{ text: message }] });
-    const out = await callGoogle(CHAT_MODEL, {
-      contents,
-      generationConfig: { response_mime_type: "text/plain" }
-    });
+    const msgs = [
+      ...history.map(h => ({ role: h.role === "ai" ? "model" : "user", text: h.text })),
+      { role: "user", text: message }
+    ];
+    const out = await callChat(msgs);
     res.json({ text: out.text, model: CHAT_MODEL });
-  } catch (e) { res.status(500).json({ error: String(e.message||e) }); }
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
 });
 
 const port = process.env.PORT || 3000;
