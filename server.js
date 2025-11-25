@@ -56,10 +56,10 @@ app.post('/chat', async (req, res) => {
     }
 });
 
-// Text-to-Speech Endpoint using OpenAI
+// Text-to-Speech Endpoint using Google Cloud TTS (Standard Voices)
 app.post('/tts', async (req, res) => {
     try {
-        const { text, voice = 'en-US-Neural2-D' } = req.body;
+        const { text, voice = 'en-US-Standard-D' } = req.body;
 
         if (!text) {
             return res.status(400).json({ error: 'Text is required' });
@@ -67,60 +67,40 @@ app.post('/tts', async (req, res) => {
 
         console.log("TTS Request - Voice:", voice, "Text length:", text.length);
 
-        // Map Google voice names to OpenAI voice names
-        const voiceMap = {
-            // Female voices -> OpenAI female voices
-            'en-US-Neural2-C': 'nova',
-            'en-US-Neural2-E': 'shimmer',
-            'en-US-Neural2-F': 'nova',
-            'en-US-Neural2-H': 'shimmer',
-            'en-GB-Neural2-A': 'nova',
-            'en-GB-Neural2-C': 'shimmer',
-            'en-AU-Neural2-A': 'nova',
-            'en-AU-Neural2-C': 'shimmer',
-            'en-CA-Neural2-B': 'nova',
-            'en-CA-Neural2-D': 'shimmer',
-            // Male voices -> OpenAI male voices
-            'en-US-Neural2-D': 'onyx',
-            'en-US-Neural2-I': 'echo',
-            'en-US-Neural2-J': 'fable',
-            'en-GB-Neural2-B': 'onyx',
-            'en-GB-Neural2-D': 'echo',
-            'en-AU-Neural2-B': 'onyx',
-            'en-AU-Neural2-D': 'echo',
-            'en-CA-Neural2-A': 'onyx',
-            'en-CA-Neural2-C': 'echo',
-            'en-IN-Neural2-B': 'fable'
-        };
-
-        const openaiVoice = voiceMap[voice] || 'alloy';
-
-        // Call OpenAI TTS API
-        const response = await fetch('https://api.openai.com/v1/audio/speech', {
+        // Call Google Cloud TTS API with API key
+        const response = await fetch('https://texttospeech.googleapis.com/v1/text:synthesize?key=' + process.env.GEMINI_API_KEY, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                model: 'tts-1',
-                voice: openaiVoice,
-                input: text
+                input: { text: text },
+                voice: {
+                    languageCode: voice.split('-').slice(0, 2).join('-'), // e.g., en-US
+                    name: voice
+                },
+                audioConfig: {
+                    audioEncoding: 'MP3',
+                    pitch: 0,
+                    speakingRate: 1.0
+                }
             })
         });
 
         if (!response.ok) {
             const errorData = await response.text();
-            throw new Error(`OpenAI TTS API error: ${response.status} - ${errorData}`);
+            console.error('Google TTS Error:', errorData);
+            throw new Error(`Google TTS API error: ${response.status} - ${errorData}`);
         }
 
-        const audioBuffer = await response.arrayBuffer();
+        const data = await response.json();
+        const audioContent = Buffer.from(data.audioContent, 'base64');
 
         res.set({
             'Content-Type': 'audio/mpeg',
             'Content-Disposition': `attachment; filename="speech-${Date.now()}.mp3"`
         });
-        res.send(Buffer.from(audioBuffer));
+        res.send(audioContent);
 
     } catch (error) {
         console.error('Error with TTS:', error);
