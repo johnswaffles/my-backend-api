@@ -1,0 +1,13 @@
+# Render Deployment Configuration
+
+services:
+  - type: web
+    name: gemini-backend
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: PORT
+        value: 3000
