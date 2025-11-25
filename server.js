@@ -17,20 +17,6 @@ const model = genAI.getGenerativeModel({
     tools: [{ googleSearch: {} }]
 });
 
-// Google Cloud Credentials Setup (for TTS)
-if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
-    const fs = require('fs');
-    const path = require('path');
-    const credPath = path.join(__dirname, 'gcloud-creds.json');
-    try {
-        fs.writeFileSync(credPath, process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
-        process.env.GOOGLE_APPLICATION_CREDENTIALS = credPath;
-        console.log('Google Cloud credentials configured from environment variable');
-    } catch (error) {
-        console.error('Failed to write Google Cloud credentials:', error);
-    }
-}
-
 // Health Check Endpoint
 app.get('/', (req, res) => {
     res.json({ status: 'ok', message: 'Gemini Backend API is running' });
@@ -65,17 +51,10 @@ app.post('/chat', async (req, res) => {
     }
 });
 
-// Google Cloud Text-to-Speech Setup
-const textToSpeech = require('@google-cloud/text-to-speech');
-
-// Initialize TTS client - Remove this section and use a simpler fallback
-// The Google Cloud TTS client requires service account credentials which aren't configured on Render
-// For now, we'll return an error message explaining this
-
-// Text-to-Speech Endpoint
+// Text-to-Speech Endpoint using OpenAI
 app.post('/tts', async (req, res) => {
     try {
-        const { text, voice = 'en-US-Neural2-C' } = req.body;
+        const { text, voice = 'en-US-Neural2-D' } = req.body;
 
         if (!text) {
             return res.status(400).json({ error: 'Text is required' });
@@ -83,49 +62,63 @@ app.post('/tts', async (req, res) => {
 
         console.log("TTS Request - Voice:", voice, "Text length:", text.length);
 
-        // Initialize client with default credentials (uses GOOGLE_APPLICATION_CREDENTIALS env var)
-        const ttsClient = new textToSpeech.TextToSpeechClient();
-
-        const request = {
-            input: { text: text },
-            voice: {
-                languageCode: voice.split('-').slice(0, 2).join('-'), // e.g., en-US
-                name: voice
-            },
-            audioConfig: {
-                audioEncoding: 'MP3',
-                pitch: 0,
-                speakingRate: 1.0
-            },
+        // Map Google voice names to OpenAI voice names
+        const voiceMap = {
+            // Female voices -> OpenAI female voices
+            'en-US-Neural2-C': 'nova',
+            'en-US-Neural2-E': 'shimmer',
+            'en-US-Neural2-F': 'nova',
+            'en-US-Neural2-H': 'shimmer',
+            'en-GB-Neural2-A': 'nova',
+            'en-GB-Neural2-C': 'shimmer',
+            'en-AU-Neural2-A': 'nova',
+            'en-AU-Neural2-C': 'shimmer',
+            'en-CA-Neural2-B': 'nova',
+            'en-CA-Neural2-D': 'shimmer',
+            // Male voices -> OpenAI male voices
+            'en-US-Neural2-D': 'onyx',
+            'en-US-Neural2-I': 'echo',
+            'en-US-Neural2-J': 'fable',
+            'en-GB-Neural2-B': 'onyx',
+            'en-GB-Neural2-D': 'echo',
+            'en-AU-Neural2-B': 'onyx',
+            'en-AU-Neural2-D': 'echo',
+            'en-CA-Neural2-A': 'onyx',
+            'en-CA-Neural2-C': 'echo',
+            'en-IN-Neural2-B': 'fable'
         };
 
-        const [response] = await ttsClient.synthesizeSpeech(request);
+        const openaiVoice = voiceMap[voice] || 'alloy';
+
+        // Call OpenAI TTS API
+        const response = await fetch('https://api.openai.com/v1/audio/speech', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: 'tts-1',
+                voice: openaiVoice,
+                input: text
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.text();
+            throw new Error(`OpenAI TTS API error: ${response.status} - ${errorData}`);
+        }
+
+        const audioBuffer = await response.arrayBuffer();
 
         res.set({
             'Content-Type': 'audio/mpeg',
             'Content-Disposition': `attachment; filename="speech-${Date.now()}.mp3"`
         });
-        res.send(response.audioContent);
+        res.send(Buffer.from(audioBuffer));
 
     } catch (error) {
         console.error('Error with TTS:', error);
-
-        // Check for common API enablement error
-        if (error.message && error.message.includes('PERMISSION_DENIED') && error.message.includes('Cloud Text-to-Speech API')) {
-            return res.status(500).json({
-                error: 'API Not Enabled',
-                details: 'Please enable the Cloud Text-to-Speech API in your Google Cloud Console for this project.'
-            });
-        }
-
-        // Check for missing credentials
-        if (error.message && (error.message.includes('Could not load the default credentials') || error.message.includes('authenticate'))) {
-            return res.status(500).json({
-                error: 'TTS Authentication Error',
-                details: 'Google Cloud credentials are not configured. Please set GOOGLE_APPLICATION_CREDENTIALS environment variable in Render.'
-            });
-        }
-
         res.status(500).json({ error: 'TTS Error', details: error.message });
     }
 });
