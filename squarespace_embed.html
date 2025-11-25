@@ -776,6 +776,38 @@
             width: 100%;
         }
 
+        /* Header Adjustments for Mobile */
+        #chat-header {
+            flex-direction: column;
+            height: auto;
+            padding: 15px;
+            gap: 10px;
+        }
+
+        .header-left {
+            width: 100%;
+            justify-content: center;
+            margin-bottom: 5px;
+        }
+
+        .header-right {
+            width: 100%;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .response-mode-selector {
+            flex: 1;
+            /* Equal width for dropdowns */
+            font-size: 0.85rem;
+            padding: 8px 4px;
+            /* Tighter padding */
+            text-align: center;
+            margin-right: 0 !important;
+            /* Override inline style */
+        }
+
+        /* Message Area Adjustments */
         #chat-messages {
             padding: 15px;
             /* Reduce padding */
@@ -808,6 +840,27 @@
         .bot-message::after {
             left: 35px;
             top: -28px;
+        }
+
+        /* Input Area Adjustments */
+        #chat-input-area {
+            padding: 15px;
+            /* Reduced padding */
+            gap: 10px;
+        }
+
+        #chat-input {
+            padding: 12px 15px;
+            font-size: 16px;
+            /* Prevent zoom on iOS */
+        }
+
+        #send-btn {
+            padding: 0 15px;
+            height: 45px;
+            /* Slightly shorter */
+            font-size: 1rem;
+            min-width: 70px;
         }
 
         /* Hide gloss reflection on mobile for performance/space */
