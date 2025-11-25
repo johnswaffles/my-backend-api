@@ -1,16 +1,7 @@
 <!-- Squarespace Code Block Start -->
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <div id="gemini-chat-wrapper">
-    <!-- Sidebar for Conversations -->
-    <div id="conversation-sidebar">
-        <div class="sidebar-header">
-            <h4>Conversations</h4>
-            <button id="new-conversation-btn">+ New</button>
-        </div>
-        <div id="conversation-list">
-            <!-- Conversations will be listed here -->
-        </div>
-    </div>
+
 
     <div id="gemini-chat-container">
         <!-- Floating Glossy Elements for Depth -->
@@ -56,6 +47,17 @@
             <button id="send-btn">SEND</button>
         </div>
     </div>
+
+    <!-- Sidebar for Conversations (Moved to Bottom) -->
+    <div id="conversation-sidebar">
+        <div class="sidebar-header">
+            <h4>Conversations</h4>
+            <button id="new-conversation-btn">+ New</button>
+        </div>
+        <div id="conversation-list">
+            <!-- Conversations will be listed here -->
+        </div>
+    </div>
 </div>
 
 <style>
@@ -77,6 +79,8 @@
         overflow: hidden;
         padding: 20px;
         gap: 20px;
+        flex-direction: column;
+        /* Stack vertically */
     }
 
     #gemini-chat-wrapper * {
@@ -110,8 +114,10 @@
 
     /* SIDEBAR STYLES */
     #conversation-sidebar {
-        width: 280px;
-        height: 80vh;
+        width: 100%;
+        max-width: 1120px;
+        height: 200px;
+        /* Fixed height at bottom */
         background: rgba(30, 41, 59, 0.7);
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
@@ -751,18 +757,38 @@
     @media (max-width: 768px) {
 
         #gemini-chat-wrapper {
-            flex-direction: column;
+            padding: 5px;
+            /* Minimal padding */
+            gap: 10px;
         }
 
         #conversation-sidebar {
             width: 100%;
-            height: 200px;
-            margin-bottom: 10px;
+            height: 150px;
+            margin-bottom: 0;
+            order: 2;
+            /* Ensure it stays at bottom */
         }
 
         #gemini-chat-container {
-            height: 60vh;
-            border-radius: 0;
+            height: 75vh;
+            border-radius: 12px;
+            width: 100%;
+        }
+
+        #chat-messages {
+            padding: 15px;
+            /* Reduce padding */
+        }
+
+        .message {
+            max-width: 95%;
+            /* Use almost full width */
+        }
+
+        .message-content {
+            padding: 12px 16px;
+            /* Compact padding */
         }
 
         .bot-message {
@@ -772,7 +798,7 @@
 
         .bot-message::before {
             left: 0;
-            top: -40px;
+            top: -35px;
             bottom: auto;
             width: 30px;
             height: 30px;
@@ -780,8 +806,13 @@
         }
 
         .bot-message::after {
-            left: 40px;
-            top: -32px;
+            left: 35px;
+            top: -28px;
+        }
+
+        /* Hide gloss reflection on mobile for performance/space */
+        .gloss-reflection {
+            display: none;
         }
     }
 </style>
@@ -992,7 +1023,9 @@
                     }
 
                     const selectedVoice = document.getElementById('voice-selector').value;
-                    const rawText = contentDiv.innerText;
+                    const fullText = contentDiv.innerText;
+                    // Create a short summary (first 120 words) for TTS
+                    const summary = fullText.split(' ').slice(0, 120).join(' ');
 
                     playBtn.innerHTML = '⏳ Loading...';
                     playBtn.disabled = true;
@@ -1002,7 +1035,7 @@
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                                text: rawText,
+                                text: summary,
                                 voice: selectedVoice
                             })
                         });
