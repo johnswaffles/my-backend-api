@@ -921,21 +921,25 @@
                             })
                         });
 
-                        if (!response.ok) throw new Error('TTS request failed');
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.details || 'TTS request failed');
+                        }
 
-                        audioBlob = await response.blob();
-                        audioUrl = URL.createObjectURL(audioBlob);
+                        const audioBlob = await response.blob();
+                        const audioUrl = URL.createObjectURL(audioBlob);
+
+                        if (currentAudio) {
+                            currentAudio.pause();
+                            currentAudio = null;
+                        }
+
                         currentAudio = new Audio(audioUrl);
 
                         currentAudio.onplay = () => {
-                            playBtn.innerHTML = '⏸ Pause';
+                            playBtn.innerHTML = '⏹ Stop';
                             playBtn.classList.add('playing');
-                            downloadBtn.disabled = false;
-                        };
-
-                        currentAudio.onpause = () => {
-                            playBtn.innerHTML = '▶ Play';
-                            playBtn.classList.remove('playing');
+                            playBtn.disabled = false;
                         };
 
                         currentAudio.onended = () => {
@@ -943,38 +947,39 @@
                             playBtn.classList.remove('playing');
                         };
 
+                        currentAudio.onerror = () => {
+                            playBtn.innerHTML = '▶ Play';
+                            playBtn.disabled = false;
+                            alert('Error playing audio');
+                        };
+
                         currentAudio.play();
-                        playBtn.disabled = false;
 
                     } catch (error) {
-                        console.error('Play error:', error);
-                        alert('Failed to generate audio. Make sure the backend server is running.');
+                        console.error('TTS Error:', error);
+                        alert(`Audio Error: ${error.message}`);
                         playBtn.innerHTML = '▶ Play';
                         playBtn.disabled = false;
                     }
+                };
+
+                // Copy Button
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-btn';
+                copyBtn.innerHTML = 'Copy';
+                copyBtn.onclick = function () {
+                    navigator.clipboard.writeText(contentDiv.innerText).then(() => {
+                        copyBtn.innerHTML = 'Copied!';
+                        setTimeout(() => copyBtn.innerHTML = 'Copy', 2000);
+                    });
                 };
 
                 const footerLeft = document.createElement('div');
                 footerLeft.className = 'footer-left';
                 footerLeft.appendChild(playBtn);
 
-                // Right side: Copy button
                 const footerRight = document.createElement('div');
                 footerRight.className = 'footer-right';
-
-                const copyBtn = document.createElement('button');
-                copyBtn.className = 'copy-btn';
-                copyBtn.innerHTML = 'Copy';
-
-                copyBtn.onclick = function () {
-                    navigator.clipboard.writeText(contentDiv.innerText).then(() => {
-                        copyBtn.innerHTML = 'Copied!';
-                        setTimeout(() => {
-                            copyBtn.innerHTML = 'Copy';
-                        }, 2000);
-                    });
-                };
-
                 footerRight.appendChild(copyBtn);
 
                 footerDiv.appendChild(footerLeft);
@@ -984,10 +989,7 @@
 
             messagesContainer.appendChild(div);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
-
-            if (!skipSave) {
-                saveMessageToConversation(text, isUser);
-            }
+            if (!skipSave) saveMessageToConversation(text, isUser);
         }
 
         async function sendMessage() {
