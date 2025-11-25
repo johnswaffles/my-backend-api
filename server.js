@@ -19,7 +19,12 @@ const model = genAI.getGenerativeModel({
 
 // Health Check Endpoint
 app.get('/', (req, res) => {
-    res.json({ status: 'ok', message: 'Gemini Backend API is running' });
+    res.json({
+        status: 'ok',
+        message: 'Gemini Backend API is running',
+        version: '2.0-openai-tts',
+        timestamp: new Date().toISOString()
+    });
 });
 
 // Chat Endpoint
