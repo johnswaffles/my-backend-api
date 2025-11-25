@@ -1149,10 +1149,13 @@
                 const data = await response.json();
                 hideLoading();
 
-                if (!data.reply) {
+                // Handle both 'reply' and 'text' response formats
+                const botReply = data.reply || data.text || '';
+
+                if (!botReply) {
                     addMessage('⚠️ Sorry, no response was generated.', false);
                 } else {
-                    addMessage(data.reply, false);
+                    addMessage(botReply, false);
 
                     // Update conversation history
                     conversationHistory.push({
@@ -1161,7 +1164,7 @@
                     });
                     conversationHistory.push({
                         role: 'model',
-                        parts: [{ text: data.reply }]
+                        parts: [{ text: botReply }]
                     });
 
                     // Save updated history
