@@ -26,6 +26,11 @@ const model = genAI.getGenerativeModel({
     tools: [{ googleSearch: {} }]
 });
 
+// Health Check Endpoint
+app.get('/', (req, res) => {
+    res.json({ status: 'ok', message: 'Gemini Backend API is running' });
+});
+
 // Chat Endpoint
 app.post('/chat', async (req, res) => {
     try {
