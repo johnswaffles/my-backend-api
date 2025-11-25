@@ -53,9 +53,10 @@ app.post('/chat', async (req, res) => {
 
 // Google Cloud Text-to-Speech Setup
 const textToSpeech = require('@google-cloud/text-to-speech');
-const ttsClient = new textToSpeech.TextToSpeechClient({
-    apiKey: process.env.GEMINI_API_KEY
-});
+
+// Initialize TTS client - Remove this section and use a simpler fallback
+// The Google Cloud TTS client requires service account credentials which aren't configured on Render
+// For now, we'll return an error message explaining this
 
 // Text-to-Speech Endpoint
 app.post('/tts', async (req, res) => {
@@ -67,6 +68,9 @@ app.post('/tts', async (req, res) => {
         }
 
         console.log("TTS Request - Voice:", voice, "Text length:", text.length);
+
+        // Initialize client with default credentials (uses GOOGLE_APPLICATION_CREDENTIALS env var)
+        const ttsClient = new textToSpeech.TextToSpeechClient();
 
         const request = {
             input: { text: text },
@@ -97,6 +101,14 @@ app.post('/tts', async (req, res) => {
             return res.status(500).json({
                 error: 'API Not Enabled',
                 details: 'Please enable the Cloud Text-to-Speech API in your Google Cloud Console for this project.'
+            });
+        }
+
+        // Check for missing credentials
+        if (error.message && (error.message.includes('Could not load the default credentials') || error.message.includes('authenticate'))) {
+            return res.status(500).json({
+                error: 'TTS Authentication Error',
+                details: 'Google Cloud credentials are not configured. Please set GOOGLE_APPLICATION_CREDENTIALS environment variable in Render.'
             });
         }
 
