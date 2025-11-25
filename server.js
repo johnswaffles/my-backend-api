@@ -17,6 +17,20 @@ const model = genAI.getGenerativeModel({
     tools: [{ googleSearch: {} }]
 });
 
+// Google Cloud Credentials Setup (for TTS)
+if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+    const fs = require('fs');
+    const path = require('path');
+    const credPath = path.join(__dirname, 'gcloud-creds.json');
+    try {
+        fs.writeFileSync(credPath, process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+        process.env.GOOGLE_APPLICATION_CREDENTIALS = credPath;
+        console.log('Google Cloud credentials configured from environment variable');
+    } catch (error) {
+        console.error('Failed to write Google Cloud credentials:', error);
+    }
+}
+
 // Health Check Endpoint
 app.get('/', (req, res) => {
     res.json({ status: 'ok', message: 'Gemini Backend API is running' });
