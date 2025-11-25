@@ -15,8 +15,40 @@
                 </div>
             </div>
             <div class="header-right">
+                <select id="prompt-selector" class="response-mode-selector"
+                    style="margin-right: 10px; max-width: 200px;">
+                    <option value="" disabled selected>💡 Pick a Prompt...</option>
+                    <option value="Explain quantum computing like I'm 5">Explain quantum computing like I'm 5</option>
+                    <option value="Write a professional email to a client">Write a professional email to a client
+                    </option>
+                    <option value="Give me 5 creative dinner ideas">Give me 5 creative dinner ideas</option>
+                    <option value="Summarize the history of Rome">Summarize the history of Rome</option>
+                    <option value="Debug this Python code snippet">Debug this Python code snippet</option>
+                    <option value="Write a bedtime story about a dragon">Write a bedtime story about a dragon</option>
+                    <option value="Explain the theory of relativity">Explain the theory of relativity</option>
+                    <option value="Create a workout plan for beginners">Create a workout plan for beginners</option>
+                    <option value="Suggest a travel itinerary for Japan">Suggest a travel itinerary for Japan</option>
+                    <option value="How does a blockchain work?">How does a blockchain work?</option>
+                    <option value="Write a poem about the ocean">Write a poem about the ocean</option>
+                    <option value="Give me tips for public speaking">Give me tips for public speaking</option>
+                    <option value="Explain the difference between AI and ML">Explain the difference between AI and ML
+                    </option>
+                    <option value="Write a catchy slogan for a coffee brand">Write a catchy slogan for a coffee brand
+                    </option>
+                    <option value="How to start a vegetable garden">How to start a vegetable garden</option>
+                    <option value="Explain the significance of 1984">Explain the significance of 1984</option>
+                    <option value="Generate interview questions for a manager">Generate interview questions for a
+                        manager</option>
+                    <option value="What are the benefits of meditation?">What are the benefits of meditation?</option>
+                    <option value="Write a short script for a YouTube intro">Write a short script for a YouTube intro
+                    </option>
+                    <option value="Explain the basics of stock market investing">Explain the basics of stock market
+                        investing</option>
+                </select>
+                <button id="header-new-chat-btn" class="response-mode-selector" style="margin-right: 10px;">+
+                    New</button>
                 <select id="voice-selector" class="response-mode-selector" style="margin-right: 10px;">
-                    <option value="en-US-Standard-D" selected>🎙️ Frank</option>
+                    <option value="en-US-Standard-D" selected>🎙️ Johnny</option>
                     <option value="en-US-Standard-C">🎙️ Althea</option>
                 </select>
                 <select id="response-mode" class="response-mode-selector">
@@ -116,8 +148,8 @@
     #conversation-sidebar {
         width: 100%;
         max-width: 1120px;
-        height: 200px;
-        /* Fixed height at bottom */
+        height: 400px;
+        /* Increased height to show ~10 items */
         background: rgba(30, 41, 59, 0.7);
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
@@ -806,19 +838,26 @@
 
         .header-right {
             width: 100%;
+            display: flex;
+            flex-wrap: wrap;
             justify-content: space-between;
             gap: 10px;
         }
 
         .response-mode-selector {
-            flex: 1;
-            /* Equal width for dropdowns */
+            flex: 1 1 45%;
+            /* Allow items to take up ~half width, wrapping if needed */
             font-size: 0.85rem;
             padding: 8px 4px;
-            /* Tighter padding */
             text-align: center;
             margin-right: 0 !important;
-            /* Override inline style */
+            max-width: none !important;
+            /* Override inline max-width on mobile */
+        }
+
+        /* Make prompt selector full width on mobile for readability */
+        #prompt-selector {
+            flex: 1 1 100%;
         }
 
         /* Message Area Adjustments */
@@ -1267,6 +1306,16 @@
             }
         });
         newConversationBtn.addEventListener('click', createNewConversation);
+
+        // New Header Controls
+        document.getElementById('header-new-chat-btn').addEventListener('click', createNewConversation);
+        document.getElementById('prompt-selector').addEventListener('change', function () {
+            if (this.value) {
+                input.value = this.value;
+                input.focus();
+                this.value = ""; // Reset dropdown to default
+            }
+        });
 
         // Start the app
         init();
