@@ -67,6 +67,30 @@ app.post('/tts', async (req, res) => {
 
         console.log("TTS Request - Voice:", voice, "Text length:", text.length);
 
+        // Voice mode: Keep spoken output short (~120 words or ~700 characters)
+        let spokenText = text;
+
+        // If text is longer than 700 characters, create a summary
+        if (text.length > 700) {
+            // Take first 700 characters and try to break at sentence boundary
+            spokenText = text.substring(0, 700);
+            const lastPeriod = spokenText.lastIndexOf('.');
+            const lastQuestion = spokenText.lastIndexOf('?');
+            const lastExclamation = spokenText.lastIndexOf('!');
+
+            const lastSentenceEnd = Math.max(lastPeriod, lastQuestion, lastExclamation);
+
+            if (lastSentenceEnd > 400) {
+                // If we found a sentence boundary after 400 chars, use it
+                spokenText = spokenText.substring(0, lastSentenceEnd + 1);
+            } else {
+                // Otherwise, just truncate and add ellipsis
+                spokenText = spokenText.substring(0, 650).trim() + '...';
+            }
+
+            console.log(`TTS: Truncated from ${text.length} to ${spokenText.length} characters`);
+        }
+
         // Call Google Cloud TTS API with API key
         const response = await fetch('https://texttospeech.googleapis.com/v1/text:synthesize?key=' + process.env.GEMINI_API_KEY, {
             method: 'POST',
@@ -74,7 +98,7 @@ app.post('/tts', async (req, res) => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                input: { text: text },
+                input: { text: spokenText },
                 voice: {
                     languageCode: voice.split('-').slice(0, 2).join('-'), // e.g., en-US
                     name: voice
