@@ -24,6 +24,32 @@
                 </div>
             </div>
             <div class="header-right">
+                <select id="voice-selector" class="response-mode-selector" style="margin-right: 10px;">
+                    <optgroup label="Female Voices">
+                        <option value="en-US-Neural2-C">🇺🇸 US Female 1</option>
+                        <option value="en-US-Neural2-E">🇺🇸 US Female 2</option>
+                        <option value="en-US-Neural2-F">🇺🇸 US Female 3</option>
+                        <option value="en-US-Neural2-H">🇺🇸 US Female 4</option>
+                        <option value="en-GB-Neural2-A">🇬🇧 UK Female 1</option>
+                        <option value="en-GB-Neural2-C">🇬🇧 UK Female 2</option>
+                        <option value="en-AU-Neural2-A">🇦🇺 AU Female 1</option>
+                        <option value="en-AU-Neural2-C">🇦🇺 AU Female 2</option>
+                        <option value="en-CA-Neural2-B">🇨🇦 CA Female 1</option>
+                        <option value="en-CA-Neural2-D">🇨🇦 CA Female 2</option>
+                    </optgroup>
+                    <optgroup label="Male Voices">
+                        <option value="en-US-Neural2-D" selected>🇺🇸 US Male 1</option>
+                        <option value="en-US-Neural2-I">🇺🇸 US Male 2</option>
+                        <option value="en-US-Neural2-J">🇺🇸 US Male 3</option>
+                        <option value="en-GB-Neural2-B">🇬🇧 UK Male 1</option>
+                        <option value="en-GB-Neural2-D">🇬🇧 UK Male 2</option>
+                        <option value="en-AU-Neural2-B">🇦🇺 AU Male 1</option>
+                        <option value="en-AU-Neural2-D">🇦🇺 AU Male 2</option>
+                        <option value="en-CA-Neural2-A">🇨🇦 CA Male 1</option>
+                        <option value="en-CA-Neural2-C">🇨🇦 CA Male 2</option>
+                        <option value="en-IN-Neural2-B">🇮🇳 IN Male 1</option>
+                    </optgroup>
+                </select>
                 <select id="response-mode" class="response-mode-selector">
                     <option value="fast">⚡ Fast</option>
                     <option value="detailed">📝 Detailed</option>
@@ -680,8 +706,73 @@
         box-shadow: none;
     }
 
+    /* TYPING INDICATOR */
+    .typing-indicator {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 20px 25px;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 20px;
+        border-top-left-radius: 4px;
+        width: fit-content;
+        margin-left: 60px;
+        margin-top: 15px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        position: relative;
+    }
+
+    .typing-indicator::before {
+        content: 'J';
+        position: absolute;
+        left: -60px;
+        bottom: 0;
+        width: 45px;
+        height: 45px;
+        background: linear-gradient(135deg, #00c6ff, #0072ff);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: 'Rajdhani', sans-serif;
+        font-weight: 700;
+        font-size: 1.5rem;
+        color: white;
+        box-shadow: 0 4px 15px rgba(0, 114, 255, 0.4);
+    }
+
+    .typing-bar {
+        width: 6px;
+        height: 6px;
+        background: #94a3b8;
+        border-radius: 50%;
+        animation: bounce 1.4s infinite ease-in-out both;
+    }
+
+    .typing-bar:nth-child(1) {
+        animation-delay: -0.32s;
+    }
+
+    .typing-bar:nth-child(2) {
+        animation-delay: -0.16s;
+    }
+
+    @keyframes bounce {
+
+        0%,
+        80%,
+        100% {
+            transform: scale(0);
+        }
+
+        40% {
+            transform: scale(1);
+        }
+    }
+
     /* Mobile */
     @media (max-width: 768px) {
+
         #gemini-chat-wrapper {
             flex-direction: column;
         }
@@ -867,6 +958,24 @@
         }
         loadVoices();
 
+        function showLoading() {
+            const loader = document.createElement('div');
+            loader.className = 'typing-indicator';
+            loader.id = 'gemini-loader';
+            loader.innerHTML = `
+                <div class="typing-bar"></div>
+                <div class="typing-bar"></div>
+                <div class="typing-bar"></div>
+            `;
+            messagesContainer.appendChild(loader);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function hideLoading() {
+            const loader = document.getElementById('gemini-loader');
+            if (loader) loader.remove();
+        }
+
         function addMessage(text, isUser, skipSave = false) {
             if (text === null || text === undefined) text = "";
             const div = document.createElement('div');
@@ -1001,6 +1110,7 @@
             sendBtn.disabled = true;
 
             addMessage(text, true);
+            showLoading();
 
             // Update title with first user message
             const conv = conversations.find(c => c.id === currentConversationId);
@@ -1037,26 +1147,33 @@
                 if (!response.ok) throw new Error('Network response was not ok');
 
                 const data = await response.json();
-                addMessage(data.reply, false);
+                hideLoading();
 
-                // Update conversation history
-                conversationHistory.push({
-                    role: 'user',
-                    parts: [{ text: text }]
-                });
-                conversationHistory.push({
-                    role: 'model',
-                    parts: [{ text: data.reply }]
-                });
+                if (!data.reply) {
+                    addMessage('⚠️ Sorry, no response was generated.', false);
+                } else {
+                    addMessage(data.reply, false);
 
-                // Save updated history
-                const currentConv = conversations.find(c => c.id === currentConversationId);
-                if (currentConv) {
-                    currentConv.history = conversationHistory;
-                    saveConversations();
+                    // Update conversation history
+                    conversationHistory.push({
+                        role: 'user',
+                        parts: [{ text: text }]
+                    });
+                    conversationHistory.push({
+                        role: 'model',
+                        parts: [{ text: data.reply }]
+                    });
+
+                    // Save updated history
+                    const currentConv = conversations.find(c => c.id === currentConversationId);
+                    if (currentConv) {
+                        currentConv.history = conversationHistory;
+                        saveConversations();
+                    }
                 }
 
             } catch (error) {
+                hideLoading();
                 console.error('Error:', error);
                 addMessage("Sorry, Johnny couldn't reach the server. Please check your connection.", false);
             } finally {
