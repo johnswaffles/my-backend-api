@@ -55,13 +55,16 @@ app.post('/chat', async (req, res) => {
     }
 });
 
-// Google Translate TTS (Free, no auth required)
-const googleTTS = require('google-tts-api');
+// Google Cloud Text-to-Speech Setup
+const textToSpeech = require('@google-cloud/text-to-speech');
+const ttsClient = new textToSpeech.TextToSpeechClient({
+    apiKey: process.env.GEMINI_API_KEY
+});
 
 // Text-to-Speech Endpoint
 app.post('/tts', async (req, res) => {
     try {
-        const { text, voice = 'en-US' } = req.body;
+        const { text, voice = 'en-US-Neural2-C' } = req.body;
 
         if (!text) {
             return res.status(400).json({ error: 'Text is required' });
@@ -69,56 +72,38 @@ app.post('/tts', async (req, res) => {
 
         console.log("TTS Request - Voice:", voice, "Text length:", text.length);
 
-        // For long text, use getAllAudioUrls which splits into chunks
-        const audioUrls = await googleTTS.getAllAudioUrls(text, {
-            lang: voice,
-            slow: false,
-            host: 'https://translate.google.com',
-            splitPunct: ',.?'
+        const request = {
+            input: { text: text },
+            voice: {
+                languageCode: voice.split('-').slice(0, 2).join('-'), // e.g., en-US
+                name: voice
+            },
+            audioConfig: {
+                audioEncoding: 'MP3',
+                pitch: 0,
+                speakingRate: 1.0
+            },
+        };
+
+        const [response] = await ttsClient.synthesizeSpeech(request);
+
+        res.set({
+            'Content-Type': 'audio/mpeg',
+            'Content-Disposition': `attachment; filename="speech-${Date.now()}.mp3"`
         });
-
-        // If single URL, just fetch and return
-        if (audioUrls.length === 1) {
-            const https = require('https');
-            https.get(audioUrls[0].url, (audioResponse) => {
-                res.set({
-                    'Content-Type': 'audio/mpeg',
-                    'Content-Disposition': `attachment; filename="speech-${Date.now()}.mp3"`
-                });
-                audioResponse.pipe(res);
-            }).on('error', (error) => {
-                console.error('Error fetching audio:', error);
-                res.status(500).json({ error: 'Failed to fetch audio' });
-            });
-        } else {
-            // Multiple URLs - need to concatenate them
-            const https = require('https');
-            const chunks = [];
-
-            // Fetch all audio chunks
-            const fetchPromises = audioUrls.map(urlObj => {
-                return new Promise((resolve, reject) => {
-                    https.get(urlObj.url, (audioResponse) => {
-                        const data = [];
-                        audioResponse.on('data', chunk => data.push(chunk));
-                        audioResponse.on('end', () => resolve(Buffer.concat(data)));
-                        audioResponse.on('error', reject);
-                    }).on('error', reject);
-                });
-            });
-
-            const audioBuffers = await Promise.all(fetchPromises);
-            const combinedAudio = Buffer.concat(audioBuffers);
-
-            res.set({
-                'Content-Type': 'audio/mpeg',
-                'Content-Disposition': `attachment; filename="speech-${Date.now()}.mp3"`
-            });
-            res.send(combinedAudio);
-        }
+        res.send(response.audioContent);
 
     } catch (error) {
         console.error('Error with TTS:', error);
+
+        // Check for common API enablement error
+        if (error.message && error.message.includes('PERMISSION_DENIED') && error.message.includes('Cloud Text-to-Speech API')) {
+            return res.status(500).json({
+                error: 'API Not Enabled',
+                details: 'Please enable the Cloud Text-to-Speech API in your Google Cloud Console for this project.'
+            });
+        }
+
         res.status(500).json({ error: 'TTS Error', details: error.message });
     }
 });

@@ -868,6 +868,7 @@
         loadVoices();
 
         function addMessage(text, isUser, skipSave = false) {
+            if (text === null || text === undefined) text = "";
             const div = document.createElement('div');
             div.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
 
@@ -879,67 +880,43 @@
                 div.appendChild(contentDiv);
             } else {
                 if (typeof marked !== 'undefined' && marked.parse) {
-                    contentDiv.innerHTML = marked.parse(text);
+                    try { contentDiv.innerHTML = marked.parse(text); } catch (e) { contentDiv.textContent = text; }
                 } else {
                     contentDiv.textContent = text;
                 }
                 div.appendChild(contentDiv);
 
+                // Bot Footer
                 const footerDiv = document.createElement('div');
                 footerDiv.className = 'message-footer';
 
-                // Left side: Voice controls (British voice only)
-                const footerLeft = document.createElement('div');
-                footerLeft.className = 'footer-left';
-
-                // Hardcoded US voice (en-US)
-                const selectedVoice = 'en-US';
-
-                // Play button
+                // Play Button
                 const playBtn = document.createElement('button');
                 playBtn.className = 'audio-btn';
                 playBtn.innerHTML = '▶ Play';
 
-                // Download button
-                const downloadBtn = document.createElement('button');
-                downloadBtn.className = 'audio-btn';
-                downloadBtn.innerHTML = '⬇ Download';
-                downloadBtn.disabled = true;
-
-                // Store audio blob for this message
-                let audioBlob = null;
-                let audioUrl = null;
                 let currentAudio = null;
 
-                // Play functionality using backend
                 playBtn.onclick = async function () {
+                    if (currentAudio && !currentAudio.paused) {
+                        currentAudio.pause();
+                        playBtn.innerHTML = '▶ Play';
+                        playBtn.classList.remove('playing');
+                        return;
+                    }
+
+                    const selectedVoice = document.getElementById('voice-selector').value;
+                    const rawText = contentDiv.innerText;
+
+                    playBtn.innerHTML = '⏳ Loading...';
+                    playBtn.disabled = true;
+
                     try {
-                        // If already playing, pause
-                        if (currentAudio && !currentAudio.paused) {
-                            currentAudio.pause();
-                            playBtn.innerHTML = '▶ Play';
-                            playBtn.classList.remove('playing');
-                            return;
-                        }
-
-                        // If we have audio already, just play it
-                        if (currentAudio && audioBlob) {
-                            currentAudio.play();
-                            playBtn.innerHTML = '⏸ Pause';
-                            playBtn.classList.add('playing');
-                            return;
-                        }
-
-                        // Generate audio from backend
-                        playBtn.disabled = true;
-                        playBtn.innerHTML = '⏳ Loading...';
-
-                        const textToSpeak = contentDiv.innerText;
-                        const response = await fetch('https://my-backend-api-1niy.onrender.com/tts', {
+                        const response = await fetch(BACKEND_URL.replace('/chat', '/tts'), {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                                text: textToSpeak,
+                                text: rawText,
                                 voice: selectedVoice
                             })
                         });
