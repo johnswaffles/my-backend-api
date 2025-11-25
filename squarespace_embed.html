@@ -23,6 +23,13 @@
                     <span class="subtitle">TALK TO JOHNNY</span>
                 </div>
             </div>
+            <div class="header-right">
+                <select id="response-mode" class="response-mode-selector">
+                    <option value="fast">⚡ Fast</option>
+                    <option value="detailed">📝 Detailed</option>
+                    <option value="story">📖 Story Time</option>
+                </select>
+            </div>
         </div>
 
         <div id="chat-messages">
@@ -267,6 +274,44 @@
         display: flex;
         align-items: center;
         gap: 15px;
+    }
+
+    .header-right {
+        display: flex;
+        align-items: center;
+    }
+
+    .response-mode-selector {
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #fff;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-family: 'Rajdhani', sans-serif;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        outline: none;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+    }
+
+    .response-mode-selector:hover {
+        background: rgba(99, 102, 241, 0.3);
+        border-color: #6366f1;
+        box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
+    }
+
+    .response-mode-selector:focus {
+        border-color: #00f0ff;
+        box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+    }
+
+    .response-mode-selector option {
+        background: #1e293b;
+        color: #fff;
+        padding: 10px;
     }
 
     .ai-status {
@@ -996,12 +1041,28 @@
                 updateConversationTitle(text);
             }
 
+            // Get selected response mode
+            const responseMode = document.getElementById('response-mode').value;
+
+            // Create system prompt based on mode
+            let systemPrompt = '';
+            let modifiedMessage = text;
+
+            if (responseMode === 'detailed') {
+                systemPrompt = 'Provide a detailed and comprehensive response with thorough explanations, examples, and context. Be informative and in-depth.';
+                modifiedMessage = `${systemPrompt}\n\nUser question: ${text}`;
+            } else if (responseMode === 'story') {
+                systemPrompt = 'Provide an extremely detailed, comprehensive, and thorough response. Go in-depth with extensive explanations, multiple examples, historical context, background information, and related details. Make your response as lengthy and informative as possible while remaining relevant and engaging. Include step-by-step breakdowns, comparisons, and elaborate on all aspects of the topic. Aim for maximum detail and completeness.';
+                modifiedMessage = `${systemPrompt}\n\nUser question: ${text}`;
+            }
+            // For 'fast' mode, use original message without modification
+
             try {
                 const response = await fetch(BACKEND_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        message: text,
+                        message: modifiedMessage,
                         history: conversationHistory
                     })
                 });
