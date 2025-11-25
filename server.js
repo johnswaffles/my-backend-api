@@ -7,16 +7,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Middleware
-const corsOptions = {
-    origin: [
-        'https://justaskjohnny.com',
-        'https://www.justaskjohnny.com',
-        'http://localhost:3000', // For local testing
-        /\.squarespace\.com$/ // Allow Squarespace preview domains
-    ],
-    credentials: true
-};
-app.use(cors(corsOptions));
+app.use(cors()); // Allow all origins temporarily for debugging
 app.use(express.json());
 
 // Gemini Setup
