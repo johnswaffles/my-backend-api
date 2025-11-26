@@ -1707,9 +1707,10 @@
         document.getElementById('header-new-chat-btn').addEventListener('click', createNewConversation);
 
         document.getElementById('prompt-selector').addEventListener('change', function () {
-            if (this.value) {
-                input.value = this.value;
-                input.focus();
+            const chatInput = document.getElementById('chat-input');
+            if (this.value && chatInput) {
+                chatInput.value = this.value;
+                chatInput.focus();
                 this.value = ""; // Reset dropdown to default
             }
         });
