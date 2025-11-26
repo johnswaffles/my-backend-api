@@ -3,87 +3,80 @@
 <div id="gemini-chat-wrapper">
 
 
+
+
+    <!-- Sidebar for Conversations (Moved to Bottom) -->
+    <div id="conversation-sidebar">
+        <div class="sidebar-header">
+            <h4>Trip History</h4>
+            <button id="new-conversation-btn">+ New Trip</button>
+        </div>
+        <div id="conversation-list">
+            <!-- Conversations will be listed here -->
+        </div>
+    </div>
+
     <div id="gemini-chat-container">
-        <!-- Floating Glossy Elements for Depth -->
-        <div class="gloss-reflection"></div>
+        <!-- Background Texture -->
+        <div class="bg-texture"></div>
         <div id="chat-header">
             <div class="header-left">
                 <div class="ai-status"></div>
                 <div>
-                    <h3>GEMINI 3 PRO</h3>
-                    <span class="subtitle">TALK TO JOHNNY</span>
+                    <h3>TRAILGUIDE.AI</h3>
+                    <span class="subtitle">YOUR AI GUIDE TO THE OUTDOORS</span>
                 </div>
             </div>
             <div class="header-right">
                 <select id="prompt-selector" class="response-mode-selector"
                     style="margin-right: 10px; max-width: 200px;">
-                    <option value="" disabled selected>💡 Pick a Prompt...</option>
-                    <option
-                        value="Explain [topic] in simple terms, then in advanced terms, and give 3 concrete examples.">
-                        Explain [topic] in simple & advanced terms</option>
-                    <option value="Summarize this text and give 5 key takeaways plus 3 action items: [paste text].">
-                        Summarize text + 5 takeaways & 3 actions</option>
-                    <option
-                        value="Act as a senior expert in [field]. I’ll describe a situation; you give me a clear, step-by-step plan: [situation].">
-                        Act as expert: Step-by-step plan</option>
-                    <option value="Brainstorm 10 creative ideas for [goal], ranked from safest to most aggressive.">
-                        Brainstorm 10 ideas (safe to aggressive)</option>
-                    <option
-                        value="Critique this and tell me what to improve, then rewrite a better version: [paste text/code].">
-                        Critique & Rewrite better version</option>
-                    <option
-                        value="Turn this messy brainstorm into a clean, structured outline with clear sections and bullet points: [content].">
-                        Clean up brainstorm into outline</option>
-                    <option
-                        value="I want to learn [topic] from scratch in 10 lessons. Design the 10-lesson roadmap, then give me Lesson 1.">
-                        10-lesson learning roadmap</option>
-                    <option value="Turn this outline into polished, high-quality prose in my same voice: [outline].">
-                        Turn outline into polished prose</option>
-                    <option
-                        value="I’m deciding between options A, B, and C. Make a comparison table with pros, cons, risks, and when each is best.">
-                        Compare options A, B, C (Table)</option>
-                    <option
-                        value="Given my goal [goal], ask me 5 clarifying questions first, then propose a detailed plan.">
-                        Ask 5 questions, then plan</option>
-                    <option
-                        value="Take this long conversation and produce a one-page brief: context, problem, options, recommendation, next steps.">
-                        Create one-page brief from convo</option>
-                    <option
-                        value="Rewrite this to be shorter, clearer, and more persuasive, without changing the meaning: [text].">
-                        Rewrite: Shorter, clearer, persuasive</option>
-                    <option
-                        value="Act as my project manager. Convert this idea into a task list with priorities and realistic timelines: [idea].">
-                        Project Manager: Task list & timeline</option>
-                    <option
-                        value="Explain the strongest arguments for and against [position], then give a balanced conclusion in plain language.">
-                        Arguments For/Against + Conclusion</option>
-                    <option
-                        value="Debug this code: explain what’s wrong, how you found it, and show a fixed version: [code].">
-                        Debug code & explain fix</option>
-                    <option value="Turn these notes into a checklist I can follow in order, with boxes: [notes].">Turn
-                        notes into checklist</option>
-                    <option
-                        value="Role-play as a skeptical reviewer. Challenge my plan for weaknesses, blind spots, and missing data: [plan].">
-                        Role-play: Skeptical Reviewer</option>
-                    <option
-                        value="Translate this into [language] with a natural, conversational tone, then back-translate to check accuracy: [text].">
-                        Translate & Back-translate check</option>
-                    <option
-                        value="Act as my writing coach. Point out 5 specific ways to improve my style in this sample, with examples: [sample].">
-                        Writing Coach: Improve style</option>
-                    <option
-                        value="For this decision, list best-case, worst-case, and most likely outcomes, plus what I can do now to tilt toward best-case: [decision].">
-                        Decision Analysis: Best/Worst/Likely</option>
+                    <option value="" disabled selected>🌲 Plan Your Adventure...</option>
+                    <option value="Plan a 3-day camping trip to [Location] for beginners. Include packing list.">Plan
+                        3-Day Trip (Beginner)</option>
+                    <option value="What is the current fire danger and weather forecast for [Location]?">Check Fire &
+                        Weather</option>
+                    <option value="Suggest a gear list for a backpacking trip in [Season/Location]. Budget: $500.">Gear
+                        List (Budget)</option>
+                    <option value="How do I find a campsite in [Location] that has RV hookups?">Find RV Campsite
+                    </option>
+                    <option value="Give me 5 easy campfire recipes for a family of 4.">5 Easy Campfire Recipes</option>
+                    <option value="Explain how to start a fire safely and put it out completely (LNT).">Fire Safety &
+                        LNT</option>
+                    <option value="What should I do if I encounter a bear/cougar in [Location]?">Wildlife Safety Guide
+                    </option>
+                    <option value="Create a checklist for winter camping survival gear.">Winter Survival Checklist
+                    </option>
+                    <option value="How do I use a map and compass for navigation? (Step-by-step)">Map & Compass Guide
+                    </option>
+                    <option value="Recommend the best solar power setup for my RV/Van.">RV Solar Setup Guide</option>
+                    <option value="What are the Leave No Trace principles I need to know?">Explain Leave No Trace
+                    </option>
+                    <option value="Suggest a 7-day Overlanding route in [State/Region].">Overlanding Route Plan</option>
+                    <option value="How do I purify water in the backcountry? Compare methods.">Water Purification Guide
+                    </option>
+                    <option value="What first aid supplies do I need for a remote hiking trip?">Backcountry First Aid
+                    </option>
+                    <option value="Teach me how to tie essential camping knots (Bowline, Taut-line).">Essential Knots
+                        Guide</option>
+                    <option value="Find me a campground near [Location] with good reviews and swimming.">Find Campground
+                        w/ Swim</option>
+                    <option value="How do I prepare for camping in the rain? (Gear & Tips)">Rain Camping Tips</option>
+                    <option value="What is the best way to store food to keep it safe from animals?">Food Storage & Bear
+                        Bags</option>
+                    <option value="Create a meal plan for a 2-day backpacking trip (Ultralight).">Ultralight Meal Plan
+                    </option>
+                    <option value="Explain the difference between synthetic and down sleeping bags.">Down vs Synthetic
+                        Gear</option>
                 </select>
                 <button id="header-new-chat-btn" class="response-mode-selector" style="margin-right: 10px;">+
                     New</button>
                 <select id="voice-selector" class="response-mode-selector" style="margin-right: 10px;">
-                    <option value="en-US-Standard-D" selected>🎙️ Johnny</option>
-                    <option value="en-US-Standard-C">🎙️ Althea</option>
+                    <option value="en-US-Standard-D" selected>🎙️ Ranger Frank</option>
+                    <option value="en-US-Standard-C">🎙️ Guide Althea</option>
                 </select>
                 <select id="response-mode" class="response-mode-selector">
-                    <option value="fast">⚡ Fast</option>
-                    <option value="detailed">📝 More Detailed</option>
+                    <option value="fast">⚡ Quick Tips</option>
+                    <option value="detailed">📝 Full Guide</option>
                 </select>
             </div>
         </div>
@@ -92,8 +85,11 @@
             <!-- Messages will appear here -->
             <div class="message bot-message">
                 <div class="message-content">
-                    <p>Hello! I'm <strong>Johnny</strong>.</p>
-                    <p>I am ready to assist you. Ask me anything.</p>
+                    <p>Welcome to <strong>TrailGuide.ai</strong>! 🌲</p>
+                    <p>I'm your expert guide for camping, hiking, and outdoor adventure. Whether you need a trip
+                        itinerary, gear advice, or real-time weather updates, I'm here to help you plan safer and
+                        smarter.</p>
+                    <p>Where are we heading today?</p>
                 </div>
                 <div class="message-footer">
                     <button class="copy-btn"
@@ -105,26 +101,15 @@
         </div>
 
         <div id="chat-input-area">
-            <input type="text" id="chat-input" placeholder="Type a message to Johnny..." />
+            <input type="text" id="chat-input" placeholder="Ask about trips, gear, weather, or skills..." />
             <button id="send-btn">SEND</button>
-        </div>
-    </div>
-
-    <!-- Sidebar for Conversations (Moved to Bottom) -->
-    <div id="conversation-sidebar">
-        <div class="sidebar-header">
-            <h4>Conversations</h4>
-            <button id="new-conversation-btn">+ New</button>
-        </div>
-        <div id="conversation-list">
-            <!-- Conversations will be listed here -->
         </div>
     </div>
 </div>
 
 <style>
     /* 1. FONT IMPORT */
-    @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Inter:wght@300;400;600&display=swap');
 
     /* 2. WRAPPER & RESET */
     #gemini-chat-wrapper {
@@ -136,7 +121,8 @@
         min-height: 85vh;
         font-family: 'Inter', sans-serif;
         box-sizing: border-box;
-        background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+        background: #f0f4f8;
+        /* Light Slate/Cloud */
         position: relative;
         overflow: hidden;
         padding: 20px;
@@ -149,29 +135,17 @@
         box-sizing: border-box;
     }
 
-    /* Background Animation */
+    /* Background Image/Texture */
     #gemini-chat-wrapper::before {
         content: '';
         position: absolute;
-        top: -20%;
-        left: -20%;
-        width: 140%;
-        height: 140%;
-        background: radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.15), transparent 60%);
-        animation: pulseGlow 10s infinite alternate;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%232c3e50' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
         z-index: 0;
-    }
-
-    @keyframes pulseGlow {
-        0% {
-            transform: scale(1);
-            opacity: 0.5;
-        }
-
-        100% {
-            transform: scale(1.1);
-            opacity: 0.8;
-        }
+        opacity: 0.6;
     }
 
     /* SIDEBAR STYLES */
@@ -180,12 +154,10 @@
         max-width: 1120px;
         height: 400px;
         /* Increased height to show ~10 items */
-        background: rgba(30, 41, 59, 0.7);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 24px;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
         overflow: hidden;
         display: flex;
         flex-direction: column;
@@ -193,9 +165,10 @@
     }
 
     .sidebar-header {
-        padding: 20px;
-        background: rgba(15, 23, 42, 0.6);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 15px 20px;
+        background: #2f3e46;
+        /* Dark Slate */
+        border-bottom: 1px solid #e2e8f0;
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -203,37 +176,37 @@
 
     .sidebar-header h4 {
         margin: 0;
-        font-family: 'Rajdhani', sans-serif;
+        font-family: 'Montserrat', sans-serif;
         font-weight: 700;
-        font-size: 1.2rem;
-        letter-spacing: 1.5px;
+        font-size: 1.1rem;
+        letter-spacing: 0.5px;
         color: #fff;
         text-transform: uppercase;
     }
 
     #new-conversation-btn {
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        background: #52796f;
+        /* Sage Green */
         color: white;
         border: none;
         padding: 8px 16px;
-        border-radius: 8px;
-        font-family: 'Rajdhani', sans-serif;
+        border-radius: 6px;
+        font-family: 'Montserrat', sans-serif;
         font-weight: 600;
         font-size: 0.85rem;
         cursor: pointer;
         transition: all 0.2s;
-        letter-spacing: 0.5px;
     }
 
     #new-conversation-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(99, 102, 241, 0.4);
+        background: #354f52;
     }
 
     #conversation-list {
         flex: 1;
         overflow-y: auto;
         padding: 10px;
+        background: #f8fafc;
     }
 
     #conversation-list::-webkit-scrollbar {
@@ -241,39 +214,39 @@
     }
 
     #conversation-list::-webkit-scrollbar-track {
-        background: rgba(0, 0, 0, 0.2);
+        background: rgba(0, 0, 0, 0.05);
     }
 
     #conversation-list::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.1);
+        background: rgba(0, 0, 0, 0.1);
         border-radius: 3px;
     }
 
     .conversation-item {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-radius: 12px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
         padding: 12px 15px;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
         cursor: pointer;
         transition: all 0.2s;
         position: relative;
     }
 
     .conversation-item:hover {
-        background: rgba(255, 255, 255, 0.08);
-        border-color: rgba(255, 255, 255, 0.15);
+        border-color: #52796f;
+        background: #f1f5f9;
     }
 
     .conversation-item.active {
-        background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.2));
-        border-color: #6366f1;
+        background: #e6fffa;
+        border-color: #52796f;
     }
 
     .conversation-item-title {
         font-size: 0.9rem;
         font-weight: 600;
-        color: #fff;
+        color: #2f3e46;
         margin-bottom: 4px;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -281,37 +254,29 @@
     }
 
     .conversation-item-date {
-        font-size: 0.7rem;
-        color: #94a3b8;
-        letter-spacing: 0.5px;
+        font-size: 0.75rem;
+        color: #64748b;
     }
 
     .conversation-item-delete {
         position: absolute;
         top: 10px;
         right: 10px;
-        background: rgba(239, 68, 68, 0.3);
+        background: transparent;
         border: none;
         color: #ef4444;
-        width: 24px;
-        height: 24px;
-        border-radius: 6px;
-        font-size: 0.8rem;
+        font-size: 1.2rem;
         cursor: pointer;
         opacity: 0;
         transition: all 0.2s;
+        line-height: 1;
     }
 
     .conversation-item:hover .conversation-item-delete {
         opacity: 1;
     }
 
-    .conversation-item-delete:hover {
-        background: rgba(239, 68, 68, 0.6);
-        color: white;
-    }
-
-    /* 3. MAIN GLASS CONTAINER */
+    /* 3. MAIN CHAT CONTAINER */
     #gemini-chat-container {
         width: 100%;
         max-width: 1120px;
@@ -320,25 +285,25 @@
         flex-direction: column;
         position: relative;
         z-index: 10;
-        background: rgba(30, 41, 59, 0.7);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 24px;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 12px;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         overflow: hidden;
     }
 
     /* 4. HEADER */
     #chat-header {
         padding: 20px 30px;
-        background: rgba(15, 23, 42, 0.6);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        background: #2f3e46;
+        /* Dark Slate */
+        border-bottom: 1px solid #cbd5e1;
         display: flex;
         justify-content: space-between;
         align-items: center;
         flex-shrink: 0;
-        height: 80px;
+        height: auto;
+        min-height: 80px;
     }
 
     .header-left {
@@ -350,51 +315,44 @@
     .header-right {
         display: flex;
         align-items: center;
+        gap: 10px;
     }
 
     .response-mode-selector {
-        background: rgba(0, 0, 0, 0.3);
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: #354f52;
+        border: 1px solid #52796f;
         color: #fff;
-        padding: 8px 16px;
-        border-radius: 8px;
-        font-family: 'Rajdhani', sans-serif;
-        font-size: 0.95rem;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-family: 'Montserrat', sans-serif;
+        font-size: 0.85rem;
         font-weight: 600;
         cursor: pointer;
-        transition: all 0.3s ease;
+        transition: all 0.2s ease;
         outline: none;
-        letter-spacing: 0.5px;
-        text-transform: uppercase;
     }
 
     .response-mode-selector:hover {
-        background: rgba(99, 102, 241, 0.3);
-        border-color: #6366f1;
-        box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
-    }
-
-    .response-mode-selector:focus {
-        border-color: #00f0ff;
-        box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+        background: #52796f;
+        border-color: #84a98c;
     }
 
     .response-mode-selector option {
-        background: #1e293b;
+        background: #2f3e46;
         color: #fff;
-        padding: 10px;
     }
 
     .ai-status {
         width: 12px;
         height: 12px;
-        background: #00f0ff;
+        background: #84a98c;
+        /* Light Green */
         border-radius: 50%;
-        box-shadow: 0 0 15px #00f0ff;
-        animation: blinkStatus 3s infinite;
+        box-shadow: 0 0 8px #84a98c;
+        animation: pulseStatus 3s infinite;
     }
 
-    @keyframes blinkStatus {
+    @keyframes pulseStatus {
 
         0%,
         100% {
@@ -402,16 +360,16 @@
         }
 
         50% {
-            opacity: 0.5;
+            opacity: 0.6;
         }
     }
 
     #chat-header h3 {
         margin: 0;
-        font-family: 'Rajdhani', sans-serif;
+        font-family: 'Montserrat', sans-serif;
         font-weight: 700;
-        font-size: 1.6rem;
-        letter-spacing: 2px;
+        font-size: 1.5rem;
+        letter-spacing: 1px;
         color: #fff;
         text-transform: uppercase;
         line-height: 1;
@@ -420,11 +378,10 @@
     .subtitle {
         display: block;
         font-size: 0.75rem;
-        color: #94a3b8;
+        color: #cad2c5;
         letter-spacing: 1px;
         margin-top: 4px;
         text-transform: uppercase;
-        line-height: 1;
     }
 
     /* 5. MESSAGES AREA */
@@ -434,8 +391,8 @@
         overflow-y: auto;
         display: flex;
         flex-direction: column;
-        gap: 30px;
-        background: transparent;
+        gap: 25px;
+        background: #f8fafc;
     }
 
     #chat-messages::-webkit-scrollbar {
@@ -443,11 +400,11 @@
     }
 
     #chat-messages::-webkit-scrollbar-track {
-        background: rgba(0, 0, 0, 0.2);
+        background: rgba(0, 0, 0, 0.05);
     }
 
     #chat-messages::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.1);
+        background: rgba(0, 0, 0, 0.1);
         border-radius: 4px;
     }
 
@@ -456,13 +413,14 @@
         position: relative;
         max-width: 80%;
         padding: 0;
-        border-radius: 18px;
+        border-radius: 12px;
         font-size: 1rem;
         line-height: 1.6;
-        color: #fff;
+        color: #334155;
         animation: slideUp 0.3s ease-out forwards;
         display: flex;
         flex-direction: column;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
     .message-content {
@@ -472,14 +430,14 @@
     /* COPY FOOTER STYLE */
     .message-footer {
         padding: 8px 25px;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        border-top: 1px solid #e2e8f0;
         display: flex;
         justify-content: space-between;
         align-items: center;
         gap: 10px;
-        background: rgba(0, 0, 0, 0.1);
-        border-bottom-left-radius: 4px;
-        border-bottom-right-radius: 18px;
+        background: #f1f5f9;
+        border-bottom-left-radius: 12px;
+        border-bottom-right-radius: 12px;
     }
 
     .footer-left {
@@ -495,9 +453,9 @@
     }
 
     .voice-selector {
-        background: rgba(0, 0, 0, 0.3);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        color: #94a3b8;
+        background: rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        color: #64748b;
         font-family: 'Inter', sans-serif;
         font-size: 0.7rem;
         padding: 4px 8px;
@@ -508,18 +466,18 @@
     }
 
     .voice-selector:hover {
-        background: rgba(255, 255, 255, 0.1);
-        border-color: rgba(255, 255, 255, 0.2);
+        background: rgba(0, 0, 0, 0.1);
+        border-color: rgba(0, 0, 0, 0.2);
     }
 
     .voice-selector:focus {
-        border-color: #6366f1;
+        border-color: #52796f;
     }
 
     .audio-btn {
         background: transparent;
         border: none;
-        color: #94a3b8;
+        color: #52796f;
         font-family: 'Inter', sans-serif;
         font-size: 0.75rem;
         font-weight: 600;
@@ -535,8 +493,8 @@
     }
 
     .audio-btn:hover {
-        background: rgba(255, 255, 255, 0.1);
-        color: #fff;
+        background: #e2e8f0;
+        color: #2f3e46;
     }
 
     .audio-btn:disabled {
@@ -545,13 +503,14 @@
     }
 
     .audio-btn.playing {
-        color: #00f0ff;
+        color: #d62828;
+        /* Red for Stop */
     }
 
     .copy-btn {
         background: transparent;
         border: none;
-        color: #94a3b8;
+        color: #64748b;
         font-family: 'Inter', sans-serif;
         font-size: 0.75rem;
         font-weight: 600;
@@ -564,8 +523,8 @@
     }
 
     .copy-btn:hover {
-        background: rgba(255, 255, 255, 0.1);
-        color: #fff;
+        background: #e2e8f0;
+        color: #334155;
     }
 
     /* MARKDOWN STYLING */
@@ -585,21 +544,23 @@
     .message h4,
     .message h5,
     .message h6 {
-        color: #00f0ff;
+        color: #2f3e46;
         font-weight: 700;
         margin-top: 20px;
         margin-bottom: 10px;
         line-height: 1.3;
+        font-family: 'Montserrat', sans-serif;
     }
 
     .message strong {
         font-weight: 700;
-        color: #00f0ff;
+        color: #2f3e46;
+        /* Dark Slate */
     }
 
     .message em {
         font-style: italic;
-        color: #94a3b8;
+        color: #64748b;
     }
 
     .message ul,
@@ -613,27 +574,28 @@
     }
 
     .message code {
-        background: rgba(0, 0, 0, 0.3);
+        background: #e2e8f0;
         padding: 2px 6px;
         border-radius: 4px;
         font-family: monospace;
         font-size: 0.9em;
-        color: #e2e8f0;
+        color: #be185d;
     }
 
     .message pre {
-        background: rgba(0, 0, 0, 0.4);
+        background: #1e293b;
         padding: 15px;
         border-radius: 8px;
         overflow-x: auto;
         margin: 10px 0;
         border: 1px solid rgba(255, 255, 255, 0.1);
+        color: #f8fafc;
     }
 
     .message pre code {
         background: transparent;
         padding: 0;
-        color: #a5b4fc;
+        color: #f8fafc;
     }
 
     @keyframes slideUp {
@@ -648,64 +610,65 @@
         }
     }
 
-    /* BOT (Johnny) Styling */
+    /* BOT (TrailGuide) Styling */
     .bot-message {
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.05);
-        border-top-left-radius: 4px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
         align-self: flex-start;
         margin-left: 60px;
         margin-top: 15px;
     }
 
     .bot-message::before {
-        content: 'J';
+        content: '🌲';
         position: absolute;
         left: -60px;
         bottom: 0;
         width: 45px;
         height: 45px;
-        background: linear-gradient(135deg, #00c6ff, #0072ff);
-        border-radius: 12px;
+        background: #52796f;
+        border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-family: 'Rajdhani', sans-serif;
-        font-weight: 700;
         font-size: 1.5rem;
         color: white;
-        box-shadow: 0 4px 15px rgba(0, 114, 255, 0.4);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
 
     .bot-message::after {
-        content: 'JOHNNY';
+        content: 'TRAILGUIDE';
         position: absolute;
         top: -22px;
         left: 0;
         font-size: 0.75rem;
-        color: #94a3b8;
-        font-weight: 600;
+        color: #64748b;
+        font-weight: 700;
         letter-spacing: 1px;
     }
 
     /* USER Styling */
     .user-message {
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
-        box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
-        align-self: flex-end;
-        border-bottom-right-radius: 4px;
+        background: #354f52;
+        /* Dark Green/Slate */
         color: white;
+        align-self: flex-end;
+        border-bottom-right-radius: 12px;
     }
 
     .user-message .message-content {
-        padding-bottom: 20px;
+        color: white;
+    }
+
+    .user-message strong {
+        color: #84a98c;
     }
 
     /* 6. INPUT AREA */
     #chat-input-area {
-        padding: 30px;
-        background: rgba(15, 23, 42, 0.8);
-        border-top: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 20px 30px;
+        background: #ffffff;
+        border-top: 1px solid #e2e8f0;
         display: flex;
         gap: 15px;
         align-items: center;
@@ -714,11 +677,11 @@
 
     #chat-input {
         flex: 1;
-        background: rgba(0, 0, 0, 0.3);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        padding: 18px 25px;
-        border-radius: 12px;
-        color: white;
+        background: #f1f5f9;
+        border: 1px solid #cbd5e1;
+        padding: 15px 20px;
+        border-radius: 8px;
+        color: #334155;
         font-family: 'Inter', sans-serif;
         font-size: 1rem;
         outline: none;
@@ -726,25 +689,25 @@
     }
 
     #chat-input:focus {
-        border-color: #6366f1;
-        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
-        background: rgba(0, 0, 0, 0.5);
+        border-color: #52796f;
+        background: #ffffff;
+        box-shadow: 0 0 0 3px rgba(82, 121, 111, 0.2);
     }
 
     #chat-input::placeholder {
-        color: rgba(255, 255, 255, 0.3);
+        color: #94a3b8;
     }
 
     #send-btn {
-        background: white;
-        color: #0f172a;
+        background: #52796f;
+        color: white;
         border: none;
-        padding: 0 30px;
-        height: 56px;
-        border-radius: 12px;
-        font-family: 'Rajdhani', sans-serif;
+        padding: 0 25px;
+        height: 50px;
+        border-radius: 8px;
+        font-family: 'Montserrat', sans-serif;
         font-weight: 700;
-        font-size: 1.1rem;
+        font-size: 1rem;
         letter-spacing: 1px;
         cursor: pointer;
         transition: all 0.2s;
@@ -752,14 +715,13 @@
     }
 
     #send-btn:hover {
-        background: #00f0ff;
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(0, 240, 255, 0.4);
+        background: #2f3e46;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
 
     #send-btn:disabled {
-        background: #334155;
-        color: #64748b;
+        background: #cbd5e1;
         cursor: not-allowed;
         transform: none;
         box-shadow: none;
@@ -771,39 +733,36 @@
         align-items: center;
         gap: 6px;
         padding: 20px 25px;
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 20px;
-        border-top-left-radius: 4px;
+        background: #ffffff;
+        border-radius: 12px;
         width: fit-content;
         margin-left: 60px;
         margin-top: 15px;
-        border: 1px solid rgba(255, 255, 255, 0.05);
+        border: 1px solid #e2e8f0;
         position: relative;
     }
 
     .typing-indicator::before {
-        content: 'J';
+        content: '🌲';
         position: absolute;
         left: -60px;
         bottom: 0;
         width: 45px;
         height: 45px;
-        background: linear-gradient(135deg, #00c6ff, #0072ff);
-        border-radius: 12px;
+        background: #52796f;
+        border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-family: 'Rajdhani', sans-serif;
-        font-weight: 700;
         font-size: 1.5rem;
         color: white;
-        box-shadow: 0 4px 15px rgba(0, 114, 255, 0.4);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
 
     .typing-bar {
         width: 6px;
         height: 6px;
-        background: #94a3b8;
+        background: #64748b;
         border-radius: 50%;
         animation: bounce 1.4s infinite ease-in-out both;
     }
