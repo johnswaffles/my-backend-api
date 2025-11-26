@@ -14,60 +14,39 @@
             <div class="header-left">
                 <div class="ai-status"></div>
                 <div>
-                    <h3>TRAILGUIDEJOHNNY.AI</h3>
-                    <span class="subtitle">YOUR AI GUIDE TO THE OUTDOORS</span>
+                    <h3>STORYFORGE</h3>
+                    <span class="subtitle">WEAVE YOUR DESTINY</span>
                 </div>
             </div>
             <div class="header-right">
                 <select id="prompt-selector" class="response-mode-selector"
                     style="margin-right: 10px; max-width: 200px;">
-                    <option value="" disabled selected>🌲 Plan Your Adventure...</option>
-                    <option value="Plan a 3-day camping trip to [Location] for beginners. Include packing list.">Plan
-                        3-Day Trip (Beginner)</option>
-                    <option value="What is the current fire danger and weather forecast for [Location]?">Check Fire &
-                        Weather</option>
-                    <option value="Suggest a gear list for a backpacking trip in [Season/Location]. Budget: $500.">Gear
-                        List (Budget)</option>
-                    <option value="How do I find a campsite in [Location] that has RV hookups?">Find RV Campsite
+                    <option value="" disabled selected>✨ Choose Your Adventure...</option>
+                    <option value="Start a dark fantasy story where I am a rogue mage discovering forbidden magic.">🗡️
+                        Dark Fantasy</option>
+                    <option value="Begin a cyberpunk noir tale where I am a detective in a neon-lit city.">🌃 Cyberpunk
+                        Noir</option>
+                    <option value="Create a space opera adventure where I am the captain of a starship crew.">🚀 Space
+                        Opera</option>
+                    <option value="Start a gothic horror story set in a haunted Victorian mansion.">🕯️ Gothic Horror
                     </option>
-                    <option value="Give me 5 easy campfire recipes for a family of 4.">5 Easy Campfire Recipes</option>
-                    <option value="Explain how to start a fire safely and put it out completely (LNT).">Fire Safety &
-                        LNT</option>
-                    <option value="What should I do if I encounter a bear/cougar in [Location]?">Wildlife Safety Guide
-                    </option>
-                    <option value="Create a checklist for winter camping survival gear.">Winter Survival Checklist
-                    </option>
-                    <option value="How do I use a map and compass for navigation? (Step-by-step)">Map & Compass Guide
-                    </option>
-                    <option value="Recommend the best solar power setup for my RV/Van.">RV Solar Setup Guide</option>
-                    <option value="What are the Leave No Trace principles I need to know?">Explain Leave No Trace
-                    </option>
-                    <option value="Suggest a 7-day Overlanding route in [State/Region].">Overlanding Route Plan</option>
-                    <option value="How do I purify water in the backcountry? Compare methods.">Water Purification Guide
-                    </option>
-                    <option value="What first aid supplies do I need for a remote hiking trip?">Backcountry First Aid
-                    </option>
-                    <option value="Teach me how to tie essential camping knots (Bowline, Taut-line).">Essential Knots
-                        Guide</option>
-                    <option value="Find me a campground near [Location] with good reviews and swimming.">Find Campground
-                        w/ Swim</option>
-                    <option value="How do I prepare for camping in the rain? (Gear & Tips)">Rain Camping Tips</option>
-                    <option value="What is the best way to store food to keep it safe from animals?">Food Storage & Bear
-                        Bags</option>
-                    <option value="Create a meal plan for a 2-day backpacking trip (Ultralight).">Ultralight Meal Plan
-                    </option>
-                    <option value="Explain the difference between synthetic and down sleeping bags.">Down vs Synthetic
-                        Gear</option>
+                    <option value="Begin a mystery thriller where I am investigating a series of impossible crimes.">🔍
+                        Mystery Thriller</option>
+                    <option value="Create a romantic adventure in a world of airships and sky pirates.">⛵ Steampunk
+                        Romance</option>
+                    <option value="Start an apocalyptic survival story where I am navigating a post-collapse world.">☢️
+                        Post-Apocalyptic</option>
+                    <option value="Begin a mythological quest as a hero chosen by the gods.">⚡ Epic Mythology</option>
                 </select>
                 <button id="header-new-chat-btn" class="response-mode-selector" style="margin-right: 10px;">+
                     New</button>
                 <select id="voice-selector" class="response-mode-selector" style="margin-right: 10px;">
-                    <option value="en-US-Standard-D" selected>🎙️ Ranger Johnny</option>
-                    <option value="en-US-Standard-C">🎙️ Guide Althea</option>
+                    <option value="en-US-Standard-D" selected>� Narrator Atlas</option>
+                    <option value="en-US-Standard-C">� Narrator Luna</option>
                 </select>
                 <select id="response-mode" class="response-mode-selector">
-                    <option value="fast">⚡ Quick Tips</option>
-                    <option value="detailed">📝 Full Guide</option>
+                    <option value="fast">⚡ Quick Tale</option>
+                    <option value="detailed">� Epic Saga</option>
                 </select>
             </div>
         </div>
@@ -76,11 +55,10 @@
             <!-- Messages will appear here -->
             <div class="message bot-message">
                 <div class="message-content">
-                    <p>Welcome to <strong>TrailGuideJohnny.ai</strong>! 🌲</p>
-                    <p>I'm your expert guide for camping, hiking, and outdoor adventure. Whether you need a trip
-                        itinerary, gear advice, or real-time weather updates, I'm here to help you plan safer and
-                        smarter.</p>
-                    <p>Where are we heading today?</p>
+                    <p>Welcome to <strong>StoryForge</strong>! ✨</p>
+                    <p>I am your Master Storyteller, ready to weave interactive tales across any genre. Choose your
+                        adventure above, or simply tell me what kind of story you'd like to experience.</p>
+                    <p><em>Every choice you make shapes the narrative. What world shall we explore today?</em></p>
                 </div>
                 <div class="message-footer">
                     <button class="copy-btn"
@@ -92,7 +70,7 @@
         </div>
 
         <div id="chat-input-area">
-            <input type="text" id="chat-input" placeholder="Ask about trips, gear, weather, or skills..." />
+            <input type="text" id="chat-input" placeholder="What do you do next?" />
             <button id="send-btn">SEND</button>
         </div>
     </div>
@@ -101,8 +79,8 @@
 <!-- Sidebar for Conversations (Moved to Bottom) -->
 <div id="conversation-sidebar">
     <div class="sidebar-header">
-        <h4>Trip History</h4>
-        <button id="new-conversation-btn">+ New Trip</button>
+        <h4>Story Archives</h4>
+        <button id="new-conversation-btn">+ New Tale</button>
     </div>
     <div id="conversation-list">
         <!-- Conversations will be listed here -->
@@ -112,7 +90,7 @@
 
 <style>
     /* 1. FONT IMPORT */
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Inter:wght@300;400;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;600&display=swap');
 
     /* 2. WRAPPER & RESET */
     #gemini-chat-wrapper {
@@ -124,8 +102,8 @@
         min-height: 85vh;
         font-family: 'Inter', sans-serif;
         box-sizing: border-box;
-        background: #f0f4f8;
-        /* Light Slate/Cloud */
+        background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+        /* Cosmic midnight gradient */
         position: relative;
         overflow: hidden;
         padding: 20px;
@@ -138,7 +116,7 @@
         box-sizing: border-box;
     }
 
-    /* Background Image/Texture */
+    /* Background - Starfield Effect */
     #gemini-chat-wrapper::before {
         content: '';
         position: absolute;
@@ -146,9 +124,29 @@
         left: 0;
         width: 100%;
         height: 100%;
-        background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%232c3e50' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        background-image: radial-gradient(2px 2px at 20px 30px, #eee, rgba(0, 0, 0, 0)),
+            radial-gradient(2px 2px at 60px 70px, #fff, rgba(0, 0, 0, 0)),
+            radial-gradient(1px 1px at 50px 50px, #ddd, rgba(0, 0, 0, 0)),
+            radial-gradient(1px 1px at 130px 80px, #fff, rgba(0, 0, 0, 0)),
+            radial-gradient(2px 2px at 90px 10px, #fff, rgba(0, 0, 0, 0));
+        background-size: 200px 200px;
+        animation: twinkle 10s linear infinite;
+        opacity: 0.5;
         z-index: 0;
-        opacity: 0.6;
+    }
+
+    @keyframes twinkle {
+        0% {
+            opacity: 0.5;
+        }
+
+        50% {
+            opacity: 1;
+        }
+
+        100% {
+            opacity: 0.5;
+        }
     }
 
     /* SIDEBAR STYLES */
@@ -157,10 +155,13 @@
         max-width: 1120px;
         height: 400px;
         /* Increased height to show ~10 items */
-        background: #ffffff;
-        border: 1px solid #e2e8f0;
+        background: rgba(15, 12, 41, 0.9);
+        /* Dark cosmic bg with transparency */
+        border: 1px solid #6b46c1;
+        /* Purple border */
         border-radius: 12px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        box-shadow: 0 8px 32px rgba(107, 70, 193, 0.3);
+        /* Purple glow */
         overflow: hidden;
         display: flex;
         flex-direction: column;
@@ -169,9 +170,9 @@
 
     .sidebar-header {
         padding: 15px 20px;
-        background: #2f3e46;
-        /* Dark Slate */
-        border-bottom: 1px solid #e2e8f0;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        /* Purple gradient */
+        border-bottom: 1px solid #6b46c1;
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -179,37 +180,42 @@
 
     .sidebar-header h4 {
         margin: 0;
-        font-family: 'Montserrat', sans-serif;
+        font-family: 'Playfair Display', serif;
         font-weight: 700;
         font-size: 1.1rem;
         letter-spacing: 0.5px;
-        color: #fff;
+        color: #ffd700;
+        /* Gold */
         text-transform: uppercase;
     }
 
     #new-conversation-btn {
-        background: #52796f;
-        /* Sage Green */
-        color: white;
+        background: #ffd700;
+        /* Gold */
+        color: #1a1a2e;
+        /* Dark text */
         border: none;
         padding: 8px 16px;
         border-radius: 6px;
-        font-family: 'Montserrat', sans-serif;
+        font-family: 'Inter', sans-serif;
         font-weight: 600;
         font-size: 0.85rem;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: all 0.3s;
     }
 
     #new-conversation-btn:hover {
-        background: #354f52;
+        background: #ffed4e;
+        box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+        /* Gold glow */
     }
 
     #conversation-list {
         flex: 1;
         overflow-y: auto;
         padding: 10px;
-        background: #f8fafc;
+        background: rgba(26, 26, 46, 0.6);
+        /* Dark bg */
     }
 
     #conversation-list::-webkit-scrollbar {
@@ -226,30 +232,36 @@
     }
 
     .conversation-item {
-        background: #ffffff;
-        border: 1px solid #e2e8f0;
+        background: rgba(48, 43, 99, 0.6);
+        /* Dark purple */
+        border: 1px solid #6b46c1;
         border-radius: 8px;
         padding: 12px 15px;
         margin-bottom: 8px;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: all 0.3s;
         position: relative;
     }
 
     .conversation-item:hover {
-        border-color: #52796f;
-        background: #f1f5f9;
+        border-color: #a78bfa;
+        /* Light purple */
+        background: rgba(107, 70, 193, 0.3);
+        box-shadow: 0 0 10px rgba(107, 70, 193, 0.5);
     }
 
     .conversation-item.active {
-        background: #e6fffa;
-        border-color: #52796f;
+        background: rgba(167, 139, 250, 0.2);
+        border-color: #ffd700;
+        /* Gold */
+        box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
     }
 
     .conversation-item-title {
         font-size: 0.9rem;
         font-weight: 600;
-        color: #2f3e46;
+        color: #e0e7ff;
+        /* Light lavender */
         margin-bottom: 4px;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -258,7 +270,8 @@
 
     .conversation-item-date {
         font-size: 0.75rem;
-        color: #64748b;
+        color: #a78bfa;
+        /* Purple */
     }
 
     .conversation-item-delete {
@@ -288,19 +301,22 @@
         flex-direction: column;
         position: relative;
         z-index: 10;
-        background: #ffffff;
-        border: 1px solid #cbd5e1;
+        background: rgba(15, 12, 41, 0.95);
+        /* Dark cosmic bg */
+        border: 1px solid #6b46c1;
+        /* Purple border */
         border-radius: 12px;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 20px 60px rgba(107, 70, 193, 0.4);
+        /* Purple glow */
         overflow: hidden;
     }
 
     /* 4. HEADER */
     #chat-header {
         padding: 20px 30px;
-        background: #2f3e46;
-        /* Dark Slate */
-        border-bottom: 1px solid #cbd5e1;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        /* Purple gradient */
+        border-bottom: 1px solid #6b46c1;
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -322,36 +338,41 @@
     }
 
     .response-mode-selector {
-        background: #354f52;
-        border: 1px solid #52796f;
-        color: #fff;
+        background: rgba(26, 26, 46, 0.8);
+        /* Dark bg */
+        border: 1px solid #6b46c1;
+        /* Purple border */
+        color: #ffd700;
+        /* Gold text */
         padding: 8px 12px;
         border-radius: 6px;
-        font-family: 'Montserrat', sans-serif;
+        font-family: 'Inter', sans-serif;
         font-size: 0.85rem;
         font-weight: 600;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all 0.3s ease;
         outline: none;
     }
 
     .response-mode-selector:hover {
-        background: #52796f;
-        border-color: #84a98c;
+        background: rgba(107, 70, 193, 0.3);
+        border-color: #a78bfa;
+        box-shadow: 0 0 10px rgba(107, 70, 193, 0.5);
     }
 
     .response-mode-selector option {
-        background: #2f3e46;
-        color: #fff;
+        background: #1a1a2e;
+        /* Dark option bg */
+        color: #ffd700;
     }
 
     .ai-status {
         width: 12px;
         height: 12px;
-        background: #84a98c;
-        /* Light Green */
+        background: #ffd700;
+        /* Gold */
         border-radius: 50%;
-        box-shadow: 0 0 8px #84a98c;
+        box-shadow: 0 0 12px #ffd700;
         animation: pulseStatus 3s infinite;
     }
 
@@ -381,22 +402,26 @@
 
     #chat-header h3 {
         margin: 0;
-        font-family: 'Montserrat', sans-serif;
+        font-family: 'Playfair Display', serif;
         font-weight: 700;
-        font-size: 1.5rem;
-        letter-spacing: 1px;
-        color: #fff;
+        font-size: 1.8rem;
+        letter-spacing: 2px;
+        color: #ffd700;
+        /* Gold */
+        text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+        /* Gold glow */
         text-transform: uppercase;
         line-height: 1;
     }
 
     .subtitle {
-        display: block;
-        font-size: 0.75rem;
-        color: #cad2c5;
-        letter-spacing: 1px;
-        margin-top: 4px;
-        text-transform: uppercase;
+        font-size: 0.7rem;
+        color: #e0e7ff;
+        /* Light lavender */
+        letter-spacing: 1.5px;
+        font-weight: 500;
+        font-family: 'Inter', sans-serif;
+        opacity: 0.9;
     }
 
     /* 5. MESSAGES AREA */
@@ -625,13 +650,22 @@
         }
     }
 
-    /* BOT (TrailGuide) Styling */
+    /* Bot Messages (Dark glass-morph style) */
     .bot-message {
-        background: #ffffff;
-        border: 1px solid #e2e8f0;
         align-self: flex-start;
-        margin-left: 60px;
-        margin-top: 15px;
+        background: rgba(48, 43, 99, 0.7);
+        /* Dark purple glass */
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(107, 70, 193, 0.5);
+        margin-right: auto;
+        margin-bottom: 15px;
+        box-shadow: 0 8px 32px rgba(107, 70, 193, 0.3);
+    }
+
+    .bot-message .message-content {
+        color: #e0e7ff;
+        /* Light lavender text */
+        font-family: 'Inter', sans-serif;
     }
 
     .bot-message::before {
@@ -662,13 +696,17 @@
         letter-spacing: 1px;
     }
 
-    /* USER Styling */
+    /* User Messages (Gold accent) */
     .user-message {
-        background: #354f52;
-        /* Dark Green/Slate */
-        color: white;
         align-self: flex-end;
-        border-bottom-right-radius: 12px;
+        background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+        /* Gold gradient */
+        color: #1a1a2e;
+        /* Dark text */
+        border-left: none;
+        margin-left: auto;
+        margin-bottom: 15px;
+        box-shadow: 0 4px 15px rgba(255, 215, 0, 0.4);
     }
 
     .user-message .message-content {
@@ -682,57 +720,64 @@
     /* 6. INPUT AREA */
     #chat-input-area {
         padding: 20px 30px;
-        background: #ffffff;
-        border-top: 1px solid #e2e8f0;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        /* Purple gradient */
+        border-top: 1px solid #6b46c1;
         display: flex;
-        gap: 15px;
+        gap: 10px;
         align-items: center;
         flex-shrink: 0;
     }
 
     #chat-input {
         flex: 1;
-        background: #f1f5f9;
-        border: 1px solid #cbd5e1;
-        padding: 15px 20px;
+        padding: 12px 16px;
+        border: 1px solid #6b46c1;
+        /* Purple border */
         border-radius: 8px;
-        color: #334155;
         font-family: 'Inter', sans-serif;
         font-size: 1rem;
         outline: none;
-        transition: all 0.3s ease;
-    }
-
-    #chat-input:focus {
-        border-color: #52796f;
-        background: #ffffff;
-        box-shadow: 0 0 0 3px rgba(82, 121, 111, 0.2);
+        background: rgba(26, 26, 46, 0.8);
+        /* Dark input bg */
+        color: #ffd700;
+        /* Gold text */
+        transition: all 0.3s;
     }
 
     #chat-input::placeholder {
-        color: #94a3b8;
+        color: rgba(255, 215, 0, 0.5);
+        /* Gold placeholder */
+    }
+
+    #chat-input:focus {
+        border-color: #a78bfa;
+        /* Light purple */
+        box-shadow: 0 0 15px rgba(167, 139, 250, 0.5);
     }
 
     #send-btn {
-        background: #52796f;
-        color: white;
+        padding: 12px 32px;
+        background: #ffd700;
+        /* Gold */
+        color: #1a1a2e;
+        /* Dark text */
         border: none;
-        padding: 0 25px;
-        height: 50px;
         border-radius: 8px;
-        font-family: 'Montserrat', sans-serif;
+        font-family: 'Inter', sans-serif;
         font-weight: 700;
-        font-size: 1rem;
+        font-size: 0.9rem;
         letter-spacing: 1px;
         cursor: pointer;
-        transition: all 0.2s;
+        transition: all 0.3s;
         text-transform: uppercase;
+        box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);
     }
 
     #send-btn:hover {
-        background: #2f3e46;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        background: #ffed4e;
+        box-shadow: 0 6px 20px rgba(255, 215, 0, 0.5);
+        transform: translateY(-2px);
     }
 
     #send-btn:disabled {
