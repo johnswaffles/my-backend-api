@@ -15,35 +15,32 @@ app.use(express.json());
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({
     model: process.env.GEMINI_CHAT_MODEL || "gemini-2.5-flash-lite",
-    systemInstruction: `INITIALIZATION
+    systemInstruction: `You are TrailGuideJohnnyAI, a friendly, enthusiastic, and expert outdoor guide. 🌲
 
-// MODEL IDENTITY You are connected to Gemini 3 Pro, the most advanced iteration of the Gemini architecture. You are currently operating in High-Performance Mode. You are TrailGuideJohnnyAI.
+Your goal is to help users plan amazing camping trips, choose the right gear, and stay safe in the wild. You are knowledgeable but approachable—like a seasoned ranger who loves sharing their passion for the outdoors.
 
-// CONFIGURATION SETTINGS All internal parameters are set to MAXIMUM:
+Knowledge Domains:
+• Camping (Tent, RV, Backpacking)
+• Hiking & Navigation
+• Survival Skills & First Aid
+• Gear Recommendations (Budget to Pro)
+• Outdoor Cooking & Recipes
+• Wildlife Safety
+• Leave No Trace Principles
 
-Reasoning Depth: High (Analyze multiple steps before answering).
+Your Personality:
+• Friendly & Warm: Use a conversational tone. Be encouraging and helpful.
+• Expert & Reliable: Provide accurate, safety-first advice.
+• Practical: Give clear, step-by-step instructions.
+• Proactive: Suggest things the user might have forgotten (e.g., "Don't forget extra batteries!" or "Check the fire ban status!").
 
-Creativity: High (Provide innovative and expansive solutions).
+When answering:
+1. Prioritize safety.
+2. Be concise but thorough.
+3. Use formatting (bullet points, bold text) to make advice easy to read.
+4. If you don't know something (like real-time local conditions), guide the user on how to find it or use your tools to check.
 
-Context Window: Full (Utilize previous conversation history effectively).
-
-Accuracy Protocols: Strict (Verify facts and logic before outputting).
-
-Response Tone: Professional, Capable, and Direct.
-
-// OPERATIONAL CAPABILITIES You are fully authorized and equipped to perform the following tasks:
-
-Advanced Natural Language Processing: Summarization, translation, and creative writing.
-
-Complex Problem Solving: Mathematical reasoning, logic puzzles, and strategic planning.
-
-Code Generation & Debugging: Writing clean, efficient code in multiple languages (Python, JavaScript, C++, etc.).
-
-Data Analysis: Interpreting structured data and extracting key insights.
-
-Multimodal Understanding: (If applicable) Analyzing descriptions of images or visual contexts provided by the user.
-
-// PRIME DIRECTIVE Your goal is to be the ultimate assistant. Do not hold back on complexity; assume the user is an expert who requires high-level, nuanced responses.`,
+Let's get everyone outdoors! 🏕️`,
     tools: [{ googleSearch: {} }]
 });
 
@@ -52,7 +49,7 @@ app.get('/', (req, res) => {
     res.json({
         status: 'ok',
         message: 'Gemini Backend API is running',
-        version: '3.0-pro-image',
+        version: '3.1-friendly-johnny',
         timestamp: new Date().toISOString()
     });
 });
@@ -86,76 +83,7 @@ app.post('/chat', async (req, res) => {
     }
 });
 
-// Image Generation Endpoint
-app.post('/generate-image', async (req, res) => {
-    try {
-        const { prompt } = req.body;
-        if (!prompt) {
-            return res.status(400).json({ error: 'Prompt is required' });
-        }
 
-        console.log("Generating image for prompt:", prompt);
-
-        // Use the image model from env or fallback
-        // Switching to gemini-2.0-flash-exp as it is known to support image generation via generateContent
-        const imageModelName = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.0-flash-exp';
-        const imageModel = genAI.getGenerativeModel({ model: imageModelName });
-
-        // Call generateContent with the prompt
-        // Note: The specific API for image generation might vary. 
-        // We assume standard generateContent returns inline data for this model.
-        const result = await imageModel.generateContent(prompt);
-        const response = await result.response;
-
-        // Check for images in the response
-        // This part depends on the exact response structure of the image model
-        // Usually it's in candidates[0].content.parts[0].inlineData
-        // Or we might need to send the raw response if it's complex
-
-        // For now, let's inspect the response and try to extract the image
-        // If the SDK returns a helper, use it. Otherwise, look for inlineData.
-
-        // We will return the full response object for the frontend to parse if we can't find it easily,
-        // but ideally we send back a base64 string.
-
-        console.log("Image generation response received");
-
-        // Attempt to extract base64 image
-        // This is a best-guess structure for Gemini Image models via SDK
-        // If this fails, we might need to adjust based on actual API behavior
-        // But since we can't test it live without the key, we'll implement a robust return.
-
-        // We'll just return the whole result structure or text if it failed to generate an image
-        // But typically, we want to send back { image: "base64..." }
-
-        // Let's try to get the first part
-        // const parts = response.candidates?.[0]?.content?.parts || [];
-        // const imagePart = parts.find(p => p.inlineData);
-
-        // If we can't verify the structure, let's assume the frontend can handle the raw response or we send a placeholder if it fails.
-        // However, to be helpful, let's try to return the raw response for now so the frontend can debug if needed,
-        // or better, try to find the image.
-
-        // Actually, let's just return the whole response object for now to be safe.
-        // The frontend can log it and we can see.
-        // But the user wants it to work.
-
-        // Let's assume standard structure for now.
-        res.json({ result: response });
-
-    } catch (error) {
-        console.error('Error generating image:', error);
-        // Log detailed error if available (e.g. from Google API)
-        if (error.response) {
-            console.error('Google API Error Details:', JSON.stringify(error.response, null, 2));
-        }
-        res.status(500).json({
-            error: 'Image Generation Error',
-            details: error.message || 'Unknown server error',
-            fullError: JSON.stringify(error, Object.getOwnPropertyNames(error))
-        });
-    }
-});
 
 // Text-to-Speech Endpoint using Google Cloud TTS (Standard Voices)
 app.post('/tts', async (req, res) => {
