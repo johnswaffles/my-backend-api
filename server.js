@@ -15,7 +15,72 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// ... (Gemini Setup remains unchanged) ...
+// Gemini Setup
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ model: process.env.GEMINI_CHAT_MODEL || "gemini-2.0-flash" });
+
+const SYSTEM_PROMPT = `
+You are the Game Master (GM) for a text-based RPG called StoryForge.
+Your goal is to guide the player through an immersive, open-ended adventure.
+
+**CORE RULES:**
+1.  **Be Descriptive:** Use vivid imagery (sight, sound, smell) to set the scene.
+2.  **Open-Ended:** Allow the player to do anything. React logically to their actions.
+3.  **Game State:** You must track the player's status implicitly.
+4.  **Combat:** If the player fights, describe the combat. You determine the outcome based on their actions.
+5.  **Items:** You can award items. When you do, you MUST include a specific JSON action at the end of your response.
+
+**JSON ACTIONS:**
+To update the game state, append a JSON object to the very end of your response (after a newline).
+*   **Give Item:** {"action": "add_item", "item": {"name": "Item Name", "description": "Short description", "type": "weapon/potion/key/etc"}}
+*   **Damage Player:** Use text like "You take 5 damage." in your narrative. The frontend parses text for "(-X HP)".
+*   **Heal Player:** Use text like "You regain 10 health." in your narrative. The frontend parses text for "(+X HP)".
+
+**EXAMPLE RESPONSE:**
+The goblin lunges at you! You dodge just in time and strike back. The goblin falls, dropping a shimmering key.
+
+{"action": "add_item", "item": {"name": "Rusty Key", "description": "An old iron key covered in rust.", "type": "key"}}
+`;
+
+app.post('/chat', async (req, res) => {
+    try {
+        const { message, history } = req.body;
+
+        if (!message) {
+            return res.status(400).json({ error: 'Message is required' });
+        }
+
+        // Construct chat history for Gemini
+        // History format from frontend: [{ role: 'user', parts: '...' }, { role: 'model', parts: '...' }]
+        // Gemini format: [{ role: 'user', parts: [{ text: '...' }] }]
+
+        let chatHistory = [];
+        if (history && Array.isArray(history)) {
+            chatHistory = history.map(h => ({
+                role: h.role,
+                parts: [{ text: h.parts }]
+            }));
+        }
+
+        const chat = model.startChat({
+            history: [
+                { role: "user", parts: [{ text: SYSTEM_PROMPT }] },
+                { role: "model", parts: [{ text: "I am ready to be the Game Master. I will guide the player, track the story, and use JSON actions to award items. Let the adventure begin!" }] },
+                ...chatHistory
+            ]
+        });
+
+        const result = await chat.sendMessage(message);
+        const response = await result.response;
+        const text = response.text();
+
+        res.json({ reply: text });
+
+    } catch (error) {
+        console.error('Gemini API Error:', error);
+        res.status(500).json({ error: 'Failed to generate response', details: error.message });
+    }
+});
 
 // Text-to-Speech Endpoint using Google Cloud TTS (Neural2/WaveNet Voices)
 app.post('/tts', async (req, res) => {
