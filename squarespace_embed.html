@@ -1288,15 +1288,15 @@
             const chatSendBtn = document.getElementById('send-btn');
 
             if (chatInput && chatSendBtn) {
-                // Remove old listeners to be safe (though not strictly necessary if page reloads)
-                chatSendBtn.removeEventListener('click', sendMessage);
+                // Remove old listeners to be safe
+                chatSendBtn.removeEventListener('click', processUserMessage);
 
-                chatSendBtn.addEventListener('click', sendMessage);
+                chatSendBtn.addEventListener('click', processUserMessage);
 
                 chatInput.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
-                        sendMessage();
+                        processUserMessage();
                     }
                 });
                 console.log('StoryForge: Event listeners attached successfully');
@@ -1492,20 +1492,20 @@
             if (!skipSave) saveMessageToConversation(text, isUser);
         }
 
-        async function sendMessage() {
-            const input = document.getElementById('chat-input');
+        async function processUserMessage() {
+            const chatInputElement = document.getElementById('chat-input');
             const sendBtn = document.getElementById('send-btn');
 
-            if (!input || !sendBtn) {
-                console.error('StoryForge: Input or send button not found in sendMessage');
+            if (!chatInputElement || !sendBtn) {
+                console.error('StoryForge: Input or send button not found in processUserMessage');
                 return;
             }
 
-            const text = input.value.trim();
+            const text = chatInputElement.value.trim();
             if (!text) return;
 
-            input.value = '';
-            input.disabled = true;
+            chatInputElement.value = '';
+            chatInputElement.disabled = true;
             sendBtn.disabled = true;
 
             addMessage(text, true);
@@ -1612,9 +1612,11 @@
                 console.error('Error:', error);
                 addMessage("Sorry, Johnny couldn't reach the server. Please check your connection.", false);
             } finally {
-                input.disabled = false;
-                sendBtn.disabled = false;
-                input.focus();
+                if (chatInputElement) {
+                    chatInputElement.disabled = false;
+                    chatInputElement.focus();
+                }
+                if (sendBtn) sendBtn.disabled = false;
             }
         }
 
