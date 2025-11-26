@@ -1288,6 +1288,23 @@
                 if (!botReply) {
                     addMessage('⚠️ Sorry, no response was generated.', false);
                 } else {
+                    // Check for JSON action (e.g., image generation)
+                    try {
+                        // Look for JSON pattern at start or end of string
+                        const jsonMatch = botReply.match(/\{[\s\S]*\}/);
+                        if (jsonMatch) {
+                            const actionData = JSON.parse(jsonMatch[0]);
+                            if (actionData.action === 'img_gen' && actionData.action_input) {
+                                // Trigger image generation automatically
+                                generateImage(actionData.action_input);
+                                return; // Skip adding the JSON message to chat
+                            }
+                        }
+                    } catch (e) {
+                        // Not valid JSON or not an action, proceed as normal text
+                        console.log("Not a JSON action:", e);
+                    }
+
                     addMessage(botReply, false);
 
                     // Update conversation history
@@ -1320,18 +1337,23 @@
         }
 
         // Image Generation Logic
-        async function generateImage() {
-            const prompt = window.prompt("Describe the image you want to create:");
+        async function generateImage(promptText = null) {
+            // If promptText is provided (from chat), use it. Otherwise ask user.
+            const prompt = promptText || window.prompt("Describe the image you want to create:");
             if (!prompt) return;
 
-            // Add user message indicating request
-            addMessage(`🖼️ Generating image: "${prompt}"...`, 'user');
+            // Add user message indicating request only if manually triggered
+            if (!promptText) {
+                addMessage(`🖼️ Generating image: "${prompt}"...`, 'user');
+            } else {
+                addMessage(`🎨 Johnny is painting: "${prompt}"...`, 'bot');
+            }
 
             // Show loading
             showImageLoading();
 
             try {
-                const response = await fetch(`${API_URL}/generate-image`, {
+                const response = await fetch(`${BACKEND_URL.replace('/chat', '')}/generate-image`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
