@@ -70,8 +70,10 @@
                 </select>
                 <button id="header-new-chat-btn" class="response-mode-selector" style="margin-right: 10px;">+
                     New</button>
+                <button id="generate-image-btn" class="response-mode-selector" style="margin-right: 10px;">🖼️ Create
+                    Picture</button>
                 <select id="voice-selector" class="response-mode-selector" style="margin-right: 10px;">
-                    <option value="en-US-Standard-D" selected>🎙️ Ranger Frank</option>
+                    <option value="en-US-Standard-D" selected>🎙️ Ranger Johnny</option>
                     <option value="en-US-Standard-C">🎙️ Guide Althea</option>
                 </select>
                 <select id="response-mode" class="response-mode-selector">
@@ -1288,6 +1290,69 @@
             }
         }
 
+        // Image Generation Logic
+        async function generateImage() {
+            const prompt = window.prompt("Describe the image you want to create:");
+            if (!prompt) return;
+
+            // Add user message indicating request
+            addMessage(`🖼️ Generating image: "${prompt}"...`, 'user');
+
+            // Show typing indicator
+            showTypingIndicator();
+
+            try {
+                const response = await fetch(`${API_URL}/generate-image`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ prompt })
+                });
+
+                hideTypingIndicator();
+
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log("Image generation result:", data);
+
+                // Attempt to extract image data from the response structure
+                // Structure typically: result.candidates[0].content.parts[0].inlineData
+                let imageBase64 = null;
+                let mimeType = 'image/png';
+
+                try {
+                    const parts = data.result.candidates[0].content.parts;
+                    for (const part of parts) {
+                        if (part.inlineData) {
+                            imageBase64 = part.inlineData.data;
+                            mimeType = part.inlineData.mimeType || 'image/png';
+                            break;
+                        }
+                    }
+                } catch (e) {
+                    console.error("Error parsing image response:", e);
+                }
+
+                if (imageBase64) {
+                    // Display the image
+                    const imageHtml = `<img src="data:${mimeType};base64,${imageBase64}" style="max-width: 100%; border-radius: 8px; margin-top: 10px;" alt="${prompt}">`;
+                    addMessage(`Here is your image for: "${prompt}"<br>${imageHtml}`, 'bot');
+                } else {
+                    // Fallback if no image found (maybe text response?)
+                    addMessage("⚠️ The model didn't return an image. It might have responded with text. Check console for details.", 'bot');
+                }
+
+            } catch (error) {
+                hideTypingIndicator();
+                console.error('Error generating image:', error);
+                addMessage(`❌ Error generating image: ${error.message}`, 'bot');
+            }
+        }
+
         sendBtn.addEventListener('click', sendMessage);
         input.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
@@ -1298,6 +1363,7 @@
 
         // New Header Controls
         document.getElementById('header-new-chat-btn').addEventListener('click', createNewConversation);
+        document.getElementById('generate-image-btn').addEventListener('click', generateImage);
         document.getElementById('prompt-selector').addEventListener('change', function () {
             if (this.value) {
                 input.value = this.value;
