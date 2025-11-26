@@ -864,6 +864,8 @@
         border: 1px solid rgba(107, 70, 193, 0.5);
         margin-right: auto;
         margin-bottom: 15px;
+        margin-left: 70px;
+        /* Add left margin for avatar space */
         box-shadow: 0 8px 32px rgba(107, 70, 193, 0.3);
     }
 
@@ -877,8 +879,8 @@
         content: '📖';
         /* Book emoji */
         position: absolute;
-        left: -55px;
-        /* Adjusted for better visibility */
+        left: -65px;
+        /* More space for full visibility */
         bottom: 0;
         width: 50px;
         /* Increased size */
@@ -1671,8 +1673,8 @@
 
 
         sendBtn.addEventListener('click', sendMessage);
-        input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 sendMessage();
             }
