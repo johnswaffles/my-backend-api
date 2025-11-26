@@ -8,8 +8,9 @@ const port = process.env.PORT || 3000;
 
 // Middleware
 // Middleware
+// Middleware
 app.use(cors({
-    origin: ['https://www.justaskjohnny.com', 'https://justaskjohnny.com', 'http://localhost:3000'],
+    origin: true, // Allow all origins dynamically
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
