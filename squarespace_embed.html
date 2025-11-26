@@ -37,9 +37,46 @@
                     <option value="Start an apocalyptic survival story where I am navigating a post-collapse world.">☢️
                         Post-Apocalyptic</option>
                     <option value="Begin a mythological quest as a hero chosen by the gods.">⚡ Epic Mythology</option>
+                    <option value="I am a level 1 fighter in a D&D tavern. I hear rumors of treasure in nearby ruins.">
+                        🎲 D&D: Tavern Start</option>
+                    <option value="My D&D party just entered a forgotten dungeon. What dangers lurk in the darkness?">
+                        🗝️ D&D: Dungeon Crawl</option>
+                    <option value="I am a D&D wizard studying a mysterious spellbook. What secrets does it contain?">📜
+                        D&D: Arcane Mystery</option>
+                    <option value="Our D&D party is hired to escort a caravan through dangerous territory.">🛡️ D&D:
+                        Escort Mission</option>
+                    <option value="I am a D&D rogue sneaking into a noble's estate. What am I searching for?">🦹 D&D:
+                        Heist</option>
+                    <option value="My D&D cleric receives a divine vision. The gods need me to stop an ancient evil.">⚔️
+                        D&D: Divine Quest</option>
+                    <option value="I am a D&D ranger tracking a monster that has been terrorizing villages.">🏹 D&D:
+                        Monster Hunt</option>
+                    <option value="Our D&D party discovers a dragon's lair. Do we negotiate or fight?">🐉 D&D: Dragon
+                        Encounter</option>
+                    <option value="I am a D&D bard performing in a royal court when assassins strike.">🎵 D&D: Court
+                        Intrigue</option>
+                    <option value="My D&D barbarian awakens in an arena. I must fight to survive.">⚔️ D&D: Gladiator
+                        Arena</option>
+                    <option value="Start a time-travel adventure where I can change one historical event.">⏰ Time
+                        Paradox</option>
+                    <option value="I am a detective in 1920s London investigating occult murders.">🕵️ Occult Detective
+                    </option>
+                    <option value="Begin an underwater adventure exploring a sunken civilization.">🌊 Atlantis Rising
+                    </option>
+                    <option value="I am a spy infiltrating a high-tech mega-corporation.">🕴️ Corporate Espionage
+                    </option>
+                    <option value="Start a zombie survival story in an abandoned shopping mall.">🧟 Zombie Outbreak
+                    </option>
+                    <option value="I discover I have superpowers. Do I become a hero or villain?">🦸 Superhero Origin
+                    </option>
+                    <option value="Begin a western tale as a gunslinger seeking revenge.">🤠 Wild West Revenge</option>
+                    <option value="I am a pilot crash-landing on an alien planet. What survives?">👽 First Contact
+                    </option>
+                    <option value="Start a story where I wake up with no memories in a strange laboratory.">🧪 Memory
+                        Loss</option>
                 </select>
-                <button id="header-new-chat-btn" class="response-mode-selector" style="margin-right: 10px;">+
-                    New</button>
+                <button id="header-new-chat-btn" class="response-mode-selector" style="margin-right: 10px;">+ New
+                    Story</button>
                 <select id="voice-selector" class="response-mode-selector" style="margin-right: 10px;">
                     <option value="en-US-Standard-D" selected>Atlas</option>
                     <option value="en-US-Standard-C">Luna</option>
@@ -63,9 +100,11 @@
             <!-- Messages will appear here -->
             <div class="message bot-message">
                 <div class="message-content">
-                    <p>Welcome to <strong>StoryForge</strong>! ✨</p>
-                    <p>Choose your adventure from the menu above, and let's get started together.</p>
-                    <p><em>Every choice shapes the story. What world shall we explore?</em></p>
+                    <p>Welcome, Adventurer! ✨</p>
+                    <p>Your epic tale awaits. Choose a genre above or describe your own—every decision shapes your
+                        destiny.</p>
+                    <p><em>Will you brave ancient dungeons, pilot starships, or unravel cosmic mysteries? The story
+                            begins with you.</em></p>
                 </div>
                 <div class="message-footer">
                     <button class="copy-btn"
@@ -87,7 +126,7 @@
 <div id="conversation-sidebar">
     <div class="sidebar-header">
         <h4>Story Archives</h4>
-        <button id="new-conversation-btn">+ New Tale</button>
+        <button id="new-conversation-btn">+ New Story</button>
     </div>
     <div id="conversation-list">
         <!-- Conversations will be listed here -->
@@ -160,15 +199,14 @@
     #conversation-sidebar {
         width: 100%;
         max-width: 1120px;
+        /* Match chat container width */
+        margin: 0 auto;
+        /* Center the sidebar */
         height: 400px;
-        /* Increased height to show ~10 items */
         background: rgba(15, 12, 41, 0.9);
-        /* Dark cosmic bg with transparency */
         border: 1px solid #6b46c1;
-        /* Purple border */
         border-radius: 12px;
         box-shadow: 0 8px 32px rgba(107, 70, 193, 0.3);
-        /* Purple glow */
         overflow: hidden;
         display: flex;
         flex-direction: column;
@@ -283,20 +321,33 @@
 
     .conversation-item-delete {
         position: absolute;
-        top: 10px;
-        right: 10px;
-        background: transparent;
+        top: 50%;
+        right: 15px;
+        transform: translateY(-50%);
+        background: rgba(239, 68, 68, 0.9);
+        /* Red background */
         border: none;
-        color: #ef4444;
+        color: white;
         font-size: 1.2rem;
         cursor: pointer;
-        opacity: 0;
-        transition: all 0.2s;
+        opacity: 1;
+        /* Always visible */
+        transition: all 0.3s;
         line-height: 1;
+        width: 32px;
+        /* Match bubble size */
+        height: 32px;
+        border-radius: 50%;
+        /* Make it circular */
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
-    .conversation-item:hover .conversation-item-delete {
-        opacity: 1;
+    .conversation-item-delete:hover {
+        background: rgb(220, 38, 38);
+        /* Darker red on hover */
+        transform: translateY(-50%) scale(1.1);
     }
 
     /* 3. MAIN CHAT CONTAINER */
