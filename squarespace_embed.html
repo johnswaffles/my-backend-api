@@ -1284,7 +1284,27 @@
                 switchToConversation(conversations[0].id);
             }
             renderConversationList();
-            attachEventListeners(); // Attach input/send button events
+
+            // Attach event listeners directly here to ensure they exist
+            const chatInput = document.getElementById('chat-input');
+            const chatSendBtn = document.getElementById('send-btn');
+
+            if (chatInput && chatSendBtn) {
+                // Remove old listeners to be safe (though not strictly necessary if page reloads)
+                chatSendBtn.removeEventListener('click', sendMessage);
+
+                chatSendBtn.addEventListener('click', sendMessage);
+
+                chatInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        sendMessage();
+                    }
+                });
+                console.log('StoryForge: Event listeners attached successfully');
+            } else {
+                console.error('StoryForge: Input or send button not found during init');
+            }
         }
 
         function loadConversations() {
@@ -1679,24 +1699,7 @@
 
 
 
-        // Initialize event listeners
-        function attachEventListeners() {
-            const input = document.getElementById('chat-input');
-            const sendBtn = document.getElementById('send-btn');
-
-            if (!input || !sendBtn) {
-                console.error('Input or send button not found');
-                return;
-            }
-
-            sendBtn.addEventListener('click', sendMessage);
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    sendMessage();
-                }
-            });
-        }
+        // attachEventListeners function removed - logic moved to init
 
         newConversationBtn.addEventListener('click', createNewConversation);
 
