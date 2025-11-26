@@ -1311,8 +1311,10 @@
             // Clear and reload messages
             messagesContainer.innerHTML = '';
 
-            // Add intro message
-            // Removed hardcoded greeting - uses HTML initial message instead
+            // Add greeting for new/empty conversations
+            if (!conv.messages || conv.messages.length === 0) {
+                addMessage("Welcome, Adventurer! ✨\n\nYour epic tale awaits. Choose a genre above or describe your own—every decision shapes your destiny.\n\n*Will you brave ancient dungeons, pilot starships, or unravel cosmic mysteries? The story begins with you.*", false, true);
+            }
 
             // Load saved messages
             if (conv.messages) {
