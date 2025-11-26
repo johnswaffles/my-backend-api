@@ -1517,18 +1517,8 @@
                 updateConversationTitle(text);
             }
 
-            // Get selected response mode
-            const responseMode = document.getElementById('response-mode').value;
-
-            // Create system prompt based on mode
-            let systemPrompt = '';
-            let modifiedMessage = text;
-
-            if (responseMode === 'detailed') {
-                systemPrompt = 'Provide an extremely detailed, comprehensive, and well-written response. Include thorough explanations, examples, context, and relevant background information. Be informative, in-depth, and articulate. Make your response substantive and complete.';
-                modifiedMessage = `${systemPrompt}\n\nUser question: ${text}`;
-            }
-            // For 'fast' mode, use original message without modification
+            // Legacy response mode logic removed
+            const modifiedMessage = text;
 
             try {
                 const response = await fetch(BACKEND_URL, {
