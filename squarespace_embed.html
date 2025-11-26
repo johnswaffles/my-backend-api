@@ -14,7 +14,7 @@
             <div class="header-left">
                 <div class="ai-status"></div>
                 <div>
-                    <h3>TRAILGUIDE.AI</h3>
+                    <h3>TRAILGUIDEJOHNNY.AI</h3>
                     <span class="subtitle">YOUR AI GUIDE TO THE OUTDOORS</span>
                 </div>
             </div>
@@ -61,7 +61,7 @@
                 </select>
                 <button id="header-new-chat-btn" class="response-mode-selector" style="margin-right: 10px;">+
                     New</button>
-                <button id="generate-image-btn" class="response-mode-selector" style="margin-right: 10px;">�️ Create
+                <button id="generate-image-btn" class="response-mode-selector" style="margin-right: 10px;">Create
                     Picture</button>
                 <select id="voice-selector" class="response-mode-selector" style="margin-right: 10px;">
                     <option value="en-US-Standard-D" selected>🎙️ Ranger Johnny</option>
@@ -78,7 +78,7 @@
             <!-- Messages will appear here -->
             <div class="message bot-message">
                 <div class="message-content">
-                    <p>Welcome to <strong>TrailGuide.ai</strong>! 🌲</p>
+                    <p>Welcome to <strong>TrailGuideJohnny.ai</strong>! 🌲</p>
                     <p>I'm your expert guide for camping, hiking, and outdoor adventure. Whether you need a trip
                         itinerary, gear advice, or real-time weather updates, I'm here to help you plan safer and
                         smarter.</p>
@@ -1364,7 +1364,8 @@
                 hideLoading();
 
                 if (!response.ok) {
-                    throw new Error(`Server error: ${response.status}`);
+                    const errorData = await response.json();
+                    throw new Error(errorData.details || errorData.error || `Server error: ${response.status}`);
                 }
 
                 const data = await response.json();

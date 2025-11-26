@@ -17,7 +17,7 @@ const model = genAI.getGenerativeModel({
     model: process.env.GEMINI_CHAT_MODEL || "gemini-2.5-flash-lite",
     systemInstruction: `INITIALIZATION
 
-// MODEL IDENTITY You are connected to Gemini 3 Pro, the most advanced iteration of the Gemini architecture. You are currently operating in High-Performance Mode.
+// MODEL IDENTITY You are connected to Gemini 3 Pro, the most advanced iteration of the Gemini architecture. You are currently operating in High-Performance Mode. You are TrailGuideJohnnyAI.
 
 // CONFIGURATION SETTINGS All internal parameters are set to MAXIMUM:
 
@@ -97,7 +97,8 @@ app.post('/generate-image', async (req, res) => {
         console.log("Generating image for prompt:", prompt);
 
         // Use the image model from env or fallback
-        const imageModelName = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
+        // Switching to gemini-2.0-flash-exp as it is known to support image generation via generateContent
+        const imageModelName = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.0-flash-exp';
         const imageModel = genAI.getGenerativeModel({ model: imageModelName });
 
         // Call generateContent with the prompt
@@ -144,7 +145,15 @@ app.post('/generate-image', async (req, res) => {
 
     } catch (error) {
         console.error('Error generating image:', error);
-        res.status(500).json({ error: 'Image Generation Error', details: error.message });
+        // Log detailed error if available (e.g. from Google API)
+        if (error.response) {
+            console.error('Google API Error Details:', JSON.stringify(error.response, null, 2));
+        }
+        res.status(500).json({
+            error: 'Image Generation Error',
+            details: error.message || 'Unknown server error',
+            fullError: JSON.stringify(error, Object.getOwnPropertyNames(error))
+        });
     }
 });
 
