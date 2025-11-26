@@ -1345,6 +1345,7 @@
             messagesContainer.innerHTML = '';
 
             // Add greeting for new/empty conversations
+            // Check if messages array is empty OR if it only contains the initial greeting (which we don't save to messages array usually, but just in case)
             if (!conv.messages || conv.messages.length === 0) {
                 addMessage("Welcome, Adventurer! ✨\n\nYour epic tale awaits. Choose a genre above or describe your own—every decision shapes your destiny.\n\n*Will you brave ancient dungeons, pilot starships, or unravel cosmic mysteries? The story begins with you.*", false, true);
             }
@@ -1584,6 +1585,14 @@
         }
 
         async function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const sendBtn = document.getElementById('send-btn');
+
+            if (!input || !sendBtn) {
+                console.error('StoryForge: Input or send button not found in sendMessage');
+                return;
+            }
+
             const text = input.value.trim();
             if (!text) return;
 
@@ -1596,7 +1605,7 @@
 
             // Update title with first user message
             const conv = conversations.find(c => c.id === currentConversationId);
-            if (conv && conv.messages.length === 1) {
+            if (conv && (!conv.messages || conv.messages.length <= 1)) {
                 updateConversationTitle(text);
             }
 
