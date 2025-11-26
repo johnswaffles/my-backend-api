@@ -95,14 +95,7 @@
                 </select>
                 <button id="header-new-chat-btn" class="response-mode-selector" style="margin-right: 10px;">+ New
                     Story</button>
-                <select id="voice-selector" class="response-mode-selector" style="margin-right: 10px;">
-                    <option value="en-US-Neural2-D" selected>Atlas (Narrator)</option>
-                    <option value="en-US-Neural2-C">Luna (Mystic)</option>
-                    <option value="en-US-Neural2-F">Freya (Epic)</option>
-                    <option value="en-US-Neural2-A">Orion (Deep)</option>
-                    <option value="en-US-WaveNet-I">Nova (Energetic)</option>
-                    <option value="en-US-WaveNet-J">Jasper (Friendly)</option>
-                </select>
+                <!-- Voice Selector Removed -->
                 <select id="tone-selector" class="response-mode-selector">
                     <option value="dark">🌑 Dark</option>
                     <option value="whimsical">✨ Whimsical</option>
@@ -1423,20 +1416,7 @@
             });
         }
 
-        // TTS Variables
-        let availableVoices = [];
-        let currentUtterance = null;
-        let currentAudioBlob = null;
-
-        // Load voices when available
-        function loadVoices() {
-            availableVoices = speechSynthesis.getVoices();
-        }
-
-        if (speechSynthesis.onvoiceschanged !== undefined) {
-            speechSynthesis.onvoiceschanged = loadVoices;
-        }
-        loadVoices();
+        // TTS Variables & Logic Removed
 
         function showLoading() {
             const loader = document.createElement('div');
@@ -1481,80 +1461,7 @@
                 const footerDiv = document.createElement('div');
                 footerDiv.className = 'message-footer';
 
-                // Play Button
-                const playBtn = document.createElement('button');
-                playBtn.className = 'audio-btn';
-                playBtn.innerHTML = '▶ Play';
-
-                let currentAudio = null;
-
-                playBtn.onclick = async function () {
-                    if (currentAudio && !currentAudio.paused) {
-                        currentAudio.pause();
-                        playBtn.innerHTML = '▶ Play';
-                        playBtn.classList.remove('playing');
-                        return;
-                    }
-
-                    const selectedVoice = document.getElementById('voice-selector').value;
-                    const fullText = contentDiv.innerText;
-                    // Create a short summary (first 120 words) for TTS
-                    const summary = fullText.split(' ').slice(0, 120).join(' ');
-
-                    playBtn.innerHTML = '⏳ Loading...';
-                    playBtn.disabled = true;
-
-                    try {
-                        const response = await fetch(BACKEND_URL.replace('/chat', '/tts'), {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                text: summary,
-                                voice: selectedVoice
-                            })
-                        });
-
-                        if (!response.ok) {
-                            const errorData = await response.json();
-                            throw new Error(errorData.details || 'TTS request failed');
-                        }
-
-                        const audioBlob = await response.blob();
-                        const audioUrl = URL.createObjectURL(audioBlob);
-
-                        if (currentAudio) {
-                            currentAudio.pause();
-                            currentAudio = null;
-                        }
-
-                        currentAudio = new Audio(audioUrl);
-
-                        currentAudio.onplay = () => {
-                            playBtn.innerHTML = '⏹ Stop';
-                            playBtn.classList.add('playing');
-                            playBtn.disabled = false;
-                        };
-
-                        currentAudio.onended = () => {
-                            playBtn.innerHTML = '▶ Play';
-                            playBtn.classList.remove('playing');
-                        };
-
-                        currentAudio.onerror = () => {
-                            playBtn.innerHTML = '▶ Play';
-                            playBtn.disabled = false;
-                            alert('Error playing audio');
-                        };
-
-                        currentAudio.play();
-
-                    } catch (error) {
-                        console.error('TTS Error:', error);
-                        alert(`Audio Error: ${error.message}`);
-                        playBtn.innerHTML = '▶ Play';
-                        playBtn.disabled = false;
-                    }
-                };
+                // Play Button Removed
 
                 // Copy Button
                 const copyBtn = document.createElement('button');
@@ -1569,7 +1476,7 @@
 
                 const footerLeft = document.createElement('div');
                 footerLeft.className = 'footer-left';
-                footerLeft.appendChild(playBtn);
+                // footerLeft.appendChild(playBtn); // Removed
 
                 const footerRight = document.createElement('div');
                 footerRight.className = 'footer-right';
