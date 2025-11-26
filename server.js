@@ -97,7 +97,7 @@ app.post('/generate-image', async (req, res) => {
         console.log("Generating image for prompt:", prompt);
 
         // Use the image model from env or fallback
-        const imageModelName = process.env.GEMINI_IMAGE_MODEL || 'gemini-3-pro-image-preview';
+        const imageModelName = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
         const imageModel = genAI.getGenerativeModel({ model: imageModelName });
 
         // Call generateContent with the prompt
