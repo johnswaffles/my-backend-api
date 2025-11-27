@@ -7,6 +7,8 @@
         <div class="stats-header">
             <h4>⚔️ Adventurer</h4>
         </div>
+
+        <!-- Health -->
         <div class="health-section">
             <div class="stat-row">
                 <span class="stat-label">❤️ Health:</span>
@@ -16,10 +18,53 @@
                 <div class="health-bar-fill" id="health-bar-fill" style="width: 100%"></div>
             </div>
         </div>
+
+        <!-- Combat Stats -->
+        <div class="combat-stats-section">
+            <div class="stat-row">
+                <span class="stat-label">🛡️ Armor:</span>
+                <span class="stat-value" id="armor-value">0</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">⚔️ Damage:</span>
+                <span class="stat-value" id="damage-value">0</span>
+            </div>
+        </div>
+
+        <!-- Currency -->
+        <div class="currency-section">
+            <h5>💰 Wealth</h5>
+            <div class="currency-row">
+                <span class="coin gold">🟡 <span id="gold-count">0</span> G</span>
+                <span class="coin silver">⚪ <span id="silver-count">0</span> S</span>
+                <span class="coin copper">🟤 <span id="copper-count">0</span> C</span>
+            </div>
+        </div>
+
+        <!-- Equipment Grid -->
+        <div class="equipment-section">
+            <h5>🛡️ Equipment</h5>
+            <div class="equip-grid">
+                <div class="equip-slot" data-slot="head" title="Head">🧢</div>
+                <div class="equip-slot" data-slot="neck" title="Neck">📿</div>
+                <div class="equip-slot" data-slot="shoulders" title="Shoulders">👘</div>
+                <div class="equip-slot" data-slot="chest" title="Chest">👕</div>
+                <div class="equip-slot" data-slot="wrist" title="Wrist">⌚</div>
+                <div class="equip-slot" data-slot="gloves" title="Gloves">🧤</div>
+                <div class="equip-slot" data-slot="ring1" title="Ring 1">💍</div>
+                <div class="equip-slot" data-slot="ring2" title="Ring 2">💍</div>
+                <div class="equip-slot" data-slot="trinket1" title="Trinket 1">🧿</div>
+                <div class="equip-slot" data-slot="trinket2" title="Trinket 2">🧿</div>
+                <div class="equip-slot big-slot" data-slot="main_hand" title="Main Hand">🗡️</div>
+                <div class="equip-slot big-slot" data-slot="off_hand" title="Off Hand">🛡️</div>
+            </div>
+        </div>
+
+        <!-- Inventory -->
         <div class="inventory-section">
-            <h5>🏭 Inventory</h5>
+            <h5>🎒 Inventory</h5>
             <div id="inventory-list">
-                <div class="empty-inventory">Start your adventure to collect items!</div>
+                <div class="empty-inventory">Empty...</div>
             </div>
         </div>
     </div>
@@ -63,7 +108,7 @@
         justify-content: center;
         align-items: flex-start;
         width: 100%;
-        min-height: 600px;
+        min-height: 700px;
         font-family: 'Inter', sans-serif;
         box-sizing: border-box;
         background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
@@ -78,8 +123,8 @@
 
     /* 2.5 RPG STATS PANEL (Left Side) */
     #game-stats-panel {
-        width: 280px;
-        min-width: 280px;
+        width: 300px;
+        min-width: 300px;
         background: rgba(15, 12, 41, 0.95);
         border: 1px solid #6b46c1;
         border-radius: 12px;
@@ -89,6 +134,18 @@
         flex-direction: column;
         gap: 15px;
         color: white;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+
+    /* Scrollbar for stats panel */
+    #game-stats-panel::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    #game-stats-panel::-webkit-scrollbar-thumb {
+        background: #6b46c1;
+        border-radius: 3px;
     }
 
     .stats-header h4 {
@@ -101,16 +158,11 @@
         border-bottom: 2px solid #6b46c1;
     }
 
-    .health-section {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-
     .stat-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
+        margin-bottom: 5px;
     }
 
     .stat-label {
@@ -127,7 +179,7 @@
 
     .health-bar {
         width: 100%;
-        height: 20px;
+        height: 15px;
         background: rgba(26, 26, 46, 0.8);
         border-radius: 10px;
         overflow: hidden;
@@ -138,53 +190,107 @@
         height: 100%;
         background: linear-gradient(90deg, #ef4444, #f87171);
         transition: width 0.5s ease;
-        box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
     }
 
+    /* Currency */
+    .currency-section h5,
+    .equipment-section h5,
     .inventory-section h5 {
-        margin: 10px 0 5px 0;
+        margin: 10px 0 8px 0;
         font-family: 'Inter', sans-serif;
-        font-size: 1rem;
+        font-size: 0.95rem;
         color: #a78bfa;
         border-bottom: 1px solid rgba(107, 70, 193, 0.3);
         padding-bottom: 5px;
     }
 
+    .currency-row {
+        display: flex;
+        justify-content: space-between;
+        background: rgba(0, 0, 0, 0.2);
+        padding: 8px;
+        border-radius: 6px;
+    }
+
+    .coin {
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    .gold {
+        color: #ffd700;
+    }
+
+    .silver {
+        color: #c0c0c0;
+    }
+
+    .copper {
+        color: #cd7f32;
+    }
+
+    /* Equipment Grid */
+    .equip-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+    }
+
+    .equip-slot {
+        aspect-ratio: 1;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid #4c1d95;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        cursor: help;
+        position: relative;
+        transition: all 0.2s;
+    }
+
+    .equip-slot:hover {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: #a78bfa;
+    }
+
+    .equip-slot.equipped {
+        background: rgba(107, 70, 193, 0.3);
+        border-color: #ffd700;
+    }
+
+    .big-slot {
+        grid-column: span 2;
+        aspect-ratio: 2/1;
+    }
+
+    /* Inventory */
     #inventory-list {
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        max-height: 300px;
+        gap: 6px;
+        max-height: 200px;
         overflow-y: auto;
-    }
-
-    .empty-inventory {
-        color: #64748b;
-        font-size: 0.85rem;
-        font-style: italic;
-        text-align: center;
-        padding: 20px 10px;
     }
 
     .inventory-item {
         background: rgba(48, 43, 99, 0.6);
         border: 1px solid #6b46c1;
-        border-radius: 6px;
-        padding: 10px;
+        border-radius: 4px;
+        padding: 8px;
+        font-size: 0.85rem;
         display: flex;
         justify-content: space-between;
-        align-items: center;
     }
 
     .item-name {
-        font-size: 0.9rem;
         color: #e0e7ff;
-        font-weight: 600;
     }
 
-    .item-stats {
+    .item-type {
+        color: #94a3b8;
         font-size: 0.75rem;
-        color: #ffd700;
     }
 
     /* 3. MAIN CHAT CONTAINER */
@@ -192,8 +298,8 @@
         flex: 1;
         min-width: 300px;
         max-width: 800px;
-        height: 70vh;
-        min-height: 500px;
+        height: 80vh;
+        min-height: 600px;
         display: flex;
         flex-direction: column;
         background: rgba(15, 12, 41, 0.95);
@@ -245,8 +351,6 @@
         display: flex;
         flex-direction: column;
         gap: 20px;
-        background: #f8fafc;
-        /* Fallback */
         background: rgba(15, 12, 41, 0.5);
     }
 
@@ -319,6 +423,31 @@
         color: #ffd700;
     }
 
+    /* Choices */
+    .choices-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+        padding: 0 30px 20px 30px;
+    }
+
+    .choice-btn {
+        padding: 10px 15px;
+        background: rgba(107, 70, 193, 0.2);
+        border: 1px solid #a78bfa;
+        color: #e0e7ff;
+        border-radius: 8px;
+        cursor: pointer;
+        font-family: 'Inter', sans-serif;
+        transition: all 0.2s;
+    }
+
+    .choice-btn:hover {
+        background: rgba(107, 70, 193, 0.5);
+        transform: translateY(-1px);
+    }
+
     /* 6. INPUT AREA */
     #chat-input-area {
         padding: 20px 30px;
@@ -347,10 +476,6 @@
         box-shadow: 0 0 10px rgba(167, 139, 250, 0.5);
     }
 
-    #chat-input::placeholder {
-        color: rgba(255, 215, 0, 0.5);
-    }
-
     #send-btn {
         padding: 14px 24px;
         background: #ffd700;
@@ -361,18 +486,11 @@
         font-size: 0.9rem;
         cursor: pointer;
         transition: transform 0.2s;
-        box-shadow: 0 4px 10px rgba(255, 215, 0, 0.3);
     }
 
     #send-btn:hover {
         transform: translateY(-2px);
         background: #ffed4e;
-    }
-
-    #send-btn:disabled {
-        background: #cbd5e1;
-        cursor: not-allowed;
-        transform: none;
     }
 
     /* Loading Indicator */
@@ -416,17 +534,20 @@
     }
 
     /* Mobile Responsive */
-    @media (max-width: 768px) {
+    @media (max-width: 900px) {
         #gemini-chat-wrapper {
             padding: 10px;
+            flex-direction: column;
+            align-items: center;
         }
 
         #game-stats-panel {
             width: 100%;
-            max-height: 200px;
+            max-height: none;
         }
 
         #gemini-chat-container {
+            width: 100%;
             height: 60vh;
         }
     }
@@ -447,44 +568,114 @@
         const gameState = {
             health: 100,
             maxHealth: 100,
-            inventory: []
+            currency: { gold: 0, silver: 0, copper: 0 },
+            stats: { armor: 0, damage: 0 },
+            inventory: [],
+            equipment: {} // slot -> item
         };
 
-        function updateHealthBar() {
+        function updateUI() {
+            // Health
             const healthPercent = (gameState.health / gameState.maxHealth) * 100;
             document.getElementById('health-bar-fill').style.width = healthPercent + '%';
             document.getElementById('health-value').textContent = `${gameState.health}/${gameState.maxHealth}`;
-        }
 
-        function updateInventoryUI() {
+            // Currency
+            document.getElementById('gold-count').textContent = gameState.currency.gold;
+            document.getElementById('silver-count').textContent = gameState.currency.silver;
+            document.getElementById('copper-count').textContent = gameState.currency.copper;
+
+            // Stats
+            document.getElementById('armor-value').textContent = gameState.stats.armor;
+            document.getElementById('damage-value').textContent = gameState.stats.damage;
+
+            // Inventory
             const inventoryList = document.getElementById('inventory-list');
             if (gameState.inventory.length === 0) {
-                inventoryList.innerHTML = '<div class="empty-inventory">Start your adventure to collect items!</div>';
+                inventoryList.innerHTML = '<div class="empty-inventory">Empty...</div>';
             } else {
                 inventoryList.innerHTML = gameState.inventory.map(item => `
                     <div class="inventory-item">
-                        <div>
-                            <div class="item-name">🎁 ${item.name}</div>
-                            <div class="item-stats">${item.type}</div>
-                        </div>
+                        <span class="item-name">${item.name}</span>
+                        <span class="item-type">${item.type || 'item'}</span>
                     </div>
                 `).join('');
             }
+
+            // Equipment Slots
+            document.querySelectorAll('.equip-slot').forEach(slotEl => {
+                const slotName = slotEl.dataset.slot;
+                const item = gameState.equipment[slotName];
+                if (item) {
+                    slotEl.classList.add('equipped');
+                    slotEl.innerHTML = `<span title="${item.name}">${getSlotIcon(slotName)}</span>`;
+                } else {
+                    slotEl.classList.remove('equipped');
+                    slotEl.innerHTML = getSlotIcon(slotName);
+                }
+            });
         }
 
-        function addItemToInventory(item) {
+        function getSlotIcon(slot) {
+            const icons = {
+                head: '🧢', neck: '📿', shoulders: '👘', chest: '👕', wrist: '⌚', gloves: '🧤',
+                ring1: '💍', ring2: '💍', trinket1: '🧿', trinket2: '🧿',
+                main_hand: '🗡️', off_hand: '🛡️'
+            };
+            return icons[slot] || '❓';
+        }
+
+        function updateCurrency(delta) {
+            gameState.currency.gold = Math.max(0, gameState.currency.gold + (delta.gold || 0));
+            gameState.currency.silver = Math.max(0, gameState.currency.silver + (delta.silver || 0));
+            gameState.currency.copper = Math.max(0, gameState.currency.copper + (delta.copper || 0));
+            updateUI();
+        }
+
+        function addItem(item) {
             gameState.inventory.push(item);
-            updateInventoryUI();
+            updateUI();
+        }
+
+        function removeItem(itemName) {
+            const index = gameState.inventory.findIndex(i => i.name.toLowerCase() === itemName.toLowerCase());
+            if (index > -1) {
+                gameState.inventory.splice(index, 1);
+                updateUI();
+            }
+        }
+
+        function equipItem(slot, item) {
+            // Remove from inventory if present
+            removeItem(item.name);
+
+            // Unequip existing if any
+            if (gameState.equipment[slot]) {
+                addItem(gameState.equipment[slot]);
+            }
+
+            gameState.equipment[slot] = item;
+
+            // Update Stats
+            if (item.stats) {
+                gameState.stats.armor += (item.stats.armor || 0);
+                gameState.stats.damage += (item.stats.damage || 0);
+            }
+
+            updateUI();
         }
 
         function takeDamage(amount) {
-            gameState.health = Math.max(0, gameState.health - amount);
-            updateHealthBar();
+            // Simple mitigation: 1 Armor = 0.5 damage reduction (capped at 90%)
+            const mitigation = Math.min(0.9, (gameState.stats.armor * 0.5) / 100);
+            const actualDamage = Math.floor(amount * (1 - mitigation));
+            gameState.health = Math.max(0, gameState.health - actualDamage);
+            updateUI();
         }
 
         function heal(amount) {
             gameState.health = Math.min(gameState.maxHealth, gameState.health + amount);
-            updateHealthBar();
+            updateUI();
         }
         // ========== END RPG GAME STATE ==========
 
@@ -498,7 +689,6 @@
             if (isUser) {
                 content.textContent = text;
             } else {
-                // Parse Markdown for bot messages
                 if (typeof marked !== 'undefined' && marked.parse) {
                     content.innerHTML = marked.parse(text);
                 } else {
@@ -533,9 +723,8 @@
             input.disabled = true;
             sendBtn.disabled = true;
 
-            // Remove previous choices if any
-            const existingChoices = document.querySelectorAll('.choice-btn');
-            existingChoices.forEach(btn => btn.remove());
+            // Remove previous choices
+            document.querySelectorAll('.choice-btn').forEach(btn => btn.remove());
 
             addMessage(text, true);
             showLoading();
@@ -555,119 +744,102 @@
                 const data = await response.json();
                 hideLoading();
 
-                // Handle both 'reply' and 'text' response formats
                 let botReply = data.reply || data.text || "I'm sorry, I couldn't generate a response.";
 
-                // ========== PARSE JSON GAME ACTIONS ==========
-                // Improved Regex to handle newlines and potential formatting issues
-                // Looks for {"action": "add_item" ... } across multiple lines
-                const itemRegex = /\{\s*"action":\s*"add_item"[^}]+\}\s*}/gs;
-                const itemMatches = botReply.match(itemRegex);
+                // ========== PARSE JSON ACTIONS ==========
+                // Regex to find all JSON objects in the response
+                const jsonRegex = /\{"action":\s*"[^"]+"[^}]+\}/gs;
+                const jsonMatches = botReply.match(jsonRegex);
 
-                if (itemMatches) {
-                    itemMatches.forEach(jsonStr => {
+                if (jsonMatches) {
+                    jsonMatches.forEach(jsonStr => {
                         try {
-                            // Clean up the JSON string (remove markdown code blocks if present)
                             const cleanJson = jsonStr.replace(/```json/g, '').replace(/```/g, '').trim();
                             const action = JSON.parse(cleanJson);
 
-                            if (action.item) {
-                                addItemToInventory(action.item);
-                                addMessage(`🎁 **You received: ${action.item.name}**!`, false);
+                            switch (action.action) {
+                                case 'add_item':
+                                    if (action.item) {
+                                        addItem(action.item);
+                                        addMessage(`🎁 **Received: ${action.item.name}**`, false);
+                                    }
+                                    break;
+                                case 'remove_item':
+                                    if (action.item) {
+                                        removeItem(action.item.name);
+                                        addMessage(`➖ **Removed: ${action.item.name}**`, false);
+                                    }
+                                    break;
+                                case 'update_currency':
+                                    updateCurrency(action);
+                                    addMessage(`💰 **Currency Updated**`, false);
+                                    break;
+                                case 'equip_item':
+                                    if (action.slot && action.item) {
+                                        equipItem(action.slot, action.item);
+                                        addMessage(`🛡️ **Equipped: ${action.item.name}**`, false);
+                                    }
+                                    break;
                             }
-                            // Remove the JSON from the displayed text
+                            // Remove JSON from display
                             botReply = botReply.replace(jsonStr, '').trim();
                         } catch (e) {
-                            console.error('Error parsing item JSON:', e, jsonStr);
+                            console.error('Error parsing JSON:', e, jsonStr);
                         }
                     });
                 }
 
-                // Check for damage: (-15 HP)
+                // Parse Damage/Heal
                 const damageMatches = botReply.matchAll(/\(-?(\d+)\s*HP\)/g);
-                for (const match of damageMatches) {
-                    takeDamage(parseInt(match[1]));
-                }
+                for (const match of damageMatches) takeDamage(parseInt(match[1]));
 
-                // Check for healing: (+20 HP)
                 const healMatches = botReply.matchAll(/\(\+(\d+)\s*HP\)/g);
-                for (const match of healMatches) {
-                    heal(parseInt(match[1]));
-                }
-                // ========== END JSON PARSING ==========
+                for (const match of healMatches) heal(parseInt(match[1]));
+                // ========== END PARSING ==========
 
                 // ========== PARSE CHOICES ==========
-                // Extract numbered choices (e.g., "1. Do this")
-                const choiceRegex = /(\d+)\.\s+(.*)/g;
-                let choices = [];
-                let match;
-
-                // We only want to extract choices that are at the END of the message
-                // So we split the message by newlines and check the last few lines
                 const lines = botReply.split('\n');
                 const nonChoiceLines = [];
+                let choices = [];
 
                 lines.forEach(line => {
                     const choiceMatch = line.match(/^(\d+)\.\s+(.*)/);
                     if (choiceMatch) {
-                        choices.push(choiceMatch[2]); // Capture the text
+                        choices.push(choiceMatch[2]);
                     } else {
                         nonChoiceLines.push(line);
                     }
                 });
 
-                // Reconstruct the message without the choices
                 const cleanMessage = nonChoiceLines.join('\n').trim();
                 addMessage(cleanMessage, false);
 
-                // Render Choices as Buttons
                 if (choices.length > 0) {
                     const choicesContainer = document.createElement('div');
                     choicesContainer.className = 'choices-container';
-                    choicesContainer.style.display = 'flex';
-                    choicesContainer.style.flexWrap = 'wrap';
-                    choicesContainer.style.gap = '10px';
-                    choicesContainer.style.marginTop = '10px';
-                    choicesContainer.style.padding = '0 30px 20px 30px'; // Match padding of messages
-
                     choices.forEach(choiceText => {
                         const btn = document.createElement('button');
                         btn.className = 'choice-btn';
                         btn.textContent = choiceText;
-                        btn.style.padding = '10px 15px';
-                        btn.style.background = 'rgba(107, 70, 193, 0.2)';
-                        btn.style.border = '1px solid #a78bfa';
-                        btn.style.color = '#e0e7ff';
-                        btn.style.borderRadius = '8px';
-                        btn.style.cursor = 'pointer';
-                        btn.style.fontFamily = 'Inter, sans-serif';
-                        btn.style.transition = 'all 0.2s';
-
-                        btn.onmouseover = () => { btn.style.background = 'rgba(107, 70, 193, 0.5)'; };
-                        btn.onmouseout = () => { btn.style.background = 'rgba(107, 70, 193, 0.2)'; };
-
                         btn.onclick = () => sendMessage(choiceText);
-
                         choicesContainer.appendChild(btn);
                     });
-
                     messagesContainer.appendChild(choicesContainer);
                     messagesContainer.scrollTop = messagesContainer.scrollHeight;
                 }
                 // ========== END CHOICES ==========
 
-                // Update history with the FULL original reply (to keep context)
                 conversationHistory.push({ role: 'user', parts: text });
-                conversationHistory.push({ role: 'model', parts: data.reply || data.text }); // Use original data
+                conversationHistory.push({ role: 'model', parts: data.reply || data.text });
 
             } catch (error) {
                 hideLoading();
-                addMessage("⚠️ Sorry, something went wrong. Please check your connection.", false);
+                addMessage("⚠️ Error connecting to server.", false);
                 console.error(error);
             } finally {
                 input.disabled = false;
                 sendBtn.disabled = false;
-                if (!messageText) input.focus(); // Only focus if sent via input
+                if (!messageText) input.focus();
             }
         }
 
