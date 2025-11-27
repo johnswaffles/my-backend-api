@@ -14,11 +14,11 @@
             </div>
             <!-- Voice Selector -->
             <select id="voice-selector" title="Select Narration Voice">
-                <option value="">🔇 No Voice</option>
-                <option value="en-US-Neural2-J">🎙️ Male 1</option>
-                <option value="en-US-Neural2-D">🎙️ Male 2</option>
-                <option value="en-US-Neural2-C">🎙️ Female 1</option>
-                <option value="en-US-Neural2-E">🎙️ Female 2</option>
+                <option value="">🔇 Silent</option>
+                <option value="male1">🧙‍♂️ Wizard Eldric</option>
+                <option value="male2">⚔️ Knight Roland</option>
+                <option value="female1">🧝‍♀️ Elven Mystic</option>
+                <option value="female2">👑 Queen Morgana</option>
             </select>
         </div>
 
@@ -568,9 +568,15 @@
         const itemUseDropdown = document.getElementById('item-use-dropdown');
 
         const BACKEND_URL = 'https://my-backend-api-1niy.onrender.com/chat';
-        const TTS_URL = 'https://my-backend-api-1niy.onrender.com/tts';
 
         let conversationHistory = [];
+
+        // Load voices when available
+        if ('speechSynthesis' in window) {
+            speechSynthesis.onvoiceschanged = () => {
+                speechSynthesis.getVoices();
+            };
+        }
 
         const gameState = {
             health: 100,
@@ -725,28 +731,68 @@
             if (loader) loader.remove();
         }
 
-        async function playTTS(text, voice) {
-            if (!voice || !text) return;
+        async function playTTS(text, voiceType) {
+            if (!voiceType || !text) return;
 
             try {
-                const response = await fetch(TTS_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        text: text.substring(0, 200),
-                        voice: voice
-                    })
-                });
+                // Use browser's built-in Speech Synthesis API
+                if ('speechSynthesis' in window) {
+                    // Cancel any ongoing speech
+                    window.speechSynthesis.cancel();
 
-                if (response.ok) {
-                    const blob = await response.blob();
-                    const audio = new Audio(URL.createObjectURL(blob));
-                    audio.play();
+                    const utterance = new SpeechSynthesisUtterance(text.substring(0, 200));
+
+                    // Map our RP voice types to browser voices
+                    const voices = window.speechSynthesis.getVoices();
+                    let selectedVoice = null;
+
+                    switch (voiceType) {
+                        case 'male1':
+                            // Deep male voice
+                            selectedVoice = voices.find(v => v.name.includes('Google UK English Male') ||
+                                v.name.includes('Microsoft David') ||
+                                (v.lang.includes('en') && !v.name.includes('Female') && v.name.includes('Male')));
+                            utterance.pitch = 0.8;
+                            utterance.rate = 0.9;
+                            break;
+                        case 'male2':
+                            // Strong male voice
+                            selectedVoice = voices.find(v => v.name.includes('Google US English') && v.name.includes('Male') ||
+                                v.name.includes('Microsoft Mark') ||
+                                (v.lang.includes('en-US') && !v.name.includes('Female')));
+                            utterance.pitch = 0.9;
+                            utterance.rate = 0.95;
+                            break;
+                        case 'female1':
+                            // Ethereal female voice
+                            selectedVoice = voices.find(v => v.name.includes('Google UK English Female') ||
+                                v.name.includes('Microsoft Zira') ||
+                                (v.lang.includes('en') && v.name.includes('Female')));
+                            utterance.pitch = 1.2;
+                            utterance.rate = 0.85;
+                            break;
+                        case 'female2':
+                            // Regal female voice
+                            selectedVoice = voices.find(v => v.name.includes('Google US English') && v.name.includes('Female') ||
+                                v.name.includes('Microsoft') && v.name.includes('Female') ||
+                                (v.lang.includes('en-US') && v.name.includes('Female')));
+                            utterance.pitch = 1.0;
+                            utterance.rate = 0.9;
+                            break;
+                    }
+
+                    if (selectedVoice) {
+                        utterance.voice = selectedVoice;
+                    }
+
+                    utterance.volume = 0.8;
+                    window.speechSynthesis.speak(utterance);
                 }
             } catch (e) {
                 console.error('TTS error:', e);
             }
         }
+
 
         async function sendMessage(messageText = null) {
             const text = messageText || input.value.trim();
