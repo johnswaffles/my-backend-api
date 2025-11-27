@@ -6,48 +6,23 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Request Logging Middleware
-app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-    next();
-});
-
-// Robust CORS Configuration
-const corsOptions = {
-    origin: ['https://www.justaskjohnny.com', 'http://localhost:3000'],
-    methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true
-};
-
-app.use(cors(corsOptions));
-app.options(/(.*)/, cors(corsOptions)); // Enable pre-flight for all routes
+// Simplified CORS - Allow All Origins for now to ensure connectivity
+app.use(cors());
 app.use(express.json());
-
-// Health Check Endpoint
-app.get('/', (req, res) => {
-    res.status(200).send('Server is running and healthy.');
-});
 
 // Gemini Setup
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-// Use user-provided model or fallback to gemini-1.5-pro
-const modelName = process.env.GEMINI_CHAT_MODEL || "gemini-1.5-pro";
-console.log(`Using Gemini Model: ${modelName}`);
-const model = genAI.getGenerativeModel({ model: modelName });
+const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
 const SYSTEM_PROMPT = `
 You are the Game Master (GM) for a text-based RPG called StoryForge.
 Your goal is to guide the player through an immersive, open-ended adventure.
 
 **CORE RULES:**
-1.  **Turn-Based Combat:** If combat starts, you MUST manage it in turns.
-    *   **Player Turn:** The player acts first.
-    *   **Enemy Turn:** Describe the enemy's reaction and attack immediately after the player's action.
-    *   **Damage:** You determine how much damage is dealt/taken based on the narrative.
-2.  **Be Descriptive:** Use vivid imagery (sight, sound, smell) to set the scene.
-3.  **Open-Ended:** Allow the player to do anything. React logically to their actions.
-4.  **Game State:** You must track the player's status implicitly.
+1.  **Be Descriptive:** Use vivid imagery (sight, sound, smell) to set the scene.
+2.  **Open-Ended:** Allow the player to do anything. React logically to their actions.
+3.  **Game State:** You must track the player's status implicitly.
+4.  **Combat:** If the player fights, describe the combat. You determine the outcome based on their actions.
 5.  **Items:** You can award items. When you do, you MUST include a specific JSON action at the end of your response.
 
 **JSON ACTIONS:**
@@ -55,11 +30,6 @@ To update the game state, append a JSON object to the very end of your response 
 *   **Give Item:** {"action": "add_item", "item": {"name": "Item Name", "description": "Short description", "type": "weapon/potion/key/etc"}}
 *   **Damage Player:** Use text like "You take 5 damage." in your narrative. The frontend parses text for "(-X HP)".
 *   **Heal Player:** Use text like "You regain 10 health." in your narrative. The frontend parses text for "(+X HP)".
-
-**EXAMPLE RESPONSE:**
-The goblin lunges at you! You dodge just in time and strike back. The goblin falls, dropping a shimmering key.
-
-{"action": "add_item", "item": {"name": "Rusty Key", "description": "An old iron key covered in rust.", "type": "key"}}
 `;
 
 app.post('/chat', async (req, res) => {
@@ -82,7 +52,7 @@ app.post('/chat', async (req, res) => {
         const chat = model.startChat({
             history: [
                 { role: "user", parts: [{ text: SYSTEM_PROMPT }] },
-                { role: "model", parts: [{ text: "I am ready to help. Ask me anything!" }] },
+                { role: "model", parts: [{ text: "I am ready to be the Game Master. Let the adventure begin!" }] },
                 ...chatHistory
             ]
         });

@@ -1,13 +1,37 @@
 <!-- Squarespace Code Block Start -->
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <div id="gemini-chat-wrapper">
+
+    <!-- RPG Stats Panel (Left Side) -->
+    <div id="game-stats-panel">
+        <div class="stats-header">
+            <h4>⚔️ Adventurer</h4>
+        </div>
+        <div class="health-section">
+            <div class="stat-row">
+                <span class="stat-label">❤️ Health:</span>
+                <span class="stat-value" id="health-value">100/100</span>
+            </div>
+            <div class="health-bar">
+                <div class="health-bar-fill" id="health-bar-fill" style="width: 100%"></div>
+            </div>
+        </div>
+        <div class="inventory-section">
+            <h5>🏭 Inventory</h5>
+            <div id="inventory-list">
+                <div class="empty-inventory">Start your adventure to collect items!</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Chat Container -->
     <div id="gemini-chat-container">
         <div id="chat-header">
             <div class="header-content">
                 <div class="title-icon">✨</div>
                 <div>
-                    <h3>Johnny's Assistant</h3>
-                    <span class="subtitle">POWERED BY GEMINI PRO</span>
+                    <h3>STORYFORGE</h3>
+                    <span class="subtitle">WEAVE YOUR DESTINY</span>
                 </div>
             </div>
         </div>
@@ -15,13 +39,14 @@
         <div id="chat-messages">
             <div class="message bot-message">
                 <div class="message-content">
-                    <p>Hello! I'm here to help. Ask me anything.</p>
+                    <p>Welcome, Adventurer! ✨</p>
+                    <p>Your epic tale awaits. Describe your character or choose a path to begin.</p>
                 </div>
             </div>
         </div>
 
         <div id="chat-input-area">
-            <input type="text" id="chat-input" placeholder="Type your message..." />
+            <input type="text" id="chat-input" placeholder="What do you do next?" />
             <button id="send-btn">SEND</button>
         </div>
     </div>
@@ -29,46 +54,160 @@
 
 <style>
     /* 1. FONT IMPORT */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;600&display=swap');
 
     /* 2. WRAPPER & RESET */
     #gemini-chat-wrapper {
         all: initial;
         display: flex;
         justify-content: center;
-        align-items: center;
+        align-items: flex-start;
         width: 100%;
         min-height: 600px;
         font-family: 'Inter', sans-serif;
         box-sizing: border-box;
-        background: #f8fafc;
+        background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
         padding: 20px;
+        gap: 20px;
+        flex-wrap: wrap;
     }
 
     #gemini-chat-wrapper * {
         box-sizing: border-box;
     }
 
+    /* 2.5 RPG STATS PANEL (Left Side) */
+    #game-stats-panel {
+        width: 280px;
+        min-width: 280px;
+        background: rgba(15, 12, 41, 0.95);
+        border: 1px solid #6b46c1;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 8px 32px rgba(107, 70, 193, 0.4);
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        color: white;
+    }
+
+    .stats-header h4 {
+        margin: 0;
+        font-family: 'Playfair Display', serif;
+        font-size: 1.3rem;
+        color: #ffd700;
+        text-align: center;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #6b46c1;
+    }
+
+    .health-section {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .stat-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .stat-label {
+        font-size: 0.9rem;
+        color: #e0e7ff;
+        font-weight: 600;
+    }
+
+    .stat-value {
+        font-size: 0.9rem;
+        color: #ffd700;
+        font-weight: 700;
+    }
+
+    .health-bar {
+        width: 100%;
+        height: 20px;
+        background: rgba(26, 26, 46, 0.8);
+        border-radius: 10px;
+        overflow: hidden;
+        border: 1px solid #6b46c1;
+    }
+
+    .health-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #ef4444, #f87171);
+        transition: width 0.5s ease;
+        box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+    }
+
+    .inventory-section h5 {
+        margin: 10px 0 5px 0;
+        font-family: 'Inter', sans-serif;
+        font-size: 1rem;
+        color: #a78bfa;
+        border-bottom: 1px solid rgba(107, 70, 193, 0.3);
+        padding-bottom: 5px;
+    }
+
+    #inventory-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .empty-inventory {
+        color: #64748b;
+        font-size: 0.85rem;
+        font-style: italic;
+        text-align: center;
+        padding: 20px 10px;
+    }
+
+    .inventory-item {
+        background: rgba(48, 43, 99, 0.6);
+        border: 1px solid #6b46c1;
+        border-radius: 6px;
+        padding: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .item-name {
+        font-size: 0.9rem;
+        color: #e0e7ff;
+        font-weight: 600;
+    }
+
+    .item-stats {
+        font-size: 0.75rem;
+        color: #ffd700;
+    }
+
     /* 3. MAIN CHAT CONTAINER */
     #gemini-chat-container {
-        width: 100%;
+        flex: 1;
+        min-width: 300px;
         max-width: 800px;
         height: 70vh;
         min-height: 500px;
         display: flex;
         flex-direction: column;
-        background: #ffffff;
-        border-radius: 16px;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        background: rgba(15, 12, 41, 0.95);
+        border: 1px solid #6b46c1;
+        border-radius: 12px;
+        box-shadow: 0 20px 60px rgba(107, 70, 193, 0.4);
         overflow: hidden;
-        border: 1px solid #e2e8f0;
     }
 
     /* 4. HEADER */
     #chat-header {
         padding: 20px 30px;
-        background: #ffffff;
-        border-bottom: 1px solid #f1f5f9;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-bottom: 1px solid #6b46c1;
         display: flex;
         align-items: center;
     }
@@ -85,16 +224,17 @@
 
     #chat-header h3 {
         margin: 0;
-        font-size: 1.2rem;
-        font-weight: 600;
-        color: #1e293b;
+        font-family: 'Playfair Display', serif;
+        font-size: 1.5rem;
+        color: #ffd700;
+        text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
     }
 
     .subtitle {
         font-size: 0.75rem;
-        color: #64748b;
+        color: #e0e7ff;
         font-weight: 500;
-        letter-spacing: 0.5px;
+        letter-spacing: 1.5px;
     }
 
     /* 5. MESSAGES AREA */
@@ -106,26 +246,30 @@
         flex-direction: column;
         gap: 20px;
         background: #f8fafc;
+        /* Fallback */
+        background: rgba(15, 12, 41, 0.5);
     }
 
     /* Scrollbar */
     #chat-messages::-webkit-scrollbar {
-        width: 6px;
+        width: 8px;
     }
 
     #chat-messages::-webkit-scrollbar-track {
-        background: transparent;
+        background: rgba(0, 0, 0, 0.1);
     }
 
     #chat-messages::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
-        border-radius: 3px;
+        background: rgba(107, 70, 193, 0.5);
+        border-radius: 4px;
     }
 
     /* Message Bubbles */
     .message {
         max-width: 80%;
         animation: fadeIn 0.3s ease-out;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     }
 
     @keyframes fadeIn {
@@ -142,33 +286,24 @@
 
     .message-content {
         padding: 16px 20px;
-        border-radius: 12px;
         font-size: 0.95rem;
         line-height: 1.6;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
     }
 
     /* Bot Message */
     .bot-message {
         align-self: flex-start;
-    }
-
-    .bot-message .message-content {
-        background: #ffffff;
-        color: #334155;
-        border: 1px solid #e2e8f0;
-        border-top-left-radius: 2px;
+        background: rgba(48, 43, 99, 0.8);
+        border: 1px solid rgba(107, 70, 193, 0.5);
+        color: #e0e7ff;
     }
 
     /* User Message */
     .user-message {
         align-self: flex-end;
-    }
-
-    .user-message .message-content {
-        background: #3b82f6;
-        color: #ffffff;
-        border-bottom-right-radius: 2px;
+        background: rgba(107, 70, 193, 0.8);
+        border: 1px solid #a78bfa;
+        color: white;
     }
 
     /* Markdown Styles */
@@ -180,23 +315,15 @@
         margin: 0;
     }
 
-    .message code {
-        background: rgba(0, 0, 0, 0.1);
-        padding: 2px 4px;
-        border-radius: 4px;
-        font-family: monospace;
-        font-size: 0.9em;
-    }
-
-    .user-message code {
-        background: rgba(255, 255, 255, 0.2);
+    .message strong {
+        color: #ffd700;
     }
 
     /* 6. INPUT AREA */
     #chat-input-area {
         padding: 20px 30px;
-        background: #ffffff;
-        border-top: 1px solid #f1f5f9;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-top: 1px solid #6b46c1;
         display: flex;
         gap: 12px;
         align-items: center;
@@ -205,39 +332,47 @@
     #chat-input {
         flex: 1;
         padding: 14px 18px;
-        border: 1px solid #e2e8f0;
+        border: 1px solid #6b46c1;
         border-radius: 8px;
         font-family: 'Inter', sans-serif;
         font-size: 0.95rem;
         outline: none;
-        transition: border-color 0.2s;
-        background: #f8fafc;
+        transition: all 0.2s;
+        background: rgba(26, 26, 46, 0.8);
+        color: #ffd700;
     }
 
     #chat-input:focus {
-        border-color: #3b82f6;
-        background: #ffffff;
+        border-color: #a78bfa;
+        box-shadow: 0 0 10px rgba(167, 139, 250, 0.5);
+    }
+
+    #chat-input::placeholder {
+        color: rgba(255, 215, 0, 0.5);
     }
 
     #send-btn {
         padding: 14px 24px;
-        background: #3b82f6;
-        color: white;
+        background: #ffd700;
+        color: #1a1a2e;
         border: none;
         border-radius: 8px;
-        font-weight: 600;
+        font-weight: 700;
         font-size: 0.9rem;
         cursor: pointer;
-        transition: background 0.2s;
+        transition: transform 0.2s;
+        box-shadow: 0 4px 10px rgba(255, 215, 0, 0.3);
     }
 
     #send-btn:hover {
-        background: #2563eb;
+        transform: translateY(-2px);
+        background: #ffed4e;
     }
 
     #send-btn:disabled {
-        background: #94a3b8;
+        background: #cbd5e1;
         cursor: not-allowed;
+        transform: none;
     }
 
     /* Loading Indicator */
@@ -245,10 +380,8 @@
         display: flex;
         gap: 5px;
         padding: 16px 20px;
-        background: #ffffff;
-        border: 1px solid #e2e8f0;
+        background: rgba(255, 255, 255, 0.1);
         border-radius: 12px;
-        border-top-left-radius: 2px;
         width: fit-content;
         margin-bottom: 20px;
     }
@@ -256,7 +389,7 @@
     .dot {
         width: 8px;
         height: 8px;
-        background: #cbd5e1;
+        background: #ffd700;
         border-radius: 50%;
         animation: bounce 1.4s infinite ease-in-out both;
     }
@@ -283,16 +416,18 @@
     }
 
     /* Mobile Responsive */
-    @media (max-width: 600px) {
+    @media (max-width: 768px) {
         #gemini-chat-wrapper {
-            padding: 0;
+            padding: 10px;
+        }
+
+        #game-stats-panel {
+            width: 100%;
+            max-height: 200px;
         }
 
         #gemini-chat-container {
-            height: 100vh;
-            max-height: none;
-            border-radius: 0;
-            border: none;
+            height: 60vh;
         }
     }
 </style>
@@ -303,8 +438,55 @@
         const sendBtn = document.getElementById('send-btn');
         const messagesContainer = document.getElementById('chat-messages');
 
+        // IMPORTANT: Update this URL to your deployed Render service
         const BACKEND_URL = 'https://my-backend-api-1niy.onrender.com/chat';
+
         let conversationHistory = [];
+
+        // ========== RPG GAME STATE ==========
+        const gameState = {
+            health: 100,
+            maxHealth: 100,
+            inventory: []
+        };
+
+        function updateHealthBar() {
+            const healthPercent = (gameState.health / gameState.maxHealth) * 100;
+            document.getElementById('health-bar-fill').style.width = healthPercent + '%';
+            document.getElementById('health-value').textContent = `${gameState.health}/${gameState.maxHealth}`;
+        }
+
+        function updateInventoryUI() {
+            const inventoryList = document.getElementById('inventory-list');
+            if (gameState.inventory.length === 0) {
+                inventoryList.innerHTML = '<div class="empty-inventory">Start your adventure to collect items!</div>';
+            } else {
+                inventoryList.innerHTML = gameState.inventory.map(item => `
+                    <div class="inventory-item">
+                        <div>
+                            <div class="item-name">🎁 ${item.name}</div>
+                            <div class="item-stats">${item.type}</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function addItemToInventory(item) {
+            gameState.inventory.push(item);
+            updateInventoryUI();
+        }
+
+        function takeDamage(amount) {
+            gameState.health = Math.max(0, gameState.health - amount);
+            updateHealthBar();
+        }
+
+        function heal(amount) {
+            gameState.health = Math.min(gameState.maxHealth, gameState.health + amount);
+            updateHealthBar();
+        }
+        // ========== END RPG GAME STATE ==========
 
         function addMessage(text, isUser) {
             const div = document.createElement('div');
@@ -369,12 +551,45 @@
                 const data = await response.json();
                 hideLoading();
 
-                const reply = data.reply || "I'm sorry, I couldn't generate a response.";
-                addMessage(reply, false);
+                // Handle both 'reply' and 'text' response formats
+                let botReply = data.reply || data.text || "I'm sorry, I couldn't generate a response.";
+
+                // ========== PARSE JSON GAME ACTIONS ==========
+                // Check for item grants: {"action": "add_item", "item": {...}}
+                const itemMatch = botReply.match(/\{\"action\":\s*\"add_item\"[^}]+\}/g);
+                if (itemMatch) {
+                    itemMatch.forEach(jsonStr => {
+                        try {
+                            const action = JSON.parse(jsonStr);
+                            if (action.item) {
+                                addItemToInventory(action.item);
+                                addMessage(`🎁 **You received: ${action.item.name}**!`, false);
+                            }
+                            botReply = botReply.replace(jsonStr, '').trim();
+                        } catch (e) {
+                            console.error('Error parsing item JSON:', e);
+                        }
+                    });
+                }
+
+                // Check for damage: (-15 HP)
+                const damageMatches = botReply.matchAll(/\(-?(\d+)\s*HP\)/g);
+                for (const match of damageMatches) {
+                    takeDamage(parseInt(match[1]));
+                }
+
+                // Check for healing: (+20 HP)
+                const healMatches = botReply.matchAll(/\(\+(\d+)\s*HP\)/g);
+                for (const match of healMatches) {
+                    heal(parseInt(match[1]));
+                }
+                // ========== END JSON PARSING ==========
+
+                addMessage(botReply, false);
 
                 // Update history
                 conversationHistory.push({ role: 'user', parts: text });
-                conversationHistory.push({ role: 'model', parts: reply });
+                conversationHistory.push({ role: 'model', parts: botReply });
 
             } catch (error) {
                 hideLoading();
