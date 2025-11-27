@@ -779,263 +779,273 @@
         }
 
         function hideLoading() {
-            currentAudio = null;
+            const loader = document.getElementById('loading-indicator');
+            if (loader) loader.remove();
         }
 
-        try {
-            // Send entire response (minus JSON)
-            const response = await fetch(TTS_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    text: text,
-                    voice: voice
-                })
-            });
+        async function playTTS(text, voice) {
+            if (!voice || !text) return;
 
-            if (response.ok) {
-                const blob = await response.blob();
-                currentAudio = new Audio(URL.createObjectURL(blob));
-
-                // Update button state
-                playPauseBtn.disabled = false;
-                playPauseBtn.classList.add('playing');
-
-                currentAudio.onended = () => {
-                    playPauseBtn.classList.remove('playing');
-                };
-
-                currentAudio.play();
-            } else {
-                console.error('TTS failed:', response.status);
+            // Stop any currently playing audio
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
             }
-        } catch (e) {
-            console.error('TTS error:', e);
+
+            try {
+                // Send entire response (minus JSON)
+                const response = await fetch(TTS_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: text,
+                        voice: voice
+                    })
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    currentAudio = new Audio(URL.createObjectURL(blob));
+
+                    // Update button state
+                    playPauseBtn.disabled = false;
+                    playPauseBtn.classList.add('playing');
+
+                    currentAudio.onended = () => {
+                        playPauseBtn.classList.remove('playing');
+                    };
+
+                    currentAudio.play();
+                } else {
+                    console.error('TTS failed:', response.status);
+                }
+            } catch (e) {
+                console.error('TTS error:', e);
+            }
         }
-    }
 
-            // Play/Pause button handler
-            playPauseBtn.addEventListener('click', () => {
-        if (!currentAudio || !lastBotResponse) return;
+        // Play/Pause button handler
+        playPauseBtn.addEventListener('click', () => {
+            if (!currentAudio || !lastBotResponse) return;
 
-        if (currentAudio.paused) {
-            // If audio ended, replay from beginning
-            if (currentAudio.ended) {
-                const selectedVoice = voiceSelector.value;
-                if (selectedVoice) {
-                    playTTS(lastBotResponse, selectedVoice);
+            if (currentAudio.paused) {
+                // If audio ended, replay from beginning
+                if (currentAudio.ended) {
+                    const selectedVoice = voiceSelector.value;
+                    if (selectedVoice) {
+                        playTTS(lastBotResponse, selectedVoice);
+                    }
+                } else {
+                    currentAudio.play();
+                    playPauseBtn.classList.add('playing');
                 }
             } else {
-                currentAudio.play();
-                playPauseBtn.classList.add('playing');
+                currentAudio.pause();
+                playPauseBtn.classList.remove('playing');
             }
-        } else {
-            currentAudio.pause();
-            playPauseBtn.classList.remove('playing');
-        }
-    });
+        });
 
 
-    async function sendMessage(messageText = null) {
-        const text = messageText || input.value.trim();
-        if (!text) return;
+        async function sendMessage(messageText = null) {
+            const text = messageText || input.value.trim();
+            if (!text) return;
 
-        input.value = '';
-        input.disabled = true;
-        sendBtn.disabled = true;
+            input.value = '';
+            input.disabled = true;
+            sendBtn.disabled = true;
 
-        document.querySelectorAll('.choice-btn').forEach(btn => btn.remove());
+            document.querySelectorAll('.choice-btn').forEach(btn => btn.remove());
 
-        addMessage(text, true);
-        showLoading();
+            addMessage(text, true);
+            showLoading();
 
-        try {
-            const response = await fetch(BACKEND_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    message: text,
-                    history: conversationHistory
-                })
-            });
+            try {
+                const response = await fetch(BACKEND_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: text,
+                        history: conversationHistory
+                    })
+                });
 
-            if (!response.ok) throw new Error('Network error');
+                if (!response.ok) throw new Error('Network error');
 
-            const data = await response.json();
-            hideLoading();
+                const data = await response.json();
+                hideLoading();
 
-            let botReply = data.reply || data.text || "I'm sorry, I couldn't generate a response.";
+                let botReply = data.reply || data.text || "I'm sorry, I couldn't generate a response.";
 
-            // Parse JSON actions
-            const jsonActions = [];
-            let remainingText = botReply;
-            let startIndex = 0;
+                // Parse JSON actions
+                const jsonActions = [];
+                let remainingText = botReply;
+                let startIndex = 0;
 
-            while ((startIndex = remainingText.indexOf('{"action":', startIndex)) !== -1) {
-                let braceCount = 0, endIndex = startIndex, inString = false, escapeNext = false;
+                while ((startIndex = remainingText.indexOf('{"action":', startIndex)) !== -1) {
+                    let braceCount = 0, endIndex = startIndex, inString = false, escapeNext = false;
 
-                for (let i = startIndex; i < remainingText.length; i++) {
-                    const char = remainingText[i];
-                    if (escapeNext) { escapeNext = false; continue; }
-                    if (char === '\\') { escapeNext = true; continue; }
-                    if (char === '"') { inString = !inString; continue; }
+                    for (let i = startIndex; i < remainingText.length; i++) {
+                        const char = remainingText[i];
+                        if (escapeNext) { escapeNext = false; continue; }
+                        if (char === '\\') { escapeNext = true; continue; }
+                        if (char === '"') { inString = !inString; continue; }
 
-                    if (!inString) {
-                        if (char === '{') braceCount++;
-                        if (char === '}') {
-                            braceCount--;
-                            if (braceCount === 0) {
-                                endIndex = i + 1;
-                                break;
+                        if (!inString) {
+                            if (char === '{') braceCount++;
+                            if (char === '}') {
+                                braceCount--;
+                                if (braceCount === 0) {
+                                    endIndex = i + 1;
+                                    break;
+                                }
                             }
                         }
                     }
-                }
 
-                if (braceCount === 0 && endIndex > startIndex) {
-                    jsonActions.push(remainingText.substring(startIndex, endIndex));
-                    startIndex = endIndex;
-                } else {
-                    startIndex++;
-                }
-            }
-
-            jsonActions.forEach(jsonStr => {
-                try {
-                    const action = JSON.parse(jsonStr.trim());
-
-                    switch (action.action) {
-                        case 'add_item':
-                            if (action.item) {
-                                addItem(action.item);
-                                addMessage(`🎁 **Received: ${action.item.name}**`, false);
-                            }
-                            break;
-                        case 'remove_item':
-                            if (action.item) {
-                                removeItem(action.item.name);
-                                addMessage(`➖ **Removed: ${action.item.name}**`, false);
-                            }
-                            break;
-                        case 'update_currency':
-                            updateCurrency(action);
-                            addMessage(`💰 **Currency Updated**`, false);
-                            break;
-                        case 'equip_item':
-                            if (action.slot && action.item) {
-                                equipItem(action.slot, action.item);
-                                addMessage(`🛡️ **Equipped: ${action.item.name}**`, false);
-                            }
-                            break;
+                    if (braceCount === 0 && endIndex > startIndex) {
+                        jsonActions.push(remainingText.substring(startIndex, endIndex));
+                        startIndex = endIndex;
+                    } else {
+                        startIndex++;
                     }
-
-                    botReply = botReply.replace(jsonStr, '').trim();
-                } catch (e) {
-                    console.error('Error parsing JSON:', e, jsonStr);
                 }
-            });
 
-            // Parse damage - improved regex
-            const damagePatterns = [
-                /take[s]?\s+(\d+)\s+damage/gi,
-                /\(-(\d+)\s*HP\)/g,
-                /lose[s]?\s+(\d+)\s+health/gi
-            ];
+                jsonActions.forEach(jsonStr => {
+                    try {
+                        const action = JSON.parse(jsonStr.trim());
 
-            damagePatterns.forEach(pattern => {
-                const matches = botReply.matchAll(pattern);
-                for (const match of matches) {
-                    takeDamage(parseInt(match[1]));
-                }
-            });
+                        switch (action.action) {
+                            case 'add_item':
+                                if (action.item) {
+                                    addItem(action.item);
+                                    addMessage(`🎁 **Received: ${action.item.name}**`, false);
+                                }
+                                break;
+                            case 'remove_item':
+                                if (action.item) {
+                                    removeItem(action.item.name);
+                                    addMessage(`➖ **Removed: ${action.item.name}**`, false);
+                                }
+                                break;
+                            case 'update_currency':
+                                updateCurrency(action);
+                                addMessage(`💰 **Currency Updated**`, false);
+                                break;
+                            case 'equip_item':
+                                if (action.slot && action.item) {
+                                    equipItem(action.slot, action.item);
+                                    addMessage(`🛡️ **Equipped: ${action.item.name}**`, false);
+                                }
+                                break;
+                        }
 
-            // Parse healing
-            const healPatterns = [
-                /regain[s]?\s+(\d+)\s+health/gi,
-                /\(\+(\d+)\s*HP\)/g,
-                /restore[s]?\s+(\d+)\s+health/gi,
-                /heal[s]?\s+(\d+)/gi
-            ];
-
-            healPatterns.forEach(pattern => {
-                const matches = botReply.matchAll(pattern);
-                for (const match of matches) {
-                    heal(parseInt(match[1]));
-                }
-            });
-
-            // Parse choices
-            const lines = botReply.split('\n');
-            const nonChoiceLines = [];
-            let choices = [];
-
-            lines.forEach(line => {
-                const choiceMatch = line.match(/^(\d+)\.\s+(.*)/);
-                if (choiceMatch) {
-                    choices.push(choiceMatch[2]);
-                } else {
-                    nonChoiceLines.push(line);
-                }
-            });
-
-            const cleanMessage = nonChoiceLines.join('\n').trim();
-            addMessage(cleanMessage, false);
-
-            // Play TTS if voice selected
-            const selectedVoice = voiceSelector.value;
-            if (selectedVoice) {
-                playTTS(cleanMessage, selectedVoice);
-            }
-
-            if (choices.length > 0) {
-                const choicesContainer = document.createElement('div');
-                choicesContainer.className = 'choices-container';
-                choices.forEach(choiceText => {
-                    const btn = document.createElement('button');
-                    btn.className = 'choice-btn';
-                    btn.textContent = choiceText;
-                    btn.onclick = () => sendMessage(choiceText);
-                    choicesContainer.appendChild(btn);
+                        botReply = botReply.replace(jsonStr, '').trim();
+                    } catch (e) {
+                        console.error('Error parsing JSON:', e, jsonStr);
+                    }
                 });
-                messagesContainer.appendChild(choicesContainer);
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+                // Parse damage - improved regex
+                const damagePatterns = [
+                    /take[s]?\s+(\d+)\s+damage/gi,
+                    /\(-(\d+)\s*HP\)/g,
+                    /lose[s]?\s+(\d+)\s+health/gi
+                ];
+
+                damagePatterns.forEach(pattern => {
+                    const matches = botReply.matchAll(pattern);
+                    for (const match of matches) {
+                        takeDamage(parseInt(match[1]));
+                    }
+                });
+
+                // Parse healing
+                const healPatterns = [
+                    /regain[s]?\s+(\d+)\s+health/gi,
+                    /\(\+(\d+)\s*HP\)/g,
+                    /restore[s]?\s+(\d+)\s+health/gi,
+                    /heal[s]?\s+(\d+)/gi
+                ];
+
+                healPatterns.forEach(pattern => {
+                    const matches = botReply.matchAll(pattern);
+                    for (const match of matches) {
+                        heal(parseInt(match[1]));
+                    }
+                });
+
+                // Parse choices
+                const lines = botReply.split('\n');
+                const nonChoiceLines = [];
+                let choices = [];
+
+                lines.forEach(line => {
+                    const choiceMatch = line.match(/^(\d+)\.\s+(.*)/);
+                    if (choiceMatch) {
+                        choices.push(choiceMatch[2]);
+                    } else {
+                        nonChoiceLines.push(line);
+                    }
+                });
+
+                const cleanMessage = nonChoiceLines.join('\n').trim();
+                addMessage(cleanMessage, false);
+
+                // Play TTS if voice selected
+                const selectedVoice = voiceSelector.value;
+                if (selectedVoice) {
+                    playTTS(cleanMessage, selectedVoice);
+                }
+
+                if (choices.length > 0) {
+                    const choicesContainer = document.createElement('div');
+                    choicesContainer.className = 'choices-container';
+                    choices.forEach(choiceText => {
+                        const btn = document.createElement('button');
+                        btn.className = 'choice-btn';
+                        btn.textContent = choiceText;
+                        btn.onclick = () => sendMessage(choiceText);
+                        choicesContainer.appendChild(btn);
+                    });
+                    messagesContainer.appendChild(choicesContainer);
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }
+
+                conversationHistory.push({ role: 'user', parts: text });
+                conversationHistory.push({ role: 'model', parts: data.reply || data.text });
+
+            } catch (error) {
+                hideLoading();
+                addMessage("⚠️ Error connecting to server.", false);
+                console.error(error);
+            } finally {
+                input.disabled = false;
+                sendBtn.disabled = false;
+                if (!messageText) input.focus();
             }
-
-            conversationHistory.push({ role: 'user', parts: text });
-            conversationHistory.push({ role: 'model', parts: data.reply || data.text });
-
-        } catch (error) {
-            hideLoading();
-            addMessage("⚠️ Error connecting to server.", false);
-            console.error(error);
-        } finally {
-            input.disabled = false;
-            sendBtn.disabled = false;
-            if (!messageText) input.focus();
         }
-    }
 
-    // Item usage
-    itemUseDropdown.addEventListener('change', (e) => {
-        const idx = parseInt(e.target.value);
-        if (isNaN(idx)) return;
+        // Item usage
+        itemUseDropdown.addEventListener('change', (e) => {
+            const idx = parseInt(e.target.value);
+            if (isNaN(idx)) return;
 
-        const consumables = gameState.inventory.filter(i =>
-            i.type === 'potion' || i.type === 'food' || i.healing
-        );
+            const consumables = gameState.inventory.filter(i =>
+                i.type === 'potion' || i.type === 'food' || i.healing
+            );
 
-        if (consumables[idx]) {
-            const item = consumables[idx];
-            heal(item.healing || 10);
-            removeItem(item.name);
-            addMessage(`✨ You used ${item.name} and restored ${item.healing || 10} HP!`, false);
-            e.target.value = '';
-        }
-    });
+            if (consumables[idx]) {
+                const item = consumables[idx];
+                heal(item.healing || 10);
+                removeItem(item.name);
+                addMessage(`✨ You used ${item.name} and restored ${item.healing || 10} HP!`, false);
+                e.target.value = '';
+            }
+        });
 
-    sendBtn.addEventListener('click', () => sendMessage());
-    input.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') sendMessage();
-    });
-        }) ();
+        sendBtn.addEventListener('click', () => sendMessage());
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+    })();
 </script>
