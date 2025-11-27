@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const textToSpeech = require('@google-cloud/text-to-speech');
+const OpenAI = require('openai');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -36,8 +36,10 @@ const modelName = process.env.GEMINI_CHAT_MODEL || "gemini-1.5-pro";
 console.log(`Using Gemini Model: ${modelName}`);
 const model = genAI.getGenerativeModel({ model: modelName });
 
-// Google TTS Client
-const ttsClient = new textToSpeech.TextToSpeechClient();
+// OpenAI Setup
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+});
 
 const SYSTEM_PROMPT = `
 You are the Game Master (GM) for a text-based RPG called StoryForge.
@@ -117,7 +119,7 @@ app.post('/chat', async (req, res) => {
     }
 });
 
-// Text-to-Speech Endpoint
+// OpenAI Text-to-Speech Endpoint
 app.post('/tts', async (req, res) => {
     try {
         const { text, voice } = req.body;
@@ -126,23 +128,16 @@ app.post('/tts', async (req, res) => {
             return res.status(400).json({ error: 'Text is required' });
         }
 
-        const request = {
-            input: { text: text },
-            voice: {
-                languageCode: 'en-US',
-                name: voice || 'en-US-Neural2-J'
-            },
-            audioConfig: {
-                audioEncoding: 'MP3',
-                speakingRate: 1.0,
-                pitch: 0
-            }
-        };
+        const mp3 = await openai.audio.speech.create({
+            model: "tts-1",
+            voice: voice || 'alloy',
+            input: text
+        });
 
-        const [response] = await ttsClient.synthesizeSpeech(request);
+        const buffer = Buffer.from(await mp3.arrayBuffer());
 
         res.set('Content-Type', 'audio/mpeg');
-        res.send(response.audioContent);
+        res.send(buffer);
 
     } catch (error) {
         console.error('TTS Error:', error);
