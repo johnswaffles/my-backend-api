@@ -2,7 +2,42 @@
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <div id="gemini-chat-wrapper">
 
-    <!-- RPG Stats Panel (Left Side) -->
+    <!-- Main Chat Container -->
+    <div id="gemini-chat-container">
+        <div id="chat-header">
+            <div class="header-content">
+                <div class="title-icon">✨</div>
+                <div>
+                    <h3>STORYFORGE</h3>
+                    <span class="subtitle">WEAVE YOUR DESTINY</span>
+                </div>
+            </div>
+            <!-- Voice Selector -->
+            <select id="voice-selector" title="Select Narration Voice">
+                <option value="">🔇 No Voice</option>
+                <option value="en-US-Neural2-J">🎙️ Male 1</option>
+                <option value="en-US-Neural2-D">🎙️ Male 2</option>
+                <option value="en-US-Neural2-C">🎙️ Female 1</option>
+                <option value="en-US-Neural2-E">🎙️ Female 2</option>
+            </select>
+        </div>
+
+        <div id="chat-messages">
+            <div class="message bot-message">
+                <div class="message-content">
+                    <p>Welcome, Adventurer! ✨</p>
+                    <p>Your epic tale awaits. Describe your character or choose a path to begin.</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="chat-input-area">
+            <input type="text" id="chat-input" placeholder="What do you do next?" />
+            <button id="send-btn">SEND</button>
+        </div>
+    </div>
+
+    <!-- RPG Stats Panel (Below Chat) -->
     <div id="game-stats-panel">
         <div class="stats-header">
             <h4>⚔️ Adventurer</h4>
@@ -45,68 +80,44 @@
         <div class="equipment-section">
             <h5>🛡️ Equipment</h5>
             <div class="equip-grid">
-                <div class="equip-slot" data-slot="head" title="Head">🧢</div>
-                <div class="equip-slot" data-slot="neck" title="Neck">📿</div>
-                <div class="equip-slot" data-slot="shoulders" title="Shoulders">👘</div>
-                <div class="equip-slot" data-slot="chest" title="Chest">👕</div>
-                <div class="equip-slot" data-slot="wrist" title="Wrist">⌚</div>
-                <div class="equip-slot" data-slot="gloves" title="Gloves">🧤</div>
-                <div class="equip-slot" data-slot="ring1" title="Ring 1">💍</div>
-                <div class="equip-slot" data-slot="ring2" title="Ring 2">💍</div>
-                <div class="equip-slot" data-slot="trinket1" title="Trinket 1">🧿</div>
-                <div class="equip-slot" data-slot="trinket2" title="Trinket 2">🧿</div>
-                <div class="equip-slot big-slot" data-slot="main_hand" title="Main Hand">🗡️</div>
-                <div class="equip-slot big-slot" data-slot="off_hand" title="Off Hand">🛡️</div>
+                <div data-slot="head" title="Head">🎩</div>
+                <div data-slot="neck" title="Neck">📿</div>
+                <div data-slot="shoulders" title="Shoulders">👘</div>
+                <div data-slot="chest" title="Chest">👕</div>
+                <div data-slot="wrist" title="Wrist">⌚</div>
+                <div data-slot="gloves" title="Gloves">🧤</div>
+                <div data-slot="ring1" title="Ring 1">💍</div>
+                <div data-slot="ring2" title="Ring 2">💍</div>
+                <div data-slot="trinket1" title="Trinket 1">🧿</div>
+                <div data-slot="trinket2" title="Trinket 2">🧿</div>
+                <div data-slot="main_hand" title="Main Hand" class="big-slot">🗡️</div>
+                <div data-slot="off_hand" title="Off Hand" class="big-slot">🛡️</div>
             </div>
         </div>
 
         <!-- Inventory -->
         <div class="inventory-section">
-            <h5>🎒 Inventory</h5>
+            <div class="inventory-header">
+                <h5>🎒 Inventory</h5>
+                <select id="item-use-dropdown">
+                    <option value="">⚗️ Use Item</option>
+                </select>
+            </div>
             <div id="inventory-list">
                 <div class="empty-inventory">Empty...</div>
             </div>
         </div>
     </div>
-
-    <!-- Main Chat Container -->
-    <div id="gemini-chat-container">
-        <div id="chat-header">
-            <div class="header-content">
-                <div class="title-icon">✨</div>
-                <div>
-                    <h3>STORYFORGE</h3>
-                    <span class="subtitle">WEAVE YOUR DESTINY</span>
-                </div>
-            </div>
-        </div>
-
-        <div id="chat-messages">
-            <div class="message bot-message">
-                <div class="message-content">
-                    <p>Welcome, Adventurer! ✨</p>
-                    <p>Your epic tale awaits. Describe your character or choose a path to begin.</p>
-                </div>
-            </div>
-        </div>
-
-        <div id="chat-input-area">
-            <input type="text" id="chat-input" placeholder="What do you do next?" />
-            <button id="send-btn">SEND</button>
-        </div>
-    </div>
 </div>
 
 <style>
-    /* 1. FONT IMPORT */
     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;600&display=swap');
 
-    /* 2. WRAPPER & RESET */
     #gemini-chat-wrapper {
         all: initial;
         display: flex;
-        justify-content: center;
-        align-items: flex-start;
+        flex-direction: column;
+        align-items: center;
         width: 100%;
         min-height: 700px;
         font-family: 'Inter', sans-serif;
@@ -114,17 +125,214 @@
         background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
         padding: 20px;
         gap: 20px;
-        flex-wrap: wrap;
     }
 
     #gemini-chat-wrapper * {
         box-sizing: border-box;
     }
 
-    /* 2.5 RPG STATS PANEL (Left Side) */
+    /* Main Chat Container */
+    #gemini-chat-container {
+        width: 100%;
+        max-width: 900px;
+        height: 70vh;
+        min-height: 500px;
+        display: flex;
+        flex-direction: column;
+        background: rgba(15, 12, 41, 0.95);
+        border: 1px solid #6b46c1;
+        border-radius: 12px;
+        box-shadow: 0 20px 60px rgba(107, 70, 193, 0.4);
+        overflow: hidden;
+    }
+
+    /* Header with Voice Selector */
+    #chat-header {
+        padding: 20px 30px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-bottom: 1px solid #6b46c1;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .header-content {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .title-icon {
+        font-size: 1.8rem;
+    }
+
+    #chat-header h3 {
+        margin: 0;
+        font-family: 'Playfair Display', serif;
+        font-size: 1.5rem;
+        color: #ffd700;
+        text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    }
+
+    .subtitle {
+        font-size: 0.75rem;
+        color: #e0e7ff;
+        font-weight: 500;
+        letter-spacing: 1.5px;
+    }
+
+    #voice-selector {
+        padding: 8px 12px;
+        background: rgba(26, 26, 46, 0.8);
+        border: 1px solid #6b46c1;
+        border-radius: 6px;
+        color: #ffd700;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.85rem;
+        cursor: pointer;
+        outline: none;
+    }
+
+    #voice-selector:hover {
+        border-color: #a78bfa;
+    }
+
+    /* Messages Area */
+    #chat-messages {
+        flex: 1;
+        padding: 30px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        background: rgba(15, 12, 41, 0.5);
+    }
+
+    #chat-messages::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    #chat-messages::-webkit-scrollbar-thumb {
+        background: rgba(107, 70, 193, 0.5);
+        border-radius: 4px;
+    }
+
+    .message {
+        max-width: 80%;
+        animation: fadeIn 0.3s ease-out;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .message-content {
+        padding: 16px 20px;
+        font-size: 0.95rem;
+        line-height: 1.6;
+    }
+
+    .bot-message {
+        align-self: flex-start;
+        background: rgba(48, 43, 99, 0.8);
+        border: 1px solid rgba(107, 70, 193, 0.5);
+        color: #e0e7ff;
+    }
+
+    .user-message {
+        align-self: flex-end;
+        background: rgba(107, 70, 193, 0.8);
+        border: 1px solid #a78bfa;
+        color: white;
+    }
+
+    .message p {
+        margin: 0 0 10px 0;
+    }
+
+    .message p:last-child {
+        margin: 0;
+    }
+
+    .message strong {
+        color: #ffd700;
+    }
+
+    .choices-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+        padding: 0 30px 20px 30px;
+    }
+
+    .choice-btn {
+        padding: 10px 15px;
+        background: rgba(107, 70, 193, 0.2);
+        border: 1px solid #a78bfa;
+        color: #e0e7ff;
+        border-radius: 8px;
+        cursor: pointer;
+        font-family: 'Inter', sans-serif;
+        transition: all 0.2s;
+    }
+
+    .choice-btn:hover {
+        background: rgba(107, 70, 193, 0.5);
+        transform: translateY(-1px);
+    }
+
+    /* Input Area */
+    #chat-input-area {
+        padding: 20px 30px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-top: 1px solid #6b46c1;
+        display: flex;
+        gap: 12px;
+    }
+
+    #chat-input {
+        flex: 1;
+        padding: 14px 18px;
+        border: 1px solid #6b46c1;
+        border-radius: 8px;
+        font-family: 'Inter', sans-serif;
+        font-size: 0.95rem;
+        outline: none;
+        background: rgba(26, 26, 46, 0.8);
+        color: #ffd700;
+    }
+
+    #send-btn {
+        padding: 14px 24px;
+        background: #ffd700;
+        color: #1a1a2e;
+        border: none;
+        border-radius: 8px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+
+    #send-btn:hover {
+        transform: translateY(-2px);
+        background: #ffed4e;
+    }
+
+    /* Stats Panel (Below Chat) */
     #game-stats-panel {
-        width: 300px;
-        min-width: 300px;
+        width: 100%;
+        max-width: 900px;
         background: rgba(15, 12, 41, 0.95);
         border: 1px solid #6b46c1;
         border-radius: 12px;
@@ -134,18 +342,6 @@
         flex-direction: column;
         gap: 15px;
         color: white;
-        max-height: 80vh;
-        overflow-y: auto;
-    }
-
-    /* Scrollbar for stats panel */
-    #game-stats-panel::-webkit-scrollbar {
-        width: 6px;
-    }
-
-    #game-stats-panel::-webkit-scrollbar-thumb {
-        background: #6b46c1;
-        border-radius: 3px;
     }
 
     .stats-header h4 {
@@ -161,7 +357,6 @@
     .stat-row {
         display: flex;
         justify-content: space-between;
-        align-items: center;
         margin-bottom: 5px;
     }
 
@@ -192,12 +387,10 @@
         transition: width 0.5s ease;
     }
 
-    /* Currency */
     .currency-section h5,
     .equipment-section h5,
     .inventory-section h5 {
         margin: 10px 0 8px 0;
-        font-family: 'Inter', sans-serif;
         font-size: 0.95rem;
         color: #a78bfa;
         border-bottom: 1px solid rgba(107, 70, 193, 0.3);
@@ -229,14 +422,13 @@
         color: #cd7f32;
     }
 
-    /* Equipment Grid */
     .equip-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
         gap: 8px;
     }
 
-    .equip-slot {
+    .equip-grid>div {
         aspect-ratio: 1;
         background: rgba(255, 255, 255, 0.05);
         border: 1px solid #4c1d95;
@@ -246,26 +438,46 @@
         justify-content: center;
         font-size: 1.2rem;
         cursor: help;
-        position: relative;
         transition: all 0.2s;
     }
 
-    .equip-slot:hover {
+    .equip-grid>div:hover {
         background: rgba(255, 255, 255, 0.1);
         border-color: #a78bfa;
     }
 
-    .equip-slot.equipped {
+    .equip-grid>div.equipped {
         background: rgba(107, 70, 193, 0.3);
         border-color: #ffd700;
     }
 
     .big-slot {
         grid-column: span 2;
-        aspect-ratio: 2/1;
+        aspect-ratio: 2/1 !important;
     }
 
-    /* Inventory */
+    .inventory-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .inventory-header h5 {
+        margin: 0;
+    }
+
+    #item-use-dropdown {
+        padding: 6px 10px;
+        background: rgba(26, 26, 46, 0.8);
+        border: 1px solid #6b46c1;
+        border-radius: 6px;
+        color: #ffd700;
+        font-size: 0.8rem;
+        cursor: pointer;
+        outline: none;
+    }
+
     #inventory-list {
         display: flex;
         flex-direction: column;
@@ -293,207 +505,6 @@
         font-size: 0.75rem;
     }
 
-    /* 3. MAIN CHAT CONTAINER */
-    #gemini-chat-container {
-        flex: 1;
-        min-width: 300px;
-        max-width: 800px;
-        height: 80vh;
-        min-height: 600px;
-        display: flex;
-        flex-direction: column;
-        background: rgba(15, 12, 41, 0.95);
-        border: 1px solid #6b46c1;
-        border-radius: 12px;
-        box-shadow: 0 20px 60px rgba(107, 70, 193, 0.4);
-        overflow: hidden;
-    }
-
-    /* 4. HEADER */
-    #chat-header {
-        padding: 20px 30px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-bottom: 1px solid #6b46c1;
-        display: flex;
-        align-items: center;
-    }
-
-    .header-content {
-        display: flex;
-        align-items: center;
-        gap: 15px;
-    }
-
-    .title-icon {
-        font-size: 1.8rem;
-    }
-
-    #chat-header h3 {
-        margin: 0;
-        font-family: 'Playfair Display', serif;
-        font-size: 1.5rem;
-        color: #ffd700;
-        text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
-    }
-
-    .subtitle {
-        font-size: 0.75rem;
-        color: #e0e7ff;
-        font-weight: 500;
-        letter-spacing: 1.5px;
-    }
-
-    /* 5. MESSAGES AREA */
-    #chat-messages {
-        flex: 1;
-        padding: 30px;
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-        background: rgba(15, 12, 41, 0.5);
-    }
-
-    /* Scrollbar */
-    #chat-messages::-webkit-scrollbar {
-        width: 8px;
-    }
-
-    #chat-messages::-webkit-scrollbar-track {
-        background: rgba(0, 0, 0, 0.1);
-    }
-
-    #chat-messages::-webkit-scrollbar-thumb {
-        background: rgba(107, 70, 193, 0.5);
-        border-radius: 4px;
-    }
-
-    /* Message Bubbles */
-    .message {
-        max-width: 80%;
-        animation: fadeIn 0.3s ease-out;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    }
-
-    @keyframes fadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(10px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    .message-content {
-        padding: 16px 20px;
-        font-size: 0.95rem;
-        line-height: 1.6;
-    }
-
-    /* Bot Message */
-    .bot-message {
-        align-self: flex-start;
-        background: rgba(48, 43, 99, 0.8);
-        border: 1px solid rgba(107, 70, 193, 0.5);
-        color: #e0e7ff;
-    }
-
-    /* User Message */
-    .user-message {
-        align-self: flex-end;
-        background: rgba(107, 70, 193, 0.8);
-        border: 1px solid #a78bfa;
-        color: white;
-    }
-
-    /* Markdown Styles */
-    .message p {
-        margin: 0 0 10px 0;
-    }
-
-    .message p:last-child {
-        margin: 0;
-    }
-
-    .message strong {
-        color: #ffd700;
-    }
-
-    /* Choices */
-    .choices-container {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        margin-top: 10px;
-        padding: 0 30px 20px 30px;
-    }
-
-    .choice-btn {
-        padding: 10px 15px;
-        background: rgba(107, 70, 193, 0.2);
-        border: 1px solid #a78bfa;
-        color: #e0e7ff;
-        border-radius: 8px;
-        cursor: pointer;
-        font-family: 'Inter', sans-serif;
-        transition: all 0.2s;
-    }
-
-    .choice-btn:hover {
-        background: rgba(107, 70, 193, 0.5);
-        transform: translateY(-1px);
-    }
-
-    /* 6. INPUT AREA */
-    #chat-input-area {
-        padding: 20px 30px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border-top: 1px solid #6b46c1;
-        display: flex;
-        gap: 12px;
-        align-items: center;
-    }
-
-    #chat-input {
-        flex: 1;
-        padding: 14px 18px;
-        border: 1px solid #6b46c1;
-        border-radius: 8px;
-        font-family: 'Inter', sans-serif;
-        font-size: 0.95rem;
-        outline: none;
-        transition: all 0.2s;
-        background: rgba(26, 26, 46, 0.8);
-        color: #ffd700;
-    }
-
-    #chat-input:focus {
-        border-color: #a78bfa;
-        box-shadow: 0 0 10px rgba(167, 139, 250, 0.5);
-    }
-
-    #send-btn {
-        padding: 14px 24px;
-        background: #ffd700;
-        color: #1a1a2e;
-        border: none;
-        border-radius: 8px;
-        font-weight: 700;
-        font-size: 0.9rem;
-        cursor: pointer;
-        transition: transform 0.2s;
-    }
-
-    #send-btn:hover {
-        transform: translateY(-2px);
-        background: #ffed4e;
-    }
-
-    /* Loading Indicator */
     .typing-indicator {
         display: flex;
         gap: 5px;
@@ -501,7 +512,6 @@
         background: rgba(255, 255, 255, 0.1);
         border-radius: 12px;
         width: fit-content;
-        margin-bottom: 20px;
     }
 
     .dot {
@@ -533,22 +543,18 @@
         }
     }
 
-    /* Mobile Responsive */
     @media (max-width: 900px) {
         #gemini-chat-wrapper {
             padding: 10px;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        #game-stats-panel {
-            width: 100%;
-            max-height: none;
         }
 
         #gemini-chat-container {
-            width: 100%;
             height: 60vh;
+        }
+
+        #chat-header {
+            flex-direction: column;
+            gap: 10px;
         }
     }
 </style>
@@ -558,52 +564,61 @@
         const input = document.getElementById('chat-input');
         const sendBtn = document.getElementById('send-btn');
         const messagesContainer = document.getElementById('chat-messages');
+        const voiceSelector = document.getElementById('voice-selector');
+        const itemUseDropdown = document.getElementById('item-use-dropdown');
 
-        // IMPORTANT: Update this URL to your deployed Render service
         const BACKEND_URL = 'https://my-backend-api-1niy.onrender.com/chat';
+        const TTS_URL = 'https://my-backend-api-1niy.onrender.com/tts';
 
         let conversationHistory = [];
 
-        // ========== RPG GAME STATE ==========
         const gameState = {
             health: 100,
             maxHealth: 100,
             currency: { gold: 0, silver: 0, copper: 0 },
             stats: { armor: 0, damage: 0 },
             inventory: [],
-            equipment: {} // slot -> item
+            equipment: {}
         };
 
         function updateUI() {
-            // Health
             const healthPercent = (gameState.health / gameState.maxHealth) * 100;
             document.getElementById('health-bar-fill').style.width = healthPercent + '%';
             document.getElementById('health-value').textContent = `${gameState.health}/${gameState.maxHealth}`;
 
-            // Currency
             document.getElementById('gold-count').textContent = gameState.currency.gold;
             document.getElementById('silver-count').textContent = gameState.currency.silver;
             document.getElementById('copper-count').textContent = gameState.currency.copper;
 
-            // Stats
             document.getElementById('armor-value').textContent = gameState.stats.armor;
             document.getElementById('damage-value').textContent = gameState.stats.damage;
 
-            // Inventory
             const inventoryList = document.getElementById('inventory-list');
             if (gameState.inventory.length === 0) {
                 inventoryList.innerHTML = '<div class="empty-inventory">Empty...</div>';
             } else {
                 inventoryList.innerHTML = gameState.inventory.map(item => `
-                    <div class="inventory-item">
-                        <span class="item-name">${item.name}</span>
-                        <span class="item-type">${item.type || 'item'}</span>
-                    </div>
-                `).join('');
+                <div class="inventory-item">
+                    <span class="item-name">${item.name}</span>
+                    <span class="item-type">${item.type || 'item'}</span>
+                </div>
+            `).join('');
             }
 
-            // Equipment Slots
-            document.querySelectorAll('.equip-slot').forEach(slotEl => {
+            // Update item use dropdown
+            const consumables = gameState.inventory.filter(i =>
+                i.type === 'potion' || i.type === 'food' || i.healing
+            );
+            itemUseDropdown.innerHTML = '<option value="">⚗️ Use Item</option>';
+            consumables.forEach((item, idx) => {
+                const option = document.createElement('option');
+                option.value = idx;
+                option.textContent = `${item.name} (+${item.healing || 0} HP)`;
+                itemUseDropdown.appendChild(option);
+            });
+
+            // Update equipment slots
+            document.querySelectorAll('.equip-grid > div').forEach(slotEl => {
                 const slotName = slotEl.dataset.slot;
                 const item = gameState.equipment[slotName];
                 if (item) {
@@ -618,7 +633,7 @@
 
         function getSlotIcon(slot) {
             const icons = {
-                head: '🧢', neck: '📿', shoulders: '👘', chest: '👕', wrist: '⌚', gloves: '🧤',
+                head: '🎩', neck: '📿', shoulders: '👘', chest: '👕', wrist: '⌚', gloves: '🧤',
                 ring1: '💍', ring2: '💍', trinket1: '🧿', trinket2: '🧿',
                 main_hand: '🗡️', off_hand: '🛡️'
             };
@@ -646,17 +661,14 @@
         }
 
         function equipItem(slot, item) {
-            // Remove from inventory if present
             removeItem(item.name);
 
-            // Unequip existing if any
             if (gameState.equipment[slot]) {
                 addItem(gameState.equipment[slot]);
             }
 
             gameState.equipment[slot] = item;
 
-            // Update Stats
             if (item.stats) {
                 gameState.stats.armor += (item.stats.armor || 0);
                 gameState.stats.damage += (item.stats.damage || 0);
@@ -666,7 +678,6 @@
         }
 
         function takeDamage(amount) {
-            // Simple mitigation: 1 Armor = 0.5 damage reduction (capped at 90%)
             const mitigation = Math.min(0.9, (gameState.stats.armor * 0.5) / 100);
             const actualDamage = Math.floor(amount * (1 - mitigation));
             gameState.health = Math.max(0, gameState.health - actualDamage);
@@ -677,7 +688,6 @@
             gameState.health = Math.min(gameState.maxHealth, gameState.health + amount);
             updateUI();
         }
-        // ========== END RPG GAME STATE ==========
 
         function addMessage(text, isUser) {
             const div = document.createElement('div');
@@ -715,6 +725,29 @@
             if (loader) loader.remove();
         }
 
+        async function playTTS(text, voice) {
+            if (!voice || !text) return;
+
+            try {
+                const response = await fetch(TTS_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: text.substring(0, 200),
+                        voice: voice
+                    })
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const audio = new Audio(URL.createObjectURL(blob));
+                    audio.play();
+                }
+            } catch (e) {
+                console.error('TTS error:', e);
+            }
+        }
+
         async function sendMessage(messageText = null) {
             const text = messageText || input.value.trim();
             if (!text) return;
@@ -723,7 +756,6 @@
             input.disabled = true;
             sendBtn.disabled = true;
 
-            // Remove previous choices
             document.querySelectorAll('.choice-btn').forEach(btn => btn.remove());
 
             addMessage(text, true);
@@ -746,37 +778,19 @@
 
                 let botReply = data.reply || data.text || "I'm sorry, I couldn't generate a response.";
 
-                // ========== PARSE JSON ACTIONS ==========
-                // More robust JSON extraction that handles nested objects
+                // Parse JSON actions
                 const jsonActions = [];
                 let remainingText = botReply;
-
-                // Find all JSON-like patterns starting with {"action":
                 let startIndex = 0;
+
                 while ((startIndex = remainingText.indexOf('{"action":', startIndex)) !== -1) {
-                    // Count braces to find the matching closing brace
-                    let braceCount = 0;
-                    let endIndex = startIndex;
-                    let inString = false;
-                    let escapeNext = false;
+                    let braceCount = 0, endIndex = startIndex, inString = false, escapeNext = false;
 
                     for (let i = startIndex; i < remainingText.length; i++) {
                         const char = remainingText[i];
-
-                        if (escapeNext) {
-                            escapeNext = false;
-                            continue;
-                        }
-
-                        if (char === '\\') {
-                            escapeNext = true;
-                            continue;
-                        }
-
-                        if (char === '"') {
-                            inString = !inString;
-                            continue;
-                        }
+                        if (escapeNext) { escapeNext = false; continue; }
+                        if (char === '\\') { escapeNext = true; continue; }
+                        if (char === '"') { inString = !inString; continue; }
 
                         if (!inString) {
                             if (char === '{') braceCount++;
@@ -791,19 +805,16 @@
                     }
 
                     if (braceCount === 0 && endIndex > startIndex) {
-                        const jsonStr = remainingText.substring(startIndex, endIndex);
-                        jsonActions.push(jsonStr);
+                        jsonActions.push(remainingText.substring(startIndex, endIndex));
                         startIndex = endIndex;
                     } else {
                         startIndex++;
                     }
                 }
 
-                // Process each JSON action
                 jsonActions.forEach(jsonStr => {
                     try {
-                        const cleanJson = jsonStr.trim();
-                        const action = JSON.parse(cleanJson);
+                        const action = JSON.parse(jsonStr.trim());
 
                         switch (action.action) {
                             case 'add_item':
@@ -830,22 +841,42 @@
                                 break;
                         }
 
-                        // Remove JSON from display
                         botReply = botReply.replace(jsonStr, '').trim();
                     } catch (e) {
                         console.error('Error parsing JSON:', e, jsonStr);
                     }
                 });
 
-                // Parse Damage/Heal
-                const damageMatches = botReply.matchAll(/\(-?(\d+)\s*HP\)/g);
-                for (const match of damageMatches) takeDamage(parseInt(match[1]));
+                // Parse damage - improved regex
+                const damagePatterns = [
+                    /take[s]?\s+(\d+)\s+damage/gi,
+                    /\(-(\d+)\s*HP\)/g,
+                    /lose[s]?\s+(\d+)\s+health/gi
+                ];
 
-                const healMatches = botReply.matchAll(/\(\+(\d+)\s*HP\)/g);
-                for (const match of healMatches) heal(parseInt(match[1]));
-                // ========== END PARSING ==========
+                damagePatterns.forEach(pattern => {
+                    const matches = botReply.matchAll(pattern);
+                    for (const match of matches) {
+                        takeDamage(parseInt(match[1]));
+                    }
+                });
 
-                // ========== PARSE CHOICES ==========
+                // Parse healing
+                const healPatterns = [
+                    /regain[s]?\s+(\d+)\s+health/gi,
+                    /\(\+(\d+)\s*HP\)/g,
+                    /restore[s]?\s+(\d+)\s+health/gi,
+                    /heal[s]?\s+(\d+)/gi
+                ];
+
+                healPatterns.forEach(pattern => {
+                    const matches = botReply.matchAll(pattern);
+                    for (const match of matches) {
+                        heal(parseInt(match[1]));
+                    }
+                });
+
+                // Parse choices
                 const lines = botReply.split('\n');
                 const nonChoiceLines = [];
                 let choices = [];
@@ -862,6 +893,12 @@
                 const cleanMessage = nonChoiceLines.join('\n').trim();
                 addMessage(cleanMessage, false);
 
+                // Play TTS if voice selected
+                const selectedVoice = voiceSelector.value;
+                if (selectedVoice) {
+                    playTTS(cleanMessage, selectedVoice);
+                }
+
                 if (choices.length > 0) {
                     const choicesContainer = document.createElement('div');
                     choicesContainer.className = 'choices-container';
@@ -875,7 +912,6 @@
                     messagesContainer.appendChild(choicesContainer);
                     messagesContainer.scrollTop = messagesContainer.scrollHeight;
                 }
-                // ========== END CHOICES ==========
 
                 conversationHistory.push({ role: 'user', parts: text });
                 conversationHistory.push({ role: 'model', parts: data.reply || data.text });
@@ -890,6 +926,24 @@
                 if (!messageText) input.focus();
             }
         }
+
+        // Item usage
+        itemUseDropdown.addEventListener('change', (e) => {
+            const idx = parseInt(e.target.value);
+            if (isNaN(idx)) return;
+
+            const consumables = gameState.inventory.filter(i =>
+                i.type === 'potion' || i.type === 'food' || i.healing
+            );
+
+            if (consumables[idx]) {
+                const item = consumables[idx];
+                heal(item.healing || 10);
+                removeItem(item.name);
+                addMessage(`✨ You used ${item.name} and restored ${item.healing || 10} HP!`, false);
+                e.target.value = '';
+            }
+        });
 
         sendBtn.addEventListener('click', () => sendMessage());
         input.addEventListener('keypress', (e) => {

@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const textToSpeech = require('@google-cloud/text-to-speech');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -21,7 +22,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options(/(.*)/, cors(corsOptions)); // Enable pre-flight for all routes
+app.options(/(.*)/, cors(corsOptions));
 app.use(express.json());
 
 // Health Check Endpoint
@@ -31,10 +32,12 @@ app.get('/', (req, res) => {
 
 // Gemini Setup
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-// Use user-provided model or fallback to gemini-1.5-pro
 const modelName = process.env.GEMINI_CHAT_MODEL || "gemini-1.5-pro";
 console.log(`Using Gemini Model: ${modelName}`);
 const model = genAI.getGenerativeModel({ model: modelName });
+
+// Google TTS Client
+const ttsClient = new textToSpeech.TextToSpeechClient();
 
 const SYSTEM_PROMPT = `
 You are the Game Master (GM) for a text-based RPG called StoryForge.
@@ -44,36 +47,36 @@ Your goal is to guide the player through an immersive, open-ended adventure.
 1.  **Turn-Based Combat:** If combat starts, you MUST manage it in turns.
     *   **Player Turn:** The player acts first.
     *   **Enemy Turn:** Describe the enemy's reaction and attack immediately after the player's action.
-    *   **Damage:** You determine how much damage is dealt/taken based on the narrative.
+    *   **Damage:** Use clear text like "You take 15 damage" so the frontend can parse it.
 2.  **Be Descriptive:** Use vivid imagery (sight, sound, smell) to set the scene.
 3.  **Choices:** At the end of EVERY response, you MUST provide 2-4 numbered choices for the player to take.
 4.  **Game State:** You must track the player's status implicitly.
 5.  **Items & Economy:** You can award items and currency. You can also accept items/currency as payment (trading).
 6.  **Equipment:** You can grant equipment that fits into specific slots.
+7.  **Consumables:** Items with type "potion" or "food" and a "healing" property can be consumed by the player to restore health.
 
 **JSON ACTIONS:**
 To update the game state, append a JSON object to the very end of your response (after a newline). You can send multiple actions in one response (one per line).
 
-*   **Give Item:** {"action": "add_item", "item": {"name": "Item Name", "description": "Short description", "type": "weapon/potion/key/etc"}}
+*   **Give Item:** {"action": "add_item", "item": {"name": "Health Potion", "description": "Restores 30 HP", "type": "potion", "healing": 30}}
 *   **Remove Item:** {"action": "remove_item", "item": {"name": "Item Name"}} (Use for trading/payment)
-*   **Update Currency:** {"action": "update_currency", "gold": 1, "silver": 5, "copper": 0} (Values are DELTAS, e.g., -5 to remove 5)
+*   **Update Currency:** {"action": "update_currency", "gold": 1, "silver": 5, "copper": 0} (Values are DELTAS)
 *   **Equip Item:** {"action": "equip_item", "slot": "head/chest/main_hand/etc", "item": {"name": "Item Name", "description": "...", "stats": {"armor": 5, "damage": 0}}}
-*   **Damage Player:** Use text like "You take 5 damage." (Frontend parses "(-X HP)")
-*   **Heal Player:** Use text like "You regain 10 health." (Frontend parses "(+X HP)")
+*   **Damage Player:** Use text like "You take 15 damage" (Frontend will parse this)
+*   **Heal Player:** Use text like "You regain 10 health" (Frontend will parse this)
 
 **EQUIPMENT SLOTS:**
 head, neck, shoulders, chest, wrist, gloves, ring1, ring2, trinket1, trinket2, main_hand, off_hand
 
 **EXAMPLE RESPONSE:**
-The merchant nods, taking your pouch of coins. "A pleasure doing business." He hands you a gleaming sword.
+The goblin swings its rusty blade at you. You take 8 damage! Your counterstrike lands true, and the goblin falls, dropping a small vial.
 
 What do you do?
-1. Equip the sword.
-2. Ask about rumors.
-3. Leave the shop.
+1. Drink the potion.
+2. Search the goblin's corpse.
+3. Leave immediately.
 
-{"action": "remove_item", "item": {"name": "Pouch of Coins"}}
-{"action": "equip_item", "slot": "main_hand", "item": {"name": "Steel Longsword", "description": "A sharp, well-balanced blade.", "stats": {"damage": 10, "armor": 0}}}
+{"action": "add_item", "item": {"name": "Health Potion", "description": "Restores 20 HP", "type": "potion", "healing": 20}}
 `;
 
 app.post('/chat', async (req, res) => {
@@ -96,7 +99,7 @@ app.post('/chat', async (req, res) => {
         const chat = model.startChat({
             history: [
                 { role: "user", parts: [{ text: SYSTEM_PROMPT }] },
-                { role: "model", parts: [{ text: "I am ready to help. Ask me anything!" }] },
+                { role: "model", parts: [{ text: "I am ready to weave your tale! Let the adventure begin." }] },
                 ...chatHistory
             ]
         });
@@ -111,6 +114,39 @@ app.post('/chat', async (req, res) => {
     } catch (error) {
         console.error('Gemini API Error:', error);
         res.status(500).json({ error: 'Failed to generate response', details: error.message });
+    }
+});
+
+// Text-to-Speech Endpoint
+app.post('/tts', async (req, res) => {
+    try {
+        const { text, voice } = req.body;
+
+        if (!text) {
+            return res.status(400).json({ error: 'Text is required' });
+        }
+
+        const request = {
+            input: { text: text },
+            voice: {
+                languageCode: 'en-US',
+                name: voice || 'en-US-Neural2-J'
+            },
+            audioConfig: {
+                audioEncoding: 'MP3',
+                speakingRate: 1.0,
+                pitch: 0
+            }
+        };
+
+        const [response] = await ttsClient.synthesizeSpeech(request);
+
+        res.set('Content-Type', 'audio/mpeg');
+        res.send(response.audioContent);
+
+    } catch (error) {
+        console.error('TTS Error:', error);
+        res.status(500).json({ error: 'TTS failed', details: error.message });
     }
 });
 
