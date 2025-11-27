@@ -7,12 +7,15 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors({
-    origin: '*', // Allow ALL origins explicitly
+const corsOptions = {
+    origin: ['https://www.justaskjohnny.com', 'http://localhost:3000'],
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: false // Disable credentials to allow wildcard origin
-}));
+    credentials: true
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // Enable pre-flight for all routes with same options
 app.use(express.json());
 
 // Gemini Setup
