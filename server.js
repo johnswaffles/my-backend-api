@@ -6,13 +6,35 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Simplified CORS - Allow All Origins for now to ensure connectivity
-app.use(cors());
+// Request Logging Middleware
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
+});
+
+// Robust CORS Configuration
+const corsOptions = {
+    origin: ['https://www.justaskjohnny.com', 'http://localhost:3000'],
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
+};
+
+app.use(cors(corsOptions));
+app.options(/(.*)/, cors(corsOptions)); // Enable pre-flight for all routes
 app.use(express.json());
+
+// Health Check Endpoint
+app.get('/', (req, res) => {
+    res.status(200).send('Server is running and healthy.');
+});
 
 // Gemini Setup
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+// Use user-provided model or fallback to gemini-1.5-pro
+const modelName = process.env.GEMINI_CHAT_MODEL || "gemini-1.5-pro";
+console.log(`Using Gemini Model: ${modelName}`);
+const model = genAI.getGenerativeModel({ model: modelName });
 
 const SYSTEM_PROMPT = `
 You are a helpful, knowledgeable, and friendly AI assistant.
@@ -40,7 +62,7 @@ app.post('/chat', async (req, res) => {
         const chat = model.startChat({
             history: [
                 { role: "user", parts: [{ text: SYSTEM_PROMPT }] },
-                { role: "model", parts: [{ text: "I am ready to be the Game Master. Let the adventure begin!" }] },
+                { role: "model", parts: [{ text: "I am ready to help. Ask me anything!" }] },
                 ...chatHistory
             ]
         });
