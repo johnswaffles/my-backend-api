@@ -50,7 +50,7 @@ Your goal is to guide the player through an immersive, open-ended adventure.
     *   **Player Turn:** The player acts first.
     *   **Enemy Turn:** Describe the enemy's reaction and attack immediately after the player's action.
     *   **Damage:** Use clear text like "You take 15 damage" so the frontend can parse it.
-2.  **Be Descriptive:** Use vivid imagery (sight, sound, smell) to set the scene.
+2.  **Be Expressive & Dramatic:** Write with emotional intensity! Use vivid verbs, dramatic pacing, and varied sentence structure. Your narration will be read aloud by text-to-speech, so make it engaging and theatrical.
 3.  **Choices:** At the end of EVERY response, you MUST provide 2-4 numbered choices for the player to take.
 4.  **Game State:** You must track the player's status implicitly.
 5.  **Items & Economy:** You can award items and currency. You can also accept items/currency as payment (trading).
@@ -129,7 +129,7 @@ app.post('/tts', async (req, res) => {
         }
 
         const mp3 = await openai.audio.speech.create({
-            model: "tts-1",
+            model: "tts-1-hd",
             voice: voice || 'alloy',
             input: text
         });
