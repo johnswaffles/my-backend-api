@@ -525,13 +525,17 @@
             if (loader) loader.remove();
         }
 
-        async function sendMessage() {
-            const text = input.value.trim();
+        async function sendMessage(messageText = null) {
+            const text = messageText || input.value.trim();
             if (!text) return;
 
             input.value = '';
             input.disabled = true;
             sendBtn.disabled = true;
+
+            // Remove previous choices if any
+            const existingChoices = document.querySelectorAll('.choice-btn');
+            existingChoices.forEach(btn => btn.remove());
 
             addMessage(text, true);
             showLoading();
@@ -555,19 +559,26 @@
                 let botReply = data.reply || data.text || "I'm sorry, I couldn't generate a response.";
 
                 // ========== PARSE JSON GAME ACTIONS ==========
-                // Check for item grants: {"action": "add_item", "item": {...}}
-                const itemMatch = botReply.match(/\{\"action\":\s*\"add_item\"[^}]+\}/g);
-                if (itemMatch) {
-                    itemMatch.forEach(jsonStr => {
+                // Improved Regex to handle newlines and potential formatting issues
+                // Looks for {"action": "add_item" ... } across multiple lines
+                const itemRegex = /\{\s*"action":\s*"add_item"[^}]+\}\s*}/gs;
+                const itemMatches = botReply.match(itemRegex);
+
+                if (itemMatches) {
+                    itemMatches.forEach(jsonStr => {
                         try {
-                            const action = JSON.parse(jsonStr);
+                            // Clean up the JSON string (remove markdown code blocks if present)
+                            const cleanJson = jsonStr.replace(/```json/g, '').replace(/```/g, '').trim();
+                            const action = JSON.parse(cleanJson);
+
                             if (action.item) {
                                 addItemToInventory(action.item);
                                 addMessage(`🎁 **You received: ${action.item.name}**!`, false);
                             }
+                            // Remove the JSON from the displayed text
                             botReply = botReply.replace(jsonStr, '').trim();
                         } catch (e) {
-                            console.error('Error parsing item JSON:', e);
+                            console.error('Error parsing item JSON:', e, jsonStr);
                         }
                     });
                 }
@@ -585,11 +596,69 @@
                 }
                 // ========== END JSON PARSING ==========
 
-                addMessage(botReply, false);
+                // ========== PARSE CHOICES ==========
+                // Extract numbered choices (e.g., "1. Do this")
+                const choiceRegex = /(\d+)\.\s+(.*)/g;
+                let choices = [];
+                let match;
 
-                // Update history
+                // We only want to extract choices that are at the END of the message
+                // So we split the message by newlines and check the last few lines
+                const lines = botReply.split('\n');
+                const nonChoiceLines = [];
+
+                lines.forEach(line => {
+                    const choiceMatch = line.match(/^(\d+)\.\s+(.*)/);
+                    if (choiceMatch) {
+                        choices.push(choiceMatch[2]); // Capture the text
+                    } else {
+                        nonChoiceLines.push(line);
+                    }
+                });
+
+                // Reconstruct the message without the choices
+                const cleanMessage = nonChoiceLines.join('\n').trim();
+                addMessage(cleanMessage, false);
+
+                // Render Choices as Buttons
+                if (choices.length > 0) {
+                    const choicesContainer = document.createElement('div');
+                    choicesContainer.className = 'choices-container';
+                    choicesContainer.style.display = 'flex';
+                    choicesContainer.style.flexWrap = 'wrap';
+                    choicesContainer.style.gap = '10px';
+                    choicesContainer.style.marginTop = '10px';
+                    choicesContainer.style.padding = '0 30px 20px 30px'; // Match padding of messages
+
+                    choices.forEach(choiceText => {
+                        const btn = document.createElement('button');
+                        btn.className = 'choice-btn';
+                        btn.textContent = choiceText;
+                        btn.style.padding = '10px 15px';
+                        btn.style.background = 'rgba(107, 70, 193, 0.2)';
+                        btn.style.border = '1px solid #a78bfa';
+                        btn.style.color = '#e0e7ff';
+                        btn.style.borderRadius = '8px';
+                        btn.style.cursor = 'pointer';
+                        btn.style.fontFamily = 'Inter, sans-serif';
+                        btn.style.transition = 'all 0.2s';
+
+                        btn.onmouseover = () => { btn.style.background = 'rgba(107, 70, 193, 0.5)'; };
+                        btn.onmouseout = () => { btn.style.background = 'rgba(107, 70, 193, 0.2)'; };
+
+                        btn.onclick = () => sendMessage(choiceText);
+
+                        choicesContainer.appendChild(btn);
+                    });
+
+                    messagesContainer.appendChild(choicesContainer);
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }
+                // ========== END CHOICES ==========
+
+                // Update history with the FULL original reply (to keep context)
                 conversationHistory.push({ role: 'user', parts: text });
-                conversationHistory.push({ role: 'model', parts: botReply });
+                conversationHistory.push({ role: 'model', parts: data.reply || data.text }); // Use original data
 
             } catch (error) {
                 hideLoading();
@@ -598,11 +667,11 @@
             } finally {
                 input.disabled = false;
                 sendBtn.disabled = false;
-                input.focus();
+                if (!messageText) input.focus(); // Only focus if sent via input
             }
         }
 
-        sendBtn.addEventListener('click', sendMessage);
+        sendBtn.addEventListener('click', () => sendMessage());
         input.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendMessage();
         });
