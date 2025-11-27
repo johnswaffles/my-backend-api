@@ -747,47 +747,95 @@
                 let botReply = data.reply || data.text || "I'm sorry, I couldn't generate a response.";
 
                 // ========== PARSE JSON ACTIONS ==========
-                // Regex to find all JSON objects in the response
-                const jsonRegex = /\{"action":\s*"[^"]+"[^}]+\}/gs;
-                const jsonMatches = botReply.match(jsonRegex);
+                // More robust JSON extraction that handles nested objects
+                const jsonActions = [];
+                let remainingText = botReply;
 
-                if (jsonMatches) {
-                    jsonMatches.forEach(jsonStr => {
-                        try {
-                            const cleanJson = jsonStr.replace(/```json/g, '').replace(/```/g, '').trim();
-                            const action = JSON.parse(cleanJson);
+                // Find all JSON-like patterns starting with {"action":
+                let startIndex = 0;
+                while ((startIndex = remainingText.indexOf('{"action":', startIndex)) !== -1) {
+                    // Count braces to find the matching closing brace
+                    let braceCount = 0;
+                    let endIndex = startIndex;
+                    let inString = false;
+                    let escapeNext = false;
 
-                            switch (action.action) {
-                                case 'add_item':
-                                    if (action.item) {
-                                        addItem(action.item);
-                                        addMessage(`🎁 **Received: ${action.item.name}**`, false);
-                                    }
-                                    break;
-                                case 'remove_item':
-                                    if (action.item) {
-                                        removeItem(action.item.name);
-                                        addMessage(`➖ **Removed: ${action.item.name}**`, false);
-                                    }
-                                    break;
-                                case 'update_currency':
-                                    updateCurrency(action);
-                                    addMessage(`💰 **Currency Updated**`, false);
-                                    break;
-                                case 'equip_item':
-                                    if (action.slot && action.item) {
-                                        equipItem(action.slot, action.item);
-                                        addMessage(`🛡️ **Equipped: ${action.item.name}**`, false);
-                                    }
-                                    break;
-                            }
-                            // Remove JSON from display
-                            botReply = botReply.replace(jsonStr, '').trim();
-                        } catch (e) {
-                            console.error('Error parsing JSON:', e, jsonStr);
+                    for (let i = startIndex; i < remainingText.length; i++) {
+                        const char = remainingText[i];
+
+                        if (escapeNext) {
+                            escapeNext = false;
+                            continue;
                         }
-                    });
+
+                        if (char === '\\') {
+                            escapeNext = true;
+                            continue;
+                        }
+
+                        if (char === '"') {
+                            inString = !inString;
+                            continue;
+                        }
+
+                        if (!inString) {
+                            if (char === '{') braceCount++;
+                            if (char === '}') {
+                                braceCount--;
+                                if (braceCount === 0) {
+                                    endIndex = i + 1;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (braceCount === 0 && endIndex > startIndex) {
+                        const jsonStr = remainingText.substring(startIndex, endIndex);
+                        jsonActions.push(jsonStr);
+                        startIndex = endIndex;
+                    } else {
+                        startIndex++;
+                    }
                 }
+
+                // Process each JSON action
+                jsonActions.forEach(jsonStr => {
+                    try {
+                        const cleanJson = jsonStr.trim();
+                        const action = JSON.parse(cleanJson);
+
+                        switch (action.action) {
+                            case 'add_item':
+                                if (action.item) {
+                                    addItem(action.item);
+                                    addMessage(`🎁 **Received: ${action.item.name}**`, false);
+                                }
+                                break;
+                            case 'remove_item':
+                                if (action.item) {
+                                    removeItem(action.item.name);
+                                    addMessage(`➖ **Removed: ${action.item.name}**`, false);
+                                }
+                                break;
+                            case 'update_currency':
+                                updateCurrency(action);
+                                addMessage(`💰 **Currency Updated**`, false);
+                                break;
+                            case 'equip_item':
+                                if (action.slot && action.item) {
+                                    equipItem(action.slot, action.item);
+                                    addMessage(`🛡️ **Equipped: ${action.item.name}**`, false);
+                                }
+                                break;
+                        }
+
+                        // Remove JSON from display
+                        botReply = botReply.replace(jsonStr, '').trim();
+                    } catch (e) {
+                        console.error('Error parsing JSON:', e, jsonStr);
+                    }
+                });
 
                 // Parse Damage/Heal
                 const damageMatches = botReply.matchAll(/\(-?(\d+)\s*HP\)/g);
