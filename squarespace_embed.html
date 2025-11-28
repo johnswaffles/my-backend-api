@@ -826,20 +826,22 @@
 
         // Play/Pause button handler
         playPauseBtn.addEventListener('click', () => {
-            if (!currentAudio || !lastBotResponse) return;
+            if (!currentAudio) return;
 
-            if (currentAudio.paused) {
+            if (currentAudio.paused || currentAudio.ended) {
                 // If audio ended, replay from beginning
                 if (currentAudio.ended) {
                     const selectedVoice = voiceSelector.value;
-                    if (selectedVoice) {
+                    if (selectedVoice && lastBotResponse) {
                         playTTS(lastBotResponse, selectedVoice);
                     }
                 } else {
+                    // Resume playback
                     currentAudio.play();
                     playPauseBtn.classList.add('playing');
                 }
             } else {
+                // Pause playback
                 currentAudio.pause();
                 playPauseBtn.classList.remove('playing');
             }
