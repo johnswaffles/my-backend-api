@@ -766,7 +766,17 @@
 
             div.appendChild(content);
             messagesContainer.appendChild(div);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            // Scroll to show the new message at the top of the viewport
+            if (!isUser) {
+                // Small delay to ensure DOM is updated
+                setTimeout(() => {
+                    div.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 100);
+            } else {
+                // For user messages, scroll to bottom as normal
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
         }
 
         function showLoading() {
