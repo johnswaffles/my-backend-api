@@ -1056,8 +1056,8 @@
             }
         });
 
-        sendBtn.addEventListener('click', () => sendMessage());
-        input.addEventListener('keypress', (e) => {
+        sendBtn.addEventListener('click', function () { sendMessage(); });
+        input.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') sendMessage();
         });
     })();
