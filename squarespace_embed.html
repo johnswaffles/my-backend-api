@@ -551,10 +551,16 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text, voice })
                 });
-                if (!res.ok) return null;
+
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.details || err.error || `TTS Error ${res.status}`);
+                }
+
                 return await res.blob();
             } catch (e) {
                 console.error("TTS Fetch Error", e);
+                addMessage(`⚠️ Audio Error: ${e.message}`, false, true);
                 return null;
             }
         }
