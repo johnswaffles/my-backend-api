@@ -165,8 +165,8 @@ app.post('/tts', async (req, res) => {
         if (!text) return res.status(400).json({ error: 'Text required' });
         if (!process.env.ELEVENLABS_API_KEY) return res.status(500).json({ error: 'ElevenLabs API Key missing' });
 
-        // Default to the female voice if none specified
-        const voiceId = voice || 'kdmDKE6EkgrWrrykO9Qt';
+        // Default to the v3 female voice if none specified
+        const voiceId = voice || 'Z3R5wn05IrDiVCyEkUrK';
         const modelId = 'eleven_multilingual_v2'; // Better emotion/tag support
 
         const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
