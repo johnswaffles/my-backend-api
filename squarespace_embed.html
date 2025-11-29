@@ -730,7 +730,13 @@
                 this.currentAudio.src = url;
                 this.currentAudio.preload = "auto";
 
-                updatePlayButton(true);
+                this.currentAudio.preload = "auto";
+
+                updatePlayButton('loading');
+
+                this.currentAudio.onwaiting = () => updatePlayButton('loading');
+                this.currentAudio.onplaying = () => updatePlayButton('playing');
+                this.currentAudio.onpause = () => updatePlayButton('paused');
 
                 this.currentAudio.onended = () => {
                     if (typeof item !== 'string') URL.revokeObjectURL(url); // Clean up blob URLs
@@ -808,9 +814,22 @@
             return text.replace(/\[([a-z_]+)\]/gi, '');
         }
 
-        function updatePlayButton(isPlaying) {
-            els.playPause.textContent = isPlaying ? '⏸️' : '▶️';
-            els.playPause.disabled = false;
+        function updatePlayButton(state) {
+            // Backward compatibility for boolean
+            if (typeof state === 'boolean') {
+                state = state ? 'playing' : 'paused';
+            }
+
+            if (state === 'loading') {
+                els.playPause.innerHTML = '<div class="spinner"></div>';
+                els.playPause.title = "Buffering...";
+            } else if (state === 'playing') {
+                els.playPause.innerHTML = '⏸️';
+                els.playPause.title = "Pause";
+            } else {
+                els.playPause.innerHTML = '▶️';
+                els.playPause.title = "Play";
+            }
         }
 
         function splitText(text) {
