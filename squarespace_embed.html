@@ -721,7 +721,10 @@
                     url = URL.createObjectURL(item); // It's a Blob
                 }
 
-                this.currentAudio = new Audio(url);
+                this.currentAudio = new Audio();
+                this.currentAudio.crossOrigin = "anonymous";
+                this.currentAudio.src = url;
+                this.currentAudio.preload = "auto";
 
                 updatePlayButton(true);
 
@@ -732,11 +735,22 @@
 
                 this.currentAudio.onerror = (e) => {
                     console.error("Audio Playback Error", e);
+                    addMessage(`⚠️ Playback Error: ${e.type}`, false, true);
                     if (typeof item !== 'string') URL.revokeObjectURL(url);
                     this.playNext();
                 };
 
-                this.currentAudio.play().catch(e => console.error("Playback failed", e));
+                // Attempt to play
+                const playPromise = this.currentAudio.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        console.error("Playback failed", error);
+                        // Auto-play might be blocked. Show a "Click to Play" message or just stop.
+                        // But since user clicked "Send", it should work.
+                        // Unless the async fetch took too long?
+                        updatePlayButton(false);
+                    });
+                }
             }
 
             stop() {
