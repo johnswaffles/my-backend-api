@@ -167,7 +167,7 @@ app.post('/tts', async (req, res) => {
 
         // Default to the v3 female voice if none specified
         const voiceId = voice || 'Z3R5wn05IrDiVCyEkUrK';
-        const modelId = 'eleven_multilingual_v2'; // Better emotion/tag support
+        const modelId = 'eleven_turbo_v2_5'; // Fast model with audio tag support
 
         const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
             method: 'POST',
