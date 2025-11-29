@@ -74,40 +74,44 @@ What do you do?
 `;
 
 app.post('/chat', async (req, res) => {
-    console.log('Received chat request');
     try {
-        const { message, history } = req.body;
+        const { message, history, genre } = req.body;
+        const userMessage = message || '';
+        const selectedGenre = genre || 'High Fantasy'; // Default if not provided
 
-        if (!message) {
-            return res.status(400).json({ error: 'Message is required' });
-        }
+        // Construct history for Gemini
+        const chatHistory = history.map(msg => ({
+            role: msg.role,
+            parts: [{ text: msg.parts }]
+        }));
 
-        let chatHistory = [];
-        if (history && Array.isArray(history)) {
-            chatHistory = history.map(h => ({
-                role: h.role,
-                parts: [{ text: h.parts }]
-            }));
-        }
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 
         const chat = model.startChat({
             history: [
-                { role: "user", parts: [{ text: SYSTEM_PROMPT }] },
-                { role: "model", parts: [{ text: "I am ready to weave your tale! Let the adventure begin." }] },
+                {
+                    role: "user",
+                    parts: [{ text: `${SYSTEM_PROMPT}\n\n**CURRENT GENRE:** ${selectedGenre}\nAdjust your tone, vocabulary, and tropes to match this genre perfectly.` }]
+                },
+                {
+                    role: "model",
+                    parts: [{ text: `Understood. I will act as the Game Master for a ${selectedGenre} story, adapting my style accordingly.` }]
+                },
                 ...chatHistory
-            ]
+            ],
+            generationConfig: {
+                maxOutputTokens: 500,
+            },
         });
 
-        const result = await chat.sendMessage(message);
+        const result = await chat.sendMessage(userMessage);
         const response = await result.response;
         const text = response.text();
 
-        console.log('Generated response successfully');
         res.json({ reply: text });
-
     } catch (error) {
-        console.error('Gemini API Error:', error);
-        res.status(500).json({ error: 'Failed to generate response', details: error.message });
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Internal Server Error' });
     }
 });
 
