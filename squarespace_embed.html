@@ -284,6 +284,25 @@
         box-shadow: 0 4px 15px rgba(181, 55, 242, 0.3);
     }
 
+    /* Message Download Button */
+    .message-download-btn {
+        background: rgba(255, 215, 0, 0.2);
+        border: 1px solid var(--accent-gold);
+        color: var(--accent-gold);
+        padding: 6px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 1rem;
+        margin-left: 8px;
+        transition: all 0.2s;
+    }
+
+    .message-download-btn:hover {
+        background: var(--accent-gold);
+        color: var(--bg-dark);
+        transform: scale(1.05);
+    }
+
     /* Inventory */
     #inventory-panel {
         padding: 12px 24px;
@@ -755,7 +774,7 @@
 
         // --- UI Functions ---
 
-        function addMessage(text, isUser, isError = false) {
+        function addMessage(text, isUser, isError = false, audioBlob = null) {
             const div = document.createElement('div');
             div.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
 
@@ -791,6 +810,26 @@
             }
 
             div.appendChild(content);
+
+            // Add download button for bot messages with audio
+            if (!isUser && !isError && audioBlob) {
+                const downloadBtn = document.createElement('button');
+                downloadBtn.className = 'message-download-btn';
+                downloadBtn.innerHTML = '💾';
+                downloadBtn.title = 'Download Audio';
+                downloadBtn.onclick = () => {
+                    const url = URL.createObjectURL(audioBlob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `storyforge-${Date.now()}.mp3`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                };
+                div.appendChild(downloadBtn);
+            }
+
             els.messages.appendChild(div);
 
             // Scroll
@@ -863,8 +902,8 @@
 
                 const verse = prompt(
                     '📖 BIBLE STORYTELLING\n\n' +
-                    '⚠️ NOTE: For Christian stories, all interaction happens in this popup.\n' +
-                    'No choices will be provided - the story unfolds naturally.\n\n' +
+                    '⚠️ NOTE: Opening options are selected here in this popup.\n' +
+                    'After that, interactions continue in the chat bar below.\n\n' +
                     'Tell me which part of the Bible you\'d like to explore:\n' +
                     '• Specific verse (e.g., "John 3:16")\n' +
                     '• Book or chapter (e.g., "Genesis 1", "Book of Daniel")\n' +
@@ -969,11 +1008,10 @@
                 state.history.push({ role: 'user', parts: msgText });
                 state.history.push({ role: 'model', parts: reply });
 
-                addMessage(stripAudioTags(reply), false); // Remove tags from display
-
                 // --- TTS: Fetch once, cache, and enable playback/download ---
+                let audioBlob = null;
                 if (els.voice.value && reply) {
-                    const audioBlob = await fetchTTS(reply);
+                    audioBlob = await fetchTTS(reply);
                     if (audioBlob) {
                         // Cache the audio
                         state.audioCache = audioBlob;
@@ -986,6 +1024,9 @@
                         audioQueue.add(audioBlob);
                     }
                 }
+
+                // Add message with audio blob for download button
+                addMessage(stripAudioTags(reply), false, false, audioBlob);
 
             } catch (err) {
                 loader.remove();

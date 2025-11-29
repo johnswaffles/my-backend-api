@@ -178,7 +178,7 @@ app.post('/tts', async (req, res) => {
         const voiceId = voice || 'Z3R5wn05IrDiVCyEkUrK';
         const modelId = 'eleven_v3'; // Correct v3 model ID
 
-        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -188,10 +188,12 @@ app.post('/tts', async (req, res) => {
                 text: text,
                 model_id: modelId,
                 voice_settings: {
-                    stability: 0.5,
-                    similarity_boost: 0.75
-                }
-                // Removed enable_ssml - v3 uses native audio tags
+                    stability: 0.4,  // Lower for faster processing
+                    similarity_boost: 0.5,  // Lower for faster processing
+                    style: 0.0,
+                    use_speaker_boost: false
+                },
+                optimize_streaming_latency: 4  // Maximum optimization for speed
             })
         });
 
