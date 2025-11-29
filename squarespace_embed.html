@@ -291,20 +291,26 @@
         padding-top: 8px;
         display: flex;
         justify-content: flex-end;
+        width: 100%;
+        /* Force full width */
+        box-sizing: border-box;
     }
 
     .message-download-btn {
         background: rgba(255, 215, 0, 0.1);
         border: 1px solid var(--accent-gold);
         color: var(--accent-gold);
-        padding: 6px 16px;
+        padding: 8px 16px;
+        /* Larger touch target */
         border-radius: 6px;
         cursor: pointer;
         font-size: 0.9rem;
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: 8px;
         transition: all 0.2s;
+        white-space: nowrap;
+        /* Prevent text wrapping */
     }
 
     .message-download-btn:hover {
@@ -971,11 +977,30 @@
                 }
 
                 if (verse.trim() === '' || verse.trim().toLowerCase() === 'random') {
-                    msgText = 'Tell me a random Bible story.' + lengthInstruction;
-                    state.christianContext = 'started';  // Mark as started
+                    // Client-side random story selector for true variety
+                    const randomStories = [
+                        'David and Goliath (1 Samuel 17)',
+                        'Daniel in the Lion\'s Den (Daniel 6)',
+                        'Jonah and the Whale (Jonah 1-4)',
+                        'The Good Samaritan (Luke 10:25-37)',
+                        'Noah\'s Ark (Genesis 6-9)',
+                        'The Prodigal Son (Luke 15:11-32)',
+                        'Moses Parting the Red Sea (Exodus 14)',
+                        'The Birth of Jesus (Luke 2)',
+                        'Samson and Delilah (Judges 16)',
+                        'The Sermon on the Mount (Matthew 5-7)',
+                        'Elijah and the Prophets of Baal (1 Kings 18)',
+                        'The Fall of Jericho (Joshua 6)',
+                        'Joseph and his Coat of Many Colors (Genesis 37)',
+                        'Jesus Feeds the 5000 (Matthew 14)',
+                        'The Raising of Lazarus (John 11)'
+                    ];
+                    const randomStory = randomStories[Math.floor(Math.random() * randomStories.length)];
+                    msgText = `Tell me the Bible story of ${randomStory}.` + lengthInstruction;
+                    state.christianContext = 'started';
                 } else {
                     msgText = `Tell me the Bible story from ${verse}.` + lengthInstruction;
-                    state.christianContext = 'started';  // Mark as started
+                    state.christianContext = 'started';
                 }
             }
 
