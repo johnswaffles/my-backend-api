@@ -789,7 +789,8 @@
             inventory: [],
             history: [],
             lastFullText: '',
-            christianContext: null,
+            christianContext: false,
+            romanceContext: false,
             audioCache: null,  // Cache audio to prevent duplicate API calls
             userChangedVoice: false  // Track if user manually changed voice
         };
@@ -1069,6 +1070,36 @@
         async function sendMessage(text = null) {
             let msgText = text || els.input.value.trim();
             if (!msgText) return;
+
+            // Romance Genre Special Handling
+            if (els.genre.value === 'Romance' && !state.romanceContext) {
+                const disclaimer = "All characters, narrators, participants, users, observers, and any individuals represented, implied, or referenced in this system are 18 years of age or older. All interactions, scenarios, and depictions involve consenting adults only. No minors are present, mentioned, implied, or involved in any capacity. This requirement applies universally to every part of the system, all outputs, and all usage.";
+
+                const agreed = confirm("⚠️ AGE VERIFICATION REQUIRED\n\n" + disclaimer + "\n\nPress OK to confirm you are 18+ and consent to these terms.");
+
+                if (!agreed) {
+                    els.genre.value = 'High Fantasy'; // Reset to default
+                    return;
+                }
+
+                const theme = prompt(
+                    '💖 ROMANCE THEMES\n\n' +
+                    'Choose a theme or trope to start:\n' +
+                    '• Slow Burn / Sweet\n' +
+                    '• Enemies to Lovers\n' +
+                    '• Secret Affair\n' +
+                    '• Steamy Encounter\n' +
+                    '• Dark Romance\n' +
+                    '• Forbidden Love\n\n' +
+                    'Type your choice (or press Enter for random):'
+                );
+
+                if (theme === null) return; // User cancelled
+
+                // Prepend the theme to the message to guide the bot
+                msgText = `Start a Romance story with the theme: ${theme || 'Random'}. [romantic]`;
+                state.romanceContext = true;
+            }
 
             // Christian Genre Special Handling
             if (els.genre.value === 'Christian' && !state.christianContext) {
