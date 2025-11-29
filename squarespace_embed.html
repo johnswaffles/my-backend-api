@@ -1,11 +1,23 @@
 <!-- Squarespace Code Block Start -->
-<!-- Version: 2024-11-29-v1-CleanRebuild -->
+<!-- Version: 2024-11-29-v2-PremiumUI -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;600&display=swap"
+    rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
 <div id="storyforge-app">
-    <header class="sf-header">
-        <div class="sf-title">StoryForge</div>
+    <!-- Background Elements -->
+    <div class="sf-bg-glow"></div>
+
+    <!-- Header -->
+    <header class="sf-header glass-panel">
+        <div class="sf-brand">
+            <div class="sf-logo">✨</div>
+            <div class="sf-title">StoryForge</div>
+        </div>
         <div class="sf-controls">
-            <select id="genre-selector" title="Select Genre">
+            <select id="genre-selector" class="sf-select" title="Select Genre">
                 <option value="High Fantasy" selected>🐉 High Fantasy</option>
                 <option value="Dark Fantasy">🌑 Dark Fantasy</option>
                 <option value="Sci-Fi Space Opera">🚀 Sci-Fi</option>
@@ -17,7 +29,7 @@
                 <option value="Romance">💖 Romance</option>
                 <option value="Superhero">🦸 Superhero</option>
             </select>
-            <select id="voice-selector" title="Select Voice">
+            <select id="voice-selector" class="sf-select" title="Select Voice">
                 <option value="">🔇 Silent</option>
                 <option value="echo" selected>🎙️ Roland</option>
                 <option value="fable">🎙️ Theron</option>
@@ -25,74 +37,126 @@
                 <option value="nova">🎙️ Lyra</option>
                 <option value="shimmer">🎙️ Morgana</option>
             </select>
-            <button id="play-pause-btn" disabled title="Play/Pause TTS">▶️</button>
+            <button id="play-pause-btn" class="sf-btn-icon" disabled title="Play/Pause TTS">▶️</button>
         </div>
     </header>
 
-    <div id="chat-container">
+    <!-- Main Chat Area -->
+    <main id="chat-container">
         <div id="chat-messages">
             <div class="message bot-message">
+                <div class="avatar">🧙‍♂️</div>
                 <div class="message-content">
-                    Welcome to StoryForge. Select a genre and tell me how your story begins...
+                    Welcome, traveler. Select a genre above and tell me how your story begins...
                 </div>
             </div>
         </div>
-    </div>
+    </main>
 
-    <div id="inventory-panel">
-        <div class="panel-header">🎒 Inventory</div>
-        <div id="inventory-list">
-            <div class="empty-inventory">Empty...</div>
+    <!-- Inventory Panel -->
+    <div id="inventory-panel" class="glass-panel">
+        <div class="panel-label">INVENTORY</div>
+        <div id="inventory-grid">
+            <div class="empty-slot">Empty</div>
         </div>
-        <select id="item-use-dropdown">
+        <select id="item-use-dropdown" class="sf-select-sm">
             <option value="">⚗️ Use Item</option>
         </select>
     </div>
 
-    <div class="input-area">
+    <!-- Input Area -->
+    <footer class="sf-footer glass-panel">
         <input type="text" id="chat-input" placeholder="What do you do next?" autocomplete="off">
-        <button id="send-btn">SEND</button>
-    </div>
+        <button id="send-btn" class="sf-btn-primary">SEND</button>
+    </footer>
 </div>
 
 <style>
     :root {
-        --bg-color: #1a1a2e;
-        --panel-bg: #16213e;
-        --accent-color: #6b46c1;
-        --text-color: #e94560;
-        --text-light: #f0f0f0;
-        --bot-msg-bg: #0f3460;
-        --user-msg-bg: #533483;
+        --bg-dark: #0f0c29;
+        --bg-mid: #302b63;
+        --bg-light: #24243e;
+        --accent-gold: #ffd700;
+        --accent-purple: #b537f2;
+        --text-main: #ffffff;
+        --text-muted: #a0a0a0;
+        --glass-bg: rgba(20, 20, 40, 0.7);
+        --glass-border: rgba(255, 255, 255, 0.1);
+        --font-header: 'Cinzel', serif;
+        --font-body: 'Inter', sans-serif;
+    }
+
+    /* Reset & Base */
+    #storyforge-app * {
+        box-sizing: border-box;
     }
 
     #storyforge-app {
-        font-family: 'Inter', sans-serif;
-        background: var(--bg-color);
-        color: var(--text-light);
-        max-width: 800px;
+        font-family: var(--font-body);
+        background: linear-gradient(135deg, var(--bg-dark), var(--bg-mid));
+        color: var(--text-main);
+        width: 100%;
+        max-width: 900px;
+        height: 700px;
         margin: 0 auto;
-        border-radius: 12px;
+        border-radius: 16px;
         overflow: hidden;
         display: flex;
         flex-direction: column;
-        height: 600px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        position: relative;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+        border: 1px solid var(--glass-border);
     }
 
+    /* Background Glow */
+    .sf-bg-glow {
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(181, 55, 242, 0.1) 0%, transparent 60%);
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    /* Glassmorphism Utility */
+    .glass-panel {
+        background: var(--glass-bg);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid var(--glass-border);
+        z-index: 10;
+    }
+
+    /* Header */
     .sf-header {
-        background: var(--panel-bg);
-        padding: 15px;
+        padding: 16px 24px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-bottom: 2px solid var(--accent-color);
+        border-bottom: 1px solid var(--glass-border);
+    }
+
+    .sf-brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .sf-logo {
+        font-size: 1.5rem;
+        animation: float 3s ease-in-out infinite;
     }
 
     .sf-title {
-        font-weight: bold;
-        font-size: 1.2rem;
-        color: var(--text-color);
+        font-family: var(--font-header);
+        font-size: 1.4rem;
+        font-weight: 700;
+        background: linear-gradient(to right, #fff, var(--accent-gold));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        letter-spacing: 1px;
     }
 
     .sf-controls {
@@ -100,122 +164,262 @@
         gap: 10px;
     }
 
-    select,
-    button {
-        background: rgba(0, 0, 0, 0.3);
-        border: 1px solid var(--accent-color);
-        color: var(--text-light);
-        padding: 5px 10px;
-        border-radius: 5px;
+    /* Controls */
+    .sf-select {
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid var(--glass-border);
+        color: var(--text-main);
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-family: var(--font-body);
+        font-size: 0.85rem;
         cursor: pointer;
+        transition: all 0.2s;
     }
 
+    .sf-select:hover {
+        border-color: var(--accent-purple);
+    }
+
+    .sf-btn-icon {
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid var(--glass-border);
+        color: var(--text-main);
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+
+    .sf-btn-icon:hover:not(:disabled) {
+        background: var(--accent-purple);
+        transform: scale(1.05);
+    }
+
+    .sf-btn-icon:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* Chat Area */
     #chat-container {
         flex: 1;
         overflow-y: auto;
-        padding: 20px;
-        background: var(--bg-color);
+        padding: 24px;
+        position: relative;
+        z-index: 5;
+        scroll-behavior: smooth;
     }
 
-    .message {
-        margin-bottom: 15px;
+    #chat-messages {
         display: flex;
         flex-direction: column;
+        gap: 20px;
+    }
+
+    /* Messages */
+    .message {
+        display: flex;
+        gap: 12px;
+        max-width: 85%;
+        animation: fadeUp 0.4s ease-out forwards;
+        opacity: 0;
+        transform: translateY(10px);
     }
 
     .bot-message {
-        align-items: flex-start;
+        align-self: flex-start;
     }
 
     .user-message {
-        align-items: flex-end;
+        align-self: flex-end;
+        flex-direction: row-reverse;
+    }
+
+    .avatar {
+        width: 36px;
+        height: 36px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        border: 1px solid var(--glass-border);
+        flex-shrink: 0;
     }
 
     .message-content {
-        max-width: 80%;
-        padding: 12px 16px;
+        padding: 14px 18px;
         border-radius: 12px;
-        line-height: 1.5;
+        line-height: 1.6;
+        font-size: 0.95rem;
+        position: relative;
     }
 
     .bot-message .message-content {
-        background: var(--bot-msg-bg);
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--glass-border);
         border-top-left-radius: 2px;
     }
 
     .user-message .message-content {
-        background: var(--user-msg-bg);
-        border-bottom-right-radius: 2px;
+        background: linear-gradient(135deg, var(--accent-purple), #8a2be2);
+        color: white;
+        border-top-right-radius: 2px;
+        box-shadow: 0 4px 15px rgba(181, 55, 242, 0.3);
     }
 
+    /* Inventory */
     #inventory-panel {
-        background: var(--panel-bg);
-        padding: 10px 20px;
-        border-top: 1px solid var(--accent-color);
+        padding: 12px 24px;
         display: flex;
         align-items: center;
-        gap: 15px;
+        gap: 16px;
+        border-top: 1px solid var(--glass-border);
     }
 
-    .panel-header {
-        font-weight: bold;
-        color: #ffd700;
+    .panel-label {
+        font-family: var(--font-header);
+        font-size: 0.8rem;
+        color: var(--accent-gold);
+        letter-spacing: 1px;
     }
 
-    #inventory-list {
-        display: flex;
-        gap: 10px;
+    #inventory-grid {
         flex: 1;
+        display: flex;
+        gap: 8px;
         overflow-x: auto;
+        padding-bottom: 4px;
     }
 
     .inventory-item {
-        background: rgba(255, 255, 255, 0.1);
-        padding: 4px 8px;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid var(--accent-gold);
+        padding: 4px 10px;
         border-radius: 4px;
-        font-size: 0.85rem;
+        font-size: 0.8rem;
+        white-space: nowrap;
+        color: var(--accent-gold);
     }
 
-    .input-area {
-        padding: 15px;
-        background: var(--panel-bg);
+    .empty-slot {
+        color: var(--text-muted);
+        font-style: italic;
+        font-size: 0.8rem;
+    }
+
+    .sf-select-sm {
+        padding: 4px 8px;
+        font-size: 0.8rem;
+        background: rgba(0, 0, 0, 0.4);
+        border: 1px solid var(--glass-border);
+        color: var(--text-main);
+        border-radius: 4px;
+    }
+
+    /* Footer */
+    .sf-footer {
+        padding: 20px 24px;
         display: flex;
-        gap: 10px;
+        gap: 12px;
     }
 
     #chat-input {
         flex: 1;
-        padding: 12px;
-        border-radius: 6px;
-        border: none;
-        background: rgba(255, 255, 255, 0.1);
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid var(--glass-border);
+        padding: 14px;
+        border-radius: 8px;
         color: white;
+        font-family: var(--font-body);
+        font-size: 1rem;
+        transition: all 0.2s;
     }
 
-    #send-btn {
-        background: var(--text-color);
+    #chat-input:focus {
+        outline: none;
+        border-color: var(--accent-purple);
+        background: rgba(0, 0, 0, 0.5);
+    }
+
+    .sf-btn-primary {
+        background: var(--accent-purple);
+        color: white;
         border: none;
-        font-weight: bold;
-        padding: 0 20px;
+        padding: 0 24px;
+        border-radius: 8px;
+        font-family: var(--font-header);
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.2s;
+        letter-spacing: 1px;
     }
 
-    #send-btn:hover {
-        background: #ff2e4d;
+    .sf-btn-primary:hover:not(:disabled) {
+        background: #d05bf5;
+        box-shadow: 0 0 15px rgba(208, 91, 245, 0.4);
     }
 
-    .typing-indicator {
-        color: #888;
-        font-style: italic;
-        margin-bottom: 10px;
+    .sf-btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
     }
 
-    .error-msg {
-        color: #ff4444;
-        background: rgba(255, 0, 0, 0.1);
-        padding: 10px;
-        border-radius: 5px;
-        margin-bottom: 10px;
-        border: 1px solid #ff4444;
+    /* Animations */
+    @keyframes fadeUp {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    @keyframes float {
+
+        0%,
+        100% {
+            transform: translateY(0);
+        }
+
+        50% {
+            transform: translateY(-5px);
+        }
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.4);
+    }
+
+    /* Mobile */
+    @media (max-width: 600px) {
+        #storyforge-app {
+            height: 100vh;
+            border-radius: 0;
+        }
+
+        .sf-title {
+            display: none;
+        }
     }
 </style>
 
@@ -223,15 +427,60 @@
     (function () {
         const BACKEND_URL = 'https://my-backend-api-1niy.onrender.com';
 
-        // State
+        // --- Audio Queue System ---
+        class AudioQueue {
+            constructor() {
+                this.queue = [];
+                this.isPlaying = false;
+                this.currentAudio = null;
+            }
+
+            add(blob) {
+                this.queue.push(blob);
+                if (!this.isPlaying) this.playNext();
+            }
+
+            playNext() {
+                if (this.queue.length === 0) {
+                    this.isPlaying = false;
+                    updatePlayButton(false);
+                    return;
+                }
+
+                this.isPlaying = true;
+                const blob = this.queue.shift();
+                const url = URL.createObjectURL(blob);
+                this.currentAudio = new Audio(url);
+
+                updatePlayButton(true);
+
+                this.currentAudio.onended = () => {
+                    this.playNext();
+                };
+
+                this.currentAudio.play().catch(e => console.error("Playback failed", e));
+            }
+
+            stop() {
+                if (this.currentAudio) {
+                    this.currentAudio.pause();
+                    this.currentAudio = null;
+                }
+                this.queue = [];
+                this.isPlaying = false;
+                updatePlayButton(false);
+            }
+        }
+
+        const audioQueue = new AudioQueue();
+
+        // --- State & DOM ---
         const state = {
             inventory: [],
             history: [],
-            currentAudio: null,
-            lastText: ''
+            lastFullText: ''
         };
 
-        // DOM Elements
         const els = {
             input: document.getElementById('chat-input'),
             sendBtn: document.getElementById('send-btn'),
@@ -239,9 +488,48 @@
             genre: document.getElementById('genre-selector'),
             voice: document.getElementById('voice-selector'),
             playPause: document.getElementById('play-pause-btn'),
-            invList: document.getElementById('inventory-list'),
-            itemDrop: document.getElementById('item-use-dropdown')
+            invGrid: document.getElementById('inventory-grid'),
+            itemDrop: document.getElementById('item-use-dropdown'),
+            container: document.getElementById('chat-container')
         };
+
+        // --- Helpers ---
+
+        function updatePlayButton(isPlaying) {
+            els.playPause.textContent = isPlaying ? '⏸️' : '▶️';
+            els.playPause.disabled = false;
+        }
+
+        function splitText(text) {
+            // Split into [First Sentence, Rest]
+            // Regex looks for first ., !, or ? followed by space or end of string
+            const match = text.match(/.*?[.!?](?:\s|$)/);
+            if (match && match[0].length < text.length) {
+                return {
+                    first: match[0],
+                    rest: text.substring(match[0].length)
+                };
+            }
+            return { first: text, rest: '' };
+        }
+
+        async function fetchTTS(text) {
+            const voice = els.voice.value;
+            if (!voice || !text.trim()) return null;
+
+            try {
+                const res = await fetch(`${BACKEND_URL}/tts`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text, voice })
+                });
+                if (!res.ok) return null;
+                return await res.blob();
+            } catch (e) {
+                console.error("TTS Fetch Error", e);
+                return null;
+            }
+        }
 
         // --- UI Functions ---
 
@@ -249,8 +537,16 @@
             const div = document.createElement('div');
             div.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
 
+            // Avatar
+            if (!isUser) {
+                const avatar = document.createElement('div');
+                avatar.className = 'avatar';
+                avatar.textContent = isError ? '⚠️' : '🧙‍♂️';
+                div.appendChild(avatar);
+            }
+
             const content = document.createElement('div');
-            content.className = isError ? 'error-msg' : 'message-content';
+            content.className = 'message-content';
 
             if (isUser || isError) {
                 content.textContent = text;
@@ -261,22 +557,20 @@
             div.appendChild(content);
             els.messages.appendChild(div);
 
-            // Scroll logic
-            if (isUser) {
-                els.messages.scrollTop = els.messages.scrollHeight;
-            } else {
-                setTimeout(() => div.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-            }
+            // Scroll
+            setTimeout(() => {
+                els.container.scrollTop = els.container.scrollHeight;
+            }, 50);
         }
 
         function updateInventory() {
             if (state.inventory.length === 0) {
-                els.invList.innerHTML = '<div class="empty-inventory">Empty...</div>';
+                els.invGrid.innerHTML = '<div class="empty-slot">Empty</div>';
                 els.itemDrop.innerHTML = '<option value="">⚗️ Use Item</option>';
                 return;
             }
 
-            els.invList.innerHTML = state.inventory.map(item =>
+            els.invGrid.innerHTML = state.inventory.map(item =>
                 `<div class="inventory-item" title="${item.description || ''}">${item.name}</div>`
             ).join('');
 
@@ -288,58 +582,6 @@
                 els.itemDrop.appendChild(opt);
             });
         }
-
-        // --- Audio Functions ---
-
-        async function playTTS(text) {
-            const voice = els.voice.value;
-            if (!voice || !text) return;
-
-            if (state.currentAudio) {
-                state.currentAudio.pause();
-                state.currentAudio = null;
-            }
-
-            try {
-                els.playPause.disabled = true;
-                const res = await fetch(`${BACKEND_URL}/tts`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text, voice })
-                });
-
-                if (!res.ok) throw new Error('TTS Failed');
-
-                const blob = await res.blob();
-                const audio = new Audio(URL.createObjectURL(blob));
-                state.currentAudio = audio;
-
-                audio.onplay = () => {
-                    els.playPause.textContent = '⏸️';
-                    els.playPause.disabled = false;
-                };
-                audio.onended = () => {
-                    els.playPause.textContent = '▶️';
-                };
-                audio.onpause = () => {
-                    els.playPause.textContent = '▶️';
-                };
-
-                audio.play();
-            } catch (e) {
-                console.error('TTS Error:', e);
-                els.playPause.disabled = false;
-            }
-        }
-
-        els.playPause.onclick = () => {
-            if (!state.currentAudio) {
-                if (state.lastText) playTTS(state.lastText);
-                return;
-            }
-            if (state.currentAudio.paused) state.currentAudio.play();
-            else state.currentAudio.pause();
-        };
 
         // --- Core Logic ---
 
@@ -353,11 +595,15 @@
             els.sendBtn.disabled = true;
             addMessage(msgText, true);
 
-            // Loading Indicator
+            // Stop previous audio
+            audioQueue.stop();
+
+            // Loading
             const loader = document.createElement('div');
-            loader.className = 'typing-indicator';
-            loader.textContent = 'Storyteller is thinking...';
+            loader.className = 'message bot-message';
+            loader.innerHTML = '<div class="avatar">⏳</div><div class="message-content">Thinking...</div>';
             els.messages.appendChild(loader);
+            els.container.scrollTop = els.container.scrollHeight;
 
             try {
                 const res = await fetch(`${BACKEND_URL}/chat`, {
@@ -381,7 +627,6 @@
                 let reply = data.reply;
 
                 // Process JSON Actions
-                const actions = [];
                 const lines = reply.split('\n');
                 const cleanLines = lines.filter(line => {
                     if (line.trim().startsWith('{') && line.trim().endsWith('}')) {
@@ -395,7 +640,7 @@
                                 state.inventory = state.inventory.filter(i => i.name !== action.item.name);
                                 addMessage(`✨ Used ${action.item.name}`, false);
                             }
-                            return false; // Remove JSON line from display
+                            return false;
                         } catch (e) { return true; }
                     }
                     return true;
@@ -404,12 +649,29 @@
                 reply = cleanLines.join('\n').trim();
                 updateInventory();
 
-                state.lastText = reply;
+                state.lastFullText = reply;
                 state.history.push({ role: 'user', parts: msgText });
                 state.history.push({ role: 'model', parts: reply });
 
                 addMessage(reply, false);
-                playTTS(reply);
+
+                // --- TTS Optimization: First Sentence First ---
+                if (els.voice.value) {
+                    const { first, rest } = splitText(reply);
+
+                    // Fetch first chunk immediately
+                    if (first) {
+                        const blob1 = await fetchTTS(first);
+                        if (blob1) audioQueue.add(blob1);
+                    }
+
+                    // Fetch rest in background
+                    if (rest) {
+                        fetchTTS(rest).then(blob2 => {
+                            if (blob2) audioQueue.add(blob2);
+                        });
+                    }
+                }
 
             } catch (err) {
                 loader.remove();
@@ -431,6 +693,19 @@
                 const item = state.inventory[idx];
                 sendMessage(`I use the ${item.name}`);
                 e.target.value = "";
+            }
+        };
+
+        els.playPause.onclick = () => {
+            if (audioQueue.isPlaying) {
+                audioQueue.stop(); // Or pause logic if preferred
+            } else {
+                // Replay last message
+                if (state.lastFullText) {
+                    const { first, rest } = splitText(state.lastFullText);
+                    if (first) fetchTTS(first).then(b => b && audioQueue.add(b));
+                    if (rest) fetchTTS(rest).then(b => b && audioQueue.add(b));
+                }
             }
         };
 
