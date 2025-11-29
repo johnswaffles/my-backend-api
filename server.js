@@ -79,13 +79,15 @@ app.post('/chat', async (req, res) => {
         const userMessage = message || '';
         const selectedGenre = genre || 'High Fantasy'; // Default if not provided
 
-        // Construct history for Gemini
+        // Construct history for Gemini with validation
         let chatHistory = [];
         if (history && Array.isArray(history)) {
-            chatHistory = history.map(msg => ({
-                role: msg.role,
-                parts: [{ text: msg.parts }]
-            }));
+            chatHistory = history
+                .filter(msg => msg.role && msg.parts) // Filter invalid messages
+                .map(msg => ({
+                    role: msg.role,
+                    parts: [{ text: String(msg.parts) }] // Ensure parts is a string
+                }));
         }
 
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
@@ -113,8 +115,12 @@ app.post('/chat', async (req, res) => {
 
         res.json({ reply: text });
     } catch (error) {
-        console.error('Error:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        console.error('Gemini API Error:', error);
+        res.status(500).json({
+            error: 'Failed to generate response',
+            details: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 });
 
