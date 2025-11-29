@@ -167,7 +167,7 @@ app.post('/tts', async (req, res) => {
 
         // Default to the v3 female voice if none specified
         const voiceId = voice || 'Z3R5wn05IrDiVCyEkUrK';
-        const modelId = 'eleven_turbo_v2_5'; // Fast model with audio tag support
+        const modelId = 'eleven_turbo_v3'; // v3 model for v3 voice
 
         const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
             method: 'POST',
@@ -181,8 +181,8 @@ app.post('/tts', async (req, res) => {
                 voice_settings: {
                     stability: 0.5,
                     similarity_boost: 0.75
-                },
-                enable_ssml: true // Enable audio tag support
+                }
+                // Removed enable_ssml - v3 uses native audio tags
             })
         });
 
