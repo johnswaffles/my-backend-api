@@ -1,5 +1,5 @@
 <!-- Squarespace Code Block Start -->
-<!-- Version: 2024-11-28-v6 -->
+<!-- Version: 2024-11-28-v7 -->
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <div id="gemini-chat-wrapper">
 
@@ -15,6 +15,28 @@
             </div>
             <!-- TTS Controls -->
             <div class="tts-controls">
+                <select id="genre-selector" title="Select Story Genre">
+                    <option value="High Fantasy" selected>🐉 High Fantasy</option>
+                    <option value="Dark Fantasy">🌑 Dark Fantasy</option>
+                    <option value="Sci-Fi Space Opera">🚀 Sci-Fi Space Opera</option>
+                    <option value="Cyberpunk">🦾 Cyberpunk</option>
+                    <option value="Post-Apocalyptic">☢️ Post-Apocalyptic</option>
+                    <option value="Steampunk">⚙️ Steampunk</option>
+                    <option value="Noir Mystery">🕵️ Noir Mystery</option>
+                    <option value="Classic Mystery">🔍 Classic Mystery</option>
+                    <option value="Gothic Horror">🏰 Gothic Horror</option>
+                    <option value="Eldritch Horror">🐙 Eldritch Horror</option>
+                    <option value="Historical (Ancient Rome)">🏛️ Ancient Rome</option>
+                    <option value="Historical (Medieval)">⚔️ Medieval</option>
+                    <option value="Historical (Victorian)">🎩 Victorian</option>
+                    <option value="Historical (WWII)">🎖️ WWII</option>
+                    <option value="Western">🤠 Western</option>
+                    <option value="Pirate Adventure">🏴‍☠️ Pirate Adventure</option>
+                    <option value="Modern Thriller">🏙️ Modern Thriller</option>
+                    <option value="Romance (Contemporary)">💖 Contemporary Romance</option>
+                    <option value="Romance (Historical)">💌 Historical Romance</option>
+                    <option value="Superhero">🦸 Superhero</option>
+                </select>
                 <select id="voice-selector" title="Select Narration Voice">
                     <option value="">🔇 Silent</option>
                     <option value="echo" selected>🎙️ Roland</option>
@@ -144,7 +166,8 @@
         align-items: center;
     }
 
-    #voice-selector {
+    #voice-selector,
+    #genre-selector {
         padding: 8px 12px;
         background: rgba(26, 26, 46, 0.8);
         border: 1px solid #6b46c1;
@@ -154,9 +177,11 @@
         font-size: 0.85rem;
         cursor: pointer;
         outline: none;
+        max-width: 150px;
     }
 
-    #voice-selector:hover {
+    #voice-selector:hover,
+    #genre-selector:hover {
         border-color: #a78bfa;
     }
 
@@ -564,6 +589,7 @@
         const sendBtn = document.getElementById('send-btn');
         const messagesContainer = document.getElementById('chat-messages');
         const voiceSelector = document.getElementById('voice-selector');
+        const genreSelector = document.getElementById('genre-selector');
         const itemUseDropdown = document.getElementById('item-use-dropdown');
         const playPauseBtn = document.getElementById('play-pause-btn');
 
@@ -751,7 +777,8 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         message: text,
-                        history: conversationHistory
+                        history: conversationHistory,
+                        genre: genreSelector.value
                     })
                 });
 
