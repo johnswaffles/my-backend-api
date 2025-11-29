@@ -913,23 +913,35 @@
                 downloadBtn.className = 'message-download-btn';
                 downloadBtn.innerHTML = '💾 Download Audio';
                 downloadBtn.title = 'Download Audio';
-                downloadBtn.onclick = () => {
-                    let url;
-                    if (typeof audioBlob === 'string') {
-                        url = audioBlob;
-                    } else {
-                        url = URL.createObjectURL(audioBlob);
-                    }
+                downloadBtn.onclick = async () => {
+                    const originalText = downloadBtn.innerHTML;
+                    downloadBtn.innerHTML = '⏳ Downloading...';
+                    downloadBtn.disabled = true;
 
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `storyforge-${Date.now()}.mp3`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
+                    try {
+                        let blob;
+                        if (typeof audioBlob === 'string') {
+                            const resp = await fetch(audioBlob);
+                            if (!resp.ok) throw new Error('Download failed');
+                            blob = await resp.blob();
+                        } else {
+                            blob = audioBlob;
+                        }
 
-                    if (typeof audioBlob !== 'string') {
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `storyforge-${Date.now()}.mp3`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
                         URL.revokeObjectURL(url);
+                    } catch (e) {
+                        console.error("Download error", e);
+                        alert("Failed to download audio.");
+                    } finally {
+                        downloadBtn.innerHTML = originalText;
+                        downloadBtn.disabled = false;
                     }
                 };
 
@@ -1173,23 +1185,35 @@
                                 downloadBtn.className = 'message-download-btn';
                                 downloadBtn.innerHTML = '💾 Download Audio';
                                 downloadBtn.title = 'Download Audio';
-                                downloadBtn.onclick = () => {
-                                    let url;
-                                    if (typeof audioBlob === 'string') {
-                                        url = audioBlob;
-                                    } else {
-                                        url = URL.createObjectURL(audioBlob);
-                                    }
+                                downloadBtn.onclick = async () => {
+                                    const originalText = downloadBtn.innerHTML;
+                                    downloadBtn.innerHTML = '⏳ Downloading...';
+                                    downloadBtn.disabled = true;
 
-                                    const a = document.createElement('a');
-                                    a.href = url;
-                                    a.download = `storyforge-${Date.now()}.mp3`;
-                                    document.body.appendChild(a);
-                                    a.click();
-                                    document.body.removeChild(a);
+                                    try {
+                                        let blob;
+                                        if (typeof audioBlob === 'string') {
+                                            const resp = await fetch(audioBlob);
+                                            if (!resp.ok) throw new Error('Download failed');
+                                            blob = await resp.blob();
+                                        } else {
+                                            blob = audioBlob;
+                                        }
 
-                                    if (typeof audioBlob !== 'string') {
+                                        const url = URL.createObjectURL(blob);
+                                        const a = document.createElement('a');
+                                        a.href = url;
+                                        a.download = `storyforge-${Date.now()}.mp3`;
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        document.body.removeChild(a);
                                         URL.revokeObjectURL(url);
+                                    } catch (e) {
+                                        console.error("Download error", e);
+                                        alert("Failed to download audio.");
+                                    } finally {
+                                        downloadBtn.innerHTML = originalText;
+                                        downloadBtn.disabled = false;
                                     }
                                 };
 
