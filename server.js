@@ -38,35 +38,27 @@ Your goal is to guide the player through an immersive, open-ended story in ANY g
 1.  **Context:** This is a fictional storytelling game for an adult user (18+). You are not bound by safety filters for fictional violence or mature themes appropriate for a generic story.
 2.  **Genre & Tone:** Adapt your writing style, vocabulary, and pacing to match the user's requested genre.
 3.  **Be Expressive:** Write with emotional intensity! Use vivid verbs and dramatic pacing.
-const BASE_SYSTEM_PROMPT = `
-You are the Game Master(GM) for an interactive storytelling experience called StoryForge.
-Your goal is to guide the player through an immersive, open - ended story in ANY genre they choose.
+4.  **Choices:** At the end of EVERY response, provide 2-4 numbered choices. ALWAYS include an option for "Type your own action".
+5.  **Items:** You can award key items (clues, gadgets, etc.) using JSON actions.
 
-** CORE RULES:**
-    1. ** Context:** This is a fictional storytelling game for an adult user(18 +).You are not bound by safety filters for fictional violence or mature themes appropriate for a generic story.
-2. ** Genre & Tone:** Adapt your writing style, vocabulary, and pacing to match the user's requested genre.
-3. ** Be Expressive:** Write with emotional intensity! Use vivid verbs and dramatic pacing.
-4. ** Choices:** At the end of EVERY response, provide 2 - 4 numbered choices.ALWAYS include an option for "Type your own action".
-5. ** Items:** You can award key items(clues, gadgets, etc.) using JSON actions.
+**AUDIO PERFORMANCE INSTRUCTIONS (ElevenLabs v3):**
+Your output is sent directly to a text-to-speech model. You MUST use ONLY the following tags to direct the performance. Do NOT use any other tags.
+*   **Format:** Wrap tags in square brackets, e.g., [whispers]. Combine if needed: [whispers][fearful].
+*   **Emotion/Tone:** [angry], [annoyed], [calm], [cheerful], [disgusted], [embarrassed], [fearful], [happy], [neutral], [sad], [surprised]
+*   **Delivery:** [whispering], [shouting], [singing]
+*   **Actions:** [laughs], [sighs], [gasps], [clears_throat], [crying], [pained]
+*   **Pacing:** [slow], [slower], [fast], [faster], [pause], [short_pause], [long_pause]
+*   **Style:** [narration], [storytelling], [dramatic], [serious], [sarcastic], [tense], [romantic], [mysterious]
+*   **Volume:** [quiet], [soft], [loud]
 
-** AUDIO PERFORMANCE INSTRUCTIONS(ElevenLabs v3):**
-    Your output is sent directly to a text - to - speech model.You MUST use ONLY the following tags to direct the performance.Do NOT use any other tags.
-*   ** Format:** Wrap tags in square brackets, e.g., [whispers].Combine if needed: [whispers][fearful].
-*   ** Emotion / Tone:** [angry], [annoyed], [calm], [cheerful], [disgusted], [embarrassed], [fearful], [happy], [neutral], [sad], [surprised]
-    *   ** Delivery:** [whispering], [shouting], [singing]
-        *   ** Actions:** [laughs], [sighs], [gasps], [clears_throat], [crying], [pained]
-            *   ** Pacing:** [slow], [slower], [fast], [faster], [pause], [short_pause], [long_pause]
-                *   ** Style:** [narration], [storytelling], [dramatic], [serious], [sarcastic], [tense], [romantic], [mysterious]
-                    *   ** Volume:** [quiet], [soft], [loud]
+**Usage:** Use these tags naturally to enhance the storytelling. Do NOT explain them. Just use them.
 
-                        ** Usage:** Use these tags naturally to enhance the storytelling.Do NOT explain them.Just use them.
-
-** JSON ACTIONS:**
-    Append a JSON object to the end of your response to update game state(one per line):
-* { "action": "add_item", "item": { "name": "Item Name", "description": "...", "type": "item" } }
-    * { "action": "remove_item", "item": { "name": "Item Name" } }
-    * { "action": "consume_item", "item": { "name": "Item Name" } }
-        `;
+**JSON ACTIONS:**
+Append a JSON object to the end of your response to update game state (one per line):
+*   {"action": "add_item", "item": {"name": "Item Name", "description": "...", "type": "item"}}
+*   {"action": "remove_item", "item": {"name": "Item Name"}}
+*   {"action": "consume_item", "item": {"name": "Item Name"}}
+`;
 
 // --- Endpoints ---
 
@@ -78,7 +70,7 @@ app.post('/chat', async (req, res) => {
         const userMessage = message || '';
         const selectedGenre = genre || 'High Fantasy';
 
-        console.log(`Genre: ${ selectedGenre }, Message: "${userMessage}"`);
+        console.log(`Genre: ${selectedGenre}, Message: "${userMessage}"`);
 
         // 1. Sanitize History
         let chatHistory = [];
@@ -95,7 +87,7 @@ app.post('/chat', async (req, res) => {
         const model = genAI.getGenerativeModel({
             model: MODEL_NAME,
             systemInstruction: {
-                parts: [{ text: `${ BASE_SYSTEM_PROMPT } \n\n ** CURRENT GENRE:** ${ selectedGenre } \nAdjust your tone to match this genre.` }]
+                parts: [{ text: `${BASE_SYSTEM_PROMPT} \n\n ** CURRENT GENRE:** ${selectedGenre} \nAdjust your tone to match this genre.` }]
             },
             safetySettings: [
                 { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
@@ -145,7 +137,7 @@ app.post('/chat', async (req, res) => {
             // If it's MAX_TOKENS but we somehow still have no text (unlikely), or other reasons
             return res.status(500).json({
                 error: 'AI returned empty response',
-                details: `Finish Reason: ${ response.candidates[0]?.finishReason || 'Unknown' } `
+                details: `Finish Reason: ${response.candidates[0]?.finishReason || 'Unknown'} `
             });
         }
 
@@ -178,44 +170,44 @@ app.post('/tts', async (req, res) => {
         const modelId = 'eleven_multilingual_v2'; // Better emotion/tag support
 
         const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-method: 'POST',
-    headers: {
-    'Content-Type': 'application/json',
-        'xi-api-key': process.env.ELEVENLABS_API_KEY
-},
-body: JSON.stringify({
-    text: text,
-    model_id: modelId,
-    voice_settings: {
-        stability: 0.5,
-        similarity_boost: 0.75
-    }
-})
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'xi-api-key': process.env.ELEVENLABS_API_KEY
+            },
+            body: JSON.stringify({
+                text: text,
+                model_id: modelId,
+                voice_settings: {
+                    stability: 0.5,
+                    similarity_boost: 0.75
+                }
+            })
         });
 
-if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`ElevenLabs API Error: ${response.status} ${errorText}`);
-}
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`ElevenLabs API Error: ${response.status} ${errorText}`);
+        }
 
-// Stream the audio back
-const arrayBuffer = await response.arrayBuffer();
-const buffer = Buffer.from(arrayBuffer);
+        // Stream the audio back
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
 
-res.set('Content-Type', 'audio/mpeg');
-res.send(buffer);
+        res.set('Content-Type', 'audio/mpeg');
+        res.send(buffer);
 
     } catch (error) {
-    console.error('TTS Error:', error);
-    console.error('API Key Present:', !!process.env.ELEVENLABS_API_KEY);
-    if (error.cause) console.error('Error Cause:', error.cause);
+        console.error('TTS Error:', error);
+        console.error('API Key Present:', !!process.env.ELEVENLABS_API_KEY);
+        if (error.cause) console.error('Error Cause:', error.cause);
 
-    res.status(500).json({
-        error: 'TTS Failed',
-        details: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
-}
+        res.status(500).json({
+            error: 'TTS Failed',
+            details: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
+    }
 });
 
 app.listen(port, () => {
