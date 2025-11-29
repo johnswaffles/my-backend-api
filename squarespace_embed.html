@@ -32,11 +32,12 @@
             </select>
             <select id="voice-selector" class="sf-select" title="Select Voice">
                 <option value="">🔇 Silent</option>
-                <option value="Z3R5wn05IrDiVCyEkUrK" selected>🎙️ Narrator (Female)</option>
-                <option value="MSFwcDuw9rcnKKFbmBqn">🎙️ Johnny (Male)</option>
-                <option value="iP95p4xoKVk53GoZ742B">🎙️ Gabriel (Male)</option>
+                <option value="Z3R5wn05IrDiVCyEkUrK" selected>🎙️ Narrator</option>
+                <option value="MSFwcDuw9rcnKKFbmBqn">🎙️ Johnny</option>
+                <option value="iP95p4xoKVk53GoZ742B">🎙️ Gabriel</option>
             </select>
             <button id="play-pause-btn" class="sf-btn-icon" disabled title="Play/Pause TTS">▶️</button>
+            <button id="download-btn" class="sf-btn-icon" disabled title="Download Audio">💾</button>
         </div>
     </header>
 
@@ -679,7 +680,8 @@
             inventory: [],
             history: [],
             lastFullText: '',
-            christianContext: null
+            christianContext: null,
+            audioCache: null  // Cache audio to prevent duplicate API calls
         };
 
         const els = {
@@ -689,6 +691,7 @@
             genre: document.getElementById('genre-selector'),
             voice: document.getElementById('voice-selector'),
             playPause: document.getElementById('play-pause-btn'),
+            downloadBtn: document.getElementById('download-btn'),
             invGrid: document.getElementById('inventory-grid'),
             itemDrop: document.getElementById('item-use-dropdown'),
             container: document.getElementById('chat-container')
@@ -860,10 +863,13 @@
 
                 const verse = prompt(
                     '📖 BIBLE STORYTELLING\n\n' +
+                    '⚠️ NOTE: For Christian stories, all interaction happens in this popup.\n' +
+                    'No choices will be provided - the story unfolds naturally.\n\n' +
                     'Tell me which part of the Bible you\'d like to explore:\n' +
                     '• Specific verse (e.g., "John 3:16")\n' +
                     '• Book or chapter (e.g., "Genesis 1", "Book of Daniel")\n' +
                     '• Theme or topic (e.g., "faith", "miracles")\n' +
+                    '• Type anything you want!\n' +
                     '• Or press Enter for a random Bible story\n\n' +
                     'Your request:'
                 );
@@ -875,9 +881,8 @@
                     '📏 STORY LENGTH\n\n' +
                     'How long should the story be?\n\n' +
                     'Short - Quick summary (1-2 paragraphs)\n' +
-                    'Normal - Standard retelling (3-4 paragraphs)\n' +
-                    'Long - Detailed narrative (5+ paragraphs)\n\n' +
-                    'Type: short, normal, or long\n' +
+                    'Normal - Standard retelling (3-4 paragraphs)\n\n' +
+                    'Type: short or normal\n' +
                     '(Press Enter for Short)'
                 );
 
@@ -888,8 +893,6 @@
 
                 if (selectedLength === 'normal') {
                     lengthInstruction = ' Tell it in 3-4 paragraphs.';
-                } else if (selectedLength === 'long') {
-                    lengthInstruction = ' Tell it as a detailed, immersive narrative in 5 or more paragraphs.';
                 } else {
                     lengthInstruction = ' Keep it brief - just 1-2 paragraphs.';
                 }
@@ -899,7 +902,6 @@
                     state.christianContext = 'random';
                 } else {
                     msgText = `Tell me the Bible story from ${verse}.` + lengthInstruction;
-                    state.christianContext = verse;
                 }
             }
 
@@ -969,10 +971,18 @@
 
                 addMessage(stripAudioTags(reply), false); // Remove tags from display
 
-                // --- TTS: Send entire text to ElevenLabs ---
+                // --- TTS: Fetch once, cache, and enable playback/download ---
                 if (els.voice.value && reply) {
                     const audioBlob = await fetchTTS(reply);
                     if (audioBlob) {
+                        // Cache the audio
+                        state.audioCache = audioBlob;
+
+                        // Enable buttons
+                        els.playPause.disabled = false;
+                        els.downloadBtn.disabled = false;
+
+                        // Add to queue and play
                         audioQueue.add(audioBlob);
                     }
                 }
@@ -988,19 +998,14 @@
         }
 
         // --- Event Listeners ---
-        els.sendBtn.onclick = () => sendMessage();
-        els.input.onkeypress = (e) => { if (e.key === 'Enter') sendMessage(); };
 
-        els.itemDrop.onchange = (e) => {
-            const idx = e.target.value;
-            if (idx !== "") {
-                const item = state.inventory[idx];
-                sendMessage(`I use the ${item.name}`);
-                e.target.value = "";
-            }
-        };
+        els.sendBtn.addEventListener('click', () => sendMessage());
+        els.input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
 
-        els.playPause.onclick = () => {
+        // Play/Pause button - use cached audio, don't re-fetch
+        els.playPause.addEventListener('click', () => {
             if (audioQueue.isPlaying) {
                 audioQueue.stop(); // Or pause logic if preferred
             } else {
