@@ -853,15 +853,52 @@
 
             // Christian Genre Special Handling
             if (els.genre.value === 'Christian' && !state.christianContext) {
-                const verse = prompt('📖 Do you have a favorite verse or book you want to start with?\n\n(Press Enter or type "random" for a random Bible story)');
+                // Default to male voice for Christian genre
+                if (els.voice.value === 'Z3R5wn05IrDiVCyEkUrK') { // If using default female
+                    els.voice.value = 'MSFwcDuw9rcnKKFbmBqn'; // Switch to Johnny (male)
+                }
+
+                const verse = prompt(
+                    '📖 BIBLE STORYTELLING\n\n' +
+                    'Tell me which part of the Bible you\'d like to explore:\n' +
+                    '• Specific verse (e.g., "John 3:16")\n' +
+                    '• Book or chapter (e.g., "Genesis 1", "Book of Daniel")\n' +
+                    '• Theme or topic (e.g., "faith", "miracles")\n' +
+                    '• Or press Enter for a random Bible story\n\n' +
+                    'Your request:'
+                );
 
                 if (verse === null) return; // User cancelled
 
+                // Ask for length preference
+                const length = prompt(
+                    '📏 STORY LENGTH\n\n' +
+                    'How long should the story be?\n\n' +
+                    'Short - Quick summary (1-2 paragraphs)\n' +
+                    'Normal - Standard retelling (3-4 paragraphs)\n' +
+                    'Long - Detailed narrative (5+ paragraphs)\n\n' +
+                    'Type: short, normal, or long\n' +
+                    '(Press Enter for Short)'
+                );
+
+                if (length === null) return; // User cancelled
+
+                const selectedLength = (length.trim().toLowerCase() || 'short');
+                let lengthInstruction = '';
+
+                if (selectedLength === 'normal') {
+                    lengthInstruction = ' Tell it in 3-4 paragraphs.';
+                } else if (selectedLength === 'long') {
+                    lengthInstruction = ' Tell it as a detailed, immersive narrative in 5 or more paragraphs.';
+                } else {
+                    lengthInstruction = ' Keep it brief - just 1-2 paragraphs.';
+                }
+
                 if (verse.trim() === '' || verse.trim().toLowerCase() === 'random') {
-                    msgText = 'Tell me a random Bible story';
+                    msgText = 'Tell me a random Bible story.' + lengthInstruction;
                     state.christianContext = 'random';
                 } else {
-                    msgText = `Tell me the Bible story from ${verse}`;
+                    msgText = `Tell me the Bible story from ${verse}.` + lengthInstruction;
                     state.christianContext = verse;
                 }
             }
@@ -932,21 +969,11 @@
 
                 addMessage(stripAudioTags(reply), false); // Remove tags from display
 
-                // --- TTS Optimization: First Sentence First ---
-                if (els.voice.value) {
-                    const { first, rest } = splitText(reply);
-
-                    // Fetch first chunk immediately
-                    if (first) {
-                        const blob1 = await fetchTTS(first);
-                        if (blob1) audioQueue.add(blob1);
-                    }
-
-                    // Fetch rest in background
-                    if (rest) {
-                        fetchTTS(rest).then(blob2 => {
-                            if (blob2) audioQueue.add(blob2);
-                        });
+                // --- TTS: Send entire text to ElevenLabs ---
+                if (els.voice.value && reply) {
+                    const audioBlob = await fetchTTS(reply);
+                    if (audioBlob) {
+                        audioQueue.add(audioBlob);
                     }
                 }
 
