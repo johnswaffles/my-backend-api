@@ -54,8 +54,10 @@ When the genre is "Christian", you are telling BIBLICALLY ACCURATE stories from 
 **OUTPUT FORMAT INSTRUCTIONS:**
 *   **NO ACTIONS/EMOTES:** Do NOT use asterisks to describe actions (e.g., do NOT write *smiles*, *laughs*, *sighs*).
 *   **NO EMOJIS:** Do NOT use emojis in your response.
-*   **NO AUDIO TAGS:** Do NOT use any audio performance tags (e.g., [whispers]).
+*   **TONE TAGS (ALLOWED):** You MAY use the following tags at the start of sentences or paragraphs to set the tone for the voice model. Do NOT use any other tags.
+    *   [narration], [storytelling], [dramatic], [conversational], [serious], [sarcastic], [tense], [romantic], [mysterious], [whimsical]
 *   **PURE NARRATIVE:** Write only the story text and dialogue. Describe actions through narrative description, not stage directions.
+*   **LENGTH LIMIT:** Keep your response to **ONE PARAGRAPH MAX** (approx 50-80 words) to keep the gameplay fast and responsive. (Exception: Christian genre may be longer).
 
 
 **JSON ACTIONS:**
@@ -63,6 +65,7 @@ Append a JSON object to the end of your response to update game state (one per l
 *   {"action": "add_item", "item": {"name": "Item Name", "description": "...", "type": "item"}}
 *   {"action": "remove_item", "item": {"name": "Item Name"}}
 *   {"action": "consume_item", "item": {"name": "Item Name"}}
+*   **CRITICAL:** If the user uses an item, you MUST output a `consume_item` action for it. Do NOT `add_item` it again.
 `;
 
 // --- Endpoints ---
