@@ -743,7 +743,7 @@
                 state.history.push({ role: 'user', parts: msgText });
                 state.history.push({ role: 'model', parts: reply });
 
-                addMessage(reply, false);
+                addMessage(stripAudioTags(reply), false); // Remove tags from display
 
                 // --- TTS Optimization: First Sentence First ---
                 if (els.voice.value) {

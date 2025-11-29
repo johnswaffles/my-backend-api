@@ -181,7 +181,8 @@ app.post('/tts', async (req, res) => {
                 voice_settings: {
                     stability: 0.5,
                     similarity_boost: 0.75
-                }
+                },
+                enable_ssml: true // Enable audio tag support
             })
         });
 
