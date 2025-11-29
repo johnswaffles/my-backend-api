@@ -31,10 +31,10 @@
             </select>
             <select id="voice-selector" class="sf-select" title="Select Voice">
                 <option value="">🔇 Silent</option>
-                <option value="echo" selected>🎙️ Roland</option>
+                <option value="echo">🎙️ Roland</option>
                 <option value="fable">🎙️ Theron</option>
                 <option value="onyx">🎙️ Cedric</option>
-                <option value="nova">🎙️ Lyra</option>
+                <option value="nova" selected>🎙️ Lyra</option>
                 <option value="shimmer">🎙️ Morgana</option>
             </select>
             <button id="play-pause-btn" class="sf-btn-icon" disabled title="Play/Pause TTS">▶️</button>
@@ -391,6 +391,30 @@
         }
     }
 
+    @keyframes pulse-glow {
+        0% {
+            box-shadow: 0 0 5px var(--accent-purple);
+        }
+
+        50% {
+            box-shadow: 0 0 20px var(--accent-purple), 0 0 10px var(--accent-gold);
+        }
+
+        100% {
+            box-shadow: 0 0 5px var(--accent-purple);
+        }
+    }
+
+    /* Magical Loader */
+    .magical-orb {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, #fff, var(--accent-purple));
+        animation: pulse-glow 1.5s infinite ease-in-out;
+        margin: 0 auto;
+    }
+
     /* Scrollbar */
     ::-webkit-scrollbar {
         width: 6px;
@@ -501,15 +525,22 @@
         }
 
         function splitText(text) {
-            // Split into [First Sentence, Rest]
-            // Regex looks for first ., !, or ? followed by space or end of string
-            const match = text.match(/.*?[.!?](?:\s|$)/);
-            if (match && match[0].length < text.length) {
+            // Split into [First Chunk, Rest]
+            // Goal: Grab first ~50 words or ~300 chars to ensure audio buffer is long enough
+            // Look for punctuation after 250 chars
+            if (text.length < 300) {
+                return { first: text, rest: '' };
+            }
+
+            const splitIdx = text.indexOf('.', 250);
+            if (splitIdx !== -1) {
                 return {
-                    first: match[0],
-                    rest: text.substring(match[0].length)
+                    first: text.substring(0, splitIdx + 1),
+                    rest: text.substring(splitIdx + 1)
                 };
             }
+
+            // Fallback if no punctuation found reasonably early
             return { first: text, rest: '' };
         }
 
@@ -601,7 +632,7 @@
             // Loading
             const loader = document.createElement('div');
             loader.className = 'message bot-message';
-            loader.innerHTML = '<div class="avatar">⏳</div><div class="message-content">Thinking...</div>';
+            loader.innerHTML = '<div class="avatar">⏳</div><div class="message-content"><div class="magical-orb"></div></div>';
             els.messages.appendChild(loader);
             els.container.scrollTop = els.container.scrollHeight;
 
