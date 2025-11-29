@@ -385,6 +385,173 @@
         }
     }
 
+    /* ========================================
+       MOBILE RESPONSIVE STYLES
+       ======================================== */
+
+    @media (max-width: 768px) {
+
+        /* App Container */
+        #storyforge-app {
+            height: 100vh;
+            max-width: 100%;
+            border-radius: 0;
+            margin: 0;
+        }
+
+        /* Header - Stack controls on small screens */
+        .sf-header {
+            padding: 12px 16px;
+            flex-direction: column;
+            gap: 12px;
+            align-items: stretch;
+        }
+
+        .sf-brand {
+            justify-content: center;
+        }
+
+        .sf-title {
+            font-size: 1.2rem;
+        }
+
+        .sf-logo {
+            font-size: 1.3rem;
+        }
+
+        .sf-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 8px;
+            width: 100%;
+        }
+
+        .sf-select {
+            font-size: 0.8rem;
+            padding: 8px;
+            min-width: 0;
+        }
+
+        .sf-btn-icon {
+            width: 40px;
+            height: 40px;
+        }
+
+        /* Chat Area - More padding */
+        #chat-container {
+            padding: 16px;
+        }
+
+        /* Messages - Better mobile spacing */
+        .message {
+            max-width: 95%;
+            gap: 8px;
+        }
+
+        .message-content {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            padding: 12px 14px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            min-width: 32px;
+            /* Prevent shrinking */
+        }
+
+        /* Inventory - Full width on mobile */
+        #inventory-panel {
+            position: relative;
+            right: auto;
+            bottom: auto;
+            width: 100%;
+            margin: 0;
+            border-radius: 0;
+            padding: 12px 16px;
+        }
+
+        #inventory-grid {
+            grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+            gap: 8px;
+        }
+
+        .item-slot,
+        .empty-slot {
+            padding: 8px;
+            font-size: 0.75rem;
+        }
+
+        /* Footer - Better button sizing */
+        .sf-footer {
+            padding: 12px 16px;
+            gap: 10px;
+        }
+
+        #chat-input {
+            font-size: 1rem;
+            /* Prevent zoom on iOS */
+            padding: 12px;
+        }
+
+        #send-btn {
+            padding: 12px 20px;
+            font-size: 0.9rem;
+            min-width: 80px;
+            white-space: nowrap;
+        }
+
+        /* Loader - Smaller on mobile */
+        .sf-loader {
+            width: 40px;
+            height: 40px;
+        }
+
+        /* Prevent text overflow */
+        .message-content p {
+            margin: 0.5em 0;
+        }
+
+        .message-content ul,
+        .message-content ol {
+            padding-left: 1.5em;
+            margin: 0.5em 0;
+        }
+    }
+
+    /* Extra small phones */
+    @media (max-width: 375px) {
+        .sf-title {
+            font-size: 1rem;
+        }
+
+        .sf-controls {
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto;
+        }
+
+        .sf-btn-icon {
+            grid-column: 1 / -1;
+            justify-self: center;
+            width: 100%;
+            max-width: 120px;
+            border-radius: 8px;
+        }
+
+        .message-content {
+            font-size: 0.9rem;
+        }
+
+        #send-btn {
+            min-width: 70px;
+            padding: 12px 16px;
+        }
+    }
+
+
     @keyframes float {
 
         0%,
