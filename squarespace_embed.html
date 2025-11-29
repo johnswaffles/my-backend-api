@@ -28,10 +28,13 @@
                 <option value="Modern Thriller">🏙️ Thriller</option>
                 <option value="Romance">💖 Romance</option>
                 <option value="Superhero">🦸 Superhero</option>
+                <option value="Christian">✝️ Christian</option>
             </select>
             <select id="voice-selector" class="sf-select" title="Select Voice">
                 <option value="">🔇 Silent</option>
-                <option value="Z3R5wn05IrDiVCyEkUrK" selected>🎙️ Narrator</option>
+                <option value="Z3R5wn05IrDiVCyEkUrK" selected>🎙️ Narrator (Female)</option>
+                <option value="MSFwcDuw9rcnKKFbmBqn">🎙️ Johnny (Male)</option>
+                <option value="iP95p4xoKVk53GoZ742B">🎙️ Gabriel (Male)</option>
             </select>
             <button id="play-pause-btn" class="sf-btn-icon" disabled title="Play/Pause TTS">▶️</button>
         </div>
@@ -53,7 +56,7 @@
                     </svg>
                 </div>
                 <div class="message-content">
-                    Welcome, traveler. Select a genre above and tell me how your story begins...
+                    Welcome, traveler. Select a genre and voice above, then tell me how your story begins...
                 </div>
             </div>
         </div>
@@ -675,7 +678,8 @@
         const state = {
             inventory: [],
             history: [],
-            lastFullText: ''
+            lastFullText: '',
+            christianContext: null
         };
 
         const els = {
@@ -842,9 +846,25 @@
         }
 
 
+
         async function sendMessage(text = null) {
-            const msgText = text || els.input.value.trim();
+            let msgText = text || els.input.value.trim();
             if (!msgText) return;
+
+            // Christian Genre Special Handling
+            if (els.genre.value === 'Christian' && !state.christianContext) {
+                const verse = prompt('📖 Do you have a favorite verse or book you want to start with?\n\n(Press Enter or type "random" for a random Bible story)');
+
+                if (verse === null) return; // User cancelled
+
+                if (verse.trim() === '' || verse.trim().toLowerCase() === 'random') {
+                    msgText = 'Tell me a random Bible story';
+                    state.christianContext = 'random';
+                } else {
+                    msgText = `Tell me the Bible story from ${verse}`;
+                    state.christianContext = verse;
+                }
+            }
 
             // UI Updates
             els.input.value = '';
