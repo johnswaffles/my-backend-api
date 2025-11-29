@@ -1007,16 +1007,37 @@
         // Play/Pause button - use cached audio, don't re-fetch
         els.playPause.addEventListener('click', () => {
             if (audioQueue.isPlaying) {
-                audioQueue.stop(); // Or pause logic if preferred
+                audioQueue.pause();
             } else {
-                // Replay last message
-                if (state.lastFullText) {
-                    const { first, rest } = splitText(state.lastFullText);
-                    if (first) fetchTTS(first).then(b => b && audioQueue.add(b));
-                    if (rest) fetchTTS(rest).then(b => b && audioQueue.add(b));
+                // Use cached audio if available, don't re-fetch!
+                if (state.audioCache && !audioQueue.isPlaying) {
+                    audioQueue.add(state.audioCache);
                 }
             }
-        };
+        });
+
+        // Download button - download the cached audio
+        els.downloadBtn.addEventListener('click', () => {
+            if (state.audioCache) {
+                const url = URL.createObjectURL(state.audioCache);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `storyforge-audio-${Date.now()}.mp3`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+        });
+
+        els.itemDrop.addEventListener('change', (e) => {
+            const idx = e.target.value;
+            if (idx !== "") {
+                const item = state.inventory[idx];
+                sendMessage(`I use the ${item.name}`);
+                e.target.value = "";
+            }
+        });
 
     })();
 </script>
