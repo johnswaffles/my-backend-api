@@ -167,7 +167,7 @@ app.post('/tts', async (req, res) => {
 
         // Default to the v3 female voice if none specified
         const voiceId = voice || 'Z3R5wn05IrDiVCyEkUrK';
-        const modelId = 'eleven_turbo_v3'; // v3 model for v3 voice
+        const modelId = 'eleven_v3'; // Correct v3 model ID
 
         const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
             method: 'POST',
