@@ -32,7 +32,11 @@
             </select>
             <select id="voice-selector" class="sf-select" title="Select Voice">
                 <option value="">🔇 Silent</option>
-                <option value="fCxG8OHm4STbIsWe4aT9" selected>🎙️ Marcus</option>
+                <option value="dPah2VEoifKnZT37774q" selected>🎙️ Thorne</option>
+                <option value="MFZUKuGQUsGJPQjTS4wC">🎙️ Caleb</option>
+                <option value="ZthjuvLPty3kTMaNKVKb">🎙️ Elijah</option>
+                <option value="NOpBlnGInO9m6vDvFkFC">🎙️ Grandpa</option>
+                <option value="fCxG8OHm4STbIsWe4aT9">🎙️ Marcus</option>
                 <option value="MSFwcDuw9rcnKKFbmBqn">🎙️ Johnny</option>
                 <option value="Z3R5wn05IrDiVCyEkUrK">🎙️ Sophia</option>
                 <option value="iP95p4xoKVk53GoZ742B">🎙️ Gabriel</option>
@@ -1040,9 +1044,9 @@
             // Christian Genre Special Handling
             if (els.genre.value === 'Christian' && !state.christianContext) {
                 // Only auto-switch to male voice if user hasn't manually selected a different voice
-                // (if voice is still default Marcus or Silent, keep it as Marcus)
+                // (if voice is still default Thorne or Silent, keep it as Thorne)
                 if (els.voice.value === '' || !state.userChangedVoice) {
-                    els.voice.value = 'fCxG8OHm4STbIsWe4aT9'; // Set to Marcus
+                    els.voice.value = 'dPah2VEoifKnZT37774q'; // Set to Thorne
                 }
                 // Otherwise respect user's voice choice
                 const verse = prompt(
