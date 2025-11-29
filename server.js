@@ -75,35 +75,33 @@ What do you do?
 
 app.post('/chat', async (req, res) => {
     try {
+        console.log('Request Body:', JSON.stringify(req.body, null, 2)); // Log incoming request
+
         const { message, history, genre } = req.body;
         const userMessage = message || '';
-        const selectedGenre = genre || 'High Fantasy'; // Default if not provided
+        const selectedGenre = genre || 'High Fantasy';
 
         // Construct history for Gemini with validation
         let chatHistory = [];
         if (history && Array.isArray(history)) {
             chatHistory = history
-                .filter(msg => msg.role && msg.parts) // Filter invalid messages
+                .filter(msg => msg.role && msg.parts)
                 .map(msg => ({
                     role: msg.role,
-                    parts: [{ text: String(msg.parts) }] // Ensure parts is a string
+                    parts: [{ text: String(msg.parts) }]
                 }));
         }
 
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+        // Use the model name from env or default
+        const model = genAI.getGenerativeModel({
+            model: modelName,
+            systemInstruction: {
+                parts: [{ text: `${SYSTEM_PROMPT}\n\n**CURRENT GENRE:** ${selectedGenre}\nAdjust your tone, vocabulary, and tropes to match this genre perfectly.` }]
+            }
+        });
 
         const chat = model.startChat({
-            history: [
-                {
-                    role: "user",
-                    parts: [{ text: `${SYSTEM_PROMPT}\n\n**CURRENT GENRE:** ${selectedGenre}\nAdjust your tone, vocabulary, and tropes to match this genre perfectly.` }]
-                },
-                {
-                    role: "model",
-                    parts: [{ text: `Understood. I will act as the Game Master for a ${selectedGenre} story, adapting my style accordingly.` }]
-                },
-                ...chatHistory
-            ],
+            history: chatHistory, // Clean history without fake turns
             generationConfig: {
                 maxOutputTokens: 500,
             },
