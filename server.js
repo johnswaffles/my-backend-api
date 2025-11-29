@@ -187,7 +187,14 @@ app.post('/tts', async (req, res) => {
 
     } catch (error) {
         console.error('TTS Error:', error);
-        res.status(500).json({ error: 'TTS Failed', details: error.message });
+        console.error('API Key Present:', !!process.env.ELEVENLABS_API_KEY);
+        if (error.cause) console.error('Error Cause:', error.cause);
+
+        res.status(500).json({
+            error: 'TTS Failed',
+            details: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 });
 
