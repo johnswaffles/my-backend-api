@@ -153,7 +153,7 @@ app.post('/tts', async (req, res) => {
         if (!text) return res.status(400).json({ error: 'Text required' });
 
         const mp3 = await openai.audio.speech.create({
-            model: "tts-1-hd",
+            model: "tts-1", // Low latency model
             voice: voice || 'alloy',
             input: text
         });
