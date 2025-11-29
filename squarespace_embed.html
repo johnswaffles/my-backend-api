@@ -32,7 +32,8 @@
             </select>
             <select id="voice-selector" class="sf-select" title="Select Voice">
                 <option value="">🔇 Silent</option>
-                <option value="MSFwcDuw9rcnKKFbmBqn" selected>🎙️ Johnny</option>
+                <option value="fCxG8OHm4STbIsWe4aT9" selected>🎙️ Marcus</option>
+                <option value="MSFwcDuw9rcnKKFbmBqn">🎙️ Johnny</option>
                 <option value="Z3R5wn05IrDiVCyEkUrK">🎙️ Sophia</option>
                 <option value="iP95p4xoKVk53GoZ742B">🎙️ Gabriel</option>
             </select>
@@ -685,6 +686,9 @@
 
 <script>
     (function () {
+        if (window.storyForgeInitialized) return;
+        window.storyForgeInitialized = true;
+
         const BACKEND_URL = 'https://my-backend-api-1niy.onrender.com';
 
         // --- Audio Queue System ---
@@ -976,9 +980,9 @@
             // Christian Genre Special Handling
             if (els.genre.value === 'Christian' && !state.christianContext) {
                 // Only auto-switch to male voice if user hasn't manually selected a different voice
-                // (if voice is still default Johnny or Silent, keep it as Johnny)
+                // (if voice is still default Marcus or Silent, keep it as Marcus)
                 if (els.voice.value === '' || !state.userChangedVoice) {
-                    els.voice.value = 'MSFwcDuw9rcnKKFbmBqn'; // Set to Johnny
+                    els.voice.value = 'fCxG8OHm4STbIsWe4aT9'; // Set to Marcus
                 }
                 // Otherwise respect user's voice choice
                 const verse = prompt(
