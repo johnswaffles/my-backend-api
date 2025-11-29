@@ -188,10 +188,8 @@ app.post('/tts', async (req, res) => {
                 text: text,
                 model_id: modelId,
                 voice_settings: {
-                    stability: 0.4,  // Lower for faster processing
-                    similarity_boost: 0.5,  // Lower for faster processing
-                    style: 0.0,
-                    use_speaker_boost: false
+                    stability: 0.5,  // Valid value (0.0 to 1.0)
+                    similarity_boost: 0.75  // Valid value (0.0 to 1.0)
                 },
                 optimize_streaming_latency: 4  // Maximum optimization for speed
             })

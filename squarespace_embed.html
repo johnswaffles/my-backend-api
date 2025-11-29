@@ -32,8 +32,8 @@
             </select>
             <select id="voice-selector" class="sf-select" title="Select Voice">
                 <option value="">🔇 Silent</option>
-                <option value="Z3R5wn05IrDiVCyEkUrK" selected>🎙️ Narrator</option>
-                <option value="MSFwcDuw9rcnKKFbmBqn">🎙️ Johnny</option>
+                <option value="MSFwcDuw9rcnKKFbmBqn" selected>🎙️ Johnny</option>
+                <option value="Z3R5wn05IrDiVCyEkUrK">🎙️ Sophia</option>
                 <option value="iP95p4xoKVk53GoZ742B">🎙️ Gabriel</option>
             </select>
             <button id="play-pause-btn" class="sf-btn-icon" disabled title="Play/Pause TTS">▶️</button>
@@ -700,7 +700,8 @@
             history: [],
             lastFullText: '',
             christianContext: null,
-            audioCache: null  // Cache audio to prevent duplicate API calls
+            audioCache: null,  // Cache audio to prevent duplicate API calls
+            userChangedVoice: false  // Track if user manually changed voice
         };
 
         const els = {
@@ -895,11 +896,12 @@
 
             // Christian Genre Special Handling
             if (els.genre.value === 'Christian' && !state.christianContext) {
-                // Default to male voice for Christian genre
-                if (els.voice.value === 'Z3R5wn05IrDiVCyEkUrK') { // If using default female
-                    els.voice.value = 'MSFwcDuw9rcnKKFbmBqn'; // Switch to Johnny (male)
+                // Only auto-switch to male voice if user hasn't manually selected a different voice
+                // (if voice is still default Johnny or Silent, keep it as Johnny)
+                if (els.voice.value === '' || !state.userChangedVoice) {
+                    els.voice.value = 'MSFwcDuw9rcnKKFbmBqn'; // Set to Johnny
                 }
-
+                // Otherwise respect user's voice choice
                 const verse = prompt(
                     '📖 BIBLE STORYTELLING\n\n' +
                     '⚠️ NOTE: Opening options are selected here in this popup.\n' +
@@ -1043,6 +1045,11 @@
         els.sendBtn.addEventListener('click', () => sendMessage());
         els.input.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') sendMessage();
+        });
+
+        // Track when user manually changes voice
+        els.voice.addEventListener('change', () => {
+            state.userChangedVoice = true;
         });
 
         // Play/Pause button - use cached audio, don't re-fetch
