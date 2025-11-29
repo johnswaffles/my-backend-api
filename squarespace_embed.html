@@ -726,8 +726,7 @@
                 }
 
                 this.currentAudio = new Audio();
-                // Removed crossOrigin to prevent strict CORS checks on streaming
-                // this.currentAudio.crossOrigin = "anonymous"; 
+                this.currentAudio.crossOrigin = "anonymous"; // Re-added for reliable CORS handling
                 this.currentAudio.src = url;
                 this.currentAudio.preload = "auto";
 
@@ -855,6 +854,15 @@
 
         async function fetchTTS(text) {
             try {
+                // Clean text for TTS: remove *actions* and emojis
+                // This prevents the voice from reading "smiles" or "laughs"
+                const cleanText = text
+                    .replace(/\*[^*]+\*/g, '') // Remove *text*
+                    .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}]/gu, '') // Remove emojis
+                    .trim();
+
+                if (!cleanText) return null; // Nothing to say
+
                 // Show loading spinner on play button
                 const originalBtnContent = els.playPause.innerHTML;
                 els.playPause.innerHTML = '<div class="spinner"></div>';
@@ -863,8 +871,8 @@
                 // Optimization: Use GET endpoint for streaming if text is short enough
                 // This allows the browser to stream the audio directly via Audio element
                 // Increased limit to 4000 chars to cover most stories
-                if (text.length < 4000) {
-                    const url = `${BACKEND_URL}/tts?text=${encodeURIComponent(text)}&voice=${els.voice.value}`;
+                if (cleanText.length < 4000) {
+                    const url = `${BACKEND_URL}/tts?text=${encodeURIComponent(cleanText)}&voice=${els.voice.value}`;
 
                     // Restore button content immediately as we return the URL
                     els.playPause.innerHTML = originalBtnContent;
@@ -876,7 +884,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        text: text,
+                        text: cleanText,
                         voice: els.voice.value
                     })
                 });

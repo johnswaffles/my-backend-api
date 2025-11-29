@@ -202,19 +202,15 @@ app.get('/tts', async (req, res) => {
         }
 
         res.setHeader('Content-Type', 'audio/mpeg');
-        // Pipe the stream directly to the response
-        if (response.body && typeof response.body.pipe === 'function') {
-            response.body.pipe(res);
-        } else {
-            // For Node 18+ fetch, body is a ReadableStream, need to convert or iterate
-            const reader = response.body.getReader();
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                res.write(value);
-            }
-            res.end();
+
+        // Stream the audio back using a reader loop (most compatible)
+        const reader = response.body.getReader();
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            res.write(value);
         }
+        res.end();
 
     } catch (error) {
         console.error('TTS Error:', error);
@@ -256,19 +252,14 @@ app.post('/tts', async (req, res) => {
 
         res.setHeader('Content-Type', 'audio/mpeg');
 
-        // Optimized streaming using Readable.fromWeb (Node 18+)
-        if (Readable.fromWeb) {
-            Readable.fromWeb(response.body).pipe(res);
-        } else {
-            // Fallback for older Node versions
-            const reader = response.body.getReader();
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                res.write(value);
-            }
-            res.end();
+        // Stream the audio back using a reader loop (most compatible)
+        const reader = response.body.getReader();
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            res.write(value);
         }
+        res.end();
 
     } catch (error) {
         console.error('TTS Error:', error);
