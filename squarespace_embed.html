@@ -1,5 +1,5 @@
 <!-- Squarespace Code Block Start -->
-<!-- Version: 2024-11-28-v5 -->
+<!-- Version: 2024-11-28-v6 -->
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <div id="gemini-chat-wrapper">
 
@@ -47,68 +47,15 @@
         </div>
     </div>
 
-    <!-- RPG Stats Panel (Below Chat) -->
+    <!-- Story Inventory Panel (Below Chat) -->
     <div id="game-stats-panel">
         <div class="stats-header">
-            <h4>⚔️ Adventurer</h4>
-        </div>
-
-        <!-- Health -->
-        <div class="health-section">
-            <div class="stat-row">
-                <span class="stat-label">❤️ Health:</span>
-                <span class="stat-value" id="health-value">100/100</span>
-            </div>
-            <div class="health-bar">
-                <div class="health-bar-fill" id="health-bar-fill" style="width: 100%"></div>
-            </div>
-        </div>
-
-        <!-- Combat Stats -->
-        <div class="combat-stats-section">
-            <div class="stat-row">
-                <span class="stat-label">🛡️ Armor:</span>
-                <span class="stat-value" id="armor-value">0</span>
-            </div>
-            <div class="stat-row">
-                <span class="stat-label">⚔️ Damage:</span>
-                <span class="stat-value" id="damage-value">0</span>
-            </div>
-        </div>
-
-        <!-- Currency -->
-        <div class="currency-section">
-            <h5>💰 Wealth</h5>
-            <div class="currency-row">
-                <span class="coin gold">🟡 <span id="gold-count">0</span> G</span>
-                <span class="coin silver">⚪ <span id="silver-count">0</span> S</span>
-                <span class="coin copper">🟤 <span id="copper-count">0</span> C</span>
-            </div>
-        </div>
-
-        <!-- Equipment Grid -->
-        <div class="equipment-section">
-            <h5>🛡️ Equipment</h5>
-            <div class="equip-grid">
-                <div data-slot="head" title="Head">🎩</div>
-                <div data-slot="neck" title="Neck">📿</div>
-                <div data-slot="shoulders" title="Shoulders">👘</div>
-                <div data-slot="chest" title="Chest">👕</div>
-                <div data-slot="wrist" title="Wrist">⌚</div>
-                <div data-slot="gloves" title="Gloves">🧤</div>
-                <div data-slot="ring1" title="Ring 1">💍</div>
-                <div data-slot="ring2" title="Ring 2">💍</div>
-                <div data-slot="trinket1" title="Trinket 1">🧿</div>
-                <div data-slot="trinket2" title="Trinket 2">🧿</div>
-                <div data-slot="main_hand" title="Main Hand" class="big-slot">🗡️</div>
-                <div data-slot="off_hand" title="Off Hand" class="big-slot">🛡️</div>
-            </div>
+            <h4>🎒 Inventory</h4>
         </div>
 
         <!-- Inventory -->
         <div class="inventory-section">
             <div class="inventory-header">
-                <h5>🎒 Inventory</h5>
                 <select id="item-use-dropdown">
                     <option value="">⚗️ Use Item</option>
                 </select>
@@ -635,26 +582,10 @@
         }
 
         const gameState = {
-            health: 100,
-            maxHealth: 100,
-            currency: { gold: 0, silver: 0, copper: 0 },
-            stats: { armor: 0, damage: 0 },
-            inventory: [],
-            equipment: {}
+            inventory: []
         };
 
         function updateUI() {
-            const healthPercent = (gameState.health / gameState.maxHealth) * 100;
-            document.getElementById('health-bar-fill').style.width = healthPercent + '%';
-            document.getElementById('health-value').textContent = `${gameState.health}/${gameState.maxHealth}`;
-
-            document.getElementById('gold-count').textContent = gameState.currency.gold;
-            document.getElementById('silver-count').textContent = gameState.currency.silver;
-            document.getElementById('copper-count').textContent = gameState.currency.copper;
-
-            document.getElementById('armor-value').textContent = gameState.stats.armor;
-            document.getElementById('damage-value').textContent = gameState.stats.damage;
-
             const inventoryList = document.getElementById('inventory-list');
             if (gameState.inventory.length === 0) {
                 inventoryList.innerHTML = '<div class="empty-inventory">Empty...</div>';
@@ -668,45 +599,13 @@
             }
 
             // Update item use dropdown
-            const consumables = gameState.inventory.filter(i =>
-                i.type === 'potion' || i.type === 'food' || i.healing
-            );
             itemUseDropdown.innerHTML = '<option value="">⚗️ Use Item</option>';
-            consumables.forEach((item, idx) => {
+            gameState.inventory.forEach((item, idx) => {
                 const option = document.createElement('option');
                 option.value = idx;
-                option.textContent = `${item.name} (+${item.healing || 0} HP)`;
+                option.textContent = `Use ${item.name}`;
                 itemUseDropdown.appendChild(option);
             });
-
-            // Update equipment slots
-            document.querySelectorAll('.equip-grid > div').forEach(slotEl => {
-                const slotName = slotEl.dataset.slot;
-                const item = gameState.equipment[slotName];
-                if (item) {
-                    slotEl.classList.add('equipped');
-                    slotEl.innerHTML = `<span title="${item.name}">${getSlotIcon(slotName)}</span>`;
-                } else {
-                    slotEl.classList.remove('equipped');
-                    slotEl.innerHTML = getSlotIcon(slotName);
-                }
-            });
-        }
-
-        function getSlotIcon(slot) {
-            const icons = {
-                head: '🎩', neck: '📿', shoulders: '👘', chest: '👕', wrist: '⌚', gloves: '🧤',
-                ring1: '💍', ring2: '💍', trinket1: '🧿', trinket2: '🧿',
-                main_hand: '🗡️', off_hand: '🛡️'
-            };
-            return icons[slot] || '❓';
-        }
-
-        function updateCurrency(delta) {
-            gameState.currency.gold = Math.max(0, gameState.currency.gold + (delta.gold || 0));
-            gameState.currency.silver = Math.max(0, gameState.currency.silver + (delta.silver || 0));
-            gameState.currency.copper = Math.max(0, gameState.currency.copper + (delta.copper || 0));
-            updateUI();
         }
 
         function addItem(item) {
@@ -720,35 +619,6 @@
                 gameState.inventory.splice(index, 1);
                 updateUI();
             }
-        }
-
-        function equipItem(slot, item) {
-            removeItem(item.name);
-
-            if (gameState.equipment[slot]) {
-                addItem(gameState.equipment[slot]);
-            }
-
-            gameState.equipment[slot] = item;
-
-            if (item.stats) {
-                gameState.stats.armor += (item.stats.armor || 0);
-                gameState.stats.damage += (item.stats.damage || 0);
-            }
-
-            updateUI();
-        }
-
-        function takeDamage(amount) {
-            const mitigation = Math.min(0.9, (gameState.stats.armor * 0.5) / 100);
-            const actualDamage = Math.floor(amount * (1 - mitigation));
-            gameState.health = Math.max(0, gameState.health - actualDamage);
-            updateUI();
-        }
-
-        function heal(amount) {
-            gameState.health = Math.min(gameState.maxHealth, gameState.health + amount);
-            updateUI();
         }
 
         function addMessage(text, isUser) {
@@ -943,14 +813,10 @@
                                     addMessage(`➖ **Removed: ${action.item.name}**`, false);
                                 }
                                 break;
-                            case 'update_currency':
-                                updateCurrency(action);
-                                addMessage(`💰 **Currency Updated**`, false);
-                                break;
-                            case 'equip_item':
-                                if (action.slot && action.item) {
-                                    equipItem(action.slot, action.item);
-                                    addMessage(`🛡️ **Equipped: ${action.item.name}**`, false);
+                            case 'consume_item':
+                                if (action.item) {
+                                    removeItem(action.item.name);
+                                    addMessage(`✨ **Used: ${action.item.name}**`, false);
                                 }
                                 break;
                         }
@@ -958,35 +824,6 @@
                         botReply = botReply.replace(jsonStr, '').trim();
                     } catch (e) {
                         console.error('Error parsing JSON:', e, jsonStr);
-                    }
-                });
-
-                // Parse damage - improved regex
-                const damagePatterns = [
-                    /take[s]?\s+(\d+)\s+damage/gi,
-                    /\(-(\d+)\s*HP\)/g,
-                    /lose[s]?\s+(\d+)\s+health/gi
-                ];
-
-                damagePatterns.forEach(pattern => {
-                    const matches = botReply.matchAll(pattern);
-                    for (const match of matches) {
-                        takeDamage(parseInt(match[1]));
-                    }
-                });
-
-                // Parse healing
-                const healPatterns = [
-                    /regain[s]?\s+(\d+)\s+health/gi,
-                    /\(\+(\d+)\s*HP\)/g,
-                    /restore[s]?\s+(\d+)\s+health/gi,
-                    /heal[s]?\s+(\d+)/gi
-                ];
-
-                healPatterns.forEach(pattern => {
-                    const matches = botReply.matchAll(pattern);
-                    for (const match of matches) {
-                        heal(parseInt(match[1]));
                     }
                 });
 
@@ -1005,12 +842,15 @@
                 });
 
                 const cleanMessage = nonChoiceLines.join('\n').trim();
+                lastBotResponse = cleanMessage; // Store for replay
                 addMessage(cleanMessage, false);
 
                 // Play TTS if voice selected
                 const selectedVoice = voiceSelector.value;
                 if (selectedVoice) {
                     playTTS(cleanMessage, selectedVoice);
+                } else {
+                    playPauseBtn.disabled = true;
                 }
 
                 if (choices.length > 0) {
@@ -1046,15 +886,10 @@
             const idx = parseInt(e.target.value);
             if (isNaN(idx)) return;
 
-            const consumables = gameState.inventory.filter(i =>
-                i.type === 'potion' || i.type === 'food' || i.healing
-            );
-
-            if (consumables[idx]) {
-                const item = consumables[idx];
-                heal(item.healing || 10);
-                removeItem(item.name);
-                addMessage(`✨ You used ${item.name} and restored ${item.healing || 10} HP!`, false);
+            const item = gameState.inventory[idx];
+            if (item) {
+                // Send action to backend that item was used
+                sendMessage(`I use the ${item.name}`);
                 e.target.value = '';
             }
         });
