@@ -168,14 +168,67 @@ app.post('/chat', async (req, res) => {
     }
 });
 
+// GET endpoint for streaming (faster for shorter text)
+app.get('/tts', async (req, res) => {
+    try {
+        const { text, voice } = req.query;
+        if (!text) return res.status(400).json({ error: 'Text required' });
+        if (!process.env.ELEVENLABS_API_KEY) return res.status(500).json({ error: 'ElevenLabs API Key missing' });
+
+        const voiceId = voice || 'fCxG8OHm4STbIsWe4aT9'; // Default to Marcus
+        const modelId = 'eleven_v3';
+
+        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'xi-api-key': process.env.ELEVENLABS_API_KEY
+            },
+            body: JSON.stringify({
+                text: text,
+                model_id: modelId,
+                voice_settings: {
+                    stability: 0.5,
+                    similarity_boost: 0.75
+                },
+                optimize_streaming_latency: 4
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            return res.status(response.status).json(errorData);
+        }
+
+        res.setHeader('Content-Type', 'audio/mpeg');
+        // Pipe the stream directly to the response
+        if (response.body && typeof response.body.pipe === 'function') {
+            response.body.pipe(res);
+        } else {
+            // For Node 18+ fetch, body is a ReadableStream, need to convert or iterate
+            const reader = response.body.getReader();
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                res.write(value);
+            }
+            res.end();
+        }
+
+    } catch (error) {
+        console.error('TTS Error:', error);
+        res.status(500).json({ error: 'TTS Failed', details: error.message });
+    }
+});
+
 app.post('/tts', async (req, res) => {
     try {
         const { text, voice } = req.body;
         if (!text) return res.status(400).json({ error: 'Text required' });
         if (!process.env.ELEVENLABS_API_KEY) return res.status(500).json({ error: 'ElevenLabs API Key missing' });
 
-        // Default to the v3 female voice if none specified
-        const voiceId = voice || 'Z3R5wn05IrDiVCyEkUrK';
+        // Default to Marcus if none specified
+        const voiceId = voice || 'fCxG8OHm4STbIsWe4aT9';
         const modelId = 'eleven_v3'; // Correct v3 model ID
 
         const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
@@ -188,35 +241,36 @@ app.post('/tts', async (req, res) => {
                 text: text,
                 model_id: modelId,
                 voice_settings: {
-                    stability: 0.5,  // Valid value (0.0 to 1.0)
-                    similarity_boost: 0.75  // Valid value (0.0 to 1.0)
+                    stability: 0.5,
+                    similarity_boost: 0.75
                 },
                 optimize_streaming_latency: 4  // Maximum optimization for speed
             })
         });
 
         if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`ElevenLabs API Error: ${response.status} ${errorText}`);
+            const errorData = await response.json();
+            return res.status(response.status).json(errorData);
         }
 
-        // Stream the audio back
-        const arrayBuffer = await response.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
+        res.setHeader('Content-Type', 'audio/mpeg');
 
-        res.set('Content-Type', 'audio/mpeg');
-        res.send(buffer);
+        // Handle stream piping for Node environment
+        if (response.body && typeof response.body.pipe === 'function') {
+            response.body.pipe(res);
+        } else {
+            const reader = response.body.getReader();
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                res.write(value);
+            }
+            res.end();
+        }
 
     } catch (error) {
         console.error('TTS Error:', error);
-        console.error('API Key Present:', !!process.env.ELEVENLABS_API_KEY);
-        if (error.cause) console.error('Error Cause:', error.cause);
-
-        res.status(500).json({
-            error: 'TTS Failed',
-            details: error.message,
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-        });
+        res.status(500).json({ error: 'TTS Failed', details: error.message });
     }
 });
 

@@ -699,8 +699,8 @@
                 this.currentAudio = null;
             }
 
-            add(blob) {
-                this.queue.push(blob);
+            add(item) {
+                this.queue.push(item);
                 if (!this.isPlaying) this.playNext();
             }
 
@@ -712,13 +712,27 @@
                 }
 
                 this.isPlaying = true;
-                const blob = this.queue.shift();
-                const url = URL.createObjectURL(blob);
+                const item = this.queue.shift();
+
+                let url;
+                if (typeof item === 'string') {
+                    url = item; // It's a URL
+                } else {
+                    url = URL.createObjectURL(item); // It's a Blob
+                }
+
                 this.currentAudio = new Audio(url);
 
                 updatePlayButton(true);
 
                 this.currentAudio.onended = () => {
+                    if (typeof item !== 'string') URL.revokeObjectURL(url); // Clean up blob URLs
+                    this.playNext();
+                };
+
+                this.currentAudio.onerror = (e) => {
+                    console.error("Audio Playback Error", e);
+                    if (typeof item !== 'string') URL.revokeObjectURL(url);
                     this.playNext();
                 };
 
@@ -808,6 +822,17 @@
                 els.playPause.innerHTML = '<div class="spinner"></div>';
                 els.playPause.disabled = true;
 
+                // Optimization: Use GET endpoint for streaming if text is short enough
+                // This allows the browser to stream the audio directly via Audio element
+                if (text.length < 1500) {
+                    const url = `${BACKEND_URL}/tts?text=${encodeURIComponent(text)}&voice=${els.voice.value}`;
+
+                    // Restore button content immediately as we return the URL
+                    els.playPause.innerHTML = originalBtnContent;
+                    return url;
+                }
+
+                // Fallback to POST for long text (waits for full download)
                 const response = await fetch(`${BACKEND_URL}/tts`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -817,7 +842,7 @@
                     })
                 });
 
-                // Restore button content (will be updated by audioQueue if playing)
+                // Restore button content
                 els.playPause.innerHTML = originalBtnContent;
 
                 if (!response.ok) {
@@ -889,14 +914,23 @@
                 downloadBtn.innerHTML = '💾 Download Audio';
                 downloadBtn.title = 'Download Audio';
                 downloadBtn.onclick = () => {
-                    const url = URL.createObjectURL(audioBlob);
+                    let url;
+                    if (typeof audioBlob === 'string') {
+                        url = audioBlob;
+                    } else {
+                        url = URL.createObjectURL(audioBlob);
+                    }
+
                     const a = document.createElement('a');
                     a.href = url;
                     a.download = `storyforge-${Date.now()}.mp3`;
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
+
+                    if (typeof audioBlob !== 'string') {
+                        URL.revokeObjectURL(url);
+                    }
                 };
 
                 downloadContainer.appendChild(downloadBtn);
@@ -1140,14 +1174,23 @@
                                 downloadBtn.innerHTML = '💾 Download Audio';
                                 downloadBtn.title = 'Download Audio';
                                 downloadBtn.onclick = () => {
-                                    const url = URL.createObjectURL(audioBlob);
+                                    let url;
+                                    if (typeof audioBlob === 'string') {
+                                        url = audioBlob;
+                                    } else {
+                                        url = URL.createObjectURL(audioBlob);
+                                    }
+
                                     const a = document.createElement('a');
                                     a.href = url;
                                     a.download = `storyforge-${Date.now()}.mp3`;
                                     document.body.appendChild(a);
                                     a.click();
                                     document.body.removeChild(a);
-                                    URL.revokeObjectURL(url);
+
+                                    if (typeof audioBlob !== 'string') {
+                                        URL.revokeObjectURL(url);
+                                    }
                                 };
 
                                 downloadContainer.appendChild(downloadBtn);
