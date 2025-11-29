@@ -782,7 +782,16 @@
                     })
                 });
 
-                if (!response.ok) throw new Error('Network error');
+                if (!response.ok) {
+                    let errorMessage = 'Network error';
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.details || errorData.error || `Server Error: ${response.status}`;
+                    } catch (e) {
+                        errorMessage = `Server Error: ${response.status}`;
+                    }
+                    throw new Error(errorMessage);
+                }
 
                 const data = await response.json();
                 hideLoading();
@@ -899,7 +908,7 @@
 
             } catch (error) {
                 hideLoading();
-                addMessage("⚠️ Error connecting to server.", false);
+                addMessage(`⚠️ Error: ${error.message}`, false);
                 console.error(error);
             } finally {
                 input.disabled = false;
