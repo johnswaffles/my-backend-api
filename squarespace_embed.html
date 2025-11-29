@@ -525,6 +525,11 @@
 
         // --- Helpers ---
 
+        function stripAudioTags(text) {
+            // Remove all audio tags like [whispers], [laughs], [pause], etc.
+            return text.replace(/\[([a-z_]+)\]/gi, '');
+        }
+
         function updatePlayButton(isPlaying) {
             els.playPause.textContent = isPlaying ? '⏸️' : '▶️';
             els.playPause.disabled = false;
@@ -641,6 +646,34 @@
         }
 
         // --- Core Logic ---
+
+        // Function to parse and apply actions from bot reply
+        function parseAndApplyActions(replyText) {
+            const lines = replyText.split('\n');
+            const cleanLines = lines.filter(line => {
+                if (line.trim().startsWith('{') && line.trim().endsWith('}')) {
+                    try {
+                        const action = JSON.parse(line);
+                        if (action.action === 'add_item') state.inventory.push(action.item);
+                        if (action.action === 'remove_item') {
+                            state.inventory = state.inventory.filter(i => i.name !== action.item.name);
+                        }
+                        if (action.action === 'consume_item') {
+                            state.inventory = state.inventory.filter(i => i.name !== action.item.name);
+                            addMessage(`✨ Used ${action.item.name}`, false);
+                        }
+                        return false; // This line was an action, so filter it out of the display text
+                    } catch (e) {
+                        console.warn("Failed to parse action JSON:", line, e);
+                        return true; // Keep line if it looks like JSON but fails to parse
+                    }
+                }
+                return true; // Keep non-JSON lines
+            });
+            updateInventory(); // Update inventory after processing actions
+            return cleanLines.join('\n').trim(); // Return the text without action lines
+        }
+
 
         async function sendMessage(text = null) {
             const msgText = text || els.input.value.trim();
