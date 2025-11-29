@@ -80,10 +80,13 @@ app.post('/chat', async (req, res) => {
         const selectedGenre = genre || 'High Fantasy'; // Default if not provided
 
         // Construct history for Gemini
-        const chatHistory = history.map(msg => ({
-            role: msg.role,
-            parts: [{ text: msg.parts }]
-        }));
+        let chatHistory = [];
+        if (history && Array.isArray(history)) {
+            chatHistory = history.map(msg => ({
+                role: msg.role,
+                parts: [{ text: msg.parts }]
+            }));
+        }
 
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
 
