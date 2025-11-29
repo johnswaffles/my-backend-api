@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const OpenAI = require('openai');
+const { Readable } = require('stream');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -255,10 +256,11 @@ app.post('/tts', async (req, res) => {
 
         res.setHeader('Content-Type', 'audio/mpeg');
 
-        // Handle stream piping for Node environment
-        if (response.body && typeof response.body.pipe === 'function') {
-            response.body.pipe(res);
+        // Optimized streaming using Readable.fromWeb (Node 18+)
+        if (Readable.fromWeb) {
+            Readable.fromWeb(response.body).pipe(res);
         } else {
+            // Fallback for older Node versions
             const reader = response.body.getReader();
             while (true) {
                 const { done, value } = await reader.read();

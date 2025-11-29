@@ -726,7 +726,8 @@
                 }
 
                 this.currentAudio = new Audio();
-                this.currentAudio.crossOrigin = "anonymous";
+                // Removed crossOrigin to prevent strict CORS checks on streaming
+                // this.currentAudio.crossOrigin = "anonymous"; 
                 this.currentAudio.src = url;
                 this.currentAudio.preload = "auto";
 
