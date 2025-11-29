@@ -89,15 +89,30 @@ app.post('/chat', async (req, res) => {
         const chat = model.startChat({
             history: chatHistory,
             generationConfig: {
-                maxOutputTokens: 800,
-                temperature: 0.9, // Creative
+                maxOutputTokens: 4096, // Increased limit for longer stories
+                temperature: 0.9,
             },
         });
 
         // 4. Generate Response
         const result = await chat.sendMessage(userMessage);
         const response = await result.response;
-        const text = response.text();
+
+        let text = '';
+        try {
+            text = response.text();
+        } catch (e) {
+            // response.text() might throw if the generation was not clean (e.g. safety or max tokens)
+            console.warn('response.text() threw, attempting to read candidate directly:', e.message);
+        }
+
+        // Fallback: Try to get text from candidate if response.text() failed or was empty
+        if (!text && response.candidates && response.candidates.length > 0) {
+            const candidate = response.candidates[0];
+            if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
+                text = candidate.content.parts.map(p => p.text).join('');
+            }
+        }
 
         // 5. Validation
         console.log('Gemini Response Length:', text ? text.length : 0);
@@ -107,10 +122,18 @@ app.post('/chat', async (req, res) => {
             console.warn('Finish Reason:', response.candidates[0]?.finishReason);
             console.warn('Safety Ratings:', JSON.stringify(response.candidates[0]?.safetyRatings, null, 2));
 
+            // If it's MAX_TOKENS but we somehow still have no text (unlikely), or other reasons
             return res.status(500).json({
                 error: 'AI returned empty response',
                 details: `Finish Reason: ${response.candidates[0]?.finishReason || 'Unknown'}`
             });
+        }
+
+        // If we have text but it was cut off (MAX_TOKENS), we still send it.
+        if (response.candidates[0]?.finishReason === 'MAX_TOKENS') {
+            console.warn('Response truncated due to MAX_TOKENS');
+            // Optional: Append a note or just let it be.
+            // text += "\n[...Response truncated...]"; 
         }
 
         res.json({ reply: text });
