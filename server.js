@@ -93,15 +93,36 @@ app.post('/chat', async (req, res) => {
         }
 
         // Use the model name from env or default
-        const model = genAI.getGenerativeModel({
-            model: modelName,
-            systemInstruction: {
+        const model = genAI.getGenerativeModel({ model: modelName });
+
+        // Prepare the system context
+        const systemContext = [
+            {
+                role: "user",
                 parts: [{ text: `${SYSTEM_PROMPT}\n\n**CURRENT GENRE:** ${selectedGenre}\nAdjust your tone, vocabulary, and tropes to match this genre perfectly.` }]
+            },
+            {
+                role: "model",
+                parts: [{ text: `Understood. I will act as the Game Master for a ${selectedGenre} story, adapting my style accordingly.` }]
             }
-        });
+        ];
+
+        // Ensure history doesn't break alternation (Model -> Model)
+        // If the first message in chatHistory is 'model', we need to insert a user message or merge.
+        // Since we are prepending systemContext (ending in Model), the next message MUST be User.
+        if (chatHistory.length > 0 && chatHistory[0].role === 'model') {
+            // Insert a dummy user message to maintain alternation
+            chatHistory.unshift({
+                role: 'user',
+                parts: [{ text: "Continue the story." }]
+            });
+        }
 
         const chat = model.startChat({
-            history: chatHistory, // Clean history without fake turns
+            history: [
+                ...systemContext,
+                ...chatHistory
+            ],
             generationConfig: {
                 maxOutputTokens: 500,
             },
