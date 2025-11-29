@@ -177,7 +177,7 @@ app.get('/tts', async (req, res) => {
         if (!process.env.ELEVENLABS_API_KEY) return res.status(500).json({ error: 'ElevenLabs API Key missing' });
 
         const voiceId = voice || 'dPah2VEoifKnZT37774q'; // Default to Thorne
-        const modelId = 'eleven_v3';
+        const modelId = 'eleven_turbo_v2_5'; // Faster low-latency model
 
         const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
             method: 'POST',
@@ -230,7 +230,7 @@ app.post('/tts', async (req, res) => {
 
         // Default to Thorne if none specified
         const voiceId = voice || 'dPah2VEoifKnZT37774q';
-        const modelId = 'eleven_v3'; // Correct v3 model ID
+        const modelId = 'eleven_turbo_v2_5'; // Faster low-latency model
 
         const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
             method: 'POST',

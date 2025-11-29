@@ -862,7 +862,8 @@
 
                 // Optimization: Use GET endpoint for streaming if text is short enough
                 // This allows the browser to stream the audio directly via Audio element
-                if (text.length < 1500) {
+                // Increased limit to 4000 chars to cover most stories
+                if (text.length < 4000) {
                     const url = `${BACKEND_URL}/tts?text=${encodeURIComponent(text)}&voice=${els.voice.value}`;
 
                     // Restore button content immediately as we return the URL
