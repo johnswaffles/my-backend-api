@@ -43,7 +43,17 @@
     <main id="chat-container">
         <div id="chat-messages">
             <div class="message bot-message">
-                <div class="avatar">🧙‍♂️</div>
+                <div class="avatar">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="url(#grad1)" />
+                        <defs>
+                            <linearGradient id="grad1" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                                <stop stop-color="#ffd700" />
+                                <stop offset="1" stop-color="#b537f2" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
                 <div class="message-content">
                     Welcome, traveler. Select a genre above and tell me how your story begins...
                 </div>
@@ -576,7 +586,21 @@
             if (!isUser) {
                 const avatar = document.createElement('div');
                 avatar.className = 'avatar';
-                avatar.textContent = isError ? '⚠️' : '🧙‍♂️';
+                if (isError) {
+                    avatar.textContent = '⚠️';
+                } else {
+                    // Cool SVG Graphic (Sparkle/Star)
+                    avatar.innerHTML = `
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="url(#grad1)"/>
+                        <defs>
+                            <linearGradient id="grad1" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
+                                <stop stop-color="#ffd700"/>
+                                <stop offset="1" stop-color="#b537f2"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>`;
+                }
                 div.appendChild(avatar);
             }
 
