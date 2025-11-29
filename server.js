@@ -132,9 +132,22 @@ app.post('/chat', async (req, res) => {
         const response = await result.response;
         const text = response.text();
 
+        console.log('Gemini Response Text:', text); // Log the generated text
+        console.log('Gemini Candidates:', JSON.stringify(response.candidates, null, 2)); // Log candidates
+
+        if (!text) {
+            console.warn('Gemini returned empty text.');
+            return res.json({ reply: "The storyteller is silent. (Empty response from AI)" });
+        }
+
         res.json({ reply: text });
     } catch (error) {
         console.error('Gemini API Error:', error);
+        // Check if it's a safety block
+        if (error.response && error.response.promptFeedback) {
+            console.error('Prompt Feedback:', error.response.promptFeedback);
+        }
+
         res.status(500).json({
             error: 'Failed to generate response',
             details: error.message,
