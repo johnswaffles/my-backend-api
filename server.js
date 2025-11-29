@@ -151,14 +151,37 @@ app.post('/tts', async (req, res) => {
     try {
         const { text, voice } = req.body;
         if (!text) return res.status(400).json({ error: 'Text required' });
+        if (!process.env.ELEVENLABS_API_KEY) return res.status(500).json({ error: 'ElevenLabs API Key missing' });
 
-        const mp3 = await openai.audio.speech.create({
-            model: "tts-1", // Low latency model
-            voice: voice || 'alloy',
-            input: text
+        // Default to the female voice if none specified
+        const voiceId = voice || 'kdmDKE6EkgrWrrykO9Qt';
+        const modelId = 'eleven_turbo_v2_5'; // Lowest latency model
+
+        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'xi-api-key': process.env.ELEVENLABS_API_KEY
+            },
+            body: JSON.stringify({
+                text: text,
+                model_id: modelId,
+                voice_settings: {
+                    stability: 0.5,
+                    similarity_boost: 0.75
+                }
+            })
         });
 
-        const buffer = Buffer.from(await mp3.arrayBuffer());
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`ElevenLabs API Error: ${response.status} ${errorText}`);
+        }
+
+        // Stream the audio back
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
         res.set('Content-Type', 'audio/mpeg');
         res.send(buffer);
 
