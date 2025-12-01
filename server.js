@@ -65,7 +65,7 @@ Append a JSON object to the end of your response to update game state (one per l
 *   {"action": "add_item", "item": {"name": "Item Name", "description": "...", "type": "item"}}
 *   {"action": "remove_item", "item": {"name": "Item Name"}}
 *   {"action": "consume_item", "item": {"name": "Item Name"}}
-*   **CRITICAL:** If the user uses an item, you MUST output a `consume_item` action for it. Do NOT `add_item` it again.
+*   **CRITICAL:** If the user uses an item, you MUST output a \`consume_item\` action for it. Do NOT \`add_item\` it again.
 `;
 
 // --- Endpoints ---
