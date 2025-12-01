@@ -28,6 +28,8 @@
                 <option value="Modern Thriller">🏙️ Thriller</option>
                 <option value="Romance">💖 Romance</option>
                 <option value="Superhero">🦸 Superhero</option>
+                <option value="Comedy">😂 Comedy</option>
+                <option value="Video Game">🎮 Video Game</option>
                 <option value="Christian">✝️ Christian</option>
             </select>
             <select id="voice-selector" class="sf-select" title="Select Voice">
@@ -791,6 +793,7 @@
             lastFullText: '',
             christianContext: false,
             romanceContext: false,
+            videoGameContext: false,
             audioCache: null,  // Cache audio to prevent duplicate API calls
             userChangedVoice: false  // Track if user manually changed voice
         };
@@ -1071,6 +1074,31 @@
         async function sendMessage(text = null) {
             let msgText = text || els.input.value.trim();
             if (!msgText) return;
+
+            // Video Game Genre Special Handling
+            if (els.genre.value === 'Video Game' && !state.videoGameContext) {
+                const startChoice = prompt(
+                    '🎮 VIDEO GAME START\n\n' +
+                    'Where does your character start?\n' +
+                    '1. Real Life (They will enter the game later)\n' +
+                    '2. In Game (They start inside the game world)\n\n' +
+                    'Type "1" or "2" (or "Real" / "Game"):'
+                );
+
+                if (startChoice === null) return; // User cancelled
+
+                const choice = startChoice.toLowerCase();
+                let context = "";
+                if (choice.includes('1') || choice.includes('real')) {
+                    context = "The story starts in the REAL WORLD. The character is a gamer who will eventually enter the video game.";
+                } else {
+                    context = "The story starts directly INSIDE the video game world. The character is already in the game.";
+                }
+
+                // Prepend context to user's message
+                msgText = `[Genre: Video Game] ${context} \n\nUser's opening action/request: "${msgText}"`;
+                state.videoGameContext = true;
+            }
 
             // Romance Genre Special Handling
             if (els.genre.value === 'Romance' && !state.romanceContext) {
