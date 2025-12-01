@@ -54,8 +54,7 @@ When the genre is "Christian", you are telling BIBLICALLY ACCURATE stories from 
 **OUTPUT FORMAT INSTRUCTIONS:**
 *   **NO ACTIONS/EMOTES:** Do NOT use asterisks to describe actions (e.g., do NOT write *smiles*, *laughs*, *sighs*).
 *   **NO EMOJIS:** Do NOT use emojis in your response.
-*   **TONE TAGS (ALLOWED):** You MAY use the following tags at the start of sentences or paragraphs to set the tone for the voice model. Do NOT use any other tags.
-    *   [narration], [storytelling], [dramatic], [conversational], [serious], [sarcastic], [tense], [romantic], [mysterious], [whimsical]
+*   **TONE TAGS:** Do NOT use any tone tags (e.g., [narration]). Write purely in the voice of the narrator or character.
 *   **PURE NARRATIVE:** Write only the story text and dialogue. Describe actions through narrative description, not stage directions.
 *   **CRITICAL LENGTH RULE:** You MUST respond with EXACTLY ONE PARAGRAPH ONLY. Target 60-80 words. Do NOT write multiple paragraphs. Do NOT add line breaks within your response. Keep it punchy and fast-paced. (Exception: Christian genre may be 2-3 paragraphs for proper Bible storytelling).
 
@@ -164,6 +163,63 @@ app.post('/chat', async (req, res) => {
             error: 'Internal Server Error',
             details: error.message
         });
+    }
+});
+
+// --- Image Generation Endpoint ---
+app.post('/generate-image', async (req, res) => {
+    try {
+        const { history, style, genre } = req.body;
+
+        if (!process.env.OPENAI_API_KEY) {
+            return res.status(500).json({ error: "OpenAI API Key missing for image generation" });
+        }
+
+        // 1. Summarize Character & Scene using Gemini (for consistency)
+        // We ask Gemini to extract visual details from the chat history
+        const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+
+        // Extract last few messages for context
+        const recentHistory = history ? history.slice(-10) : [];
+        const summaryPrompt = `
+        Based on the following chat history, describe the MAIN CHARACTER's physical appearance and the CURRENT SCENE in detail.
+        Focus on visual details (hair, eyes, clothing, setting, lighting).
+        Keep it concise (under 100 words).
+        
+        Chat History:
+        ${JSON.stringify(recentHistory)}
+        `;
+
+        const summaryResult = await model.generateContent(summaryPrompt);
+        const visualDescription = summaryResult.response.text();
+
+        console.log(`Visual Description: ${visualDescription}`);
+
+        // 2. Generate Image Prompt for DALL-E 3
+        // We request a 4-panel grid to show "four pictures" as requested
+        const imagePrompt = `
+        A split-screen image with 4 distinct panels showing a cohesive story sequence.
+        Subject: ${visualDescription}
+        Style: ${style || 'Cinematic'} art style.
+        Genre: ${genre || 'Fantasy'}.
+        Ensure the main character looks consistent across all 4 panels.
+        High quality, detailed, 4k.
+        `;
+
+        // 3. Call DALL-E 3
+        const imageResponse = await openai.images.generate({
+            model: "dall-e-3",
+            prompt: imagePrompt,
+            n: 1,
+            size: "1024x1024",
+            quality: "hd"
+        });
+
+        res.json({ imageUrl: imageResponse.data[0].url });
+
+    } catch (error) {
+        console.error("Image Gen Error:", error);
+        res.status(500).json({ error: "Failed to generate image" });
     }
 });
 
