@@ -43,6 +43,17 @@
                 <option value="Z3R5wn05IrDiVCyEkUrK">🎙️ Sophia</option>
                 <option value="iP95p4xoKVk53GoZ742B">🎙️ Gabriel</option>
             </select>
+            <select id="art-style-selector" class="sf-select" title="Select Art Style">
+                <option value="Cinematic" selected>🎬 Cinematic</option>
+                <option value="Pixel Art">👾 Pixel Art</option>
+                <option value="Watercolor">🎨 Watercolor</option>
+                <option value="Anime">🌸 Anime</option>
+                <option value="Oil Painting">🖼️ Oil Painting</option>
+                <option value="Cyberpunk">🦾 Cyberpunk</option>
+                <option value="Noir">🕵️ Noir</option>
+                <option value="Sketch">✏️ Sketch</option>
+            </select>
+            <button id="gen-art-btn" class="sf-btn-icon" title="Generate Scene Art">🎨</button>
             <button id="play-pause-btn" class="sf-btn-icon" disabled title="Play/Pause TTS">▶️</button>
             <button id="download-btn" class="sf-btn-icon" disabled title="Download Audio">💾</button>
         </div>
@@ -658,6 +669,46 @@
         margin: 0 auto;
     }
 
+    /* Generated Image Container */
+    .generated-image-container {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        align-items: center;
+        width: 100%;
+    }
+
+    .generated-image {
+        width: 100%;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        opacity: 0;
+        transition: opacity 0.5s ease-in;
+    }
+
+    .image-controls {
+        display: flex;
+        gap: 10px;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .download-img-btn {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 8px 16px;
+        border-radius: 20px;
+        color: white;
+        text-decoration: none;
+        font-size: 0.9rem;
+        transition: all 0.2s;
+    }
+
+    .download-img-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+        transform: translateY(-2px);
+    }
+
     /* Scrollbar */
     ::-webkit-scrollbar {
         width: 6px;
@@ -806,6 +857,8 @@
             voice: document.getElementById('voice-selector'),
             playPause: document.getElementById('play-pause-btn'),
             downloadBtn: document.getElementById('download-btn'),
+            artStyle: document.getElementById('art-style-selector'),
+            genArtBtn: document.getElementById('gen-art-btn'),
             invGrid: document.getElementById('inventory-grid'),
             itemDrop: document.getElementById('item-use-dropdown'),
             container: document.getElementById('chat-container')
@@ -1367,6 +1420,59 @@
                 }
             }
         });
+
+        // Image Generation
+        els.genArtBtn.addEventListener('click', async () => {
+            if (els.genArtBtn.disabled) return;
+
+            const originalContent = els.genArtBtn.innerHTML;
+            els.genArtBtn.innerHTML = '<div class="spinner"></div>';
+            els.genArtBtn.disabled = true;
+
+            try {
+                const response = await fetch(`${BACKEND_URL}/generate-image`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        history: state.history,
+                        style: els.artStyle.value,
+                        genre: els.genre.value
+                    })
+                });
+
+                if (!response.ok) throw new Error("Failed to generate image");
+
+                const data = await response.json();
+                if (data.imageUrl) {
+                    displayGeneratedImage(data.imageUrl);
+                }
+
+            } catch (e) {
+                console.error("Image Gen Error", e);
+                alert("Failed to generate image. Please try again.");
+            } finally {
+                els.genArtBtn.innerHTML = originalContent;
+                els.genArtBtn.disabled = false;
+            }
+        });
+
+        function displayGeneratedImage(url) {
+            const div = document.createElement('div');
+            div.className = 'message bot-message image-message';
+            div.innerHTML = `
+                <div class="generated-image-container">
+                    <img src="${url}" alt="Generated Scene" class="generated-image" onload="this.style.opacity=1">
+                    <div class="image-controls">
+                        <a href="${url}" download="storyforge-scene.png" target="_blank" class="download-img-btn">⬇️ Download Art</a>
+                    </div>
+                </div>
+            `;
+            els.messages.appendChild(div);
+            // Scroll
+            setTimeout(() => {
+                els.container.scrollTop = els.container.scrollHeight;
+            }, 50);
+        }
 
         // Download button - download the cached audio
         els.downloadBtn.addEventListener('click', () => {
