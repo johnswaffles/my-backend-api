@@ -1349,31 +1349,47 @@
 
                 for (const line of lines) {
                     const trimmed = line.trim();
-                    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+
+                    // Check if line looks like JSON (starts with { and contains "action")
+                    if (trimmed.startsWith('{') && trimmed.includes('"action"')) {
                         try {
+                            // Try to parse it
                             const action = JSON.parse(trimmed);
-                            if (action.action) {
+
+                            // Successfully parsed - check if it's a valid action
+                            if (action && action.action) {
                                 console.log('✅ Line JSON parsed:', action);
-                                if (action.action === 'add_item') {
+
+                                if (action.action === 'add_item' && action.item && action.item.name) {
                                     state.inventory.push(action.item);
                                     console.log('✅ Added item:', action.item.name);
-                                } else if (action.action === 'remove_item') {
+                                } else if (action.action === 'remove_item' && action.item && action.item.name) {
                                     state.inventory = state.inventory.filter(i => i.name !== action.item.name);
-                                } else if (action.action === 'consume_item') {
+                                    console.log('❌ Removed item:', action.item.name);
+                                } else if (action.action === 'consume_item' && action.item && action.item.name) {
                                     state.inventory = state.inventory.filter(i => i.name !== action.item.name);
                                     addMessage(`✨ Used ${action.item.name}`, false);
+                                    console.log('⚡ Consumed item:', action.item.name);
                                 }
-                                // Don't add to cleanLines
+                                // Don't add to cleanLines - this was a JSON action
                                 continue;
                             }
                         } catch (e) {
-                            // Not valid JSON, keep the line
+                            // JSON parsing failed
+                            console.warn('⚠️ Failed to parse line as JSON:', trimmed);
+                            console.warn('Parse error:', e.message);
                         }
                     }
+
+                    // Not JSON or parsing failed - keep the line
                     cleanLines.push(line);
                 }
 
                 reply = cleanLines.join('\n').trim();
+
+                // Clean up any stray brackets or JSON fragments that might have been left
+                reply = reply.replace(/\s*\{[^}]*\}\s*/g, ' ');  // Remove any remaining {...}
+                reply = reply.replace(/\s+/g, ' ').trim();  // Clean up extra spaces
 
                 // Format numbered lists to ensure they're on new lines
                 reply = reply.replace(/(\d+)\.\s+/g, '\n$1. ');
