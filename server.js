@@ -263,13 +263,19 @@ CRITICAL RULES:
 
         console.log(`Calling OpenAI with prompt length: ${imagePrompt.length}`);
 
-        const imageResponse = await openai.images.generate({
+        // Build request parameters
+        const requestParams = {
             model: imageModel,
             prompt: imagePrompt,
-            size: "1024x1024",
-            response_format: imageModel === "gpt-image-1" ? "b64_json" : undefined,
-            ...(imageModel === "dall-e-3" ? { quality: "hd" } : {})
-        });
+            size: "1024x1024"
+        };
+
+        // Only add quality for dall-e-3
+        if (imageModel === "dall-e-3") {
+            requestParams.quality = "hd";
+        }
+
+        const imageResponse = await openai.images.generate(requestParams);
 
         // Handle different response formats
         let imageUrl;
