@@ -27,9 +27,8 @@ app.use((req, res, next) => {
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Use gemini-1.5-pro (stable) or override with env var
-// Valid experimental models: gemini-exp-1206, gemini-2.0-flash-exp
-const MODEL_NAME = process.env.GEMINI_CHAT_MODEL || "gemini-1.5-pro";
+// Use gemini-2.5-flash-preview-09-2025 or override with env var
+const MODEL_NAME = process.env.GEMINI_CHAT_MODEL || "gemini-2.5-flash-preview-09-2025";
 console.log(`Using Gemini Model: ${MODEL_NAME}`);
 
 // --- System Prompt ---
