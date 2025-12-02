@@ -1304,18 +1304,27 @@
 
                 let reply = botReply;
 
+                console.log('🔍 RAW REPLY FROM BACKEND:');
+                console.log(reply);
+                console.log('---END RAW REPLY---');
+
                 // Process JSON Actions and filter them out from display
                 const lines = reply.split('\n');
                 const cleanLines = [];
+                let jsonLinesFound = 0;
 
                 for (const line of lines) {
                     const trimmed = line.trim();
                     if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+                        console.log('🔍 Found potential JSON line:', trimmed);
+                        jsonLinesFound++;
                         try {
                             const action = JSON.parse(trimmed);
+                            console.log('✅ Parsed JSON:', action);
                             if (action.action === 'add_item') {
                                 state.inventory.push(action.item);
-                                console.log('✅ Added item:', action.item.name);
+                                console.log('✅ Added item to inventory:', action.item.name);
+                                console.log('📦 Current inventory:', state.inventory);
                             } else if (action.action === 'remove_item') {
                                 state.inventory = state.inventory.filter(i => i.name !== action.item.name);
                                 console.log('❌ Removed item:', action.item.name);
@@ -1326,6 +1335,7 @@
                             }
                             // Don't add this line to cleanLines (it's a JSON action)
                         } catch (e) {
+                            console.warn('❌ Failed to parse JSON:', trimmed, e);
                             // Not valid JSON, keep the line
                             cleanLines.push(line);
                         }
@@ -1334,6 +1344,9 @@
                         cleanLines.push(line);
                     }
                 }
+
+                console.log(`📊 JSON lines found: ${jsonLinesFound}`);
+                console.log(`📦 Final inventory count: ${state.inventory.length}`);
 
                 reply = cleanLines.join('\n').trim();
                 updateInventory();
