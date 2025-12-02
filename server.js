@@ -176,63 +176,34 @@ app.post('/generate-image', async (req, res) => {
             return res.status(500).json({ error: "OpenAI API Key missing for image generation" });
         }
 
-        // 1. Extract or use stored character description
-        // First, check if we need to create a base character description
-        const characterPrompt = `
-        Analyze this story conversation and extract a DETAILED, PERMANENT character description.
-        Focus on UNCHANGING physical features that should remain consistent across all images:
-        - Exact eye color and any unique eye features (scars, cybernetics, etc.)
-        - Hair color, style, length
-        - Skin tone
-        - Body type, height
-        - Distinctive marks, scars, tattoos, cybernetic implants
-        - Clothing style (if consistent)
-        
-        If multiple characters, describe the MAIN protagonist.
-        Be VERY specific about eye color and any modifications.
-        
-        Conversation:
-        ${history.slice(-5).map(m => `${m.role}: ${m.parts}`).join('\n')}
-        `;
+        // 1. Use Gemini to create detailed character and scene descriptions
+        const chatModel = genAI.getGenerativeModel({ model: MODEL_NAME });
 
-        const charResult = await genAI.getGenerativeModel({ model: 'gemini-1.5-pro' })
-            .generateContent(characterPrompt);
+        // Extract character description from chat history
+        const characterPrompt = `Analyze this story and describe the MAIN CHARACTER's permanent physical features in detail (eyes, hair, scars, cybernetics, etc.). Be specific about eye color. Keep under 80 words.\n\nConversation:\n${history.slice(-5).map(m => `${m.role}: ${m.parts}`).join('\n')}`;
+
+        const charResult = await chatModel.generateContent(characterPrompt);
         const characterDescription = charResult.response.text();
 
-        // 2. Extract current scene details (what's happening now)
-        const scenePrompt = `
-        Based on this recent story conversation, describe the CURRENT SCENE and ACTION only.
-        Do NOT describe the character's appearance - we have that already.
-        Focus on: location, atmosphere, what the character is doing, mood, lighting.
-        
-        Recent conversation:
-        ${history.slice(-3).map(m => `${m.role}: ${m.parts}`).join('\n')}
-        `;
+        // Extract current scene
+        const scenePrompt = `Describe only the CURRENT SCENE and action from this story (location, atmosphere, what's happening). Do NOT describe the character. Keep under 50 words.\n\nRecent:\n${history.slice(-3).map(m => `${m.role}: ${m.parts}`).join('\n')}`;
 
-        const sceneResult = await genAI.getGenerativeModel({ model: 'gemini-1.5-pro' })
-            .generateContent(scenePrompt);
+        const sceneResult = await chatModel.generateContent(scenePrompt);
         const sceneDescription = sceneResult.response.text();
 
         console.log(`Character: ${characterDescription}`);
         console.log(`Scene: ${sceneDescription}`);
 
-        // 3. Generate Image Prompt with STRICT consistency instructions
-        const imagePrompt = `
-        CRITICAL: Maintain EXACT physical consistency of the main character.
-        
-        CHARACTER (MUST remain identical):
-        ${characterDescription}
-        
-        SCENE (current situation):
-        ${sceneDescription}
-        
-        Style: ${style || 'Pixel Art'} art style.
-        Genre: ${genre || 'Cyberpunk'}.
-        
-        IMPORTANT: The character's physical features (especially eyes, hair, skin tone, cybernetics) MUST be EXACTLY as described above.
-        Do NOT change eye color, scars, implants, or any permanent features.
-        High quality, detailed, dramatic composition.
-        `;
+        // 2. Create image prompt with strict consistency
+        const imagePrompt = `${style || 'Pixel Art'} style ${genre || 'Cyberpunk'} scene.
+
+CHARACTER (keep EXACTLY consistent):
+${characterDescription}
+
+CURRENT SCENE:
+${sceneDescription}
+
+CRITICAL: Character's eyes, hair, scars, and cybernetics MUST match the description exactly. High quality, detailed.`;
 
         // 3. Call OpenAI Image Generation
         const imageModel = process.env.OPENAI_IMAGE_MODEL || "dall-e-3";
