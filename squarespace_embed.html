@@ -1308,7 +1308,8 @@
                 console.log(reply);
 
                 // FIRST: Remove any inline JSON using regex (JSON embedded in paragraphs)
-                const jsonRegex = /\s*\{[^}]*"action"[^}]*\}\s*/g;
+                // This regex catches JSON even if it's malformed or incomplete
+                const jsonRegex = /\{[^}]*(?:"action"|"item"|"name"|"description")[^}]*\}/g;
                 const jsonMatches = reply.match(jsonRegex);
 
                 if (jsonMatches) {
@@ -1323,12 +1324,12 @@
 
                             if (!action || !action.action) continue;
 
-                            if (action.action === 'add_item' && action.item) {
+                            if (action.action === 'add_item' && action.item && action.item.name) {
                                 state.inventory.push(action.item);
                                 console.log('✅ Added item:', action.item.name);
-                            } else if (action.action === 'remove_item' && action.item) {
+                            } else if (action.action === 'remove_item' && action.item && action.item.name) {
                                 state.inventory = state.inventory.filter(i => i.name !== action.item.name);
-                            } else if (action.action === 'consume_item' && action.item) {
+                            } else if (action.action === 'consume_item' && action.item && action.item.name) {
                                 state.inventory = state.inventory.filter(i => i.name !== action.item.name);
                                 addMessage(`✨ Used ${action.item.name}`, false);
                             }
@@ -1337,8 +1338,8 @@
                             console.warn('⚠️ Skipping malformed JSON:', jsonStr.substring(0, 50) + '...');
                         }
                     }
-                    // Remove all matched JSON (even if malformed) from text
-                    reply = reply.replace(jsonRegex, ' ').replace(/\s+/g, ' ').trim();
+                    // Remove ALL JSON-like patterns from text (even malformed ones)
+                    reply = reply.replace(jsonRegex, '').replace(/\s+/g, ' ').trim();
                     console.log('✅ Removed inline JSON from text');
                 }
 
@@ -1373,6 +1374,11 @@
                 }
 
                 reply = cleanLines.join('\n').trim();
+
+                // Format numbered lists to ensure they're on new lines
+                reply = reply.replace(/(\d+)\.\s+/g, '\n$1. ');
+                reply = reply.trim();
+
                 console.log(`📦 Final inventory count: ${state.inventory.length}`);
 
                 updateInventory();
