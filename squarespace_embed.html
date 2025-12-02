@@ -1443,16 +1443,23 @@
                     })
                 });
 
-                if (!response.ok) throw new Error("Failed to generate image");
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Image generation failed:', response.status, errorText);
+                    throw new Error(`Failed to generate image: ${response.status}`);
+                }
 
                 const data = await response.json();
+                console.log('Image generation response:', data);
                 if (data.imageUrl) {
                     displayGeneratedImage(data.imageUrl);
+                } else {
+                    throw new Error('No image URL in response');
                 }
 
             } catch (e) {
                 console.error("Image Gen Error", e);
-                alert("Failed to generate image. Please try again.");
+                alert(`Failed to generate image: ${e.message}`);
             } finally {
                 els.genArtBtn.innerHTML = originalContent;
                 els.genArtBtn.disabled = false;
