@@ -206,19 +206,29 @@ app.post('/generate-image', async (req, res) => {
         High quality, detailed, dramatic composition.
         `;
 
-        // 3. Call OpenAI Image Generation with widescreen size
+        // 3. Call OpenAI Image Generation
         const imageModel = process.env.OPENAI_IMAGE_MODEL || "dall-e-3";
         console.log(`Using image model: ${imageModel}`);
 
         const imageResponse = await openai.images.generate({
             model: imageModel,
             prompt: imagePrompt,
-            n: 1,
-            size: "1536x1024",  // Widescreen format (max supported width)
-            quality: "high"  // High quality as requested
+            size: "1024x1024",  // Standard size for compatibility
+            ...(imageModel === "gpt-image-1" ? {} : { quality: "hd" })  // Only dall-e-3 supports quality
         });
 
-        res.json({ imageUrl: imageResponse.data[0].url });
+        // Handle different response formats
+        let imageUrl;
+        if (imageResponse.data[0].b64_json) {
+            // gpt-image-1 returns base64
+            const b64 = imageResponse.data[0].b64_json;
+            imageUrl = `data:image/png;base64,${b64}`;
+        } else {
+            // dall-e-3 returns url
+            imageUrl = imageResponse.data[0].url;
+        }
+
+        res.json({ imageUrl });
 
     } catch (error) {
         console.error("Image Gen Error:", error);
