@@ -217,98 +217,68 @@ Keep under 150 words but be VERY detailed.`;
     }
 });
 
-// --- Image Generation Endpoint ---
+// --- Image Generation Endpoint (Gemini 2.5 Flash Image) ---
 app.post('/generate-image', async (req, res) => {
     try {
         const { history, style, genre, characterCard } = req.body;
 
-        if (!process.env.OPENAI_API_KEY) {
-            return res.status(500).json({ error: "OpenAI API Key missing for image generation" });
+        if (!process.env.GEMINI_API_KEY) {
+            return res.status(500).json({ error: "Gemini API Key missing for image generation" });
         }
 
-        // 1. Use stored character card if available, otherwise create one
-        const chatModel = genAI.getGenerativeModel({ model: MODEL_NAME });
+        // Use Gemini 2.5 Flash Image model
+        const imageModel = process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image";
+        console.log(`🎨 Using Gemini image model: ${imageModel}`);
 
-        let characterDescription;
+        const geminiImageModel = genAI.getGenerativeModel({ model: imageModel });
+
+        // 1. Build the image generation prompt with character consistency
+        let imagePrompt = `Create a high-quality ${style || 'Pixel Art'} style ${genre || 'Cyberpunk'} image.`;
+
         if (characterCard) {
-            // Use the detailed character card created at story start
-            characterDescription = characterCard;
-            console.log(`Using stored Character Card`);
-        } else {
-            // Fallback: create one from recent history
-            const characterPrompt = `Analyze this story and describe the MAIN CHARACTER's permanent physical features in detail (eyes, hair, scars, cybernetics, etc.). Be specific about eye color. Keep under 80 words.\n\nConversation:\n${history.slice(-5).map(m => `${m.role}: ${m.parts}`).join('\n')}`;
-
-            const charResult = await chatModel.generateContent(characterPrompt);
-            characterDescription = charResult.response.text();
+            // Use stored character card for consistency
+            imagePrompt += `\n\nMAIN CHARACTER (MUST remain identical):\n${characterCard}`;
+            console.log(`✅ Using stored character card for consistency`);
         }
 
-        // Extract current scene from the MOST RECENT bot response only
+        // 2. Extract current scene from the most recent bot message
         const lastBotMessage = history[history.length - 1]?.parts || '';
-        const scenePrompt = `Extract ONLY what is happening in this exact story paragraph. Do NOT invent or add anything new. Just describe the scene/action/location from this text:
+        imagePrompt += `\n\nCURRENT SCENE:\n${lastBotMessage.substring(0, 500)}`;
 
-"${lastBotMessage}"
+        imagePrompt += `\n\nCRITICAL INSTRUCTIONS:
+- Maintain EXACT character consistency (same eyes, hair, face, clothing, cybernetics)
+- Show only what is described in the current scene
+- High quality, detailed composition
+- ${style || 'Pixel Art'} art style
+- ${genre || 'Cyberpunk'} genre atmosphere`;
 
-Describe in 40 words or less: Where is the character? What are they doing right now? What's the atmosphere/mood?`;
+        console.log(`📝 Image prompt length: ${imagePrompt.length} chars`);
 
-        const sceneResult = await chatModel.generateContent(scenePrompt);
-        const sceneDescription = sceneResult.response.text();
+        // 3. Generate image with Gemini
+        const result = await geminiImageModel.generateContent(imagePrompt);
+        const response = await result.response;
 
-        console.log(`Character: ${characterDescription}`);
-        console.log(`Scene: ${sceneDescription}`);
+        // Gemini returns image as base64 in the response
+        const imageData = response.candidates[0]?.content?.parts?.[0];
 
-        // 2. Create image prompt with strict consistency
-        const imagePrompt = `Create a ${style || 'Pixel Art'} style ${genre || 'Cyberpunk'} image.
-
-MANDATORY CHARACTER DESCRIPTION (must match EXACTLY):
-${characterDescription}
-
-CURRENT SCENE (from the story right now):
-${sceneDescription}
-
-CRITICAL RULES:
-1. The character's appearance MUST match the description above EXACTLY (eyes, hair, scars, cybernetics, clothing)
-2. Show ONLY what is described in the current scene - do NOT add new elements
-3. High quality, detailed composition
-4. DO NOT change ANY character features between images`;
-
-        // 3. Call OpenAI Image Generation
-        const imageModel = process.env.OPENAI_IMAGE_MODEL || "dall-e-3";
-        console.log(`Using image model: ${imageModel}`);
-
-        console.log(`Calling OpenAI with prompt length: ${imagePrompt.length}`);
-
-        // Build request parameters
-        const requestParams = {
-            model: imageModel,
-            prompt: imagePrompt,
-            size: "1024x1024"
-        };
-
-        // Only add quality for dall-e-3
-        if (imageModel === "dall-e-3") {
-            requestParams.quality = "hd";
+        if (!imageData || !imageData.inlineData) {
+            throw new Error('No image data returned from Gemini');
         }
 
-        const imageResponse = await openai.images.generate(requestParams);
+        // Convert to data URL
+        const mimeType = imageData.inlineData.mimeType || 'image/png';
+        const base64Data = imageData.inlineData.data;
+        const imageUrl = `data:${mimeType};base64,${base64Data}`;
 
-        // Handle different response formats
-        let imageUrl;
-        if (imageResponse.data[0].b64_json) {
-            // gpt-image-1 returns base64
-            const b64 = imageResponse.data[0].b64_json;
-            imageUrl = `data:image/png;base64,${b64}`;
-        } else {
-            // dall-e-3 returns url
-            imageUrl = imageResponse.data[0].url;
-        }
+        console.log(`✅ Image generated successfully (${base64Data.length} bytes)`);
 
         res.json({ imageUrl });
 
     } catch (error) {
-        console.error("Image Gen Error:", error);
+        console.error("❌ Gemini Image Generation Error:", error);
         console.error("Error details:", error.message, error.stack);
         res.status(500).json({
-            error: "Failed to generate image",
+            error: "Failed to generate image with Gemini",
             details: error.message
         });
     }
