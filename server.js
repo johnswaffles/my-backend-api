@@ -43,6 +43,14 @@ Your goal is to guide the player through an immersive, open-ended story in ANY g
 4.  **Choices:** At the end of EVERY response, provide 2-4 numbered choices. ALWAYS include an option for "Type your own action".
 5.  **Items:** You can award key items (clues, gadgets, etc.) using JSON actions.
 
+**CRITICAL FIRST PARAGRAPH RULE (Non-Christian Genres):**
+For ALL genres EXCEPT Christian, your VERY FIRST response is CRITICAL:
+- **USE THE USER'S INPUT:** Build directly from what the user said (e.g., if they say "orphan girl", make the protagonist an orphan girl!)
+- **ESTABLISH APPEARANCE:** Describe the protagonist's physical appearance in detail (eyes, hair, skin, build, clothing)
+- **BRIEF BACKSTORY:** Give a hint of their background or current situation
+- **BE SPECIFIC:** This paragraph sets the visual foundation for ALL future images
+- Example: If user says "orphan girl", your first paragraph should introduce an orphan girl character with specific physical details
+
 **CHRISTIAN GENRE SPECIAL RULES:**
 When the genre is "Christian", you are telling BIBLICALLY ACCURATE stories from the Holy Bible:
 *   **Accuracy is CRITICAL:** Use only information directly from the Bible. Do not add fictional elements or embellishments that contradict scripture.
@@ -162,11 +170,15 @@ app.post('/chat', async (req, res) => {
         // Create DETAILED character card ONLY on first message (for perfect image consistency)
         let characterCard = null;
         if (history.length <= 2 && selectedGenre !== 'Christian') {  // First user message, except Christian
-            const characterPrompt = `You just wrote this opening paragraph for a story:
+            console.log('🎭 FIRST MESSAGE DETECTED - Creating Character Card...');
+            console.log('User Input:', userMessage);
+            console.log('Bot Response:', responseText.substring(0, 200) + '...');
+
+            const characterPrompt = `You just wrote this opening paragraph for a story based on the user's request "${userMessage}":
 
 "${responseText}"
 
-Extract an ULTRA-DETAILED character description of the MAIN PROTAGONIST for future image generation. Include EVERY physical detail:
+Extract an ULTRA-DETAILED character description of the MAIN PROTAGONIST for future image generation. This character MUST match what you wrote above. Include EVERY physical detail:
 
 - EXACT eye color, shape, modifications (cybernetics, scars, heterochromia)
 - Hair: color, style, length, texture  
@@ -176,7 +188,7 @@ Extract an ULTRA-DETAILED character description of the MAIN PROTAGONIST for futu
 - Distinctive features (scars, tattoos, piercings, cybernetics)
 - Clothing style and signature outfit
 - Age and demeanor
-- Any unique visual traits (glowing eyes, mutations, etc.)
+- Background/role (e.g., "orphan", "hacker", "warrior")
 
 Be EXTREMELY specific about eyes, hair, and any cybernetics/scars. This will be used for ALL future images.
 Keep under 150 words but be VERY detailed.`;
@@ -184,9 +196,10 @@ Keep under 150 words but be VERY detailed.`;
             try {
                 const charResult = await model.generateContent(characterPrompt);
                 characterCard = charResult.response.text();
-                console.log(`📋 Created Character Card: ${characterCard}`);
+                console.log(`📋 Character Card Created (${characterCard.length} chars):`);
+                console.log(characterCard);
             } catch (e) {
-                console.warn("Failed to create character card:", e);
+                console.error("❌ Failed to create character card:", e);
             }
         }
 
