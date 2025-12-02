@@ -846,9 +846,10 @@
             history: [],
             lastFullText: '',
             christianContext: false,
-            romanceContext: false,
+            romanceContext: null,
             videoGameContext: false,
             audioCache: null,  // Cache audio to prevent duplicate API calls
+            characterCard: null,  // Stores detailed character description for image consistency
             userChangedVoice: false  // Track if user manually changed voice
         };
 
@@ -1293,7 +1294,15 @@
                 }
 
                 const data = await res.json();
-                let reply = data.reply;
+                const botReply = data.reply;
+
+                // Store character card if returned (first message)
+                if (data.characterCard) {
+                    state.characterCard = data.characterCard;
+                    console.log('📋 Character Card Created:', state.characterCard);
+                }
+
+                let reply = botReply;
 
                 // Process JSON Actions
                 const lines = reply.split('\n');
@@ -1439,7 +1448,8 @@
                     body: JSON.stringify({
                         history: state.history,
                         style: els.artStyle.value,
-                        genre: els.genre.value
+                        genre: els.genre.value,
+                        characterCard: state.characterCard  // Send stored character card
                     })
                 });
 

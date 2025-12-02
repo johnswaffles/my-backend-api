@@ -118,9 +118,9 @@ app.post('/chat', async (req, res) => {
         const result = await chat.sendMessage(userMessage);
         const response = await result.response;
 
-        let text = '';
+        let responseText = '';
         try {
-            text = response.text();
+            responseText = response.text();
         } catch (e) {
             // response.text() might throw if the generation was not clean (e.g. safety or max tokens)
             console.warn('response.text() threw, attempting to read candidate directly:', e.message);
@@ -153,10 +153,43 @@ app.post('/chat', async (req, res) => {
         if (response.candidates[0]?.finishReason === 'MAX_TOKENS') {
             console.warn('Response truncated due to MAX_TOKENS');
             // Optional: Append a note or just let it be.
-            // text += "\n[...Response truncated...]"; 
+            // responseText += "\n[...Response truncated...]"; 
         }
 
-        res.json({ reply: text });
+        // Create detailed character card on first message (for image consistency)
+        let characterCard = null;
+        if (history.length <= 2) {  // First user message
+            const characterPrompt = `Based on this story beginning, create an ULTRA-DETAILED character description for the MAIN PROTAGONIST. Include EVERY physical detail:
+
+Story: ${userMessage}
+
+Describe:
+- EXACT eye color, shape, any modifications (cybernetics, scars, heterochromia)
+- Hair: color, style, length, texture
+- Skin tone, scars, tattoos, markings, cybernetic implants
+- Face shape, nose, lips, jawline, cheekbones
+- Body type, height, build, posture
+- Distinctive features (scars, tattoos, piercings, cybernetics)
+- Clothing style and signature outfit
+- Age and demeanor
+- Any unique visual traits (glowing eyes, mutations, etc.)
+
+Be extremely specific. This description will be used for ALL future images to maintain perfect consistency.
+Keep under 150 words but be VERY detailed.`;
+
+            try {
+                const charResult = await model.generateContent(characterPrompt);
+                characterCard = charResult.response.text();
+                console.log(`📋 Created Character Card: ${characterCard}`);
+            } catch (e) {
+                console.warn("Failed to create character card:", e);
+            }
+        }
+
+        res.json({
+            reply: responseText,
+            characterCard  // Send back to frontend to store
+        });
 
     } catch (error) {
         console.error('Chat Endpoint Error:', error);
@@ -170,20 +203,27 @@ app.post('/chat', async (req, res) => {
 // --- Image Generation Endpoint ---
 app.post('/generate-image', async (req, res) => {
     try {
-        const { history, style, genre } = req.body;
+        const { history, style, genre, characterCard } = req.body;
 
         if (!process.env.OPENAI_API_KEY) {
             return res.status(500).json({ error: "OpenAI API Key missing for image generation" });
         }
 
-        // 1. Use Gemini to create detailed character and scene descriptions
+        // 1. Use stored character card if available, otherwise create one
         const chatModel = genAI.getGenerativeModel({ model: MODEL_NAME });
 
-        // Extract character description from chat history
-        const characterPrompt = `Analyze this story and describe the MAIN CHARACTER's permanent physical features in detail (eyes, hair, scars, cybernetics, etc.). Be specific about eye color. Keep under 80 words.\n\nConversation:\n${history.slice(-5).map(m => `${m.role}: ${m.parts}`).join('\n')}`;
+        let characterDescription;
+        if (characterCard) {
+            // Use the detailed character card created at story start
+            characterDescription = characterCard;
+            console.log(`Using stored Character Card`);
+        } else {
+            // Fallback: create one from recent history
+            const characterPrompt = `Analyze this story and describe the MAIN CHARACTER's permanent physical features in detail (eyes, hair, scars, cybernetics, etc.). Be specific about eye color. Keep under 80 words.\n\nConversation:\n${history.slice(-5).map(m => `${m.role}: ${m.parts}`).join('\n')}`;
 
-        const charResult = await chatModel.generateContent(characterPrompt);
-        const characterDescription = charResult.response.text();
+            const charResult = await chatModel.generateContent(characterPrompt);
+            characterDescription = charResult.response.text();
+        }
 
         // Extract current scene
         const scenePrompt = `Describe only the CURRENT SCENE and action from this story (location, atmosphere, what's happening). Do NOT describe the character. Keep under 50 words.\n\nRecent:\n${history.slice(-3).map(m => `${m.role}: ${m.parts}`).join('\n')}`;
