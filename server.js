@@ -127,17 +127,17 @@ app.post('/chat', async (req, res) => {
         }
 
         // Fallback: Try to get text from candidate if response.text() failed or was empty
-        if (!text && response.candidates && response.candidates.length > 0) {
+        if (!responseText && response.candidates && response.candidates.length > 0) {
             const candidate = response.candidates[0];
             if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
-                text = candidate.content.parts.map(p => p.text).join('');
+                responseText = candidate.content.parts.map(p => p.text).join('');
             }
         }
 
         // 5. Validation
-        console.log('Gemini Response Length:', text ? text.length : 0);
+        console.log('Gemini Response Length:', responseText ? responseText.length : 0);
 
-        if (!text) {
+        if (!responseText) {
             console.warn('Empty response received.');
             console.warn('Finish Reason:', response.candidates[0]?.finishReason);
             console.warn('Safety Ratings:', JSON.stringify(response.candidates[0]?.safetyRatings, null, 2));
