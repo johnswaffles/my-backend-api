@@ -205,13 +205,16 @@ app.post('/generate-image', async (req, res) => {
         High quality, detailed, dramatic composition.
         `;
 
-        // 3. Call DALL-E 3 with widescreen size
+        // 3. Call OpenAI Image Generation with widescreen size
+        const imageModel = process.env.OPENAI_IMAGE_MODEL || "dall-e-3";
+        console.log(`Using image model: ${imageModel}`);
+
         const imageResponse = await openai.images.generate({
-            model: "dall-e-3",
+            model: imageModel,
             prompt: imagePrompt,
             n: 1,
             size: "1792x1024",  // Widescreen format
-            quality: "hd"
+            quality: "standard"  // Standard quality (faster & cheaper than hd)
         });
 
         res.json({ imageUrl: imageResponse.data[0].url });
