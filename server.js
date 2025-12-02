@@ -218,7 +218,11 @@ app.post('/generate-image', async (req, res) => {
 
     } catch (error) {
         console.error("Image Gen Error:", error);
-        res.status(500).json({ error: "Failed to generate image" });
+        console.error("Error details:", error.message, error.stack);
+        res.status(500).json({
+            error: "Failed to generate image",
+            details: error.message
+        });
     }
 });
 
