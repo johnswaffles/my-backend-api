@@ -68,27 +68,32 @@ When the genre is "Christian", you are telling BIBLICALLY ACCURATE stories from 
 *   **CRITICAL LENGTH RULE:** You MUST respond with EXACTLY ONE PARAGRAPH ONLY. Target 60-80 words. Do NOT write multiple paragraphs. Do NOT add line breaks within your response. Keep it punchy and fast-paced. (Exception: Christian genre may be 2-3 paragraphs for proper Bible storytelling).
 
 
-**JSON ACTIONS (CRITICAL FORMAT):**
-When a character receives, finds, or picks up an item, you MUST output VALID JSON on a NEW LINE:
-{"action": "add_item", "item": {"name": "Item Name", "description": "Brief description", "type": "item"}}
+**INVENTORY TRACKING (MANDATORY):**
 
-When they use or consume an item:
-{"action": "consume_item", "item": {"name": "Item Name"}}
+YOU MUST ADD ITEMS TO INVENTORY! When the story mentions character receiving/finding/picking up ANY item:
+1. Write your story paragraph
+2. On the NEXT LINE, output JSON in this EXACT format:
+   {"action":"add_item","item":{"name":"Item Name","description":"Brief desc","type":"item"}}
 
-When they drop or lose an item:
-{"action": "remove_item", "item": {"name": "Item Name"}}
+When character uses/consumes an item:
+   {"action":"consume_item","item":{"name":"Item Name"}}
 
-**CRITICAL RULES:**
-- JSON must be on its own line, AFTER your story paragraph
-- Use DOUBLE QUOTES only, never single quotes
-- No trailing commas
-- If user uses an item, output consume_item (don't add it again)
-- ANY time the story mentions getting/receiving/picking up/finding an item, ADD IT with add_item JSON
-- Example: If you write "She picked up the data chip", you MUST output the JSON line below it
+When character drops/loses an item:
+   {"action":"remove_item","item":{"name":"Item Name"}}
 
-**CORRECT FORMAT:**
-Your story paragraph here.
-{"action": "add_item", "item": {"name": "Data Chip", "description": "Encrypted corporate secrets", "type": "item"}}
+**CRITICAL JSON FORMATTING RULES:**
+✓ Put JSON on its OWN LINE after the paragraph (NOT inline)
+✓ Use ONLY double quotes (")
+✓ NO trailing commas
+✓ NO line breaks inside JSON
+✓ Compact format with NO spaces around colons/commas
+
+**WRONG:** She picked up the data chip {"action": "add_item"...}
+**RIGHT:** 
+She picked up the data chip.
+{"action":"add_item","item":{"name":"Data Chip","description":"Corporate secrets","type":"item"}}
+
+IMPORTANT: If you mention an item being acquired, you MUST output the JSON!
 `;
 
 // --- Endpoints ---
@@ -181,37 +186,37 @@ app.post('/chat', async (req, res) => {
 
         // Create DETAILED character card ONLY on first message (for perfect image consistency)
         let characterCard = null;
-        if (history.length <= 2 && selectedGenre !== 'Christian') {  // First user message, except Christian
-            console.log('🎭 FIRST MESSAGE DETECTED - Creating Character Card...');
+        // Generate character card ONLY on first bot response (not for Christian genre)
+        if (history.length <= 2 && genre !== 'Christian') {
+            console.log('🎭 FIRST MESSAGE DETECTED - Generating Character Card...');
             console.log('User Input:', userMessage);
-            console.log('Bot Response:', responseText.substring(0, 200) + '...');
+            console.log('Bot Response:', responseText.substring(0, 200));
 
-            const characterPrompt = `You just wrote this opening paragraph for a story based on the user's request "${userMessage}":
+            const characterCardPrompt = `Extract the MAIN CHARACTER's physical appearance from this story opening. Be ULTRA SPECIFIC.
 
-"${responseText}"
+USER'S REQUEST: "${userMessage}"
+STORY OPENING: "${responseText}"
 
-Extract an ULTRA-DETAILED character description of the MAIN PROTAGONIST for future image generation. This character MUST match what you wrote above. Include EVERY physical detail:
+Provide EXACT details in this format:
+HAIR: [exact color/shade, length, style, texture]
+EYES: [exact color/shade, shape, size]  
+FACE: [shape, skin tone, age, distinctive marks/scars]
+BODY: [height, build, notable features]  
+CYBERNETICS: [exact implants, locations, colors/materials]
+CLOTHING: [specific items, colors, style, condition]
+DISTINCTIVE FEATURES: [anything that makes them unique - scars, tattoos, accessories, etc.]
 
-- EXACT eye color, shape, modifications (cybernetics, scars, heterochromia)
-- Hair: color, style, length, texture  
-- Skin tone, scars, tattoos, markings, cybernetic implants
-- Face shape, nose, lips, jawline, cheekbones
-- Body type, height, build, posture
-- Distinctive features (scars, tattoos, piercings, cybernetics)
-- Clothing style and signature outfit
-- Age and demeanor
-- Background/role (e.g., "orphan", "hacker", "warrior")
-
-Be EXTREMELY specific about eyes, hair, and any cybernetics/scars. This will be used for ALL future images.
-Keep under 150 words but be VERY detailed.`;
+Be SPECIFIC with colors (use descriptive shades like "electric blue" not just "blue").
+Keep total under 100 words but pack in EXACT visual details.`;
 
             try {
-                const charResult = await model.generateContent(characterPrompt);
-                characterCard = charResult.response.text();
-                console.log(`📋 Character Card Created (${characterCard.length} chars):`);
-                console.log(characterCard);
-            } catch (e) {
-                console.error("❌ Failed to create character card:", e);
+                const charCardModel = genAI.getGenerativeModel({ model: MODEL_NAME });
+                const charResult = await charCardModel.generateContent(characterCardPrompt);
+                characterCard = charResult.response.text().trim();
+                console.log('📋 Character Card Created:', characterCard);
+            } catch (error) {
+                console.error('❌ Character card generation failed:', error);
+                characterCard = null;
             }
         }
 
@@ -245,24 +250,45 @@ app.post('/generate-image', async (req, res) => {
         const geminiImageModel = genAI.getGenerativeModel({ model: imageModel });
 
         // 1. Build the image generation prompt with character consistency
-        let imagePrompt = `Create a high-quality ${style || 'Pixel Art'} style ${genre || 'Cyberpunk'} image.`;
+        let imagePrompt = '';
 
         if (characterCard) {
-            // Use stored character card for consistency
-            imagePrompt += `\n\nMAIN CHARACTER (MUST remain identical):\n${characterCard}`;
-            console.log(`✅ Using stored character card for consistency`);
+            // Ultra-strong character locking
+            imagePrompt = `⚠️ CRITICAL: This character MUST look IDENTICAL in every image. DO NOT change ANY features!
+
+===CHARACTER REFERENCE (LOCK THESE FEATURES)===
+${characterCard}
+===END CHARACTER REFERENCE===
+
+MANDATORY RULES FOR CHARACTER:
+1. Same EXACT eye color and shape every time
+2. Same EXACT hair color, length, and style every time  
+3. Same EXACT facial features (nose, lips, jawline, skin tone)
+4. Same EXACT cybernetics/implants in same locations
+5. Same EXACT clothing unless story explicitly changes it
+6. Same EXACT scars, tattoos, or distinguishing marks
+7. DO NOT change age, build, or proportions
+
+CURRENT SCENE TO DEPICT:
+${history[history.length - 1]?.parts?.substring(0, 500) || 'character standing'}
+
+STYLE: ${style || 'Pixel Art'}
+GENRE: ${genre || 'Cyberpunk'}
+
+⚠️ REMEMBER: The character appearance MUST match the reference EXACTLY. No variations!`;
+
+            console.log(`✅ Using stored character card for locked consistency`);
+        } else {
+            // Fallback without character card
+            imagePrompt = `Create a high-quality ${style || 'Pixel Art'} style ${genre || 'Cyberpunk'} image.
+
+CURRENT SCENE:
+${history[history.length - 1]?.parts?.substring(0, 500) || 'character standing'}
+
+Style: ${style || 'Pixel Art'}
+Genre atmosphere: ${genre || 'Cyberpunk'}
+High quality, detailed composition.`;
         }
-
-        // 2. Extract current scene from the most recent bot message
-        const lastBotMessage = history[history.length - 1]?.parts || '';
-        imagePrompt += `\n\nCURRENT SCENE:\n${lastBotMessage.substring(0, 500)}`;
-
-        imagePrompt += `\n\nCRITICAL INSTRUCTIONS:
-- Maintain EXACT character consistency (same eyes, hair, face, clothing, cybernetics)
-- Show only what is described in the current scene
-- High quality, detailed composition
-- ${style || 'Pixel Art'} art style
-- ${genre || 'Cyberpunk'} genre atmosphere`;
 
         console.log(`📝 Image prompt length: ${imagePrompt.length} chars`);
 
