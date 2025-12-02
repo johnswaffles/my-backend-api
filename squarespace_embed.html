@@ -1313,24 +1313,31 @@
 
                 if (jsonMatches) {
                     console.log(`🔍 Found ${jsonMatches.length} inline JSON objects`);
-                    jsonMatches.forEach((jsonStr) => {
+                    for (const jsonStr of jsonMatches) {
                         try {
-                            const action = JSON.parse(jsonStr.trim());
+                            const trimmed = jsonStr.trim();
+                            if (!trimmed) continue;
+
+                            const action = JSON.parse(trimmed);
                             console.log('✅ Inline JSON parsed:', action);
-                            if (action.action === 'add_item') {
+
+                            if (!action || !action.action) continue;
+
+                            if (action.action === 'add_item' && action.item) {
                                 state.inventory.push(action.item);
                                 console.log('✅ Added item:', action.item.name);
-                            } else if (action.action === 'remove_item') {
+                            } else if (action.action === 'remove_item' && action.item) {
                                 state.inventory = state.inventory.filter(i => i.name !== action.item.name);
-                            } else if (action.action === 'consume_item') {
+                            } else if (action.action === 'consume_item' && action.item) {
                                 state.inventory = state.inventory.filter(i => i.name !== action.item.name);
                                 addMessage(`✨ Used ${action.item.name}`, false);
                             }
                         } catch (e) {
-                            console.warn('❌ Failed to parse inline JSON:', e);
+                            // Silently skip malformed JSON - don't crash the page
+                            console.warn('⚠️ Skipping malformed JSON:', jsonStr.substring(0, 50) + '...');
                         }
-                    });
-                    // Remove all inline JSON from text
+                    }
+                    // Remove all matched JSON (even if malformed) from text
                     reply = reply.replace(jsonRegex, ' ').replace(/\s+/g, ' ').trim();
                     console.log('✅ Removed inline JSON from text');
                 }
