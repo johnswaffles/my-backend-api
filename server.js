@@ -176,33 +176,61 @@ app.post('/generate-image', async (req, res) => {
             return res.status(500).json({ error: "OpenAI API Key missing for image generation" });
         }
 
-        // 1. Summarize Character & Scene using Gemini (for consistency)
-        // We ask Gemini to extract visual details from the chat history
-        const model = genAI.getGenerativeModel({ model: MODEL_NAME });
-
-        // Extract last few messages for context
-        const recentHistory = history ? history.slice(-10) : [];
-        const summaryPrompt = `
-        Based on the following chat history, describe the MAIN CHARACTER's physical appearance and the CURRENT SCENE in detail.
-        Focus on visual details (hair, eyes, clothing, setting, lighting).
-        Keep it concise (under 100 words).
+        // 1. Extract or use stored character description
+        // First, check if we need to create a base character description
+        const characterPrompt = `
+        Analyze this story conversation and extract a DETAILED, PERMANENT character description.
+        Focus on UNCHANGING physical features that should remain consistent across all images:
+        - Exact eye color and any unique eye features (scars, cybernetics, etc.)
+        - Hair color, style, length
+        - Skin tone
+        - Body type, height
+        - Distinctive marks, scars, tattoos, cybernetic implants
+        - Clothing style (if consistent)
         
-        Chat History:
-        ${JSON.stringify(recentHistory)}
+        If multiple characters, describe the MAIN protagonist.
+        Be VERY specific about eye color and any modifications.
+        
+        Conversation:
+        ${history.slice(-5).map(m => `${m.role}: ${m.parts}`).join('\n')}
         `;
 
-        const summaryResult = await model.generateContent(summaryPrompt);
-        const visualDescription = summaryResult.response.text();
+        const charResult = await genAI.getGenerativeModel({ model: 'gemini-1.5-pro' })
+            .generateContent(characterPrompt);
+        const characterDescription = charResult.response.text();
 
-        console.log(`Visual Description: ${visualDescription}`);
+        // 2. Extract current scene details (what's happening now)
+        const scenePrompt = `
+        Based on this recent story conversation, describe the CURRENT SCENE and ACTION only.
+        Do NOT describe the character's appearance - we have that already.
+        Focus on: location, atmosphere, what the character is doing, mood, lighting.
+        
+        Recent conversation:
+        ${history.slice(-3).map(m => `${m.role}: ${m.parts}`).join('\n')}
+        `;
 
-        // 2. Generate Image Prompt for DALL-E 3
-        // Single widescreen image focused on the story narrative, not choices
+        const sceneResult = await genAI.getGenerativeModel({ model: 'gemini-1.5-pro' })
+            .generateContent(scenePrompt);
+        const sceneDescription = sceneResult.response.text();
+
+        console.log(`Character: ${characterDescription}`);
+        console.log(`Scene: ${sceneDescription}`);
+
+        // 3. Generate Image Prompt with STRICT consistency instructions
         const imagePrompt = `
-        A cinematic widescreen scene depicting: ${visualDescription}
+        CRITICAL: Maintain EXACT physical consistency of the main character.
+        
+        CHARACTER (MUST remain identical):
+        ${characterDescription}
+        
+        SCENE (current situation):
+        ${sceneDescription}
+        
         Style: ${style || 'Pixel Art'} art style.
         Genre: ${genre || 'Cyberpunk'}.
-        Focus on the narrative moment, atmosphere, and character(s) in the scene.
+        
+        IMPORTANT: The character's physical features (especially eyes, hair, skin tone, cybernetics) MUST be EXACTLY as described above.
+        Do NOT change eye color, scars, implants, or any permanent features.
         High quality, detailed, dramatic composition.
         `;
 
