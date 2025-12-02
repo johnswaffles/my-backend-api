@@ -61,11 +61,14 @@ When the genre is "Christian", you are telling BIBLICALLY ACCURATE stories from 
 
 
 **JSON ACTIONS:**
-Append a JSON object to the end of your response to update game state (one per line):
+You MUST track inventory carefully! When a character receives, finds, or picks up an item, immediately append:
 *   {"action": "add_item", "item": {"name": "Item Name", "description": "...", "type": "item"}}
-*   {"action": "remove_item", "item": {"name": "Item Name"}}
+When they use or lose an item:
 *   {"action": "consume_item", "item": {"name": "Item Name"}}
+When they drop or give away an item:
+*   {"action": "remove_item", "item": {"name": "Item Name"}}
 *   **CRITICAL:** If the user uses an item, you MUST output a \`consume_item\` action for it. Do NOT \`add_item\` it again.
+*   **IMPORTANT:** Any time the story mentions the character getting/receiving/picking up/finding an item, add it via add_item JSON!
 `;
 
 // --- Endpoints ---
@@ -258,11 +261,14 @@ CRITICAL RULES:
         const imageModel = process.env.OPENAI_IMAGE_MODEL || "dall-e-3";
         console.log(`Using image model: ${imageModel}`);
 
+        console.log(`Calling OpenAI with prompt length: ${imagePrompt.length}`);
+
         const imageResponse = await openai.images.generate({
             model: imageModel,
             prompt: imagePrompt,
-            size: "1024x1024",  // Standard size for compatibility
-            ...(imageModel === "gpt-image-1" ? {} : { quality: "hd" })  // Only dall-e-3 supports quality
+            size: "1024x1024",
+            response_format: imageModel === "gpt-image-1" ? "b64_json" : undefined,
+            ...(imageModel === "dall-e-3" ? { quality: "hd" } : {})
         });
 
         // Handle different response formats
