@@ -225,8 +225,13 @@ app.post('/generate-image', async (req, res) => {
             characterDescription = charResult.response.text();
         }
 
-        // Extract current scene
-        const scenePrompt = `Describe only the CURRENT SCENE and action from this story (location, atmosphere, what's happening). Do NOT describe the character. Keep under 50 words.\n\nRecent:\n${history.slice(-3).map(m => `${m.role}: ${m.parts}`).join('\n')}`;
+        // Extract current scene from the MOST RECENT bot response only
+        const lastBotMessage = history[history.length - 1]?.parts || '';
+        const scenePrompt = `Extract ONLY what is happening in this exact story paragraph. Do NOT invent or add anything new. Just describe the scene/action/location from this text:
+
+"${lastBotMessage}"
+
+Describe in 40 words or less: Where is the character? What are they doing right now? What's the atmosphere/mood?`;
 
         const sceneResult = await chatModel.generateContent(scenePrompt);
         const sceneDescription = sceneResult.response.text();
@@ -235,15 +240,19 @@ app.post('/generate-image', async (req, res) => {
         console.log(`Scene: ${sceneDescription}`);
 
         // 2. Create image prompt with strict consistency
-        const imagePrompt = `${style || 'Pixel Art'} style ${genre || 'Cyberpunk'} scene.
+        const imagePrompt = `Create a ${style || 'Pixel Art'} style ${genre || 'Cyberpunk'} image.
 
-CHARACTER (keep EXACTLY consistent):
+MANDATORY CHARACTER DESCRIPTION (must match EXACTLY):
 ${characterDescription}
 
-CURRENT SCENE:
+CURRENT SCENE (from the story right now):
 ${sceneDescription}
 
-CRITICAL: Character's eyes, hair, scars, and cybernetics MUST match the description exactly. High quality, detailed.`;
+CRITICAL RULES:
+1. The character's appearance MUST match the description above EXACTLY (eyes, hair, scars, cybernetics, clothing)
+2. Show ONLY what is described in the current scene - do NOT add new elements
+3. High quality, detailed composition
+4. DO NOT change ANY character features between images`;
 
         // 3. Call OpenAI Image Generation
         const imageModel = process.env.OPENAI_IMAGE_MODEL || "dall-e-3";
