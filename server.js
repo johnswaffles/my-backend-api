@@ -159,16 +159,17 @@ app.post('/chat', async (req, res) => {
             // responseText += "\n[...Response truncated...]"; 
         }
 
-        // Create detailed character card on first message (for image consistency)
+        // Create DETAILED character card ONLY on first message (for perfect image consistency)
         let characterCard = null;
-        if (history.length <= 2) {  // First user message
-            const characterPrompt = `Based on this story beginning, create an ULTRA-DETAILED character description for the MAIN PROTAGONIST. Include EVERY physical detail:
+        if (history.length <= 2 && selectedGenre !== 'Christian') {  // First user message, except Christian
+            const characterPrompt = `You just wrote this opening paragraph for a story:
 
-Story: ${userMessage}
+"${responseText}"
 
-Describe:
-- EXACT eye color, shape, any modifications (cybernetics, scars, heterochromia)
-- Hair: color, style, length, texture
+Extract an ULTRA-DETAILED character description of the MAIN PROTAGONIST for future image generation. Include EVERY physical detail:
+
+- EXACT eye color, shape, modifications (cybernetics, scars, heterochromia)
+- Hair: color, style, length, texture  
 - Skin tone, scars, tattoos, markings, cybernetic implants
 - Face shape, nose, lips, jawline, cheekbones
 - Body type, height, build, posture
@@ -177,7 +178,7 @@ Describe:
 - Age and demeanor
 - Any unique visual traits (glowing eyes, mutations, etc.)
 
-Be extremely specific. This description will be used for ALL future images to maintain perfect consistency.
+Be EXTREMELY specific about eyes, hair, and any cybernetics/scars. This will be used for ALL future images.
 Keep under 150 words but be VERY detailed.`;
 
             try {
