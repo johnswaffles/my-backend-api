@@ -1306,49 +1306,68 @@
 
                 console.log('🔍 RAW REPLY FROM BACKEND:');
                 console.log(reply);
-                console.log('---END RAW REPLY---');
 
-                // Process JSON Actions and filter them out from display
+                // FIRST: Remove any inline JSON using regex (JSON embedded in paragraphs)
+                const jsonRegex = /\s*\{[^}]*"action"[^}]*\}\s*/g;
+                const jsonMatches = reply.match(jsonRegex);
+
+                if (jsonMatches) {
+                    console.log(`🔍 Found ${jsonMatches.length} inline JSON objects`);
+                    jsonMatches.forEach((jsonStr) => {
+                        try {
+                            const action = JSON.parse(jsonStr.trim());
+                            console.log('✅ Inline JSON parsed:', action);
+                            if (action.action === 'add_item') {
+                                state.inventory.push(action.item);
+                                console.log('✅ Added item:', action.item.name);
+                            } else if (action.action === 'remove_item') {
+                                state.inventory = state.inventory.filter(i => i.name !== action.item.name);
+                            } else if (action.action === 'consume_item') {
+                                state.inventory = state.inventory.filter(i => i.name !== action.item.name);
+                                addMessage(`✨ Used ${action.item.name}`, false);
+                            }
+                        } catch (e) {
+                            console.warn('❌ Failed to parse inline JSON:', e);
+                        }
+                    });
+                    // Remove all inline JSON from text
+                    reply = reply.replace(jsonRegex, ' ').replace(/\s+/g, ' ').trim();
+                    console.log('✅ Removed inline JSON from text');
+                }
+
+                // SECOND: Process line-by-line for standalone JSON lines
                 const lines = reply.split('\n');
                 const cleanLines = [];
-                let jsonLinesFound = 0;
 
                 for (const line of lines) {
                     const trimmed = line.trim();
                     if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-                        console.log('🔍 Found potential JSON line:', trimmed);
-                        jsonLinesFound++;
                         try {
                             const action = JSON.parse(trimmed);
-                            console.log('✅ Parsed JSON:', action);
-                            if (action.action === 'add_item') {
-                                state.inventory.push(action.item);
-                                console.log('✅ Added item to inventory:', action.item.name);
-                                console.log('📦 Current inventory:', state.inventory);
-                            } else if (action.action === 'remove_item') {
-                                state.inventory = state.inventory.filter(i => i.name !== action.item.name);
-                                console.log('❌ Removed item:', action.item.name);
-                            } else if (action.action === 'consume_item') {
-                                state.inventory = state.inventory.filter(i => i.name !== action.item.name);
-                                addMessage(`✨ Used ${action.item.name}`, false);
-                                console.log('⚡ Consumed item:', action.item.name);
+                            if (action.action) {
+                                console.log('✅ Line JSON parsed:', action);
+                                if (action.action === 'add_item') {
+                                    state.inventory.push(action.item);
+                                    console.log('✅ Added item:', action.item.name);
+                                } else if (action.action === 'remove_item') {
+                                    state.inventory = state.inventory.filter(i => i.name !== action.item.name);
+                                } else if (action.action === 'consume_item') {
+                                    state.inventory = state.inventory.filter(i => i.name !== action.item.name);
+                                    addMessage(`✨ Used ${action.item.name}`, false);
+                                }
+                                // Don't add to cleanLines
+                                continue;
                             }
-                            // Don't add this line to cleanLines (it's a JSON action)
                         } catch (e) {
-                            console.warn('❌ Failed to parse JSON:', trimmed, e);
                             // Not valid JSON, keep the line
-                            cleanLines.push(line);
                         }
-                    } else {
-                        // Not a JSON line, keep it
-                        cleanLines.push(line);
                     }
+                    cleanLines.push(line);
                 }
 
-                console.log(`📊 JSON lines found: ${jsonLinesFound}`);
+                reply = cleanLines.join('\n').trim();
                 console.log(`📦 Final inventory count: ${state.inventory.length}`);
 
-                reply = cleanLines.join('\n').trim();
                 updateInventory();
 
                 state.lastFullText = reply;
