@@ -214,7 +214,7 @@ app.post('/generate-image', async (req, res) => {
             prompt: imagePrompt,
             n: 1,
             size: "1792x1024",  // Widescreen format
-            quality: "standard"  // Standard quality (faster & cheaper than hd)
+            quality: "high"  // High quality as requested
         });
 
         res.json({ imageUrl: imageResponse.data[0].url });
