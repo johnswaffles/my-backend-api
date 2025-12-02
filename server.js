@@ -27,7 +27,7 @@ app.use((req, res, next) => {
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const MODEL_NAME = process.env.GEMINI_CHAT_MODEL || "gemini-3-pro";
+const MODEL_NAME = process.env.GEMINI_CHAT_MODEL || "gemini-3-pro-preview";
 console.log(`Using Gemini Model: ${MODEL_NAME}`);
 
 // --- System Prompt ---
