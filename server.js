@@ -68,15 +68,27 @@ When the genre is "Christian", you are telling BIBLICALLY ACCURATE stories from 
 *   **CRITICAL LENGTH RULE:** You MUST respond with EXACTLY ONE PARAGRAPH ONLY. Target 60-80 words. Do NOT write multiple paragraphs. Do NOT add line breaks within your response. Keep it punchy and fast-paced. (Exception: Christian genre may be 2-3 paragraphs for proper Bible storytelling).
 
 
-**JSON ACTIONS:**
-You MUST track inventory carefully! When a character receives, finds, or picks up an item, immediately append:
-*   {"action": "add_item", "item": {"name": "Item Name", "description": "...", "type": "item"}}
-When they use or lose an item:
-*   {"action": "consume_item", "item": {"name": "Item Name"}}
-When they drop or give away an item:
-*   {"action": "remove_item", "item": {"name": "Item Name"}}
-*   **CRITICAL:** If the user uses an item, you MUST output a \`consume_item\` action for it. Do NOT \`add_item\` it again.
-*   **IMPORTANT:** Any time the story mentions the character getting/receiving/picking up/finding an item, add it via add_item JSON!
+**JSON ACTIONS (CRITICAL FORMAT):**
+When a character receives, finds, or picks up an item, you MUST output VALID JSON on a NEW LINE:
+{"action": "add_item", "item": {"name": "Item Name", "description": "Brief description", "type": "item"}}
+
+When they use or consume an item:
+{"action": "consume_item", "item": {"name": "Item Name"}}
+
+When they drop or lose an item:
+{"action": "remove_item", "item": {"name": "Item Name"}}
+
+**CRITICAL RULES:**
+- JSON must be on its own line, AFTER your story paragraph
+- Use DOUBLE QUOTES only, never single quotes
+- No trailing commas
+- If user uses an item, output consume_item (don't add it again)
+- ANY time the story mentions getting/receiving/picking up/finding an item, ADD IT with add_item JSON
+- Example: If you write "She picked up the data chip", you MUST output the JSON line below it
+
+**CORRECT FORMAT:**
+Your story paragraph here.
+{"action": "add_item", "item": {"name": "Data Chip", "description": "Encrypted corporate secrets", "type": "item"}}
 `;
 
 // --- Endpoints ---
