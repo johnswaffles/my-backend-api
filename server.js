@@ -196,22 +196,21 @@ app.post('/generate-image', async (req, res) => {
         console.log(`Visual Description: ${visualDescription}`);
 
         // 2. Generate Image Prompt for DALL-E 3
-        // We request a 4-panel grid to show "four pictures" as requested
+        // Single widescreen image focused on the story narrative, not choices
         const imagePrompt = `
-        A split-screen image with 4 distinct panels showing a cohesive story sequence.
-        Subject: ${visualDescription}
-        Style: ${style || 'Cinematic'} art style.
-        Genre: ${genre || 'Fantasy'}.
-        Ensure the main character looks consistent across all 4 panels.
-        High quality, detailed, 4k.
+        A cinematic widescreen scene depicting: ${visualDescription}
+        Style: ${style || 'Pixel Art'} art style.
+        Genre: ${genre || 'Cyberpunk'}.
+        Focus on the narrative moment, atmosphere, and character(s) in the scene.
+        High quality, detailed, dramatic composition.
         `;
 
-        // 3. Call DALL-E 3
+        // 3. Call DALL-E 3 with widescreen size
         const imageResponse = await openai.images.generate({
             model: "dall-e-3",
             prompt: imagePrompt,
             n: 1,
-            size: "1024x1024",
+            size: "1792x1024",  // Widescreen format
             quality: "hd"
         });
 
