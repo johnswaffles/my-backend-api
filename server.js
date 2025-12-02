@@ -214,7 +214,7 @@ app.post('/generate-image', async (req, res) => {
             model: imageModel,
             prompt: imagePrompt,
             n: 1,
-            size: "1792x1024",  // Widescreen format
+            size: "1536x1024",  // Widescreen format (max supported width)
             quality: "high"  // High quality as requested
         });
 
