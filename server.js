@@ -25,11 +25,15 @@ app.use((req, res, next) => {
 
 // --- Configuration ---
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-// Use gemini-2.5-flash-preview-09-2025 or override with env var
-const MODEL_NAME = process.env.GEMINI_CHAT_MODEL || "gemini-2.5-flash-preview-09-2025";
-console.log(`Using Gemini Model: ${MODEL_NAME}`);
+// Use environment variables for model names
+const CHAT_MODEL_NAME = process.env.GEMINI_CHAT_MODEL || 'gemini-2.5-flash-preview-09-2025';
+const IMAGE_MODEL_NAME = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
+
+console.log('🤖 Chat Model:', CHAT_MODEL_NAME);
+console.log('🎨 Image Model:', IMAGE_MODEL_NAME);
+
+const MODEL_NAME = CHAT_MODEL_NAME; // For backward compatibility
 
 // --- System Prompt ---
 const BASE_SYSTEM_PROMPT = `
@@ -243,11 +247,10 @@ app.post('/generate-image', async (req, res) => {
             return res.status(500).json({ error: "Gemini API Key missing for image generation" });
         }
 
-        // Use Gemini 2.5 Flash Image model
-        const imageModel = process.env.GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image";
-        console.log(`🎨 Using Gemini image model: ${imageModel}`);
+        // Use Gemini image model from environment variable
+        console.log(`🎨 Using image model: ${IMAGE_MODEL_NAME}`);
 
-        const geminiImageModel = genAI.getGenerativeModel({ model: imageModel });
+        const geminiImageModel = genAI.getGenerativeModel({ model: IMAGE_MODEL_NAME });
 
         // 1. Build the image generation prompt with character consistency
         let imagePrompt = '';
