@@ -1307,43 +1307,7 @@
                 console.log('🔍 RAW REPLY FROM BACKEND:');
                 console.log(reply);
 
-                // FIRST: Remove any inline JSON using regex (JSON embedded in paragraphs)
-                // This regex catches JSON even if it's malformed or incomplete
-                const jsonRegex = /\{[^}]*(?:"action"|"item"|"name"|"description")[^}]*\}/g;
-                const jsonMatches = reply.match(jsonRegex);
-
-                if (jsonMatches) {
-                    console.log(`🔍 Found ${jsonMatches.length} inline JSON objects`);
-                    for (const jsonStr of jsonMatches) {
-                        try {
-                            const trimmed = jsonStr.trim();
-                            if (!trimmed) continue;
-
-                            const action = JSON.parse(trimmed);
-                            console.log('✅ Inline JSON parsed:', action);
-
-                            if (!action || !action.action) continue;
-
-                            if (action.action === 'add_item' && action.item && action.item.name) {
-                                state.inventory.push(action.item);
-                                console.log('✅ Added item:', action.item.name);
-                            } else if (action.action === 'remove_item' && action.item && action.item.name) {
-                                state.inventory = state.inventory.filter(i => i.name !== action.item.name);
-                            } else if (action.action === 'consume_item' && action.item && action.item.name) {
-                                state.inventory = state.inventory.filter(i => i.name !== action.item.name);
-                                addMessage(`✨ Used ${action.item.name}`, false);
-                            }
-                        } catch (e) {
-                            // Silently skip malformed JSON - don't crash the page
-                            console.warn('⚠️ Skipping malformed JSON:', jsonStr.substring(0, 50) + '...');
-                        }
-                    }
-                    // Remove ALL JSON-like patterns from text (even malformed ones)
-                    reply = reply.replace(jsonRegex, '').replace(/\s+/g, ' ').trim();
-                    console.log('✅ Removed inline JSON from text');
-                }
-
-                // SECOND: Process line-by-line for standalone JSON lines
+                // Process JSON Actions line-by-line ONLY (backend outputs JSON on separate lines)
                 const lines = reply.split('\n');
                 const cleanLines = [];
 
@@ -1386,10 +1350,6 @@
                 }
 
                 reply = cleanLines.join('\n').trim();
-
-                // Clean up any stray brackets or JSON fragments that might have been left
-                reply = reply.replace(/\s*\{[^}]*\}\s*/g, ' ');  // Remove any remaining {...}
-                reply = reply.replace(/\s+/g, ' ').trim();  // Clean up extra spaces
 
                 // Format numbered lists to ensure they're on new lines
                 reply = reply.replace(/(\d+)\.\s+/g, '\n$1. ');
