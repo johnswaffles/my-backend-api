@@ -118,7 +118,11 @@ app.post('/chat', async (req, res) => {
         // 1. Sanitize History
         let chatHistory = [];
         if (history && Array.isArray(history)) {
-            chatHistory = history
+            // Limit history to last 30 messages to prevent token overflow/500 errors
+            const MAX_HISTORY = 30;
+            const recentHistory = history.slice(-MAX_HISTORY);
+
+            chatHistory = recentHistory
                 .filter(msg => msg.role && msg.parts) // Valid messages only
                 .map(msg => ({
                     role: msg.role === 'user' || msg.role === 'model' ? msg.role : 'user', // Strict role check
