@@ -295,32 +295,49 @@ High quality, detailed composition.`;
 
         console.log(`📝 Image prompt length: ${imagePrompt.length} chars`);
 
-        // 3. Generate image with Gemini
+        // 3. Generate image with Gemini 2.5 Flash Image
         const result = await geminiImageModel.generateContent(imagePrompt);
         const response = await result.response;
 
         console.log('🔍 Gemini Image Response Structure:');
         console.log('Candidates:', response.candidates?.length || 0);
-        console.log('First candidate:', JSON.stringify(response.candidates?.[0], null, 2).substring(0, 500));
 
-        // Gemini returns image as base64 in the response
-        const imageData = response.candidates?.[0]?.content?.parts?.[0];
-
-        if (!imageData) {
-            console.error('❌ No image data in response.candidates[0].content.parts[0]');
-            console.error('Full response:', JSON.stringify(response, null, 2).substring(0, 1000));
-            throw new Error('No image data returned from Gemini');
+        if (!response.candidates || response.candidates.length === 0) {
+            throw new Error('No candidates in Gemini response');
         }
 
-        if (!imageData.inlineData) {
-            console.error('❌ imageData exists but no inlineData');
-            console.error('imageData structure:', JSON.stringify(imageData, null, 2));
-            throw new Error('No inlineData in Gemini response');
+        // Iterate through parts to find the inlineData (image)
+        const parts = response.candidates[0]?.content?.parts;
+
+        if (!parts || parts.length === 0) {
+            console.error('❌ No parts in response');
+            console.error('Full response:', JSON.stringify(response, null, 2).substring(0, 1000));
+            throw new Error('No parts in Gemini response');
+        }
+
+        console.log(`Found ${parts.length} part(s) in response`);
+
+        // Find the part with image data
+        let imageData = null;
+        for (const part of parts) {
+            if (part.inlineData) {
+                imageData = part.inlineData;
+                console.log('✅ Found inlineData in part');
+                break;
+            } else if (part.text) {
+                console.log('Part contains text:', part.text.substring(0, 100));
+            }
+        }
+
+        if (!imageData) {
+            console.error('❌ No inlineData found in any part');
+            console.error('Parts structure:', JSON.stringify(parts, null, 2).substring(0, 500));
+            throw new Error('No image data in Gemini response');
         }
 
         // Convert to data URL
-        const mimeType = imageData.inlineData.mimeType || 'image/png';
-        const base64Data = imageData.inlineData.data;
+        const mimeType = imageData.mimeType || 'image/png';
+        const base64Data = imageData.data;
 
         if (!base64Data) {
             throw new Error('inlineData.data is empty');
