@@ -123,7 +123,13 @@ app.post('/chat', async (req, res) => {
                 }));
         }
 
-        // 2. Configure Model
+        // 2. Build System Prompt
+        const fullSystemPrompt = `${BASE_SYSTEM_PROMPT}
+
+**CURRENT GENRE:** ${selectedGenre}
+Adjust your tone to match this genre.`;
+
+        // 3. Configure Model
         const model = genAI.getGenerativeModel({
             model: MODEL_NAME,
             systemInstruction: {
