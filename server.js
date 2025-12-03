@@ -296,16 +296,33 @@ High quality, detailed composition.`;
         const result = await geminiImageModel.generateContent(imagePrompt);
         const response = await result.response;
 
-        // Gemini returns image as base64 in the response
-        const imageData = response.candidates[0]?.content?.parts?.[0];
+        console.log('🔍 Gemini Image Response Structure:');
+        console.log('Candidates:', response.candidates?.length || 0);
+        console.log('First candidate:', JSON.stringify(response.candidates?.[0], null, 2).substring(0, 500));
 
-        if (!imageData || !imageData.inlineData) {
+        // Gemini returns image as base64 in the response
+        const imageData = response.candidates?.[0]?.content?.parts?.[0];
+
+        if (!imageData) {
+            console.error('❌ No image data in response.candidates[0].content.parts[0]');
+            console.error('Full response:', JSON.stringify(response, null, 2).substring(0, 1000));
             throw new Error('No image data returned from Gemini');
+        }
+
+        if (!imageData.inlineData) {
+            console.error('❌ imageData exists but no inlineData');
+            console.error('imageData structure:', JSON.stringify(imageData, null, 2));
+            throw new Error('No inlineData in Gemini response');
         }
 
         // Convert to data URL
         const mimeType = imageData.inlineData.mimeType || 'image/png';
         const base64Data = imageData.inlineData.data;
+
+        if (!base64Data) {
+            throw new Error('inlineData.data is empty');
+        }
+
         const imageUrl = `data:${mimeType};base64,${base64Data}`;
 
         console.log(`✅ Image generated successfully (${base64Data.length} bytes)`);
