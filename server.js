@@ -248,7 +248,7 @@ Keep total under 100 words but pack in EXACT visual details.`;
 // --- Image Generation Endpoint (Gemini 2.5 Flash Image) ---
 app.post('/generate-image', async (req, res) => {
     try {
-        const { history, style, genre, characterCard } = req.body;
+        const { history, style, genre, characterCard, lastImageUrl } = req.body;
 
         if (!process.env.GEMINI_API_KEY) {
             return res.status(500).json({ error: "Gemini API Key missing for image generation" });
@@ -302,8 +302,55 @@ High quality, detailed composition.`;
 
         console.log(`📝 Image prompt length: ${imagePrompt.length} chars`);
 
-        // 3. Generate image with Gemini 2.5 Flash Image
-        const result = await geminiImageModel.generateContent(imagePrompt);
+        // 3. Build multimodal content array
+        let contents;
+
+        if (lastImageUrl) {
+            // Extract base64 data from data URL
+            console.log('🖼️ Using previous image as visual reference');
+            const base64Match = lastImageUrl.match(/^data:image\/(\w+);base64,(.+)$/);
+
+            if (base64Match) {
+                const mimeType = `image/${base64Match[1]}`;
+                const base64Data = base64Match[2];
+
+                // Build multimodal prompt: image first, then text
+                contents = [
+                    {
+                        role: 'user',
+                        parts: [
+                            {
+                                inlineData: {
+                                    mimeType: mimeType,
+                                    data: base64Data
+                                }
+                            },
+                            {
+                                text: `⚠️ CRITICAL: Use this reference image to maintain EXACT character consistency!
+
+The character in this image is the SAME character you must generate. Copy their appearance EXACTLY.
+
+${imagePrompt}
+
+REMEMBER: The character MUST look identical to the reference image above!`
+                            }
+                        ]
+                    }
+                ];
+
+                console.log(`✅ Included ${base64Data.length} bytes of image reference`);
+            } else {
+                console.warn('⚠️ Could not parse lastImageUrl, falling back to text-only');
+                contents = imagePrompt;
+            }
+        } else {
+            // First image - text only (using character card)
+            console.log('📝 First image generation (text-only)');
+            contents = imagePrompt;
+        }
+
+        // 4. Generate image with Gemini 2.5 Flash Image
+        const result = await geminiImageModel.generateContent(contents);
         const response = await result.response;
 
         console.log('🔍 Gemini Image Response Structure:');

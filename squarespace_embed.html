@@ -850,7 +850,10 @@
             videoGameContext: false,
             audioCache: null,  // Cache audio to prevent duplicate API calls
             characterCard: null,  // Stores detailed character description for image consistency
-            userChangedVoice: false  // Track if user manually changed voice
+            userChangedVoice: false,  // Track if user manually changed voice
+            isGeneratingImage: false,
+            currentImage: '',
+            lastGeneratedImage: null  // Store last image for reference in next generation
         };
 
         const els = {
@@ -1481,7 +1484,8 @@
                         history: state.history,
                         style: els.artStyle.value,
                         genre: els.genre.value,
-                        characterCard: state.characterCard  // Send stored character card
+                        characterCard: state.characterCard,  // Send stored character card
+                        lastImageUrl: state.lastGeneratedImage  // Send previous image for reference
                     })
                 });
 
@@ -1520,6 +1524,11 @@
                 </div>
             `;
             els.messages.appendChild(div);
+
+            // Store image for next generation reference
+            state.lastGeneratedImage = url;
+            console.log('✅ Stored image for next reference');
+
             // Scroll
             setTimeout(() => {
                 els.container.scrollTop = els.container.scrollHeight;
