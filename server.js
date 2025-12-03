@@ -212,16 +212,20 @@ USER'S REQUEST: "${userMessage}"
 STORY OPENING: "${responseText}"
 
 Provide EXACT details in this format:
-HAIR: [exact color/shade, length, style, texture]
-EYES: [exact color/shade, shape, size]  
-FACE: [shape, skin tone, age, distinctive marks/scars]
-BODY: [height, build, notable features]  
-CYBERNETICS: [exact implants, locations, colors/materials]
-CLOTHING: [specific items, colors, style, condition]
-DISTINCTIVE FEATURES: [anything that makes them unique - scars, tattoos, accessories, etc.]
+HAIR: [exact color/shade, length, style, texture, any accessories]
+EYES: [exact color/shade, shape, size, any modifications]
+FACE: [shape, skin tone, age, distinctive marks, scars, makeup, facial hair]
+BODY: [height, build, muscle definition, posture, notable features]
+CYBERNETICS: [exact implants, locations, colors, materials, glow colors]
+CLOTHING: [specific items (jacket, pants, boots), colors, materials, style, condition, logos/patterns]
+ACCESSORIES: [jewelry, tech gadgets, holsters, backpacks, glasses/goggles]
+WEAPONS/GEAR: [visible weapons, tools, equipment carried]
+DISTINCTIVE FEATURES: [scars, tattoos, piercings, glowing elements, aura]
+VIBE: [overall aesthetic - e.g., "gritty cyberpunk mercenary", "elegant corporate spy"]
 
-Be SPECIFIC with colors (use descriptive shades like "electric blue" not just "blue").
-Keep total under 100 words but pack in EXACT visual details.`;
+Be SPECIFIC with colors (use descriptive shades like "neon electric blue" not just "blue").
+Describe textures (matte, glossy, metallic, worn, leather).
+Keep total under 150 words but pack in EXACT visual details.`;
 
             try {
                 const charCardModel = genAI.getGenerativeModel({ model: MODEL_NAME });
