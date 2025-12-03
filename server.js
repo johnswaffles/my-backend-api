@@ -141,6 +141,11 @@ app.post('/chat', async (req, res) => {
             },
         });
 
+        // 3. Start Chat Session
+        const chat = model.startChat({
+            history: chatHistory,
+        });
+
         // 4. Generate Response
         console.log(`📤 Sending message to Gemini...`);
         const result = await chat.sendMessage(userMessage);
