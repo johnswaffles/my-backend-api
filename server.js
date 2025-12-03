@@ -318,26 +318,22 @@ High quality, detailed composition.`;
                 const base64Data = base64Match[2];
 
                 // Build multimodal prompt: image first, then text
+                // Note: generateContent expects parts array directly, not wrapped in role
                 contents = [
                     {
-                        role: 'user',
-                        parts: [
-                            {
-                                inlineData: {
-                                    mimeType: mimeType,
-                                    data: base64Data
-                                }
-                            },
-                            {
-                                text: `⚠️ CRITICAL: Use this reference image to maintain EXACT character consistency!
+                        inlineData: {
+                            mimeType: mimeType,
+                            data: base64Data
+                        }
+                    },
+                    {
+                        text: `⚠️ CRITICAL: Use this reference image to maintain EXACT character consistency!
 
 The character in this image is the SAME character you must generate. Copy their appearance EXACTLY.
 
 ${imagePrompt}
 
 REMEMBER: The character MUST look identical to the reference image above!`
-                            }
-                        ]
                     }
                 ];
 
