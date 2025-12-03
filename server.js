@@ -127,19 +127,14 @@ app.post('/chat', async (req, res) => {
         const model = genAI.getGenerativeModel({
             model: MODEL_NAME,
             systemInstruction: {
-                parts: [{ text: `${BASE_SYSTEM_PROMPT} \n\n ** CURRENT GENRE:** ${selectedGenre} \nAdjust your tone to match this genre.` }]
+                parts: [{ text: fullSystemPrompt }]
             },
             safetySettings: [
                 { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
                 { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
                 { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
                 { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' }
-            ]
-        });
-
-        // 3. Start Chat
-        const chat = model.startChat({
-            history: chatHistory,
+            ],
             generationConfig: {
                 maxOutputTokens: 4096, // Increased limit for longer stories
                 temperature: 0.9,
@@ -147,6 +142,7 @@ app.post('/chat', async (req, res) => {
         });
 
         // 4. Generate Response
+        console.log(`📤 Sending message to Gemini...`);
         const result = await chat.sendMessage(userMessage);
         const response = await result.response;
 
