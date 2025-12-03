@@ -356,7 +356,10 @@ REMEMBER: The character MUST look identical to the reference image above!`
         console.log('Candidates:', response.candidates?.length || 0);
 
         if (!response.candidates || response.candidates.length === 0) {
-            throw new Error('No candidates in Gemini response');
+            console.error('❌ No candidates in response');
+            console.error('Full response:', JSON.stringify(response, null, 2));
+            console.error('Prompt feedback:', response.promptFeedback);
+            throw new Error('No candidates in Gemini response - possibly blocked by safety filters');
         }
 
         // Iterate through parts to find the inlineData (image)
@@ -364,8 +367,16 @@ REMEMBER: The character MUST look identical to the reference image above!`
 
         if (!parts || parts.length === 0) {
             console.error('❌ No parts in response');
-            console.error('Full response:', JSON.stringify(response, null, 2).substring(0, 1000));
-            throw new Error('No parts in Gemini response');
+            console.error('Full candidate:', JSON.stringify(response.candidates[0], null, 2));
+            console.error('Finish reason:', response.candidates[0]?.finishReason);
+            console.error('Safety ratings:', response.candidates[0]?.safetyRatings);
+
+            // Check if blocked by safety
+            if (response.candidates[0]?.finishReason === 'SAFETY') {
+                throw new Error('Image generation blocked by safety filters. Try a different scene or character description.');
+            }
+
+            throw new Error(`No parts in Gemini response. Finish reason: ${response.candidates[0]?.finishReason || 'unknown'}`);
         }
 
         console.log(`Found ${parts.length} part(s) in response`);
