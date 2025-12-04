@@ -274,40 +274,30 @@ app.post('/generate-image', async (req, res) => {
         let imagePrompt = '';
 
         if (characterCard) {
-            // Ultra-strong character locking with scene context
-            imagePrompt = `⚠️ CRITICAL: This character MUST look IDENTICAL in every image. DO NOT change ANY features!
+            // Balanced prompt: Consistent character + Dynamic scene
+            imagePrompt = `Generate a NEW illustration showing a DIFFERENT moment in the story.
 
-🚫 ABSOLUTELY NO TEXT, WORDS, LETTERS, NUMBERS, OR WRITING OF ANY KIND IN THE IMAGE! 🚫
-- Do NOT include speech bubbles, dialogue boxes, or captions
-- Do NOT include signs, labels, or written words
-- Do NOT include numbers, symbols, or characters
-- Do NOT include watermarks or logos
-- The image must be purely visual with ZERO text elements
+NO TEXT, WORDS, NUMBERS, SIGNS, LABELS, SPEECH BUBBLES, OR WRITING IN THE IMAGE.
 
-===CHARACTER REFERENCE (LOCK THESE FEATURES)===
+CHARACTER APPEARANCE (keep EXACTLY the same):
 ${characterCard}
-===END CHARACTER REFERENCE===
 
-===CURRENT SCENE CONTEXT===
-${sceneContext || 'Continue the current scene.'}
-===END SCENE CONTEXT===
+The character's face, body, hair, clothing, and distinguishing features must be IDENTICAL to their established appearance.
 
-MANDATORY RULES FOR CHARACTER:
-1. Same EXACT eye color and shape every time
-2. Same EXACT hair color, length, and style every time  
-3. Same EXACT facial features (nose, lips, jawline, skin tone)
-4. Same EXACT cybernetics/implants in same locations
-5. Same EXACT clothing unless story explicitly changes it
-6. Same EXACT scars, tattoos, or distinguishing marks
-7. DO NOT change age, build, or proportions
+CURRENT SCENE TO ILLUSTRATE:
+${sceneContext || 'The character in their current situation.'}
 
-CURRENT SCENE TO DEPICT:
-${history[history.length - 1]?.parts?.substring(0, 500) || 'character standing'}
+IMPORTANT SCENE REQUIREMENTS:
+- Show a NEW pose, angle, or action appropriate to this scene
+- The ENVIRONMENT should match the current story context
+- Lighting and atmosphere should reflect the scene mood
+- Character expression should match their current emotion
+- DO NOT recreate the previous image - show THIS moment
 
-STYLE: ${style || 'Pixel Art'}
-GENRE: ${genre || 'Cyberpunk'}
+Art Style: ${style || 'Cinematic Realism'}
+Genre: ${genre || 'Science Fiction'}
 
-⚠️ REMEMBER: NO TEXT IN THE IMAGE! The character appearance MUST match the reference EXACTLY. No variations!`;
+The character must look like the SAME PERSON but in a FRESH composition for this specific scene.`;
 
             console.log(`✅ Using stored character card for locked consistency`);
         } else {
