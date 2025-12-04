@@ -274,46 +274,42 @@ app.post('/generate-image', async (req, res) => {
         let imagePrompt = '';
 
         if (characterCard) {
-            // Balanced prompt: Consistent character + Dynamic scene
-            imagePrompt = `Generate a NEW illustration showing a DIFFERENT moment in the story.
+            // Balanced prompt: Strong style + Consistent character + Dynamic scene
+            imagePrompt = `MANDATORY ART STYLE: Create this image in ${style || 'Cinematic Realism'} style.
+This is the most important instruction - the entire image MUST look like ${style || 'Cinematic Realism'} artwork.
 
-NO TEXT, WORDS, NUMBERS, SIGNS, LABELS, SPEECH BUBBLES, OR WRITING IN THE IMAGE.
+NO TEXT, WORDS, NUMBERS, OR WRITING IN THE IMAGE.
 
-CHARACTER APPEARANCE (keep EXACTLY the same):
+CHARACTER (keep identical):
 ${characterCard}
 
-The character's face, body, hair, clothing, and distinguishing features must be IDENTICAL to their established appearance.
-
-CURRENT SCENE TO ILLUSTRATE:
+SCENE:
 ${sceneContext || 'The character in their current situation.'}
 
-IMPORTANT SCENE REQUIREMENTS:
-- Show a NEW pose, angle, or action appropriate to this scene
-- The ENVIRONMENT should match the current story context
-- Lighting and atmosphere should reflect the scene mood
-- Character expression should match their current emotion
-- DO NOT recreate the previous image - show THIS moment
+REQUIREMENTS:
+- Render EVERYTHING in authentic ${style || 'Cinematic Realism'} visual style
+- New pose/angle appropriate to this scene
+- Character appearance stays consistent
+- Environment matches story context
 
-Art Style: ${style || 'Cinematic Realism'}
-Genre: ${genre || 'Science Fiction'}
+Genre atmosphere: ${genre || 'Science Fiction'}
 
-The character must look like the SAME PERSON but in a FRESH composition for this specific scene.`;
+CRITICAL: The art style "${style || 'Cinematic Realism'}" must be unmistakable in the final image.`;
 
             console.log(`✅ Using stored character card for locked consistency`);
         } else {
             // Fallback without character card
-            imagePrompt = `Create a high-quality ${style || 'Pixel Art'} style ${genre || 'Cyberpunk'} image.
+            imagePrompt = `MANDATORY ART STYLE: Create this image in ${style || 'Cinematic Realism'} style.
+The entire image MUST look like authentic ${style || 'Cinematic Realism'} artwork.
 
-🚫 ABSOLUTELY NO TEXT, WORDS, LETTERS, NUMBERS, OR WRITING OF ANY KIND IN THE IMAGE! 🚫
-- No speech bubbles, dialogue, captions, signs, labels, or watermarks
-- The image must be purely visual with ZERO text elements
+NO TEXT, WORDS, OR WRITING IN THE IMAGE.
 
-CURRENT SCENE:
-${history[history.length - 1]?.parts?.substring(0, 500) || 'character standing'}
+SCENE:
+${history[history.length - 1]?.parts?.substring(0, 500) || 'character in scene'}
 
-Style: ${style || 'Pixel Art'}
-Genre atmosphere: ${genre || 'Cyberpunk'}
-High quality, detailed composition. NO TEXT!`;
+Genre: ${genre || 'Science Fiction'}
+
+CRITICAL: The "${style || 'Cinematic Realism'}" art style must be unmistakable.`;
         }
 
         console.log(`📝 Image prompt length: ${imagePrompt.length} chars`);
