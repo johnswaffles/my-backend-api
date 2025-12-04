@@ -274,27 +274,41 @@ app.post('/generate-image', async (req, res) => {
         let imagePrompt = '';
 
         if (characterCard) {
-            // Balanced prompt: Strong style + Consistent character + Dynamic scene
-            imagePrompt = `MANDATORY ART STYLE: Create this image in ${style || 'Cinematic Realism'} style.
-This is the most important instruction - the entire image MUST look like ${style || 'Cinematic Realism'} artwork.
+            // Style-first prompt with specific style guidance
+            const styleGuide = {
+                'Cinematic Realism': 'photorealistic, movie screenshot, dramatic lighting, shallow depth of field, 35mm film look',
+                'Anime': 'Japanese anime style, big expressive eyes, clean linework, cel-shaded, vibrant colors, manga influenced',
+                'Oil Painting': 'visible brushstrokes, thick impasto texture, classical painting technique, rich colors, museum quality',
+                'Watercolor': 'soft edges, color bleeding, wet-on-wet technique, paper texture visible, transparent washes',
+                'Digital Art': 'clean digital illustration, modern concept art, smooth gradients, professional digital painting',
+                'Concept Art': 'entertainment industry concept art, detailed environment design, professional illustration',
+                'Comic Book': 'bold black outlines, halftone dots, dynamic action poses, speech bubble style, Marvel/DC aesthetic',
+                'Manga': 'Japanese manga style, screentones, dramatic speed lines, expressive faces, black and white or limited color',
+                'Pixel Art': '16-bit retro game pixels, visible square pixels, limited color palette, nostalgic video game style',
+                'Impressionism': 'visible brushwork, light and color focus, Monet-style, soft edges, outdoor scenes',
+                'Art Nouveau': 'flowing organic lines, decorative borders, Alphonse Mucha style, ornate patterns',
+                'Pop Art': 'bold primary colors, Ben-Day dots, Andy Warhol style, commercial art aesthetic',
+                'Surrealism': 'dreamlike, impossible scenes, Salvador Dali influence, melting reality, symbolic imagery',
+                'Photorealistic': 'hyperrealistic, could be mistaken for a photograph, extreme detail, perfect lighting',
+                'Charcoal Sketch': 'black and white, rough sketch lines, smudged charcoal texture, artistic drawing',
+                'Noir': 'high contrast black and white, dramatic shadows, 1940s detective film aesthetic, moody',
+                'Fantasy Art': 'epic fantasy illustration, detailed armor and magic, Frank Frazetta inspired, heroic',
+                'Cyberpunk': 'neon lights, rain-slicked streets, high-tech low-life, blade runner aesthetic, futuristic',
+                'Steampunk': 'Victorian era technology, brass gears, steam-powered machinery, goggles and corsets',
+                'Studio Ghibli': 'Hayao Miyazaki style, soft colors, detailed backgrounds, whimsical, hand-drawn animation look'
+            };
 
-NO TEXT, WORDS, NUMBERS, OR WRITING IN THE IMAGE.
+            const styleDesc = styleGuide[style] || style || 'cinematic realistic';
 
-CHARACTER (keep identical):
-${characterCard}
+            imagePrompt = `[${style || 'Cinematic Realism'}] - ${styleDesc}
 
-SCENE:
-${sceneContext || 'The character in their current situation.'}
+Draw this image in ${style || 'Cinematic Realism'} style only. No other style.
 
-REQUIREMENTS:
-- Render EVERYTHING in authentic ${style || 'Cinematic Realism'} visual style
-- New pose/angle appropriate to this scene
-- Character appearance stays consistent
-- Environment matches story context
+Character: ${characterCard}
 
-Genre atmosphere: ${genre || 'Science Fiction'}
+Scene: ${sceneContext || 'current moment'}
 
-CRITICAL: The art style "${style || 'Cinematic Realism'}" must be unmistakable in the final image.`;
+No text or words in image. Same character appearance. Genre: ${genre || 'Science Fiction'}.`;
 
             console.log(`✅ Using stored character card for locked consistency`);
         } else {
