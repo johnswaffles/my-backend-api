@@ -277,6 +277,13 @@ app.post('/generate-image', async (req, res) => {
             // Ultra-strong character locking with scene context
             imagePrompt = `⚠️ CRITICAL: This character MUST look IDENTICAL in every image. DO NOT change ANY features!
 
+🚫 ABSOLUTELY NO TEXT, WORDS, LETTERS, NUMBERS, OR WRITING OF ANY KIND IN THE IMAGE! 🚫
+- Do NOT include speech bubbles, dialogue boxes, or captions
+- Do NOT include signs, labels, or written words
+- Do NOT include numbers, symbols, or characters
+- Do NOT include watermarks or logos
+- The image must be purely visual with ZERO text elements
+
 ===CHARACTER REFERENCE (LOCK THESE FEATURES)===
 ${characterCard}
 ===END CHARACTER REFERENCE===
@@ -300,19 +307,23 @@ ${history[history.length - 1]?.parts?.substring(0, 500) || 'character standing'}
 STYLE: ${style || 'Pixel Art'}
 GENRE: ${genre || 'Cyberpunk'}
 
-⚠️ REMEMBER: The character appearance MUST match the reference EXACTLY. No variations!`;
+⚠️ REMEMBER: NO TEXT IN THE IMAGE! The character appearance MUST match the reference EXACTLY. No variations!`;
 
             console.log(`✅ Using stored character card for locked consistency`);
         } else {
             // Fallback without character card
             imagePrompt = `Create a high-quality ${style || 'Pixel Art'} style ${genre || 'Cyberpunk'} image.
 
+🚫 ABSOLUTELY NO TEXT, WORDS, LETTERS, NUMBERS, OR WRITING OF ANY KIND IN THE IMAGE! 🚫
+- No speech bubbles, dialogue, captions, signs, labels, or watermarks
+- The image must be purely visual with ZERO text elements
+
 CURRENT SCENE:
 ${history[history.length - 1]?.parts?.substring(0, 500) || 'character standing'}
 
 Style: ${style || 'Pixel Art'}
 Genre atmosphere: ${genre || 'Cyberpunk'}
-High quality, detailed composition.`;
+High quality, detailed composition. NO TEXT!`;
         }
 
         console.log(`📝 Image prompt length: ${imagePrompt.length} chars`);
