@@ -29,8 +29,8 @@ app.use((req, res, next) => {
 // --- Configuration ---
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Use environment variables for model names - using stable models (NOT preview)
-const CHAT_MODEL_NAME = process.env.GEMINI_CHAT_MODEL || 'gemini-2.0-flash';
+// Use environment variables for model names
+const CHAT_MODEL_NAME = process.env.GEMINI_CHAT_MODEL || 'gemini-2.5-flash-preview-09-2025';
 const IMAGE_MODEL_NAME = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
 
 console.log('🤖 Chat Model:', CHAT_MODEL_NAME);
