@@ -261,186 +261,100 @@ app.post('/generate-image', async (req, res) => {
     try {
         const { history, style, genre, characterCard, lastImageUrl, sceneContext } = req.body;
 
-        if (!process.env.GEMINI_API_KEY) {
-            return res.status(500).json({ error: "Gemini API Key missing for image generation" });
+        // Check for OpenAI API key
+        if (!process.env.OPENAI_API_KEY) {
+            return res.status(500).json({ error: "OpenAI API Key missing for image generation" });
         }
 
-        // Use Gemini image model from environment variable
-        console.log(`🎨 Using image model: ${IMAGE_MODEL_NAME}`);
+        // Initialize OpenAI client
+        const openai = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY
+        });
 
-        const geminiImageModel = genAI.getGenerativeModel({ model: IMAGE_MODEL_NAME });
+        const imageModel = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1-mini';
+        console.log(`🎨 Using OpenAI image model: ${imageModel}`);
 
-        // 1. Build the image generation prompt with TRIPLE REFERENCE for consistency
+        // Style guide for specific visual descriptions
+        const styleGuide = {
+            'Cinematic Realism': 'photorealistic, movie screenshot, dramatic lighting, shallow depth of field, 35mm film look',
+            'Anime': 'Japanese anime style, big expressive eyes, clean linework, cel-shaded, vibrant colors, manga influenced',
+            'Oil Painting': 'visible brushstrokes, thick impasto texture, classical painting technique, rich colors, museum quality',
+            'Watercolor': 'soft edges, color bleeding, wet-on-wet technique, paper texture visible, transparent washes',
+            'Digital Art': 'clean digital illustration, modern concept art, smooth gradients, professional digital painting',
+            'Concept Art': 'entertainment industry concept art, detailed environment design, professional illustration',
+            'Comic Book': 'bold black outlines, halftone dots, dynamic action poses, Marvel/DC aesthetic',
+            'Manga': 'Japanese manga style, screentones, dramatic speed lines, expressive faces, black and white or limited color',
+            'Pixel Art': '16-bit retro game pixels, visible square pixels, limited color palette, nostalgic video game style',
+            'Impressionism': 'visible brushwork, light and color focus, Monet-style, soft edges, outdoor scenes',
+            'Art Nouveau': 'flowing organic lines, decorative borders, Alphonse Mucha style, ornate patterns',
+            'Pop Art': 'bold primary colors, Ben-Day dots, Andy Warhol style, commercial art aesthetic',
+            'Surrealism': 'dreamlike, impossible scenes, Salvador Dali influence, melting reality, symbolic imagery',
+            'Photorealistic': 'hyperrealistic, could be mistaken for a photograph, extreme detail, perfect lighting',
+            'Charcoal Sketch': 'black and white, rough sketch lines, smudged charcoal texture, artistic drawing',
+            'Noir': 'high contrast black and white, dramatic shadows, 1940s detective film aesthetic, moody',
+            'Fantasy Art': 'epic fantasy illustration, detailed armor and magic, Frank Frazetta inspired, heroic',
+            'Cyberpunk': 'neon lights, rain-slicked streets, high-tech low-life, blade runner aesthetic, futuristic',
+            'Steampunk': 'Victorian era technology, brass gears, steam-powered machinery, goggles and corsets',
+            'Studio Ghibli': 'Hayao Miyazaki style, soft colors, detailed backgrounds, whimsical, hand-drawn animation look'
+        };
+
+        const styleDesc = styleGuide[style] || style || 'cinematic realistic';
+
+        // Build prompt for OpenAI
         let imagePrompt = '';
 
         if (characterCard) {
-            // Style-first prompt with specific style guidance
-            const styleGuide = {
-                'Cinematic Realism': 'photorealistic, movie screenshot, dramatic lighting, shallow depth of field, 35mm film look',
-                'Anime': 'Japanese anime style, big expressive eyes, clean linework, cel-shaded, vibrant colors, manga influenced',
-                'Oil Painting': 'visible brushstrokes, thick impasto texture, classical painting technique, rich colors, museum quality',
-                'Watercolor': 'soft edges, color bleeding, wet-on-wet technique, paper texture visible, transparent washes',
-                'Digital Art': 'clean digital illustration, modern concept art, smooth gradients, professional digital painting',
-                'Concept Art': 'entertainment industry concept art, detailed environment design, professional illustration',
-                'Comic Book': 'bold black outlines, halftone dots, dynamic action poses, speech bubble style, Marvel/DC aesthetic',
-                'Manga': 'Japanese manga style, screentones, dramatic speed lines, expressive faces, black and white or limited color',
-                'Pixel Art': '16-bit retro game pixels, visible square pixels, limited color palette, nostalgic video game style',
-                'Impressionism': 'visible brushwork, light and color focus, Monet-style, soft edges, outdoor scenes',
-                'Art Nouveau': 'flowing organic lines, decorative borders, Alphonse Mucha style, ornate patterns',
-                'Pop Art': 'bold primary colors, Ben-Day dots, Andy Warhol style, commercial art aesthetic',
-                'Surrealism': 'dreamlike, impossible scenes, Salvador Dali influence, melting reality, symbolic imagery',
-                'Photorealistic': 'hyperrealistic, could be mistaken for a photograph, extreme detail, perfect lighting',
-                'Charcoal Sketch': 'black and white, rough sketch lines, smudged charcoal texture, artistic drawing',
-                'Noir': 'high contrast black and white, dramatic shadows, 1940s detective film aesthetic, moody',
-                'Fantasy Art': 'epic fantasy illustration, detailed armor and magic, Frank Frazetta inspired, heroic',
-                'Cyberpunk': 'neon lights, rain-slicked streets, high-tech low-life, blade runner aesthetic, futuristic',
-                'Steampunk': 'Victorian era technology, brass gears, steam-powered machinery, goggles and corsets',
-                'Studio Ghibli': 'Hayao Miyazaki style, soft colors, detailed backgrounds, whimsical, hand-drawn animation look'
-            };
+            imagePrompt = `Art Style: ${style || 'Cinematic Realism'} - ${styleDesc}
 
-            const styleDesc = styleGuide[style] || style || 'cinematic realistic';
+Character Description: ${characterCard}
 
-            imagePrompt = `[${style || 'Cinematic Realism'}] - ${styleDesc}
+Current Scene: ${sceneContext || 'character in their current situation'}
 
-Draw this image in ${style || 'Cinematic Realism'} style only. No other style.
+Requirements:
+- Render in ${style || 'Cinematic Realism'} style ONLY
+- Keep character appearance consistent with description
+- No text, words, numbers, or writing in the image
+- ${genre || 'Science Fiction'} genre atmosphere`;
 
-Character: ${characterCard}
-
-Scene: ${sceneContext || 'current moment'}
-
-No text or words in image. Same character appearance. Genre: ${genre || 'Science Fiction'}.`;
-
-            console.log(`✅ Using stored character card for locked consistency`);
+            console.log(`✅ Using character card for consistency`);
         } else {
-            // Fallback without character card
-            imagePrompt = `MANDATORY ART STYLE: Create this image in ${style || 'Cinematic Realism'} style.
-The entire image MUST look like authentic ${style || 'Cinematic Realism'} artwork.
+            imagePrompt = `Art Style: ${style || 'Cinematic Realism'} - ${styleDesc}
 
-NO TEXT, WORDS, OR WRITING IN THE IMAGE.
+Scene: ${history[history.length - 1]?.parts?.substring(0, 500) || 'dramatic scene'}
 
-SCENE:
-${history[history.length - 1]?.parts?.substring(0, 500) || 'character in scene'}
-
-Genre: ${genre || 'Science Fiction'}
-
-CRITICAL: The "${style || 'Cinematic Realism'}" art style must be unmistakable.`;
+Requirements:
+- Render in ${style || 'Cinematic Realism'} style ONLY
+- No text, words, or writing in the image
+- ${genre || 'Science Fiction'} genre atmosphere`;
         }
 
-        console.log(`📝 Image prompt length: ${imagePrompt.length} chars`);
+        console.log(`📝 Image prompt (${imagePrompt.length} chars)`);
 
-        // 3. Build multimodal content array
-        let contents;
+        // Call OpenAI Image API
+        const response = await openai.images.generate({
+            model: imageModel,
+            prompt: imagePrompt,
+            n: 1,
+            size: "1024x1024",
+            response_format: "b64_json"
+        });
 
-        if (lastImageUrl) {
-            // Extract base64 data from data URL
-            console.log('🖼️ Using previous image as visual reference');
-            const base64Match = lastImageUrl.match(/^data:image\/(\w+);base64,(.+)$/);
-
-            if (base64Match) {
-                const mimeType = `image/${base64Match[1]}`;
-                const base64Data = base64Match[2];
-
-                // Build multimodal prompt: image first, then text
-                // Note: generateContent expects parts array directly, not wrapped in role
-                contents = [
-                    {
-                        inlineData: {
-                            mimeType: mimeType,
-                            data: base64Data
-                        }
-                    },
-                    {
-                        text: `⚠️ CRITICAL: Use this reference image to maintain EXACT character consistency!
-
-The character in this image is the SAME character you must generate. Copy their appearance EXACTLY.
-
-${imagePrompt}
-
-REMEMBER: The character MUST look identical to the reference image above!`
-                    }
-                ];
-
-                console.log(`✅ Included ${base64Data.length} bytes of image reference`);
-            } else {
-                console.warn('⚠️ Could not parse lastImageUrl, falling back to text-only');
-                contents = imagePrompt;
-            }
-        } else {
-            // First image - text only (using character card)
-            console.log('📝 First image generation (text-only)');
-            contents = imagePrompt;
+        if (!response.data || response.data.length === 0) {
+            throw new Error('No image data in OpenAI response');
         }
 
-        // 4. Generate image with Gemini 2.5 Flash Image
-        const result = await geminiImageModel.generateContent(contents);
-        const response = await result.response;
+        const base64Data = response.data[0].b64_json;
+        const imageUrl = `data:image/png;base64,${base64Data}`;
 
-        console.log('🔍 Gemini Image Response Structure:');
-        console.log('Candidates:', response.candidates?.length || 0);
-
-        if (!response.candidates || response.candidates.length === 0) {
-            console.error('❌ No candidates in response');
-            console.error('Full response:', JSON.stringify(response, null, 2));
-            console.error('Prompt feedback:', response.promptFeedback);
-            throw new Error('No candidates in Gemini response - possibly blocked by safety filters');
-        }
-
-        // Iterate through parts to find the inlineData (image)
-        const parts = response.candidates[0]?.content?.parts;
-
-        if (!parts || parts.length === 0) {
-            console.error('❌ No parts in response');
-            console.error('Full candidate:', JSON.stringify(response.candidates[0], null, 2));
-            console.error('Finish reason:', response.candidates[0]?.finishReason);
-            console.error('Safety ratings:', response.candidates[0]?.safetyRatings);
-
-            // Check if blocked by safety
-            if (response.candidates[0]?.finishReason === 'SAFETY') {
-                throw new Error('Image generation blocked by safety filters. Try a different scene or character description.');
-            }
-
-            throw new Error(`No parts in Gemini response. Finish reason: ${response.candidates[0]?.finishReason || 'unknown'}`);
-        }
-
-        console.log(`Found ${parts.length} part(s) in response`);
-
-        // Find the part with image data
-        let imageData = null;
-        for (const part of parts) {
-            if (part.inlineData) {
-                imageData = part.inlineData;
-                console.log('✅ Found inlineData in part');
-                break;
-            } else if (part.text) {
-                console.log('Part contains text:', part.text.substring(0, 100));
-            }
-        }
-
-        if (!imageData) {
-            console.error('❌ No inlineData found in any part');
-            console.error('Parts structure:', JSON.stringify(parts, null, 2).substring(0, 500));
-            throw new Error('No image data in Gemini response');
-        }
-
-        // Convert to data URL
-        const mimeType = imageData.mimeType || 'image/png';
-        const base64Data = imageData.data;
-
-        if (!base64Data) {
-            throw new Error('inlineData.data is empty');
-        }
-
-        const imageUrl = `data:${mimeType};base64,${base64Data}`;
-
-        console.log(`✅ Image generated successfully (${base64Data.length} bytes)`);
+        console.log(`✅ OpenAI image generated successfully`);
 
         res.json({ imageUrl });
 
     } catch (error) {
-        console.error("❌ Gemini Image Generation Error:", error);
-        console.error("Error details:", error.message, error.stack);
+        console.error("❌ OpenAI Image Generation Error:", error);
+        console.error("Error details:", error.message);
         res.status(500).json({
-            error: "Failed to generate image with Gemini",
+            error: "Failed to generate image with OpenAI",
             details: error.message
         });
     }
