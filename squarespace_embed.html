@@ -710,46 +710,228 @@
         transform: translateY(-2px);
     }
 
-    /* Image Generation Loader */
+    /* Image Generation Loader - Holographic Neural Network */
     .image-loader {
+        position: relative;
         display: flex;
+        flex-direction: column;
         align-items: center;
-        gap: 10px;
-        padding: 15px;
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: 8px;
-        margin: 10px 0;
-        border: 1px solid var(--accent);
-        color: var(--accent);
-        font-family: 'Orbitron', sans-serif;
-        font-size: 0.9em;
-        animation: pulse-border 2s infinite;
+        justify-content: center;
+        padding: 30px 40px;
+        background: linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(20, 20, 40, 0.9) 100%);
+        border-radius: 16px;
+        margin: 15px 0;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+        overflow: hidden;
     }
 
-    @keyframes pulse-border {
+    .image-loader::before {
+        content: '';
+        position: absolute;
+        inset: -2px;
+        background: linear-gradient(45deg, #00f7ff, #ff00ff, #00f7ff, #ff00ff);
+        background-size: 400% 400%;
+        animation: gradient-spin 3s linear infinite;
+        border-radius: 18px;
+        z-index: -1;
+    }
+
+    .image-loader::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at 50% 50%, rgba(0, 247, 255, 0.1) 0%, transparent 70%);
+        animation: pulse-glow 2s ease-in-out infinite;
+    }
+
+    @keyframes gradient-spin {
         0% {
-            border-color: var(--accent);
-            box-shadow: 0 0 5px var(--accent);
+            background-position: 0% 50%;
         }
 
         50% {
-            border-color: #fff;
-            box-shadow: 0 0 15px var(--accent);
+            background-position: 100% 50%;
         }
 
         100% {
-            border-color: var(--accent);
-            box-shadow: 0 0 5px var(--accent);
+            background-position: 0% 50%;
         }
     }
 
-    .image-loader .spinner {
-        width: 20px;
-        height: 20px;
-        border: 2px solid var(--accent);
-        border-top: 2px solid transparent;
+    @keyframes pulse-glow {
+
+        0%,
+        100% {
+            opacity: 0.3;
+            transform: scale(1);
+        }
+
+        50% {
+            opacity: 0.8;
+            transform: scale(1.05);
+        }
+    }
+
+    /* Neural Network Orb */
+    .neural-orb {
+        position: relative;
+        width: 80px;
+        height: 80px;
+        margin-bottom: 15px;
+    }
+
+    .neural-orb::before {
+        content: '';
+        position: absolute;
+        inset: 0;
         border-radius: 50%;
-        animation: spin 1s linear infinite;
+        background: conic-gradient(from 0deg, #00f7ff, #ff00ff, #00ff88, #ff00ff, #00f7ff);
+        animation: orb-spin 2s linear infinite;
+        filter: blur(2px);
+    }
+
+    .neural-orb::after {
+        content: '🎨';
+        position: absolute;
+        inset: 8px;
+        background: radial-gradient(circle, #1a1a2e 0%, #0f0f1a 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        animation: orb-pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes orb-spin {
+        from {
+            transform: rotate(0deg);
+        }
+
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    @keyframes orb-pulse {
+
+        0%,
+        100% {
+            transform: scale(1);
+        }
+
+        50% {
+            transform: scale(1.1);
+        }
+    }
+
+    /* Floating particles */
+    .loader-particles {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .loader-particles span {
+        position: absolute;
+        width: 4px;
+        height: 4px;
+        background: #00f7ff;
+        border-radius: 50%;
+        animation: float-up 3s ease-in-out infinite;
+        box-shadow: 0 0 10px #00f7ff;
+    }
+
+    .loader-particles span:nth-child(1) {
+        left: 10%;
+        animation-delay: 0s;
+    }
+
+    .loader-particles span:nth-child(2) {
+        left: 30%;
+        animation-delay: 0.5s;
+        background: #ff00ff;
+        box-shadow: 0 0 10px #ff00ff;
+    }
+
+    .loader-particles span:nth-child(3) {
+        left: 50%;
+        animation-delay: 1s;
+    }
+
+    .loader-particles span:nth-child(4) {
+        left: 70%;
+        animation-delay: 1.5s;
+        background: #00ff88;
+        box-shadow: 0 0 10px #00ff88;
+    }
+
+    .loader-particles span:nth-child(5) {
+        left: 90%;
+        animation-delay: 2s;
+        background: #ff00ff;
+        box-shadow: 0 0 10px #ff00ff;
+    }
+
+    @keyframes float-up {
+        0% {
+            bottom: -10px;
+            opacity: 0;
+        }
+
+        20% {
+            opacity: 1;
+        }
+
+        80% {
+            opacity: 1;
+        }
+
+        100% {
+            bottom: 100%;
+            opacity: 0;
+        }
+    }
+
+    .loader-text {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 0.9em;
+        color: #fff;
+        text-transform: uppercase;
+        letter-spacing: 3px;
+        text-shadow: 0 0 20px #00f7ff, 0 0 40px #ff00ff;
+        animation: text-flicker 2s ease-in-out infinite;
+        z-index: 1;
+    }
+
+    @keyframes text-flicker {
+
+        0%,
+        100% {
+            opacity: 1;
+        }
+
+        50% {
+            opacity: 0.8;
+        }
+
+        52% {
+            opacity: 1;
+        }
+
+        54% {
+            opacity: 0.9;
+        }
+    }
+
+    .loader-subtext {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.75em;
+        color: rgba(255, 255, 255, 0.6);
+        margin-top: 8px;
+        z-index: 1;
     }
 
     /* Scrollbar */
@@ -1522,19 +1704,36 @@
             }
         });
 
-        // Auto Image Generation Function
-        async function generateImageAuto() {
-            // Create loader in chat
+        // Auto Image Generation Function with retry and scene context
+        async function generateImageAuto(retryCount = 0) {
+            const maxRetries = 3;
+
+            // Create holographic loader
             const loaderDiv = document.createElement('div');
             loaderDiv.className = 'message bot-message';
             loaderDiv.innerHTML = `
                 <div class="image-loader">
-                    <div class="spinner"></div>
-                    <span>🎨 Generating scene art...</span>
+                    <div class="loader-particles">
+                        <span></span><span></span><span></span><span></span><span></span>
+                    </div>
+                    <div class="neural-orb"></div>
+                    <div class="loader-text">Generating Scene</div>
+                    <div class="loader-subtext">Analyzing character & environment...</div>
                 </div>
             `;
             els.messages.appendChild(loaderDiv);
             els.container.scrollTop = els.container.scrollHeight;
+
+            // Extract current scene context from last bot message
+            let sceneContext = '';
+            if (state.history.length > 0) {
+                const lastBotMessage = [...state.history].reverse().find(m => m.role === 'model');
+                if (lastBotMessage && lastBotMessage.parts) {
+                    // Get first 300 chars of last bot response for scene context
+                    sceneContext = String(lastBotMessage.parts).substring(0, 300);
+                    console.log('🎬 Scene context extracted:', sceneContext.substring(0, 100) + '...');
+                }
+            }
 
             try {
                 const response = await fetch(`${BACKEND_URL}/generate-image`, {
@@ -1545,9 +1744,22 @@
                         style: els.artStyle.value,
                         genre: els.genre.value,
                         characterCard: state.characterCard,
-                        lastImageUrl: state.lastGeneratedImage
+                        lastImageUrl: state.lastGeneratedImage,
+                        sceneContext: sceneContext  // NEW: Send current scene for environment consistency
                     })
                 });
+
+                // Handle 503 (overloaded) with retry
+                if (response.status === 503) {
+                    if (retryCount < maxRetries) {
+                        console.log(`⚠️ Model overloaded, retrying in ${(retryCount + 1) * 2} seconds... (${retryCount + 1}/${maxRetries})`);
+                        loaderDiv.querySelector('.loader-subtext').textContent = `Server busy, retrying (${retryCount + 1}/${maxRetries})...`;
+                        await new Promise(r => setTimeout(r, (retryCount + 1) * 2000));
+                        loaderDiv.remove();
+                        return generateImageAuto(retryCount + 1);
+                    }
+                    throw new Error('Model is overloaded. Please try again in a few minutes.');
+                }
 
                 if (!response.ok) {
                     const errorText = await response.text();
@@ -1571,10 +1783,10 @@
                 console.error("Image Gen Error", e);
                 loaderDiv.remove();
 
-                // Add error message in chat instead of alert
+                // Friendly error in chat
                 const errorDiv = document.createElement('div');
                 errorDiv.className = 'message bot-message';
-                errorDiv.innerHTML = `<div style="color: #ff6b6b; padding: 10px;">⚠️ Image generation failed. Continuing story...</div>`;
+                errorDiv.innerHTML = `<div style="color: #ff6b6b; padding: 10px; border-left: 3px solid #ff6b6b;">⚠️ ${e.message.includes('overloaded') ? 'AI is busy right now. Image will generate on next turn!' : 'Image generation paused. Story continues...'}</div>`;
                 els.messages.appendChild(errorDiv);
                 els.container.scrollTop = els.container.scrollHeight;
             }

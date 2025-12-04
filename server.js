@@ -259,7 +259,7 @@ Keep total under 150 words but pack in EXACT visual details.`;
 // --- Image Generation Endpoint (Gemini 2.5 Flash Image) ---
 app.post('/generate-image', async (req, res) => {
     try {
-        const { history, style, genre, characterCard, lastImageUrl } = req.body;
+        const { history, style, genre, characterCard, lastImageUrl, sceneContext } = req.body;
 
         if (!process.env.GEMINI_API_KEY) {
             return res.status(500).json({ error: "Gemini API Key missing for image generation" });
@@ -270,16 +270,20 @@ app.post('/generate-image', async (req, res) => {
 
         const geminiImageModel = genAI.getGenerativeModel({ model: IMAGE_MODEL_NAME });
 
-        // 1. Build the image generation prompt with character consistency
+        // 1. Build the image generation prompt with TRIPLE REFERENCE for consistency
         let imagePrompt = '';
 
         if (characterCard) {
-            // Ultra-strong character locking
+            // Ultra-strong character locking with scene context
             imagePrompt = `⚠️ CRITICAL: This character MUST look IDENTICAL in every image. DO NOT change ANY features!
 
 ===CHARACTER REFERENCE (LOCK THESE FEATURES)===
 ${characterCard}
 ===END CHARACTER REFERENCE===
+
+===CURRENT SCENE CONTEXT===
+${sceneContext || 'Continue the current scene.'}
+===END SCENE CONTEXT===
 
 MANDATORY RULES FOR CHARACTER:
 1. Same EXACT eye color and shape every time
