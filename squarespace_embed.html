@@ -53,7 +53,7 @@
                 <option value="Noir">🕵️ Noir</option>
                 <option value="Sketch">✏️ Sketch</option>
             </select>
-            <button id="gen-art-btn" class="sf-btn-icon" title="Generate Scene Art">🎨</button>
+            <button id="gen-art-btn" class="sf-btn-icon" title="Generate Scene Art" style="display:none;">🎨</button>
             <button id="play-pause-btn" class="sf-btn-icon" disabled title="Play/Pause TTS">▶️</button>
             <button id="download-btn" class="sf-btn-icon" disabled title="Download Audio">💾</button>
         </div>
@@ -710,6 +710,48 @@
         transform: translateY(-2px);
     }
 
+    /* Image Generation Loader */
+    .image-loader {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 15px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 8px;
+        margin: 10px 0;
+        border: 1px solid var(--accent);
+        color: var(--accent);
+        font-family: 'Orbitron', sans-serif;
+        font-size: 0.9em;
+        animation: pulse-border 2s infinite;
+    }
+
+    @keyframes pulse-border {
+        0% {
+            border-color: var(--accent);
+            box-shadow: 0 0 5px var(--accent);
+        }
+
+        50% {
+            border-color: #fff;
+            box-shadow: 0 0 15px var(--accent);
+        }
+
+        100% {
+            border-color: var(--accent);
+            box-shadow: 0 0 5px var(--accent);
+        }
+    }
+
+    .image-loader .spinner {
+        width: 20px;
+        height: 20px;
+        border: 2px solid var(--accent);
+        border-top: 2px solid transparent;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
     /* Scrollbar */
     ::-webkit-scrollbar {
         width: 6px;
@@ -853,7 +895,8 @@
             userChangedVoice: false,  // Track if user manually changed voice
             isGeneratingImage: false,
             currentImage: '',
-            lastGeneratedImage: null  // Store last image for reference in next generation
+            lastGeneratedImage: null,  // Store last image for reference in next generation
+            turnCount: 0 // Track number of turns for auto-image generation
         };
 
         const els = {
@@ -1441,6 +1484,17 @@
                 els.input.disabled = false;
                 els.sendBtn.disabled = false;
                 els.input.focus();
+
+                // Auto-generate image every 4th turn (skip Christian genre)
+                if (els.genre.value !== 'Christian') {
+                    state.turnCount++;
+                    console.log(`Turn count: ${state.turnCount}`);
+
+                    if (state.turnCount > 0 && state.turnCount % 4 === 0) {
+                        console.log('🎨 Auto-generating image (4th turn)');
+                        setTimeout(() => generateImageAuto(), 500); // Small delay for smooth UX
+                    }
+                }
             }
         }
 
@@ -1468,13 +1522,19 @@
             }
         });
 
-        // Image Generation
-        els.genArtBtn.addEventListener('click', async () => {
-            if (els.genArtBtn.disabled) return;
-
-            const originalContent = els.genArtBtn.innerHTML;
-            els.genArtBtn.innerHTML = '<div class="spinner"></div>';
-            els.genArtBtn.disabled = true;
+        // Auto Image Generation Function
+        async function generateImageAuto() {
+            // Create loader in chat
+            const loaderDiv = document.createElement('div');
+            loaderDiv.className = 'message bot-message';
+            loaderDiv.innerHTML = `
+                <div class="image-loader">
+                    <div class="spinner"></div>
+                    <span>🎨 Generating scene art...</span>
+                </div>
+            `;
+            els.messages.appendChild(loaderDiv);
+            els.container.scrollTop = els.container.scrollHeight;
 
             try {
                 const response = await fetch(`${BACKEND_URL}/generate-image`, {
@@ -1484,8 +1544,8 @@
                         history: state.history,
                         style: els.artStyle.value,
                         genre: els.genre.value,
-                        characterCard: state.characterCard,  // Send stored character card
-                        lastImageUrl: state.lastGeneratedImage  // Send previous image for reference
+                        characterCard: state.characterCard,
+                        lastImageUrl: state.lastGeneratedImage
                     })
                 });
 
@@ -1497,6 +1557,10 @@
 
                 const data = await response.json();
                 console.log('Image generation response:', data);
+
+                // Remove loader
+                loaderDiv.remove();
+
                 if (data.imageUrl) {
                     displayGeneratedImage(data.imageUrl);
                 } else {
@@ -1505,11 +1569,21 @@
 
             } catch (e) {
                 console.error("Image Gen Error", e);
-                alert(`Failed to generate image: ${e.message}`);
-            } finally {
-                els.genArtBtn.innerHTML = originalContent;
-                els.genArtBtn.disabled = false;
+                loaderDiv.remove();
+
+                // Add error message in chat instead of alert
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'message bot-message';
+                errorDiv.innerHTML = `<div style="color: #ff6b6b; padding: 10px;">⚠️ Image generation failed. Continuing story...</div>`;
+                els.messages.appendChild(errorDiv);
+                els.container.scrollTop = els.container.scrollHeight;
             }
+        }
+
+        // Manual button (hidden, kept for backwards compatibility)
+        els.genArtBtn.addEventListener('click', async () => {
+            if (els.genArtBtn.disabled) return;
+            await generateImageAuto();
         });
 
         function displayGeneratedImage(url) {
