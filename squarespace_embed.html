@@ -522,9 +522,9 @@
 
         /* Header - Stack controls on small screens */
         .sf-header {
-            padding: 12px 16px;
+            padding: 10px 12px;
             flex-direction: column;
-            gap: 12px;
+            gap: 10px;
             align-items: stretch;
         }
 
@@ -533,58 +533,68 @@
         }
 
         .sf-title {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
         }
 
         .sf-logo {
-            font-size: 1.3rem;
+            font-size: 1.2rem;
         }
 
         .sf-controls {
             display: grid;
             grid-template-columns: 1fr 1fr auto;
-            gap: 8px;
+            gap: 6px;
             width: 100%;
         }
 
         .sf-select {
-            font-size: 0.8rem;
-            padding: 8px;
+            font-size: 0.75rem;
+            padding: 6px;
             min-width: 0;
         }
 
         .sf-btn-icon {
-            width: 40px;
-            height: 40px;
+            width: 36px;
+            height: 36px;
         }
 
-        /* Chat Area - More padding */
+        /* Chat Area - Minimal padding for max width */
         #chat-container {
-            padding: 16px;
+            padding: 8px;
         }
 
-        /* Messages - Better mobile spacing */
+        #chat-messages {
+            gap: 12px;
+        }
+
+        /* Messages - Full width, no avatar on mobile */
         .message {
-            max-width: 95%;
-            gap: 8px;
+            max-width: 100%;
+            gap: 0;
+        }
+
+        /* Hide bot avatar on mobile to save space */
+        .bot-message .avatar {
+            display: none;
         }
 
         .message-content {
             font-size: 0.95rem;
-            line-height: 1.6;
-            padding: 12px 14px;
+            line-height: 1.5;
+            padding: 10px 12px;
             word-wrap: break-word;
             overflow-wrap: break-word;
         }
 
-        .avatar {
-            width: 32px;
-            height: 32px;
-            min-width: 32px;
-            /* Prevent shrinking */
+        .bot-message .message-content {
+            border-radius: 12px;
         }
 
-        /* Inventory - Full width on mobile */
+        .user-message .message-content {
+            border-radius: 12px;
+        }
+
+        /* Inventory - Compact on mobile */
         #inventory-panel {
             position: relative;
             right: auto;
@@ -592,54 +602,54 @@
             width: 100%;
             margin: 0;
             border-radius: 0;
-            padding: 12px 16px;
+            padding: 8px 12px;
         }
 
         #inventory-grid {
             grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
-            gap: 8px;
+            gap: 6px;
         }
 
         .item-slot,
         .empty-slot {
-            padding: 8px;
-            font-size: 0.75rem;
+            padding: 6px;
+            font-size: 0.7rem;
         }
 
-        /* Footer - Better button sizing */
+        /* Footer - Compact input area */
         .sf-footer {
-            padding: 12px 16px;
-            gap: 10px;
+            padding: 10px 12px;
+            gap: 8px;
         }
 
         #chat-input {
-            font-size: 1rem;
-            /* Prevent zoom on iOS */
-            padding: 12px;
+            font-size: 16px;
+            /* Prevent zoom on iOS - must be 16px */
+            padding: 10px;
         }
 
         #send-btn {
-            padding: 12px 20px;
-            font-size: 0.9rem;
-            min-width: 80px;
+            padding: 10px 16px;
+            font-size: 0.85rem;
+            min-width: 70px;
             white-space: nowrap;
         }
 
         /* Loader - Smaller on mobile */
         .sf-loader {
-            width: 40px;
-            height: 40px;
+            width: 36px;
+            height: 36px;
         }
 
         /* Prevent text overflow */
         .message-content p {
-            margin: 0.5em 0;
+            margin: 0.4em 0;
         }
 
         .message-content ul,
         .message-content ol {
-            padding-left: 1.5em;
-            margin: 0.5em 0;
+            padding-left: 1.2em;
+            margin: 0.4em 0;
         }
     }
 
