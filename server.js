@@ -132,8 +132,8 @@ app.post('/chat', async (req, res) => {
 
         // 2. Build System Prompt with genre-specific guidance
         const genreStyles = {
-            'Science Fiction': 'Write like classic Star Trek or Star Wars. Focus on space exploration, alien encounters, advanced technology, starships, and cosmic wonder. Think optimistic space opera with phasers, warp drives, and "boldly going where no one has gone before" vibes.',
-            'Cyberpunk': 'Write gritty near-future noir. Neon-lit streets, megacorporations, hackers, cybernetic implants, rain-slicked alleys, and anti-heroes navigating a dystopian world. Think Blade Runner, not Star Trek.',
+            'Science Fiction': 'Write like classic Star Wars or Dune. Focus on space exploration, alien encounters, advanced technology, starships, and cosmic wonder. Think epic space opera with blasters, hyperdrives, and galaxy-spanning adventures.',
+            'Cyberpunk': 'Write gritty near-future noir. Neon-lit streets, megacorporations, hackers, cybernetic implants, rain-slicked alleys, and anti-heroes navigating a dystopian world. Think Blade Runner aesthetic.',
             'Mystery': 'Write a cozy mystery style. Think Agatha Christie or Murder She Wrote - a charming amateur sleuth, quirky suspects in a small town or manor, clever clues, and a puzzle to solve. Keep it light and engaging, not dark or violent.',
             'Thriller': 'Write fast-paced suspense. High stakes, ticking clocks, dangerous adversaries, and constant tension. Think spy thrillers or action movies.',
             'Horror': 'Write atmospheric dread. Build tension slowly, use fear of the unknown, create an unsettling mood. Think psychological horror and creeping terror.',

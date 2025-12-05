@@ -17,6 +17,7 @@
             <div class="sf-title">StoryForge</div>
         </div>
         <div class="sf-controls">
+            <button id="new-story-btn" class="sf-btn-new" title="Start New Story">New Story</button>
             <select id="genre-selector" class="sf-select" title="Select Genre">
                 <option value="Fantasy">Fantasy</option>
                 <option value="Science Fiction" selected>Science Fiction</option>
@@ -36,7 +37,7 @@
                 <option value="Christian">Christian</option>
             </select>
             <select id="voice-selector" class="sf-select" title="Select Voice">
-                <option value="">Silent</option>
+                <option value="" selected>Silent</option>
                 <option value="alloy">Marcus</option>
                 <option value="ash">Thorne</option>
                 <option value="ballad">Luna</option>
@@ -49,7 +50,7 @@
                 <option value="onyx">Viktor</option>
                 <option value="sage">Elder</option>
                 <option value="shimmer">Celeste</option>
-                <option value="verse" selected>Gabriel</option>
+                <option value="verse">Gabriel</option>
             </select>
             <select id="art-style-selector" class="sf-select" title="Select Art Style">
                 <option value="Anime">Anime</option>
@@ -226,6 +227,26 @@
 
     .sf-select:hover {
         border-color: var(--accent-purple);
+    }
+
+    .sf-btn-new {
+        background: linear-gradient(135deg, #FFD700, #FFA500);
+        border: none;
+        color: #000;
+        padding: 6px 14px;
+        border-radius: 8px;
+        font-family: var(--font-body);
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 2px 8px rgba(255, 215, 0, 0.4);
+    }
+
+    .sf-btn-new:hover {
+        background: linear-gradient(135deg, #FFE44D, #FFB733);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(255, 215, 0, 0.5);
     }
 
     .sf-btn-icon {
@@ -1111,7 +1132,8 @@
             genArtBtn: document.getElementById('gen-art-btn'),
             invGrid: document.getElementById('inventory-grid'),
             itemDrop: document.getElementById('item-use-dropdown'),
-            container: document.getElementById('chat-container')
+            container: document.getElementById('chat-container'),
+            newStoryBtn: document.getElementById('new-story-btn')
         };
 
         // --- Helpers ---
@@ -1161,10 +1183,11 @@
 
         async function fetchTTS(text) {
             try {
-                // Clean text for TTS: remove *actions*, emojis, and JSON objects
+                // Clean text for TTS: remove *actions*, _italics_, emojis, and JSON objects
                 // This prevents the voice from reading "smiles" or "open brace action..."
                 const cleanText = text
                     .replace(/\*[^*]+\*/g, '') // Remove *text*
+                    .replace(/_([^_]+)_/g, '$1') // Remove _italic_ markers but keep the text
                     .replace(/\{.*?\}/g, '')   // Remove {JSON} objects (fix for jibberish)
                     .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}]/gu, '') // Remove emojis
                     .trim();
@@ -1730,6 +1753,36 @@
                 if (state.audioCache && !audioQueue.isPlaying) {
                     audioQueue.add(state.audioCache);
                 }
+            }
+        });
+
+        // New Story button - reset chat
+        els.newStoryBtn.addEventListener('click', () => {
+            if (confirm('Start a new story? This will clear the current chat.')) {
+                // Clear chat messages
+                els.messages.innerHTML = '';
+                // Reset state
+                state.history = [];
+                state.inventory = [];
+                state.turnCount = 0;
+                state.characterCard = null;
+                state.romanceContext = false;
+                state.christianContext = false;
+                state.videoGameContext = false;
+                state.userChangedVoice = false;
+                state.audioCache = null;
+                state.lastImageUrl = null;
+                // Reset voice to silent
+                els.voice.value = '';
+                // Reset placeholder
+                els.input.placeholder = 'What do you do next?';
+                // Stop any audio
+                audioQueue.stop();
+                // Update inventory display
+                updateInventory();
+                // Hide scene image
+                const scenePanel = document.getElementById('scene-image-panel');
+                if (scenePanel) scenePanel.style.display = 'none';
             }
         });
 
