@@ -1376,7 +1376,15 @@
                 if (line.trim().startsWith('{') && line.trim().endsWith('}')) {
                     try {
                         const action = JSON.parse(line);
-                        if (action.action === 'add_item') state.inventory.push(action.item);
+                        if (action.action === 'add_item') {
+                            // Prevent duplicates - check if item already exists
+                            const exists = state.inventory.some(i => i.name.toLowerCase() === action.item.name.toLowerCase());
+                            if (!exists) {
+                                state.inventory.push(action.item);
+                            } else {
+                                console.log('⏭️ Skipping duplicate item:', action.item.name);
+                            }
+                        }
                         if (action.action === 'remove_item') {
                             state.inventory = state.inventory.filter(i => i.name !== action.item.name);
                         }
@@ -1601,8 +1609,14 @@
                                 console.log('✅ Line JSON parsed:', action);
 
                                 if (action.action === 'add_item' && action.item && action.item.name) {
-                                    state.inventory.push(action.item);
-                                    console.log('✅ Added item:', action.item.name);
+                                    // Prevent duplicates - check if item already exists
+                                    const exists = state.inventory.some(i => i.name.toLowerCase() === action.item.name.toLowerCase());
+                                    if (!exists) {
+                                        state.inventory.push(action.item);
+                                        console.log('✅ Added item:', action.item.name);
+                                    } else {
+                                        console.log('⏭️ Skipping duplicate item:', action.item.name);
+                                    }
                                 } else if (action.action === 'remove_item' && action.item && action.item.name) {
                                     state.inventory = state.inventory.filter(i => i.name !== action.item.name);
                                     console.log('❌ Removed item:', action.item.name);
