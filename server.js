@@ -330,21 +330,32 @@ Requirements:
 
         console.log(`📝 Image prompt (${imagePrompt.length} chars)`);
 
-        // Call OpenAI Image API
+        // Call OpenAI Image API with gpt-image-1-mini parameters
         const response = await openai.images.generate({
             model: imageModel,
             prompt: imagePrompt,
             n: 1,
             size: "1024x1024",
-            response_format: "b64_json"
+            quality: "medium"
         });
 
         if (!response.data || response.data.length === 0) {
             throw new Error('No image data in OpenAI response');
         }
 
-        const base64Data = response.data[0].b64_json;
-        const imageUrl = `data:image/png;base64,${base64Data}`;
+        // gpt-image-1-mini returns URL or base64 depending on model
+        let imageUrl;
+        if (response.data[0].b64_json) {
+            imageUrl = `data:image/png;base64,${response.data[0].b64_json}`;
+        } else if (response.data[0].url) {
+            // Fetch the image and convert to base64 for consistency
+            const imageResponse = await fetch(response.data[0].url);
+            const arrayBuffer = await imageResponse.arrayBuffer();
+            const base64 = Buffer.from(arrayBuffer).toString('base64');
+            imageUrl = `data:image/png;base64,${base64}`;
+        } else {
+            throw new Error('No image URL or base64 in response');
+        }
 
         console.log(`✅ OpenAI image generated successfully`);
 
