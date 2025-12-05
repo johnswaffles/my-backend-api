@@ -351,7 +351,7 @@ Requirements:
             prompt: imagePrompt,
             n: 1,
             size: "1024x1024",
-            quality: "medium"
+            quality: "low"
         });
 
         if (!response.data || response.data.length === 0) {
