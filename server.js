@@ -261,22 +261,18 @@ app.post('/generate-image', async (req, res) => {
     try {
         const { history, style, genre, characterCard, lastImageUrl, sceneContext } = req.body;
 
-        // Check for OpenAI API key
-        if (!process.env.OPENAI_API_KEY) {
-            return res.status(500).json({ error: "OpenAI API Key missing for image generation" });
+        if (!process.env.GEMINI_API_KEY) {
+            return res.status(500).json({ error: "Gemini API Key missing for image generation" });
         }
 
-        // Initialize OpenAI client
-        const openai = new OpenAI({
-            apiKey: process.env.OPENAI_API_KEY
-        });
+        // Use Gemini image model from environment variable
+        const imageModelName = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
+        console.log(`🎨 Using Gemini image model: ${imageModelName}`);
 
-        const imageModel = process.env.OPENAI_IMAGE_MODEL || 'gpt-image-1-mini';
-        console.log(`🎨 Using OpenAI image model: ${imageModel}`);
+        const geminiImageModel = genAI.getGenerativeModel({ model: imageModelName });
 
         // Style guide for specific visual descriptions
         const styleGuide = {
-            'Cinematic Realism': 'photorealistic, movie screenshot, dramatic lighting, shallow depth of field, 35mm film look',
             'Anime': 'Japanese anime style, big expressive eyes, clean linework, cel-shaded, vibrant colors, manga influenced',
             'Oil Painting': 'visible brushstrokes, thick impasto texture, classical painting technique, rich colors, museum quality',
             'Watercolor': 'soft edges, color bleeding, wet-on-wet technique, paper texture visible, transparent washes',
@@ -291,20 +287,18 @@ app.post('/generate-image', async (req, res) => {
             'Surrealism': 'dreamlike, impossible scenes, Salvador Dali influence, melting reality, symbolic imagery',
             'Photorealistic': 'hyperrealistic, could be mistaken for a photograph, extreme detail, perfect lighting',
             'Charcoal Sketch': 'black and white, rough sketch lines, smudged charcoal texture, artistic drawing',
-            'Noir': 'high contrast black and white, dramatic shadows, 1940s detective film aesthetic, moody',
             'Fantasy Art': 'epic fantasy illustration, detailed armor and magic, Frank Frazetta inspired, heroic',
             'Cyberpunk': 'neon lights, rain-slicked streets, high-tech low-life, blade runner aesthetic, futuristic',
             'Steampunk': 'Victorian era technology, brass gears, steam-powered machinery, goggles and corsets',
             'Studio Ghibli': 'Hayao Miyazaki style, soft colors, detailed backgrounds, whimsical, hand-drawn animation look'
         };
 
-        const styleDesc = styleGuide[style] || style || 'cinematic realistic';
+        const styleDesc = styleGuide[style] || style || 'detailed illustration';
 
-        // Build prompt for OpenAI
+        // Build prompt
         let imagePrompt = '';
 
         if (characterCard) {
-            // Extract key location/action from scene context
             const sceneText = sceneContext || 'character standing in a dramatic setting';
 
             // SCENE-FIRST prompt: Environment is primary, character is secondary
@@ -319,7 +313,7 @@ Show this specific moment with a UNIQUE composition, angle, and environment.
 CHARACTER IN THIS SCENE (keep appearance consistent):
 ${characterCard}
 
-Art Style: ${style || 'Cinematic Realism'} (${styleDesc})
+Art Style: ${style || 'Digital Art'} (${styleDesc})
 Genre: ${genre || 'Science Fiction'}
 
 CRITICAL REQUIREMENTS:
@@ -333,54 +327,56 @@ The scene and setting are the STAR - the character just needs to be recognizable
 
             console.log(`✅ Using character card for consistency`);
         } else {
-            imagePrompt = `Art Style: ${style || 'Cinematic Realism'} - ${styleDesc}
+            imagePrompt = `Art Style: ${style || 'Digital Art'} - ${styleDesc}
 
 Scene: ${history[history.length - 1]?.parts?.substring(0, 500) || 'dramatic scene'}
 
 Requirements:
-- Render in ${style || 'Cinematic Realism'} style ONLY
+- Render in ${style || 'Digital Art'} style ONLY
 - No text, words, or writing in the image
 - ${genre || 'Science Fiction'} genre atmosphere`;
         }
 
         console.log(`📝 Image prompt (${imagePrompt.length} chars)`);
 
-        // Call OpenAI Image API with gpt-image-1-mini parameters
-        const response = await openai.images.generate({
-            model: imageModel,
-            prompt: imagePrompt,
-            n: 1,
-            size: "1024x1024",
-            quality: "low"
-        });
+        // Generate with Gemini
+        const result = await geminiImageModel.generateContent(imagePrompt);
+        const response = await result.response;
 
-        if (!response.data || response.data.length === 0) {
-            throw new Error('No image data in OpenAI response');
+        if (!response.candidates || response.candidates.length === 0) {
+            throw new Error('No candidates in Gemini response');
         }
 
-        // gpt-image-1-mini returns URL or base64 depending on model
-        let imageUrl;
-        if (response.data[0].b64_json) {
-            imageUrl = `data:image/png;base64,${response.data[0].b64_json}`;
-        } else if (response.data[0].url) {
-            // Fetch the image and convert to base64 for consistency
-            const imageResponse = await fetch(response.data[0].url);
-            const arrayBuffer = await imageResponse.arrayBuffer();
-            const base64 = Buffer.from(arrayBuffer).toString('base64');
-            imageUrl = `data:image/png;base64,${base64}`;
-        } else {
-            throw new Error('No image URL or base64 in response');
+        const parts = response.candidates[0]?.content?.parts;
+        if (!parts || parts.length === 0) {
+            throw new Error('No parts in Gemini response');
         }
 
-        console.log(`✅ OpenAI image generated successfully`);
+        // Find image data
+        let imageData = null;
+        for (const part of parts) {
+            if (part.inlineData) {
+                imageData = part.inlineData;
+                break;
+            }
+        }
+
+        if (!imageData) {
+            throw new Error('No image data in Gemini response');
+        }
+
+        const mimeType = imageData.mimeType || 'image/png';
+        const imageUrl = `data:${mimeType};base64,${imageData.data}`;
+
+        console.log(`✅ Gemini image generated successfully`);
 
         res.json({ imageUrl });
 
     } catch (error) {
-        console.error("❌ OpenAI Image Generation Error:", error);
+        console.error("❌ Gemini Image Generation Error:", error);
         console.error("Error details:", error.message);
         res.status(500).json({
-            error: "Failed to generate image with OpenAI",
+            error: "Failed to generate image with Gemini",
             details: error.message
         });
     }
