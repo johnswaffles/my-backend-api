@@ -1435,10 +1435,9 @@
 
             // Christian Genre Special Handling
             if (els.genre.value === 'Christian' && !state.christianContext) {
-                // Only auto-switch to male voice if user hasn't manually selected a different voice
-                // (if voice is still default Thorne or Silent, keep it as Thorne)
-                if (els.voice.value === '' || !state.userChangedVoice) {
-                    els.voice.value = 'dPah2VEoifKnZT37774q'; // Set to Thorne
+                // Set to silent by default for Christian genre
+                if (!state.userChangedVoice) {
+                    els.voice.value = ''; // Silent
                 }
                 // Otherwise respect user's voice choice
                 const verse = prompt(
@@ -1685,14 +1684,18 @@
                 els.sendBtn.disabled = false;
                 els.input.focus();
 
-                // Auto-generate image every 4th turn (skip Christian genre)
-                if (els.genre.value !== 'Christian') {
+                // Auto-generate image every 4th turn (every turn for Christian)
+                if (els.genre.value === 'Christian') {
+                    // Christian: generate image every single turn
+                    console.log('🎨 Auto-generating image (Christian - every turn)');
+                    setTimeout(() => generateImageAuto(), 500);
+                } else {
                     state.turnCount++;
                     console.log(`Turn count: ${state.turnCount}`);
 
                     if (state.turnCount > 0 && state.turnCount % 4 === 0) {
                         console.log('🎨 Auto-generating image (4th turn)');
-                        setTimeout(() => generateImageAuto(), 500); // Small delay for smooth UX
+                        setTimeout(() => generateImageAuto(), 500);
                     }
                 }
             }
@@ -1708,6 +1711,16 @@
         // Track when user manually changes voice
         els.voice.addEventListener('change', () => {
             state.userChangedVoice = true;
+        });
+
+        // Update placeholder based on genre selection
+        els.genre.addEventListener('change', () => {
+            const genre = els.genre.value;
+            if (genre === 'Christian' || genre === 'Romance') {
+                els.input.placeholder = 'Press any key, then Enter (options appear in popup)';
+            } else {
+                els.input.placeholder = 'What do you do next?';
+            }
         });
 
         // Play/Pause button - use cached audio, don't re-fetch

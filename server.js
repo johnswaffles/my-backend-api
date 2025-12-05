@@ -130,11 +130,29 @@ app.post('/chat', async (req, res) => {
                 }));
         }
 
-        // 2. Build System Prompt
+        // 2. Build System Prompt with genre-specific guidance
+        const genreStyles = {
+            'Science Fiction': 'Write like classic Star Trek or Star Wars. Focus on space exploration, alien encounters, advanced technology, starships, and cosmic wonder. Think optimistic space opera with phasers, warp drives, and "boldly going where no one has gone before" vibes.',
+            'Cyberpunk': 'Write gritty near-future noir. Neon-lit streets, megacorporations, hackers, cybernetic implants, rain-slicked alleys, and anti-heroes navigating a dystopian world. Think Blade Runner, not Star Trek.',
+            'Mystery': 'Write a cozy mystery style. Think Agatha Christie or Murder She Wrote - a charming amateur sleuth, quirky suspects in a small town or manor, clever clues, and a puzzle to solve. Keep it light and engaging, not dark or violent.',
+            'Thriller': 'Write fast-paced suspense. High stakes, ticking clocks, dangerous adversaries, and constant tension. Think spy thrillers or action movies.',
+            'Horror': 'Write atmospheric dread. Build tension slowly, use fear of the unknown, create an unsettling mood. Think psychological horror and creeping terror.',
+            'High Fantasy': 'Write epic fantasy with magic, medieval settings, noble quests, and mythical creatures. Think Lord of the Rings or classic D&D adventures.',
+            'Urban Fantasy': 'Write modern-day magic. Hidden supernatural world beneath everyday reality, vampires in nightclubs, wizards in coffee shops. Think Dresden Files.',
+            'Post-Apocalyptic': 'Write survival drama. Ruined civilization, scavenging for resources, dangerous factions, and hope amid desolation. Think The Walking Dead or Fallout.',
+            'Western': 'Write frontier adventure. Dusty towns, outlaws, sheriffs, saloons, and the rugged beauty of the Wild West. Think classic cowboy movies.',
+            'Historical Fiction': 'Write immersive period pieces. Rich historical detail, authentic dialogue, and stories set against real historical events and eras.',
+            'Comedy': 'Write with humor and wit. Absurd situations, clever wordplay, and comedic timing. Keep it fun and lighthearted.',
+            'Drama': 'Write emotionally resonant stories. Character-driven narratives, meaningful relationships, and impactful moments.',
+            'Supernatural': 'Write paranormal encounters. Ghosts, demons, psychic powers, and things that go bump in the night.'
+        };
+
+        const genreStyle = genreStyles[selectedGenre] || 'Adjust your tone to match this genre.';
+
         const fullSystemPrompt = `${BASE_SYSTEM_PROMPT}
 
 **CURRENT GENRE:** ${selectedGenre}
-Adjust your tone to match this genre.`;
+**GENRE STYLE GUIDE:** ${genreStyle}`;
 
         // 3. Configure Model
         const model = genAI.getGenerativeModel({
