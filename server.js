@@ -382,41 +382,41 @@ Requirements:
     }
 });
 
-// GET endpoint for streaming (faster for shorter text)
+// GET endpoint for TTS
 app.get('/tts', async (req, res) => {
     try {
         const { text, voice } = req.query;
         if (!text) return res.status(400).json({ error: 'Text required' });
-        if (!process.env.ELEVENLABS_API_KEY) return res.status(500).json({ error: 'ElevenLabs API Key missing' });
+        if (!process.env.OPENAI_API_KEY) return res.status(500).json({ error: 'OpenAI API Key missing' });
 
-        const voiceId = voice || 'dPah2VEoifKnZT37774q'; // Default to Thorne
-        const modelId = 'eleven_turbo_v2_5'; // Faster low-latency model
+        const voiceName = voice || 'alloy'; // Default voice
+        const ttsModel = process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts';
 
-        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
+        console.log(`🎤 TTS request: voice=${voiceName}, model=${ttsModel}, text length=${text.length}`);
+
+        const response = await fetch('https://api.openai.com/v1/audio/speech', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'xi-api-key': process.env.ELEVENLABS_API_KEY
+                'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
             },
             body: JSON.stringify({
-                text: text,
-                model_id: modelId,
-                voice_settings: {
-                    stability: 0.5,
-                    similarity_boost: 0.75
-                },
-                optimize_streaming_latency: 4
+                model: ttsModel,
+                input: text,
+                voice: voiceName,
+                response_format: 'mp3'
             })
         });
 
         if (!response.ok) {
             const errorData = await response.json();
+            console.error('OpenAI TTS Error:', errorData);
             return res.status(response.status).json(errorData);
         }
 
         res.setHeader('Content-Type', 'audio/mpeg');
 
-        // Stream the audio back using a reader loop (most compatible)
+        // Stream the audio back
         const reader = response.body.getReader();
         while (true) {
             const { done, value } = await reader.read();
@@ -435,37 +435,36 @@ app.post('/tts', async (req, res) => {
     try {
         const { text, voice } = req.body;
         if (!text) return res.status(400).json({ error: 'Text required' });
-        if (!process.env.ELEVENLABS_API_KEY) return res.status(500).json({ error: 'ElevenLabs API Key missing' });
+        if (!process.env.OPENAI_API_KEY) return res.status(500).json({ error: 'OpenAI API Key missing' });
 
-        // Default to Thorne if none specified
-        const voiceId = voice || 'dPah2VEoifKnZT37774q';
-        const modelId = 'eleven_turbo_v2_5'; // Faster low-latency model
+        const voiceName = voice || 'alloy'; // Default voice
+        const ttsModel = process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts';
 
-        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/stream`, {
+        console.log(`🎤 TTS POST request: voice=${voiceName}, model=${ttsModel}, text length=${text.length}`);
+
+        const response = await fetch('https://api.openai.com/v1/audio/speech', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'xi-api-key': process.env.ELEVENLABS_API_KEY
+                'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
             },
             body: JSON.stringify({
-                text: text,
-                model_id: modelId,
-                voice_settings: {
-                    stability: 0.5,
-                    similarity_boost: 0.75
-                },
-                optimize_streaming_latency: 4  // Maximum optimization for speed
+                model: ttsModel,
+                input: text,
+                voice: voiceName,
+                response_format: 'mp3'
             })
         });
 
         if (!response.ok) {
             const errorData = await response.json();
+            console.error('OpenAI TTS Error:', errorData);
             return res.status(response.status).json(errorData);
         }
 
         res.setHeader('Content-Type', 'audio/mpeg');
 
-        // Stream the audio back using a reader loop (most compatible)
+        // Stream the audio back
         const reader = response.body.getReader();
         while (true) {
             const { done, value } = await reader.read();
