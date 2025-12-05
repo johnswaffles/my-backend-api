@@ -304,17 +304,32 @@ app.post('/generate-image', async (req, res) => {
         let imagePrompt = '';
 
         if (characterCard) {
-            imagePrompt = `Art Style: ${style || 'Cinematic Realism'} - ${styleDesc}
+            // Extract key location/action from scene context
+            const sceneText = sceneContext || 'character standing in a dramatic setting';
 
-Character Description: ${characterCard}
+            // SCENE-FIRST prompt: Environment is primary, character is secondary
+            imagePrompt = `CREATE A NEW SCENE - Different from any previous image.
 
-Current Scene: ${sceneContext || 'character in their current situation'}
+SCENE TO ILLUSTRATE (THIS IS THE MOST IMPORTANT PART):
+"${sceneText}"
 
-Requirements:
-- Render in ${style || 'Cinematic Realism'} style ONLY
-- Keep character appearance consistent with description
-- No text, words, numbers, or writing in the image
-- ${genre || 'Science Fiction'} genre atmosphere`;
+Extract from above: What is the LOCATION? What is the CHARACTER DOING? What is the MOOD/ATMOSPHERE?
+Show this specific moment with a UNIQUE composition, angle, and environment.
+
+CHARACTER IN THIS SCENE (keep appearance consistent):
+${characterCard}
+
+Art Style: ${style || 'Cinematic Realism'} (${styleDesc})
+Genre: ${genre || 'Science Fiction'}
+
+CRITICAL REQUIREMENTS:
+1. The ENVIRONMENT must match the scene description above - NOT a generic background
+2. Show a NEW camera angle/composition 
+3. Character should be DOING something relevant to the scene
+4. Lighting and atmosphere should reflect the current moment
+5. No text/words in image
+
+The scene and setting are the STAR - the character just needs to be recognizable.`;
 
             console.log(`✅ Using character card for consistency`);
         } else {
