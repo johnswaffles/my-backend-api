@@ -56,7 +56,19 @@ For ALL genres EXCEPT Christian, your VERY FIRST response is CRITICAL:
 - **ESTABLISH APPEARANCE:** Describe the protagonist's physical appearance in detail (eyes, hair, skin, build, clothing)
 - **BRIEF BACKSTORY:** Give a hint of their background or current situation
 - **BE SPECIFIC:** This paragraph sets the visual foundation for ALL future images
-- Example: If user says "orphan girl", your first paragraph should introduce an orphan girl character with specific physical details
+
+**FIRST RESPONSE ONLY - CHARACTER CARD:**
+On your VERY FIRST response, after your story paragraph, add a CHARACTER_CARD block in this EXACT format:
+[CHARACTER_CARD]
+HAIR: exact color, length, style
+EYES: color, shape
+FACE: skin tone, age, features
+BODY: height, build
+CLOTHING: specific items, colors
+ACCESSORIES: items carried
+VIBE: overall aesthetic
+[/CHARACTER_CARD]
+Keep it under 100 words. This is for image consistency. Only include on FIRST response!
 
 **CHRISTIAN GENRE SPECIAL RULES:**
 When the genre is "Christian", you are telling BIBLICALLY ACCURATE stories from the Holy Bible:
@@ -216,52 +228,27 @@ app.post('/chat', async (req, res) => {
         // If we have text but it was cut off (MAX_TOKENS), we still send it.
         if (response.candidates[0]?.finishReason === 'MAX_TOKENS') {
             console.warn('Response truncated due to MAX_TOKENS');
-            // Optional: Append a note or just let it be.
-            // responseText += "\n[...Response truncated...]"; 
         }
 
-        // Create DETAILED character card ONLY on first message (for perfect image consistency)
+        // Extract character card from response (embedded in first response to save API call)
         let characterCard = null;
-        // Generate character card ONLY on first bot response (not for Christian genre)
+        let cleanResponse = responseText;
+
         if (history.length <= 2 && genre !== 'Christian') {
-            console.log('🎭 FIRST MESSAGE DETECTED - Generating Character Card...');
-            console.log('User Input:', userMessage);
-            console.log('Bot Response:', responseText.substring(0, 200));
-
-            const characterCardPrompt = `Extract the MAIN CHARACTER's physical appearance from this story opening. Be ULTRA SPECIFIC.
-
-USER'S REQUEST: "${userMessage}"
-STORY OPENING: "${responseText}"
-
-Provide EXACT details in this format:
-HAIR: [exact color/shade, length, style, texture, any accessories]
-EYES: [exact color/shade, shape, size, any modifications]
-FACE: [shape, skin tone, age, distinctive marks, scars, makeup, facial hair]
-BODY: [height, build, muscle definition, posture, notable features]
-CYBERNETICS: [exact implants, locations, colors, materials, glow colors]
-CLOTHING: [specific items (jacket, pants, boots), colors, materials, style, condition, logos/patterns]
-ACCESSORIES: [jewelry, tech gadgets, holsters, backpacks, glasses/goggles]
-WEAPONS/GEAR: [visible weapons, tools, equipment carried]
-DISTINCTIVE FEATURES: [scars, tattoos, piercings, glowing elements, aura]
-VIBE: [overall aesthetic - e.g., "gritty cyberpunk mercenary", "elegant corporate spy"]
-
-Be SPECIFIC with colors (use descriptive shades like "neon electric blue" not just "blue").
-Describe textures (matte, glossy, metallic, worn, leather).
-Keep total under 150 words but pack in EXACT visual details.`;
-
-            try {
-                const charCardModel = genAI.getGenerativeModel({ model: MODEL_NAME });
-                const charResult = await charCardModel.generateContent(characterCardPrompt);
-                characterCard = charResult.response.text().trim();
-                console.log('📋 Character Card Created:', characterCard);
-            } catch (error) {
-                console.error('❌ Character card generation failed:', error);
-                characterCard = null;
+            // Look for [CHARACTER_CARD] block in response
+            const cardMatch = responseText.match(/\[CHARACTER_CARD\]([\s\S]*?)\[\/CHARACTER_CARD\]/i);
+            if (cardMatch) {
+                characterCard = cardMatch[1].trim();
+                // Remove character card from displayed response
+                cleanResponse = responseText.replace(/\[CHARACTER_CARD\][\s\S]*?\[\/CHARACTER_CARD\]/i, '').trim();
+                console.log('📋 Character Card Extracted (no extra API call!):', characterCard.substring(0, 100) + '...');
+            } else {
+                console.log('⚠️ No CHARACTER_CARD found in first response');
             }
         }
 
         res.json({
-            reply: responseText,
+            reply: cleanResponse,
             characterCard  // Send back to frontend to store
         });
 
@@ -277,7 +264,7 @@ Keep total under 150 words but pack in EXACT visual details.`;
 // --- Image Generation Endpoint (Gemini 2.5 Flash Image) ---
 app.post('/generate-image', async (req, res) => {
     try {
-        const { history, style, genre, characterCard, lastImageUrl, sceneContext } = req.body;
+        const { lastMessage, style, genre, characterCard, lastImageUrl, sceneContext } = req.body;
 
         if (!process.env.GEMINI_API_KEY) {
             return res.status(500).json({ error: "Gemini API Key missing for image generation" });
@@ -347,7 +334,7 @@ The scene and setting are the STAR - the character just needs to be recognizable
         } else {
             imagePrompt = `Art Style: ${style || 'Digital Art'} - ${styleDesc}
 
-Scene: ${history[history.length - 1]?.parts?.substring(0, 500) || 'dramatic scene'}
+Scene: ${lastMessage?.parts?.substring(0, 500) || 'dramatic scene'}
 
 Requirements:
 - Render in ${style || 'Digital Art'} style ONLY

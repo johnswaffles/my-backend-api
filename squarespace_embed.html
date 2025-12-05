@@ -1115,6 +1115,7 @@
             characterCard: null,  // Stores detailed character description for image consistency
             userChangedVoice: false,  // Track if user manually changed voice
             isGeneratingImage: false,
+            isSending: false,  // Debounce lock for sendMessage
             currentImage: '',
             lastGeneratedImage: null,  // Store last image for reference in next generation
             turnCount: 0 // Track number of turns for auto-image generation
@@ -1398,8 +1399,13 @@
 
 
         async function sendMessage(text = null) {
+            // Debounce: prevent duplicate calls while processing
+            if (state.isSending) return;
+
             let msgText = text || els.input.value.trim();
             if (!msgText) return;
+
+            state.isSending = true; // Lock
 
             // Video Game Genre Special Handling
             if (els.genre.value === 'Video Game' && !state.videoGameContext) {
@@ -1705,6 +1711,7 @@
                 loader.remove();
                 addMessage(`⚠️ Error: ${err.message}`, false, true);
             } finally {
+                state.isSending = false; // Release debounce lock
                 els.input.disabled = false;
                 els.sendBtn.disabled = false;
                 els.input.focus();
@@ -1788,6 +1795,13 @@
 
         // Auto Image Generation Function with retry and scene context
         async function generateImageAuto(retryCount = 0) {
+            // Prevent stacked generation calls
+            if (state.isGeneratingImage) {
+                console.log('⚠️ Image generation already in progress, skipping');
+                return;
+            }
+            state.isGeneratingImage = true;
+
             const maxRetries = 3;
 
             // Create holographic loader
@@ -1818,16 +1832,19 @@
             }
 
             try {
+                // Only send last message, not full history (optimization)
+                const lastMessage = state.history.length > 0 ? state.history[state.history.length - 1] : null;
+
                 const response = await fetch(`${BACKEND_URL}/generate-image`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        history: state.history,
+                        lastMessage: lastMessage,  // Only last message needed
                         style: els.artStyle.value,
                         genre: els.genre.value,
                         characterCard: state.characterCard,
                         lastImageUrl: state.lastGeneratedImage,
-                        sceneContext: sceneContext  // NEW: Send current scene for environment consistency
+                        sceneContext: sceneContext
                     })
                 });
 
@@ -1871,6 +1888,8 @@
                 errorDiv.innerHTML = `<div style="color: #ff6b6b; padding: 10px; border-left: 3px solid #ff6b6b;">⚠️ ${e.message.includes('overloaded') ? 'AI is busy right now. Image will generate on next turn!' : 'Image generation paused. Story continues...'}</div>`;
                 els.messages.appendChild(errorDiv);
                 els.container.scrollTop = els.container.scrollHeight;
+            } finally {
+                state.isGeneratingImage = false; // Release lock
             }
         }
 
