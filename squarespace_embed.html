@@ -1498,9 +1498,11 @@
                     const randomStory = randomStories[Math.floor(Math.random() * randomStories.length)];
                     msgText = `Tell me the Bible story of ${randomStory}.` + lengthInstruction;
                     state.christianContext = 'started';
+                    els.input.placeholder = 'Type bible verse or topic and press enter';
                 } else {
                     msgText = `Tell me the Bible story from ${verse}.` + lengthInstruction;
                     state.christianContext = 'started';
+                    els.input.placeholder = 'Type bible verse or topic and press enter';
                 }
             }
 
@@ -1684,12 +1686,8 @@
                 els.sendBtn.disabled = false;
                 els.input.focus();
 
-                // Auto-generate image every 4th turn (every turn for Christian)
-                if (els.genre.value === 'Christian') {
-                    // Christian: generate image every single turn
-                    console.log('🎨 Auto-generating image (Christian - every turn)');
-                    setTimeout(() => generateImageAuto(), 500);
-                } else {
+                // Auto-generate image every 4th turn (skip Christian genre - no art)
+                if (els.genre.value !== 'Christian') {
                     state.turnCount++;
                     console.log(`Turn count: ${state.turnCount}`);
 
