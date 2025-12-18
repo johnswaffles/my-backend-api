@@ -1,0 +1,29 @@
+<div style="background: #1a1a2e; color: white; padding: 20px; border-radius: 10px;">
+    <h2>🧪 Test Version 3.0</h2>
+    <p>If you see this, Squarespace is loading new code!</p>
+    <input type="text" id="test-input" placeholder="Type and press Enter">
+    <button id="test-btn">Click Me</button>
+    <div id="output"></div>
+</div>
+
+<script>
+    console.log('🧪 TEST SCRIPT LOADED - VERSION 3.0');
+
+    const input = document.getElementById('test-input');
+    const btn = document.getElementById('test-btn');
+    const output = document.getElementById('output');
+
+    function showMessage() {
+        output.innerHTML = `<p style="color: lime;">✅ Enter key works! You typed: ${input.value}</p>`;
+        console.log('✅ Enter key works!');
+    }
+
+    btn.addEventListener('click', showMessage);
+    input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            showMessage();
+        }
+    });
+
+    console.log('✅ Event listeners attached');
+</script>

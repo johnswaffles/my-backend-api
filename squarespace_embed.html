@@ -1,1974 +1,761 @@
 <!-- Squarespace Code Block Start -->
-<!-- StoryForge v2.0.5 - 2025-12-02 18:00 - CHARACTER CONSISTENCY UPDATE -->
+<!-- AI Knowledge Assistant v1.0 - Clean & Sleek Update -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Inter:wght@300;400;600&display=swap"
+<link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400&display=swap"
     rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
-<div id="storyforge-app">
-    <!-- Background Elements -->
-    <div class="sf-bg-glow"></div>
-
+<div id="ai-assistant-app">
     <!-- Header -->
-    <header class="sf-header glass-panel">
-        <div class="sf-brand">
-            <div class="sf-logo">✨</div>
-            <div class="sf-title">StoryForge</div>
+    <header class="ai-header">
+        <div class="ai-brand">
+            <span class="ai-logo-icon">✦</span>
+            <span class="ai-title">Knowledge Assistant</span>
         </div>
-        <div class="sf-controls">
-            <button id="new-story-btn" class="sf-btn-new" title="Start New Story">New Story</button>
-            <select id="genre-selector" class="sf-select" title="Select Genre">
-                <option value="Fantasy">Fantasy</option>
-                <option value="Science Fiction" selected>Science Fiction</option>
-                <option value="Horror">Horror</option>
-                <option value="Mystery">Mystery</option>
-                <option value="Thriller">Thriller</option>
-                <option value="Romance">Romance</option>
-                <option value="Adventure">Adventure</option>
-                <option value="Historical Fiction">Historical Fiction</option>
-                <option value="Western">Western</option>
-                <option value="Drama">Drama</option>
-                <option value="Action">Action</option>
-                <option value="Comedy">Comedy</option>
-                <option value="Superhero">Superhero</option>
-                <option value="Post-Apocalyptic">Post-Apocalyptic</option>
-                <option value="Video Game">Video Game</option>
-                <option value="Christian">Christian</option>
-            </select>
-            <select id="voice-selector" class="sf-select" title="Select Voice">
-                <option value="" selected>Silent</option>
-                <option value="alloy">Marcus</option>
-                <option value="ash">Thorne</option>
-                <option value="ballad">Luna</option>
-                <option value="cedar">Caleb</option>
-                <option value="coral">Sophia</option>
-                <option value="echo">Raven</option>
-                <option value="fable">Jasper</option>
-                <option value="marin">Marina</option>
-                <option value="nova">Aurora</option>
-                <option value="onyx">Viktor</option>
-                <option value="sage">Elder</option>
-                <option value="shimmer">Celeste</option>
-                <option value="verse">Gabriel</option>
-            </select>
-            <select id="art-style-selector" class="sf-select" title="Select Art Style">
-                <option value="Anime">Anime</option>
-                <option value="Oil Painting">Oil Painting</option>
-                <option value="Watercolor">Watercolor</option>
-                <option value="Digital Art">Digital Art</option>
-                <option value="Concept Art">Concept Art</option>
-                <option value="Comic Book" selected>Comic Book</option>
-                <option value="Manga">Manga</option>
-                <option value="Pixel Art">Pixel Art</option>
-                <option value="Impressionism">Impressionism</option>
-                <option value="Art Nouveau">Art Nouveau</option>
-                <option value="Pop Art">Pop Art</option>
-                <option value="Surrealism">Surrealism</option>
-                <option value="Photorealistic">Photorealistic</option>
-                <option value="Charcoal Sketch">Charcoal Sketch</option>
-                <option value="Fantasy Art">Fantasy Art</option>
-                <option value="Cyberpunk">Cyberpunk</option>
-                <option value="Steampunk">Steampunk</option>
-                <option value="Studio Ghibli">Ghibli Style</option>
-            </select>
-            <button id="gen-art-btn" class="sf-btn-icon" title="Generate Scene Art" style="display:none;">🎨</button>
-            <button id="play-pause-btn" class="sf-btn-icon" disabled title="Play/Pause TTS">▶️</button>
-            <button id="download-btn" class="sf-btn-icon" disabled title="Download Audio">💾</button>
+        <div class="ai-controls">
+            <button id="clear-history-btn" class="ai-icon-btn" title="Clear History">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                </svg>
+            </button>
         </div>
     </header>
 
     <!-- Main Chat Area -->
     <main id="chat-container">
+        <div id="welcome-screen" class="welcome-screen">
+            <div class="welcome-icon">✦</div>
+            <h2>How can I help you today?</h2>
+            <p>Ask me anything. I can provide detailed answers, analyze images, and help you learn.</p>
+        </div>
         <div id="chat-messages">
-            <div class="message bot-message">
-                <div class="avatar">
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="url(#grad1)" />
-                        <defs>
-                            <linearGradient id="grad1" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
-                                <stop stop-color="#ffd700" />
-                                <stop offset="1" stop-color="#b537f2" />
-                            </linearGradient>
-                        </defs>
-                    </svg>
-                </div>
-                <div class="message-content">
-                    Welcome, traveler. Select a genre and voice above, then tell me how your story begins...
-                </div>
-            </div>
+            <!-- Messages injected here -->
         </div>
     </main>
 
-    <!-- Inventory Panel -->
-    <div id="inventory-panel" class="glass-panel">
-        <div class="panel-label">INVENTORY</div>
-        <div id="inventory-grid">
-            <div class="empty-slot">Empty</div>
+    <!-- Image Review Preview -->
+    <div id="image-preview-area" class="image-preview-area" style="display: none;">
+        <div class="preview-card">
+            <img id="image-preview-img" src="" alt="Upload Preview">
+            <button id="remove-image-btn" class="remove-image-btn">×</button>
         </div>
-        <select id="item-use-dropdown" class="sf-select-sm">
-            <option value="">⚗️ Use Item</option>
-        </select>
     </div>
 
     <!-- Input Area -->
-    <footer class="sf-footer glass-panel">
-        <input type="text" id="chat-input" placeholder="What do you do next?" autocomplete="off">
-        <button id="send-btn" class="sf-btn-primary">SEND</button>
+    <footer class="ai-footer">
+        <div class="input-wrapper">
+            <button id="upload-btn" class="ai-icon-btn secondary" title="Upload Image">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path
+                        d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+                </svg>
+            </button>
+            <input type="file" id="image-input" accept="image/*" style="display: none;">
+
+            <textarea id="chat-input" placeholder="Ask a question..." rows="1"></textarea>
+
+            <button id="send-btn" class="send-btn" disabled>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="send-icon">
+                    <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </button>
+        </div>
     </footer>
 </div>
 
 <style>
+    /* Modern AI Theme */
     :root {
-        --bg-dark: #0f0c29;
-        --bg-mid: #302b63;
-        --bg-light: #24243e;
-        --accent-gold: #ffd700;
-        --accent-purple: #b537f2;
-        --text-main: #ffffff;
-        --text-muted: #a0a0a0;
-        --glass-bg: rgba(20, 20, 40, 0.7);
-        --glass-border: rgba(255, 255, 255, 0.1);
-        --font-header: 'Cinzel', serif;
-        --font-body: 'Inter', sans-serif;
+        --bg-app: #121212;
+        --bg-panel: #1e1e1e;
+        --bg-message-user: #2d2d2d;
+        --bg-message-bot: transparent;
+        --accent-primary: #3b82f6;
+        /* Blue */
+        --accent-glow: rgba(59, 130, 246, 0.5);
+        --text-main: #e5e7eb;
+        --text-muted: #9ca3af;
+        --border-subtle: #374151;
+        --font-main: 'Inter', sans-serif;
+        --font-mono: 'JetBrains Mono', monospace;
     }
 
-    /* Reset & Base */
-    #storyforge-app * {
+    /* Base Reset */
+    #ai-assistant-app {
+        font-family: var(--font-main);
+        background: var(--bg-app);
+        color: var(--text-main);
+        width: 100%;
+        max-width: 1000px;
+        height: 700px;
+        /* Or 100vh if preferred */
+        margin: 0 auto;
+        border-radius: 12px;
+        border: 1px solid var(--border-subtle);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        position: relative;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    #ai-assistant-app * {
         box-sizing: border-box;
     }
 
-    #storyforge-app {
-        font-family: var(--font-body);
-        background: linear-gradient(135deg, var(--bg-dark), var(--bg-mid));
-        color: var(--text-main);
-        width: 100%;
-        max-width: 900px;
-        height: 700px;
-        margin: 0 auto;
-        border-radius: 16px;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        position: relative;
-        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
-        border: 1px solid var(--glass-border);
-    }
-
-    /* Background Glow */
-    .sf-bg-glow {
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: radial-gradient(circle, rgba(181, 55, 242, 0.1) 0%, transparent 60%);
-        pointer-events: none;
-        z-index: 0;
-    }
-
-    /* Glassmorphism Utility */
-    .glass-panel {
-        background: var(--glass-bg);
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid var(--glass-border);
-        z-index: 10;
-    }
-
     /* Header */
-    .sf-header {
+    .ai-header {
         padding: 16px 24px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        border-bottom: 1px solid var(--glass-border);
+        border-bottom: 1px solid var(--border-subtle);
+        background: var(--bg-panel);
     }
 
-    .sf-brand {
+    .ai-brand {
         display: flex;
         align-items: center;
-        gap: 10px;
-    }
-
-    .sf-logo {
-        font-size: 1.5rem;
-        animation: float 3s ease-in-out infinite;
-    }
-
-    .sf-title {
-        font-family: var(--font-header);
-        font-size: 1.4rem;
-        font-weight: 700;
-        background: linear-gradient(to right, #fff, var(--accent-gold));
-        background-clip: text;
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        letter-spacing: 1px;
-    }
-
-    .sf-controls {
-        display: flex;
-        gap: 10px;
-    }
-
-    /* Controls */
-    .sf-select {
-        background: rgba(0, 0, 0, 0.4);
-        border: 1px solid var(--glass-border);
-        color: var(--text-main);
-        padding: 6px 12px;
-        border-radius: 8px;
-        font-family: var(--font-body);
-        font-size: 0.85rem;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .sf-select:hover {
-        border-color: var(--accent-purple);
-    }
-
-    .sf-btn-new {
-        background: linear-gradient(135deg, #FFD700, #FFA500);
-        border: none;
-        color: #000;
-        padding: 6px 14px;
-        border-radius: 8px;
-        font-family: var(--font-body);
-        font-size: 0.85rem;
+        gap: 12px;
         font-weight: 600;
+        letter-spacing: -0.02em;
+    }
+
+    .ai-logo-icon {
+        color: var(--accent-primary);
+        font-size: 1.2rem;
+    }
+
+    .ai-icon-btn {
+        background: transparent;
+        border: none;
+        color: var(--text-muted);
         cursor: pointer;
+        padding: 8px;
+        border-radius: 8px;
         transition: all 0.2s;
-        box-shadow: 0 2px 8px rgba(255, 215, 0, 0.4);
-    }
-
-    .sf-btn-new:hover {
-        background: linear-gradient(135deg, #FFE44D, #FFB733);
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(255, 215, 0, 0.5);
-    }
-
-    .sf-btn-icon {
-        background: rgba(0, 0, 0, 0.4);
-        border: 1px solid var(--glass-border);
-        color: var(--text-main);
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
-        transition: all 0.2s;
     }
 
-    .sf-btn-icon:hover:not(:disabled) {
-        background: var(--accent-purple);
-        transform: scale(1.05);
+    .ai-icon-btn:hover {
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-main);
     }
 
-    .sf-btn-icon:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-
-    /* Chat Area */
+    /* Main Chat */
     #chat-container {
         flex: 1;
         overflow-y: auto;
-        padding: 24px;
-        position: relative;
-        z-index: 5;
+        padding: 40px;
         scroll-behavior: smooth;
+        position: relative;
     }
 
-    #chat-messages {
+    /* Welcome Screen */
+    .welcome-screen {
         display: flex;
         flex-direction: column;
-        gap: 20px;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        text-align: center;
+        color: var(--text-muted);
+        opacity: 0.8;
+    }
+
+    .welcome-screen h2 {
+        margin-bottom: 10px;
+        color: var(--text-main);
+    }
+
+    .welcome-icon {
+        font-size: 3rem;
+        color: var(--border-subtle);
+        margin-bottom: 20px;
     }
 
     /* Messages */
     .message {
         display: flex;
-        gap: 12px;
+        flex-direction: column;
+        margin-bottom: 32px;
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    .message.user {
+        align-items: flex-end;
+    }
+
+    .message-bubble {
         max-width: 85%;
-        animation: fadeUp 0.4s ease-out forwards;
-        opacity: 0;
-        transform: translateY(10px);
-    }
-
-    .bot-message {
-        align-self: flex-start;
-    }
-
-    .user-message {
-        align-self: flex-end;
-        flex-direction: row-reverse;
-    }
-
-    .avatar {
-        width: 36px;
-        height: 36px;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.2rem;
-        border: 1px solid var(--glass-border);
-        flex-shrink: 0;
-    }
-
-    .message-content {
-        padding: 14px 18px;
+        padding: 12px 18px;
         border-radius: 12px;
         line-height: 1.6;
         font-size: 0.95rem;
-        position: relative;
     }
 
-    .bot-message .message-content {
-        background: rgba(255, 255, 255, 0.08);
-        border: 1px solid var(--glass-border);
-        border-top-left-radius: 2px;
+    .message.user .message-bubble {
+        background: var(--bg-message-user);
+        color: var(--text-main);
+        border-bottom-right-radius: 2px;
     }
 
-    .user-message .message-content {
-        background: linear-gradient(135deg, var(--accent-purple), #8a2be2);
-        color: white;
-        border-top-right-radius: 2px;
-        box-shadow: 0 4px 15px rgba(181, 55, 242, 0.3);
-    }
-
-    .message-body {
-        display: flex;
-        flex-direction: column;
-        flex: 1;
-        min-width: 0;
-        /* Prevent flex overflow */
-    }
-
-    /* Message Download Button */
-    .message-download-container {
-        margin-top: 8px;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
-        padding-top: 8px;
-        display: flex;
-        justify-content: flex-end;
+    .message.bot .message-bubble {
+        background: var(--bg-message-bot);
+        padding: 0;
+        /* Remove padding for bot to align left perfectly */
+        max-width: 100%;
         width: 100%;
     }
 
-    .message-download-btn {
-        background: rgba(255, 215, 0, 0.1);
-        border: 1px solid var(--accent-gold);
-        color: var(--accent-gold);
-        padding: 8px 16px;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 0.9rem;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        transition: all 0.2s;
-        white-space: nowrap;
+    /* Markdown Styling */
+    .message-content h1,
+    .message-content h2,
+    .message-content h3 {
+        margin-top: 24px;
+        margin-bottom: 12px;
+        font-weight: 600;
+        color: #fff;
     }
 
-    .message-download-btn:hover {
-        background: var(--accent-gold);
-        color: var(--bg-dark);
+    .message-content p {
+        margin-bottom: 16px;
     }
 
-    /* Loading Spinner for Play Button */
-    @keyframes spin {
-        0% {
-            transform: rotate(0deg);
-        }
-
-        100% {
-            transform: rotate(360deg);
-        }
+    .message-content ul,
+    .message-content ol {
+        margin-bottom: 16px;
+        padding-left: 24px;
     }
 
-    .spinner {
-        width: 16px;
-        height: 16px;
-        border: 2px solid rgba(255, 255, 255, 0.3);
-        border-top: 2px solid white;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-        display: inline-block;
+    .message-content li {
+        margin-bottom: 8px;
     }
 
-    /* Inventory */
-    #inventory-panel {
-        padding: 12px 24px;
-        display: flex;
-        align-items: center;
-        gap: 16px;
-        border-top: 1px solid var(--glass-border);
+    .message-content code {
+        font-family: var(--font-mono);
+        background: rgba(255, 255, 255, 0.1);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
     }
 
-    .panel-label {
-        font-family: var(--font-header);
-        font-size: 0.8rem;
-        color: var(--accent-gold);
-        letter-spacing: 1px;
-    }
-
-    #inventory-grid {
-        flex: 1;
-        display: flex;
-        gap: 8px;
+    .message-content pre {
+        background: #0d0d0d;
+        padding: 16px;
+        border-radius: 8px;
         overflow-x: auto;
-        padding-bottom: 4px;
+        margin-bottom: 16px;
+        border: 1px solid var(--border-subtle);
     }
 
-    .inventory-item {
-        background: rgba(0, 0, 0, 0.3);
-        border: 1px solid var(--accent-gold);
-        padding: 4px 10px;
-        border-radius: 4px;
-        font-size: 0.8rem;
-        white-space: nowrap;
-        color: var(--accent-gold);
+    .message-content pre code {
+        background: transparent;
+        padding: 0;
+        color: #e5e7eb;
     }
 
-    .empty-slot {
-        color: var(--text-muted);
-        font-style: italic;
-        font-size: 0.8rem;
+    .message-content a {
+        color: var(--accent-primary);
+        text-decoration: none;
+        border-bottom: 1px solid transparent;
+        transition: border-color 0.2s;
     }
 
-    .sf-select-sm {
-        padding: 4px 8px;
-        font-size: 0.8rem;
-        background: rgba(0, 0, 0, 0.4);
-        border: 1px solid var(--glass-border);
-        color: var(--text-main);
-        border-radius: 4px;
+    .message-content a:hover {
+        border-bottom-color: var(--accent-primary);
     }
 
-    /* Footer */
-    .sf-footer {
-        padding: 20px 24px;
+    .attached-image {
+        max-width: 300px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        border: 1px solid var(--border-subtle);
+    }
+
+    /* Loading Indicator */
+    .typing-indicator span {
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        background: var(--text-muted);
+        border-radius: 50%;
+        margin-right: 4px;
+        animation: typing 1.4s infinite ease-in-out both;
+    }
+
+    .typing-indicator span:nth-child(1) {
+        animation-delay: -0.32s;
+    }
+
+    .typing-indicator span:nth-child(2) {
+        animation-delay: -0.16s;
+    }
+
+    @keyframes typing {
+
+        0%,
+        80%,
+        100% {
+            transform: scale(0);
+        }
+
+        40% {
+            transform: scale(1);
+        }
+    }
+
+    /* Follow-up Chips */
+    .follow-up-container {
         display: flex;
-        gap: 12px;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 16px;
+    }
+
+    .follow-up-chip {
+        background: transparent;
+        border: 1px solid var(--border-subtle);
+        color: var(--text-muted);
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .follow-up-chip:hover {
+        border-color: var(--accent-primary);
+        color: var(--accent-primary);
+        background: rgba(59, 130, 246, 0.05);
+    }
+
+    /* Play Audio Button */
+    .audio-control-btn {
+        margin-top: 8px;
+        background: transparent;
+        border: none;
+        color: var(--text-muted);
+        font-size: 0.8rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        opacity: 0.7;
+        transition: opacity 0.2s;
+    }
+
+    .audio-control-btn:hover {
+        opacity: 1;
+        color: var(--accent-primary);
+    }
+
+    /* Footer / Input */
+    .ai-footer {
+        padding: 20px 40px;
+        background: var(--bg-panel);
+        border-top: 1px solid var(--border-subtle);
+    }
+
+    .input-wrapper {
+        background: var(--bg-app);
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
+        padding: 8px 12px;
+        display: flex;
+        align-items: flex-end;
+        gap: 10px;
+        transition: border-color 0.2s;
+    }
+
+    .input-wrapper:focus-within {
+        border-color: var(--accent-primary);
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
     }
 
     #chat-input {
-        flex: 1;
-        background: rgba(0, 0, 0, 0.3);
-        border: 1px solid var(--glass-border);
-        padding: 14px;
-        border-radius: 8px;
-        color: white;
-        font-family: var(--font-body);
-        font-size: 1rem;
-        transition: all 0.2s;
-    }
-
-    #chat-input:focus {
-        outline: none;
-        border-color: var(--accent-purple);
-        background: rgba(0, 0, 0, 0.5);
-    }
-
-    .sf-btn-primary {
-        background: var(--accent-purple);
-        color: white;
+        background: transparent;
         border: none;
-        padding: 0 24px;
+        color: #fff;
+        flex: 1;
+        font-family: var(--font-main);
+        font-size: 1rem;
+        resize: none;
+        max-height: 120px;
+        padding: 10px 0;
+        outline: none;
+    }
+
+    .send-btn {
+        background: var(--accent-primary);
+        border: none;
+        width: 36px;
+        height: 36px;
         border-radius: 8px;
-        font-family: var(--font-header);
-        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
         cursor: pointer;
         transition: all 0.2s;
-        letter-spacing: 1px;
     }
 
-    .sf-btn-primary:hover:not(:disabled) {
-        background: #d05bf5;
-        box-shadow: 0 0 15px rgba(208, 91, 245, 0.4);
-    }
-
-    .sf-btn-primary:disabled {
-        opacity: 0.5;
+    .send-btn:disabled {
+        background: var(--border-subtle);
+        color: var(--text-muted);
         cursor: not-allowed;
     }
 
-    /* Animations */
-    @keyframes fadeUp {
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+    /* Image Preview */
+    .image-preview-area {
+        padding: 0 40px 10px;
+        background: var(--bg-panel);
     }
 
-    /* ========================================
-       MOBILE RESPONSIVE STYLES
-       ======================================== */
-
-    @media (max-width: 768px) {
-
-        /* App Container */
-        #storyforge-app {
-            height: 100vh;
-            max-width: 100%;
-            border-radius: 0;
-            margin: 0;
-        }
-
-        /* Header - Stack controls on small screens */
-        .sf-header {
-            padding: 10px 12px;
-            flex-direction: column;
-            gap: 10px;
-            align-items: stretch;
-        }
-
-        .sf-brand {
-            justify-content: center;
-        }
-
-        .sf-title {
-            font-size: 1.1rem;
-        }
-
-        .sf-logo {
-            font-size: 1.2rem;
-        }
-
-        .sf-controls {
-            display: grid;
-            grid-template-columns: 1fr 1fr auto;
-            gap: 6px;
-            width: 100%;
-        }
-
-        .sf-select {
-            font-size: 0.75rem;
-            padding: 6px;
-            min-width: 0;
-        }
-
-        .sf-btn-icon {
-            width: 36px;
-            height: 36px;
-        }
-
-        /* Chat Area - Minimal padding for max width */
-        #chat-container {
-            padding: 8px;
-        }
-
-        #chat-messages {
-            gap: 12px;
-        }
-
-        /* Messages - Full width, no avatar on mobile */
-        .message {
-            max-width: 100%;
-            gap: 0;
-        }
-
-        /* Hide bot avatar on mobile to save space */
-        .bot-message .avatar {
-            display: none;
-        }
-
-        .message-content {
-            font-size: 0.95rem;
-            line-height: 1.5;
-            padding: 10px 12px;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-        }
-
-        .bot-message .message-content {
-            border-radius: 12px;
-        }
-
-        .user-message .message-content {
-            border-radius: 12px;
-        }
-
-        /* Inventory - Compact on mobile */
-        #inventory-panel {
-            position: relative;
-            right: auto;
-            bottom: auto;
-            width: 100%;
-            margin: 0;
-            border-radius: 0;
-            padding: 8px 12px;
-        }
-
-        #inventory-grid {
-            grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
-            gap: 6px;
-        }
-
-        .item-slot,
-        .empty-slot {
-            padding: 6px;
-            font-size: 0.7rem;
-        }
-
-        /* Footer - Compact input area */
-        .sf-footer {
-            padding: 10px 12px;
-            gap: 8px;
-        }
-
-        #chat-input {
-            font-size: 16px;
-            /* Prevent zoom on iOS - must be 16px */
-            padding: 10px;
-        }
-
-        #send-btn {
-            padding: 10px 16px;
-            font-size: 0.85rem;
-            min-width: 70px;
-            white-space: nowrap;
-        }
-
-        /* Loader - Smaller on mobile */
-        .sf-loader {
-            width: 36px;
-            height: 36px;
-        }
-
-        /* Prevent text overflow */
-        .message-content p {
-            margin: 0.4em 0;
-        }
-
-        .message-content ul,
-        .message-content ol {
-            padding-left: 1.2em;
-            margin: 0.4em 0;
-        }
+    .preview-card {
+        position: relative;
+        display: inline-block;
     }
 
-    /* Extra small phones */
-    @media (max-width: 375px) {
-        .sf-title {
-            font-size: 1rem;
-        }
-
-        .sf-controls {
-            grid-template-columns: 1fr 1fr;
-            grid-template-rows: auto auto;
-        }
-
-        .sf-btn-icon {
-            grid-column: 1 / -1;
-            justify-self: center;
-            width: 100%;
-            max-width: 120px;
-            border-radius: 8px;
-        }
-
-        .message-content {
-            font-size: 0.9rem;
-        }
-
-        #send-btn {
-            min-width: 70px;
-            padding: 12px 16px;
-        }
+    .preview-card img {
+        height: 60px;
+        border-radius: 6px;
+        border: 1px solid var(--border-subtle);
     }
 
-
-    @keyframes float {
-
-        0%,
-        100% {
-            transform: translateY(0);
-        }
-
-        50% {
-            transform: translateY(-5px);
-        }
-    }
-
-    @keyframes pulse-glow {
-        0% {
-            box-shadow: 0 0 5px var(--accent-purple);
-        }
-
-        50% {
-            box-shadow: 0 0 20px var(--accent-purple), 0 0 10px var(--accent-gold);
-        }
-
-        100% {
-            box-shadow: 0 0 5px var(--accent-purple);
-        }
-    }
-
-    /* Magical Loader */
-    .magical-orb {
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        background: radial-gradient(circle at 30% 30%, #fff, var(--accent-purple));
-        animation: pulse-glow 1.5s infinite ease-in-out;
-        margin: 0 auto;
-    }
-
-    /* Generated Image Container */
-    .generated-image-container {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        align-items: center;
-        width: 100%;
-    }
-
-    .generated-image {
-        width: 100%;
-        border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-        opacity: 0;
-        transition: opacity 0.5s ease-in;
-    }
-
-    .image-controls {
-        display: flex;
-        gap: 10px;
-        width: 100%;
-        justify-content: center;
-    }
-
-    .download-img-btn {
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        padding: 8px 16px;
-        border-radius: 20px;
+    .remove-image-btn {
+        position: absolute;
+        top: -6px;
+        right: -6px;
+        background: #ef4444;
         color: white;
-        text-decoration: none;
-        font-size: 0.9rem;
-        transition: all 0.2s;
-    }
-
-    .download-img-btn:hover {
-        background: rgba(255, 255, 255, 0.2);
-        transform: translateY(-2px);
-    }
-
-    /* Image Generation Loader - Holographic Neural Network */
-    .image-loader {
-        position: relative;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 30px 40px;
-        background: linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(20, 20, 40, 0.9) 100%);
-        border-radius: 16px;
-        margin: 15px 0;
-        border: 2px solid transparent;
-        background-clip: padding-box;
-        overflow: hidden;
-    }
-
-    .image-loader::before {
-        content: '';
-        position: absolute;
-        inset: -2px;
-        background: linear-gradient(45deg, #00f7ff, #ff00ff, #00f7ff, #ff00ff);
-        background-size: 400% 400%;
-        animation: gradient-spin 3s linear infinite;
-        border-radius: 18px;
-        z-index: -1;
-    }
-
-    .image-loader::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: radial-gradient(circle at 50% 50%, rgba(0, 247, 255, 0.1) 0%, transparent 70%);
-        animation: pulse-glow 2s ease-in-out infinite;
-    }
-
-    @keyframes gradient-spin {
-        0% {
-            background-position: 0% 50%;
-        }
-
-        50% {
-            background-position: 100% 50%;
-        }
-
-        100% {
-            background-position: 0% 50%;
-        }
-    }
-
-    @keyframes pulse-glow {
-
-        0%,
-        100% {
-            opacity: 0.3;
-            transform: scale(1);
-        }
-
-        50% {
-            opacity: 0.8;
-            transform: scale(1.05);
-        }
-    }
-
-    /* Neural Network Orb */
-    .neural-orb {
-        position: relative;
-        width: 80px;
-        height: 80px;
-        margin-bottom: 15px;
-    }
-
-    .neural-orb::before {
-        content: '';
-        position: absolute;
-        inset: 0;
+        border: none;
+        width: 18px;
+        height: 18px;
         border-radius: 50%;
-        background: conic-gradient(from 0deg, #00f7ff, #ff00ff, #00ff88, #ff00ff, #00f7ff);
-        animation: orb-spin 2s linear infinite;
-        filter: blur(2px);
-    }
-
-    .neural-orb::after {
-        content: '🎨';
-        position: absolute;
-        inset: 8px;
-        background: radial-gradient(circle, #1a1a2e 0%, #0f0f1a 100%);
-        border-radius: 50%;
+        font-size: 12px;
+        cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 28px;
-        animation: orb-pulse 1.5s ease-in-out infinite;
     }
 
-    @keyframes orb-spin {
+    /* Animations */
+    @keyframes fadeIn {
         from {
-            transform: rotate(0deg);
+            opacity: 0;
+            transform: translateY(10px);
         }
 
         to {
-            transform: rotate(360deg);
-        }
-    }
-
-    @keyframes orb-pulse {
-
-        0%,
-        100% {
-            transform: scale(1);
-        }
-
-        50% {
-            transform: scale(1.1);
-        }
-    }
-
-    /* Floating particles */
-    .loader-particles {
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-    }
-
-    .loader-particles span {
-        position: absolute;
-        width: 4px;
-        height: 4px;
-        background: #00f7ff;
-        border-radius: 50%;
-        animation: float-up 3s ease-in-out infinite;
-        box-shadow: 0 0 10px #00f7ff;
-    }
-
-    .loader-particles span:nth-child(1) {
-        left: 10%;
-        animation-delay: 0s;
-    }
-
-    .loader-particles span:nth-child(2) {
-        left: 30%;
-        animation-delay: 0.5s;
-        background: #ff00ff;
-        box-shadow: 0 0 10px #ff00ff;
-    }
-
-    .loader-particles span:nth-child(3) {
-        left: 50%;
-        animation-delay: 1s;
-    }
-
-    .loader-particles span:nth-child(4) {
-        left: 70%;
-        animation-delay: 1.5s;
-        background: #00ff88;
-        box-shadow: 0 0 10px #00ff88;
-    }
-
-    .loader-particles span:nth-child(5) {
-        left: 90%;
-        animation-delay: 2s;
-        background: #ff00ff;
-        box-shadow: 0 0 10px #ff00ff;
-    }
-
-    @keyframes float-up {
-        0% {
-            bottom: -10px;
-            opacity: 0;
-        }
-
-        20% {
             opacity: 1;
+            transform: translateY(0);
         }
-
-        80% {
-            opacity: 1;
-        }
-
-        100% {
-            bottom: 100%;
-            opacity: 0;
-        }
-    }
-
-    .loader-text {
-        font-family: 'Orbitron', sans-serif;
-        font-size: 0.9em;
-        color: #fff;
-        text-transform: uppercase;
-        letter-spacing: 3px;
-        text-shadow: 0 0 20px #00f7ff, 0 0 40px #ff00ff;
-        animation: text-flicker 2s ease-in-out infinite;
-        z-index: 1;
-    }
-
-    @keyframes text-flicker {
-
-        0%,
-        100% {
-            opacity: 1;
-        }
-
-        50% {
-            opacity: 0.8;
-        }
-
-        52% {
-            opacity: 1;
-        }
-
-        54% {
-            opacity: 0.9;
-        }
-    }
-
-    .loader-subtext {
-        font-family: 'Inter', sans-serif;
-        font-size: 0.75em;
-        color: rgba(255, 255, 255, 0.6);
-        margin-top: 8px;
-        z-index: 1;
-    }
-
-    /* Scrollbar */
-    ::-webkit-scrollbar {
-        width: 6px;
-        height: 6px;
-    }
-
-    ::-webkit-scrollbar-track {
-        background: transparent;
-    }
-
-    ::-webkit-scrollbar-thumb {
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: 3px;
-    }
-
-    ::-webkit-scrollbar-thumb:hover {
-        background: rgba(255, 255, 255, 0.4);
     }
 
     /* Mobile */
     @media (max-width: 600px) {
-        #storyforge-app {
+        #ai-assistant-app {
             height: 100vh;
             border-radius: 0;
+            border: none;
         }
 
-        .sf-title {
-            display: none;
+        #chat-container {
+            padding: 16px;
+        }
+
+        .ai-footer {
+            padding: 12px 16px;
         }
     }
 </style>
 
 <script>
-    console.log('✅ StoryForge Script Starting - Version 2.0');
     (function () {
-        'use strict';
-        if (window.storyForgeInitialized) return;
-        window.storyForgeInitialized = true;
-
         const BACKEND_URL = 'https://my-backend-api-1niy.onrender.com';
 
-        // --- Audio Queue System ---
-        class AudioQueue {
-            constructor() {
-                this.queue = [];
-                this.isPlaying = false;
-                this.currentAudio = null;
-            }
-
-            add(item) {
-                this.queue.push(item);
-                if (!this.isPlaying) this.playNext();
-            }
-
-            playNext() {
-                if (this.queue.length === 0) {
-                    this.isPlaying = false;
-                    updatePlayButton(false);
-                    return;
-                }
-
-                this.isPlaying = true;
-                const item = this.queue.shift();
-
-                let url;
-                if (typeof item === 'string') {
-                    url = item; // It's a URL
-                } else {
-                    url = URL.createObjectURL(item); // It's a Blob
-                }
-
-                this.currentAudio = new Audio();
-                this.currentAudio.crossOrigin = "anonymous"; // Re-added for reliable CORS handling
-                this.currentAudio.src = url;
-                this.currentAudio.preload = "auto";
-
-                this.currentAudio.preload = "auto";
-
-                updatePlayButton('loading');
-
-                this.currentAudio.onwaiting = () => updatePlayButton('loading');
-                this.currentAudio.onplaying = () => updatePlayButton('playing');
-                this.currentAudio.onpause = () => updatePlayButton('paused');
-
-                this.currentAudio.onended = () => {
-                    if (typeof item !== 'string') URL.revokeObjectURL(url); // Clean up blob URLs
-                    this.playNext();
-                };
-
-                this.currentAudio.onerror = (e) => {
-                    console.error("Audio Playback Error", e);
-                    addMessage(`⚠️ Playback Error: ${e.type}`, false, true);
-                    if (typeof item !== 'string') URL.revokeObjectURL(url);
-                    this.playNext();
-                };
-
-                // Attempt to play
-                const playPromise = this.currentAudio.play();
-                if (playPromise !== undefined) {
-                    playPromise.catch(error => {
-                        console.error("Playback failed", error);
-                        // Auto-play might be blocked. Show a "Click to Play" message or just stop.
-                        // But since user clicked "Send", it should work.
-                        // Unless the async fetch took too long?
-                        updatePlayButton(false);
-                    });
-                }
-            }
-
-            stop() {
-                if (this.currentAudio) {
-                    this.currentAudio.pause();
-                    this.currentAudio = null;
-                }
-                this.queue = [];
-                this.isPlaying = false;
-                updatePlayButton(false);
-            }
-
-            pause() {
-                if (this.currentAudio) {
-                    this.currentAudio.pause();
-                }
-                this.isPlaying = false;
-                updatePlayButton(false);
-            }
-        }
-
-        const audioQueue = new AudioQueue();
-
-        // --- State & DOM ---
+        // --- State ---
         const state = {
-            inventory: [],
             history: [],
-            lastFullText: '',
-            christianContext: false,
-            romanceContext: null,
-            videoGameContext: false,
-            audioCache: null,  // Cache audio to prevent duplicate API calls
-            characterCard: null,  // Stores detailed character description for image consistency
-            userChangedVoice: false,  // Track if user manually changed voice
-            isGeneratingImage: false,
-            isSending: false,  // Debounce lock for sendMessage
-            currentImage: '',
-            lastGeneratedImage: null,  // Store last image for reference in next generation
-            turnCount: 0 // Track number of turns for auto-image generation
+            isSending: false,
+            uploadedImage: null // Base64 string
         };
 
+        // --- DOM Elements ---
         const els = {
+            container: document.getElementById('chat-container'),
+            messages: document.getElementById('chat-messages'),
             input: document.getElementById('chat-input'),
             sendBtn: document.getElementById('send-btn'),
-            messages: document.getElementById('chat-messages'),
-            genre: document.getElementById('genre-selector'),
-            voice: document.getElementById('voice-selector'),
-            playPause: document.getElementById('play-pause-btn'),
-            downloadBtn: document.getElementById('download-btn'),
-            artStyle: document.getElementById('art-style-selector'),
-            genArtBtn: document.getElementById('gen-art-btn'),
-            invGrid: document.getElementById('inventory-grid'),
-            itemDrop: document.getElementById('item-use-dropdown'),
-            container: document.getElementById('chat-container'),
-            newStoryBtn: document.getElementById('new-story-btn')
+            uploadBtn: document.getElementById('upload-btn'),
+            imageInput: document.getElementById('image-input'),
+            imagePreviewArea: document.getElementById('image-preview-area'),
+            imagePreviewImg: document.getElementById('image-preview-img'),
+            removeImageBtn: document.getElementById('remove-image-btn'),
+            welcomeScreen: document.getElementById('welcome-screen'),
+            clearHistoryBtn: document.getElementById('clear-history-btn')
         };
 
-        // --- Helpers ---
+        // --- Event Listeners ---
+        els.sendBtn.addEventListener('click', () => sendMessage());
 
-        function stripAudioTags(text) {
-            // Remove all audio tags like [whispers], [laughs], [pause], etc.
-            return text.replace(/\[([a-z_]+)\]/gi, '');
+        els.input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+            // Auto-resize
+            els.input.style.height = 'auto';
+            els.input.style.height = Math.min(els.input.scrollHeight, 120) + 'px';
+        });
+
+        els.input.addEventListener('input', () => {
+            updateSendButton();
+        });
+
+        // Image Upload
+        els.uploadBtn.addEventListener('click', () => els.imageInput.click());
+        els.imageInput.addEventListener('change', handleImageUpload);
+        els.removeImageBtn.addEventListener('click', clearImage);
+
+        // Clear History
+        els.clearHistoryBtn.addEventListener('click', () => {
+            if (confirm('Clear conversation history?')) {
+                state.history = [];
+                els.messages.innerHTML = '';
+                els.welcomeScreen.style.display = 'flex';
+            }
+        });
+
+        // --- Functions ---
+
+        function updateSendButton() {
+            els.sendBtn.disabled = !els.input.value.trim() && !state.uploadedImage;
         }
 
-        function updatePlayButton(state) {
-            // Backward compatibility for boolean
-            if (typeof state === 'boolean') {
-                state = state ? 'playing' : 'paused';
-            }
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
 
-            if (state === 'loading') {
-                els.playPause.innerHTML = '<div class="spinner"></div>';
-                els.playPause.title = "Buffering...";
-            } else if (state === 'playing') {
-                els.playPause.innerHTML = '⏸️';
-                els.playPause.title = "Pause";
-            } else {
-                els.playPause.innerHTML = '▶️';
-                els.playPause.title = "Play";
-            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                state.uploadedImage = e.target.result; // Base64
+                els.imagePreviewImg.src = state.uploadedImage;
+                els.imagePreviewArea.style.display = 'block';
+                updateSendButton();
+            };
+            reader.readAsDataURL(file);
         }
 
-        function splitText(text) {
-            // Split into [First Chunk, Rest]
-            // Goal: Grab first ~50 words or ~300 chars to ensure audio buffer is long enough
-            // Look for punctuation after 250 chars
-            if (text.length < 300) {
-                return { first: text, rest: '' };
-            }
-
-            const splitIdx = text.indexOf('.', 250);
-            if (splitIdx !== -1) {
-                return {
-                    first: text.substring(0, splitIdx + 1),
-                    rest: text.substring(splitIdx + 1)
-                };
-            }
-
-            // Fallback if no punctuation found reasonably early
-            return { first: text, rest: '' };
+        function clearImage() {
+            state.uploadedImage = null;
+            els.imageInput.value = '';
+            els.imagePreviewArea.style.display = 'none';
+            updateSendButton();
         }
-
-        async function fetchTTS(text) {
-            try {
-                // Clean text for TTS: remove *actions*, _italics_, emojis, and JSON objects
-                // This prevents the voice from reading "smiles" or "open brace action..."
-                const cleanText = text
-                    .replace(/\*[^*]+\*/g, '') // Remove *text*
-                    .replace(/_([^_]+)_/g, '$1') // Remove _italic_ markers but keep the text
-                    .replace(/\{.*?\}/g, '')   // Remove {JSON} objects (fix for jibberish)
-                    .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}]/gu, '') // Remove emojis
-                    .trim();
-
-                if (!cleanText) return null; // Nothing to say
-
-                // Show loading spinner on play button
-                const originalBtnContent = els.playPause.innerHTML;
-                els.playPause.innerHTML = '<div class="spinner"></div>';
-                els.playPause.disabled = true;
-
-                // Optimization: Use GET endpoint for streaming if text is short enough
-                // This allows the browser to stream the audio directly via Audio element
-                // Increased limit to 4000 chars to cover most stories
-                if (cleanText.length < 4000) {
-                    const url = `${BACKEND_URL}/tts?text=${encodeURIComponent(cleanText)}&voice=${els.voice.value}`;
-
-                    // Restore button content immediately as we return the URL
-                    els.playPause.innerHTML = originalBtnContent;
-                    return url;
-                }
-
-                // Fallback to POST for long text (waits for full download)
-                const response = await fetch(`${BACKEND_URL}/tts`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        text: cleanText,
-                        voice: els.voice.value
-                    })
-                });
-
-                // Restore button content
-                els.playPause.innerHTML = originalBtnContent;
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(`ElevenLabs API Error: ${response.status} ${JSON.stringify(errorData)}`);
-                }
-
-                const blob = await response.blob();
-                return blob;
-            } catch (error) {
-                console.error('TTS Fetch Error:', error);
-                addMessage(`⚠️ TTS Error: ${error.message}`, false, true);
-                els.playPause.innerHTML = '▶️'; // Restore play icon on error
-                els.playPause.disabled = true;
-                return null;
-            }
-        }
-
-        // --- UI Functions ---
-
-        function addMessage(text, isUser, isError = false, audioBlob = null) {
-            const div = document.createElement('div');
-            div.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
-
-            // Avatar
-            if (!isUser) {
-                const avatar = document.createElement('div');
-                avatar.className = 'avatar';
-                if (isError) {
-                    avatar.textContent = '⚠️';
-                } else {
-                    // Cool SVG Graphic (Sparkle/Star)
-                    avatar.innerHTML = `
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="url(#grad1)"/>
-                        <defs>
-                            <linearGradient id="grad1" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
-                                <stop stop-color="#ffd700"/>
-                                <stop offset="1" stop-color="#b537f2"/>
-                            </linearGradient>
-                        </defs>
-                    </svg>`;
-                }
-                div.appendChild(avatar);
-            }
-
-            // Message Body Wrapper (Text + Download Button)
-            const messageBody = document.createElement('div');
-            messageBody.className = 'message-body';
-
-            const content = document.createElement('div');
-            content.className = 'message-content';
-
-            if (isUser || isError) {
-                content.textContent = text;
-            } else {
-                content.innerHTML = marked.parse(text);
-            }
-
-            messageBody.appendChild(content);
-
-            // Add download button for bot messages with audio
-            if (!isUser && !isError && audioBlob) {
-                const downloadContainer = document.createElement('div');
-                downloadContainer.className = 'message-download-container';
-
-                const downloadBtn = document.createElement('button');
-                downloadBtn.className = 'message-download-btn';
-                downloadBtn.innerHTML = '💾 Download Audio';
-                downloadBtn.title = 'Download Audio';
-                downloadBtn.onclick = async () => {
-                    const originalText = downloadBtn.innerHTML;
-                    downloadBtn.innerHTML = '⏳ Downloading...';
-                    downloadBtn.disabled = true;
-
-                    try {
-                        let blob;
-                        if (typeof audioBlob === 'string') {
-                            const resp = await fetch(audioBlob);
-                            if (!resp.ok) throw new Error('Download failed');
-                            blob = await resp.blob();
-                        } else {
-                            blob = audioBlob;
-                        }
-
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `storyforge-${Date.now()}.mp3`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-                    } catch (e) {
-                        console.error("Download error", e);
-                        alert("Failed to download audio.");
-                    } finally {
-                        downloadBtn.innerHTML = originalText;
-                        downloadBtn.disabled = false;
-                    }
-                };
-
-                downloadContainer.appendChild(downloadBtn);
-                messageBody.appendChild(downloadContainer);
-            }
-
-            div.appendChild(messageBody);
-            els.messages.appendChild(div);
-
-            // Scroll
-            setTimeout(() => {
-                els.container.scrollTop = els.container.scrollHeight;
-            }, 50);
-        }
-
-        function updateInventory() {
-            // Hide inventory for Christian genre
-            if (els.genre.value === 'Christian') {
-                els.invGrid.innerHTML = '<div class="empty-slot">Inventory disabled in this mode</div>';
-                els.itemDrop.innerHTML = '<option value="">⚗️ Inventory Disabled</option>';
-                els.itemDrop.disabled = true;
-                return;
-            }
-
-            els.itemDrop.disabled = false;
-
-            if (state.inventory.length === 0) {
-                els.invGrid.innerHTML = '<div class="empty-slot">Empty</div>';
-                els.itemDrop.innerHTML = '<option value="">⚗️ Use Item</option>';
-                return;
-            }
-
-            els.invGrid.innerHTML = state.inventory.map(item =>
-                `<div class="inventory-item" title="${item.description || ''}">${item.name}</div>`
-            ).join('');
-
-            els.itemDrop.innerHTML = '<option value="">⚗️ Use Item</option>';
-            state.inventory.forEach((item, idx) => {
-                const opt = document.createElement('option');
-                opt.value = idx;
-                opt.textContent = `Use ${item.name}`;
-                els.itemDrop.appendChild(opt);
-            });
-        }
-
-        // --- Core Logic ---
-
-        // Function to parse and apply actions from bot reply
-        function parseAndApplyActions(replyText) {
-            const lines = replyText.split('\n');
-            const cleanLines = lines.filter(line => {
-                if (line.trim().startsWith('{') && line.trim().endsWith('}')) {
-                    try {
-                        const action = JSON.parse(line);
-                        if (action.action === 'add_item') {
-                            // Prevent duplicates - check if item already exists
-                            const exists = state.inventory.some(i => i.name.toLowerCase() === action.item.name.toLowerCase());
-                            if (!exists) {
-                                state.inventory.push(action.item);
-                            } else {
-                                console.log('⏭️ Skipping duplicate item:', action.item.name);
-                            }
-                        }
-                        if (action.action === 'remove_item') {
-                            state.inventory = state.inventory.filter(i => i.name !== action.item.name);
-                        }
-                        if (action.action === 'consume_item') {
-                            state.inventory = state.inventory.filter(i => i.name !== action.item.name);
-                            addMessage(`✨ Used ${action.item.name}`, false);
-                        }
-                        return false; // This line was an action, so filter it out of the display text
-                    } catch (e) {
-                        console.warn("Failed to parse action JSON:", line, e);
-                        return true; // Keep line if it looks like JSON but fails to parse
-                    }
-                }
-                return true; // Keep non-JSON lines
-            });
-            updateInventory(); // Update inventory after processing actions
-            return cleanLines.join('\n').trim(); // Return the text without action lines
-        }
-
-
 
         async function sendMessage(text = null) {
-            // Debounce: prevent duplicate calls while processing
             if (state.isSending) return;
 
-            let msgText = text || els.input.value.trim();
-            if (!msgText) return;
+            const msgText = text || els.input.value.trim();
+            const msgImage = state.uploadedImage; // Capture current image
 
-            state.isSending = true; // Lock
-
-            // Video Game Genre Special Handling
-            if (els.genre.value === 'Video Game' && !state.videoGameContext) {
-                const startChoice = prompt(
-                    '🎮 VIDEO GAME START\n\n' +
-                    'Where does your character start?\n' +
-                    '1. Real Life (They will enter the game later)\n' +
-                    '2. In Game (They start inside the game world)\n\n' +
-                    'Type "1" or "2" (or "Real" / "Game"):'
-                );
-
-                if (startChoice === null) return; // User cancelled
-
-                const choice = startChoice.toLowerCase();
-                let context = "";
-                if (choice.includes('1') || choice.includes('real')) {
-                    context = "The story starts in the REAL WORLD. The character is a gamer who will eventually enter the video game.";
-                } else {
-                    context = "The story starts directly INSIDE the video game world. The character is already in the game.";
-                }
-
-                // Prepend context to user's message
-                msgText = `[Genre: Video Game] ${context} \n\nUser's opening action/request: "${msgText}"`;
-                state.videoGameContext = true;
-            }
-
-            // Romance Genre Special Handling
-            if (els.genre.value === 'Romance' && !state.romanceContext) {
-                const disclaimer = "All characters, narrators, participants, users, observers, and any individuals represented, implied, or referenced in this system are 18 years of age or older. All interactions, scenarios, and depictions involve consenting adults only. No minors are present, mentioned, implied, or involved in any capacity. This requirement applies universally to every part of the system, all outputs, and all usage.";
-
-                const agreed = confirm("⚠️ AGE VERIFICATION REQUIRED\n\n" + disclaimer + "\n\nPress OK to confirm you are 18+ and consent to these terms.");
-
-                if (!agreed) {
-                    els.genre.value = 'High Fantasy'; // Reset to default
-                    return;
-                }
-
-                const theme = prompt(
-                    '💖 ROMANCE THEMES\n\n' +
-                    'Choose a theme or trope to start:\n' +
-                    '• Slow Burn / Sweet\n' +
-                    '• Enemies to Lovers\n' +
-                    '• Secret Affair\n' +
-                    '• Steamy Encounter\n' +
-                    '• Dark Romance\n' +
-                    '• Forbidden Love\n\n' +
-                    'Type your choice (or press Enter for random):'
-                );
-
-                if (theme === null) return; // User cancelled
-
-                // Prepend the theme to the message to guide the bot
-                msgText = `Start a Romance story with the theme: ${theme || 'Random'}. [romantic]`;
-                state.romanceContext = true;
-            }
-
-            // Christian Genre Special Handling
-            if (els.genre.value === 'Christian' && !state.christianContext) {
-                // Set to silent by default for Christian genre
-                if (!state.userChangedVoice) {
-                    els.voice.value = ''; // Silent
-                }
-                // Otherwise respect user's voice choice
-                const verse = prompt(
-                    '📖 BIBLE STORYTELLING\n\n' +
-                    '⚠️ NOTE: Opening options are selected here in this popup.\n' +
-                    'After that, interactions continue in the chat bar below.\n\n' +
-                    'Tell me which part of the Bible you\'d like to explore:\n' +
-                    '• Specific verse (e.g., "John 3:16")\n' +
-                    '• Book or chapter (e.g., "Genesis 1", "Book of Daniel")\n' +
-                    '• Theme or topic (e.g., "faith", "miracles")\n' +
-                    '• Type anything you want!\n' +
-                    '• Or press Enter for a random Bible story\n\n' +
-                    'Your request:'
-                );
-
-                if (verse === null) return; // User cancelled
-
-                // Ask for length preference
-                const length = prompt(
-                    '📏 STORY LENGTH\n\n' +
-                    'How long should the story be?\n\n' +
-                    'Short - Quick summary (1-2 paragraphs)\n' +
-                    'Normal - Standard retelling (3-4 paragraphs)\n\n' +
-                    'Type: short or normal\n' +
-                    '(Press Enter for Short)'
-                );
-
-                if (length === null) return; // User cancelled
-
-                const selectedLength = (length.trim().toLowerCase() || 'short');
-                let lengthInstruction = '';
-
-                if (selectedLength === 'normal') {
-                    lengthInstruction = ' Tell it in 3-4 paragraphs.';
-                } else {
-                    lengthInstruction = ' Keep it brief - just 1-2 paragraphs.';
-                }
-
-                if (verse.trim() === '' || verse.trim().toLowerCase() === 'random') {
-                    // Client-side random story selector for true variety
-                    const randomStories = [
-                        'David and Goliath (1 Samuel 17)',
-                        'Daniel in the Lion\'s Den (Daniel 6)',
-                        'Jonah and the Whale (Jonah 1-4)',
-                        'The Good Samaritan (Luke 10:25-37)',
-                        'Noah\'s Ark (Genesis 6-9)',
-                        'The Prodigal Son (Luke 15:11-32)',
-                        'Moses Parting the Red Sea (Exodus 14)',
-                        'The Birth of Jesus (Luke 2)',
-                        'Samson and Delilah (Judges 16)',
-                        'The Sermon on the Mount (Matthew 5-7)',
-                        'Elijah and the Prophets of Baal (1 Kings 18)',
-                        'The Fall of Jericho (Joshua 6)',
-                        'Joseph and his Coat of Many Colors (Genesis 37)',
-                        'Jesus Feeds the 5000 (Matthew 14)',
-                        'The Raising of Lazarus (John 11)'
-                    ];
-                    const randomStory = randomStories[Math.floor(Math.random() * randomStories.length)];
-                    msgText = `Tell me the Bible story of ${randomStory}.` + lengthInstruction;
-                    state.christianContext = 'started';
-                    els.input.placeholder = 'Type bible verse or topic and press enter';
-                } else {
-                    msgText = `Tell me the Bible story from ${verse}.` + lengthInstruction;
-                    state.christianContext = 'started';
-                    els.input.placeholder = 'Type bible verse or topic and press enter';
-                }
-            }
+            if (!msgText && !msgImage) return;
 
             // UI Updates
+            state.isSending = true;
+            els.welcomeScreen.style.display = 'none';
             els.input.value = '';
-            els.input.disabled = true;
-            els.sendBtn.disabled = true;
-            addMessage(msgText, true);
+            els.input.style.height = 'auto';
+            clearImage(); // Clear preview after sending
+            updateSendButton();
 
-            // Stop previous audio
-            audioQueue.stop();
+            // Render User Message
+            addMessage({ text: msgText, image: msgImage, role: 'user' });
 
-            // Loading
-            const loader = document.createElement('div');
-            loader.className = 'message bot-message';
-            loader.innerHTML = '<div class="avatar">⏳</div><div class="message-content"><div class="magical-orb"></div></div>';
-            els.messages.appendChild(loader);
-            els.container.scrollTop = els.container.scrollHeight;
+            // Add to history
+            state.history.push({
+                role: 'user',
+                parts: msgImage ? [{ text: msgText }, { inline_data: { mime_type: "image/jpeg", data: msgImage.split(',')[1] } }] : [{ text: msgText }]
+            });
+
+            // Show Loading
+            const loadingId = addLoadingIndicator();
 
             try {
-                const res = await fetch(`${BACKEND_URL}/chat`, {
+                const response = await fetch(`${BACKEND_URL}/chat`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         message: msgText,
                         history: state.history,
-                        genre: els.genre.value
+                        image: msgImage // Send image if present
                     })
                 });
 
-                loader.remove();
+                removeLoadingIndicator(loadingId);
 
-                if (!res.ok) {
-                    const errData = await res.json().catch(() => ({}));
-                    throw new Error(errData.details || errData.error || `Server Error ${res.status}`);
-                }
-
-                const data = await res.json();
-                const botReply = data.reply;
-
-                // Store character card if returned (first message)
-                if (data.characterCard) {
-                    state.characterCard = data.characterCard;
-                    console.log('📋 Character Card Created:', state.characterCard);
-                }
-
-                let reply = botReply;
-
-                console.log('🔍 RAW REPLY FROM BACKEND:');
-                console.log(reply);
-
-                // Process JSON Actions line-by-line ONLY (backend outputs JSON on separate lines)
-                const lines = reply.split('\n');
-                const cleanLines = [];
-
-                for (const line of lines) {
-                    const trimmed = line.trim();
-
-                    // Check if line looks like JSON (starts with { and contains "action")
-                    if (trimmed.startsWith('{') && trimmed.includes('"action"')) {
-                        try {
-                            // Try to parse it
-                            const action = JSON.parse(trimmed);
-
-                            // Successfully parsed - check if it's a valid action
-                            if (action && action.action) {
-                                console.log('✅ Line JSON parsed:', action);
-
-                                if (action.action === 'add_item' && action.item && action.item.name) {
-                                    // Prevent duplicates - check if item already exists
-                                    const exists = state.inventory.some(i => i.name.toLowerCase() === action.item.name.toLowerCase());
-                                    if (!exists) {
-                                        state.inventory.push(action.item);
-                                        console.log('✅ Added item:', action.item.name);
-                                    } else {
-                                        console.log('⏭️ Skipping duplicate item:', action.item.name);
-                                    }
-                                } else if (action.action === 'remove_item' && action.item && action.item.name) {
-                                    state.inventory = state.inventory.filter(i => i.name !== action.item.name);
-                                    console.log('❌ Removed item:', action.item.name);
-                                } else if (action.action === 'consume_item' && action.item && action.item.name) {
-                                    state.inventory = state.inventory.filter(i => i.name !== action.item.name);
-                                    addMessage(`✨ Used ${action.item.name}`, false);
-                                    console.log('⚡ Consumed item:', action.item.name);
-                                }
-                                // Don't add to cleanLines - this was a JSON action
-                                continue;
-                            }
-                        } catch (e) {
-                            // JSON parsing failed
-                            console.warn('⚠️ Failed to parse line as JSON:', trimmed);
-                            console.warn('Parse error:', e.message);
-                        }
-                    }
-
-                    // Not JSON or parsing failed - keep the line
-                    cleanLines.push(line);
-                }
-
-                reply = cleanLines.join('\n').trim();
-
-                // Format numbered lists to ensure they're on new lines
-                reply = reply.replace(/(\d+)\.\s+/g, '\n$1. ');
-                reply = reply.trim();
-
-                console.log(`📦 Final inventory count: ${state.inventory.length}`);
-
-                updateInventory();
-
-                state.lastFullText = reply;
-                state.history.push({ role: 'user', parts: msgText });
-                state.history.push({ role: 'model', parts: reply });
-
-                // Display message immediately (without waiting for audio)
-                addMessage(stripAudioTags(reply), false, false, null);
-
-                // --- TTS: Fetch, cache, and enable playback/download ---
-                if (els.voice.value && reply) {
-                    const audioBlob = await fetchTTS(reply);
-                    if (audioBlob) {
-                        // Cache the audio
-                        state.audioCache = audioBlob;
-
-                        // Enable buttons
-                        els.playPause.disabled = false;
-                        els.downloadBtn.disabled = false;
-
-                        // Update the last message with download button
-                        const lastMessage = els.messages.lastElementChild;
-                        if (lastMessage && !lastMessage.classList.contains('user-message')) {
-                            const messageBody = lastMessage.querySelector('.message-body');
-                            if (messageBody) {
-                                const downloadContainer = document.createElement('div');
-                                downloadContainer.className = 'message-download-container';
-
-                                const downloadBtn = document.createElement('button');
-                                downloadBtn.className = 'message-download-btn';
-                                downloadBtn.innerHTML = '💾 Download Audio';
-                                downloadBtn.title = 'Download Audio';
-                                downloadBtn.onclick = async () => {
-                                    const originalText = downloadBtn.innerHTML;
-                                    downloadBtn.innerHTML = '⏳ Downloading...';
-                                    downloadBtn.disabled = true;
-
-                                    try {
-                                        let blob;
-                                        if (typeof audioBlob === 'string') {
-                                            const resp = await fetch(audioBlob);
-                                            if (!resp.ok) throw new Error('Download failed');
-                                            blob = await resp.blob();
-                                        } else {
-                                            blob = audioBlob;
-                                        }
-
-                                        const url = URL.createObjectURL(blob);
-                                        const a = document.createElement('a');
-                                        a.href = url;
-                                        a.download = `storyforge-${Date.now()}.mp3`;
-                                        document.body.appendChild(a);
-                                        a.click();
-                                        document.body.removeChild(a);
-                                        URL.revokeObjectURL(url);
-                                    } catch (e) {
-                                        console.error("Download error", e);
-                                        alert("Failed to download audio.");
-                                    } finally {
-                                        downloadBtn.innerHTML = originalText;
-                                        downloadBtn.disabled = false;
-                                    }
-                                };
-
-                                downloadContainer.appendChild(downloadBtn);
-                                messageBody.appendChild(downloadContainer);
-                            }
-                        }
-
-                        // Add to queue and play
-                        audioQueue.add(audioBlob);
-                    }
-                }
-
-            } catch (err) {
-                loader.remove();
-                addMessage(`⚠️ Error: ${err.message}`, false, true);
-            } finally {
-                state.isSending = false; // Release debounce lock
-                els.input.disabled = false;
-                els.sendBtn.disabled = false;
-                els.input.focus();
-
-                // Auto-generate image every 4th turn (skip Christian genre - no art)
-                if (els.genre.value !== 'Christian') {
-                    state.turnCount++;
-                    console.log(`Turn count: ${state.turnCount}`);
-
-                    if (state.turnCount > 0 && state.turnCount % 4 === 0) {
-                        console.log('🎨 Auto-generating image (4th turn)');
-                        setTimeout(() => generateImageAuto(), 500);
-                    }
-                }
-            }
-        }
-
-        // --- Event Listeners ---
-
-        els.sendBtn.addEventListener('click', () => sendMessage());
-        els.input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendMessage();
-        });
-
-        // Track when user manually changes voice
-        els.voice.addEventListener('change', () => {
-            state.userChangedVoice = true;
-        });
-
-        // Update placeholder based on genre selection
-        els.genre.addEventListener('change', () => {
-            const genre = els.genre.value;
-            if (genre === 'Christian' || genre === 'Romance') {
-                els.input.placeholder = 'Press any key, then Enter (options appear in popup)';
-            } else {
-                els.input.placeholder = 'What do you do next?';
-            }
-        });
-
-        // Play/Pause button - use cached audio, don't re-fetch
-        els.playPause.addEventListener('click', () => {
-            if (audioQueue.isPlaying) {
-                audioQueue.pause();
-            } else {
-                // Use cached audio if available, don't re-fetch!
-                if (state.audioCache && !audioQueue.isPlaying) {
-                    audioQueue.add(state.audioCache);
-                }
-            }
-        });
-
-        // New Story button - reset chat
-        els.newStoryBtn.addEventListener('click', () => {
-            if (confirm('Start a new story? This will clear the current chat.')) {
-                // Clear chat messages
-                els.messages.innerHTML = '';
-                // Reset state
-                state.history = [];
-                state.inventory = [];
-                state.turnCount = 0;
-                state.characterCard = null;
-                state.romanceContext = false;
-                state.christianContext = false;
-                state.videoGameContext = false;
-                state.userChangedVoice = false;
-                state.audioCache = null;
-                state.lastImageUrl = null;
-                // Reset voice to silent
-                els.voice.value = '';
-                // Reset placeholder
-                els.input.placeholder = 'What do you do next?';
-                // Stop any audio
-                audioQueue.stop();
-                // Update inventory display
-                updateInventory();
-                // Hide scene image
-                const scenePanel = document.getElementById('scene-image-panel');
-                if (scenePanel) scenePanel.style.display = 'none';
-            }
-        });
-
-        // Auto Image Generation Function with retry and scene context
-        async function generateImageAuto(retryCount = 0) {
-            // Prevent stacked generation calls
-            if (state.isGeneratingImage) {
-                console.log('⚠️ Image generation already in progress, skipping');
-                return;
-            }
-            state.isGeneratingImage = true;
-
-            const maxRetries = 3;
-
-            // Create holographic loader
-            const loaderDiv = document.createElement('div');
-            loaderDiv.className = 'message bot-message';
-            loaderDiv.innerHTML = `
-                <div class="image-loader">
-                    <div class="loader-particles">
-                        <span></span><span></span><span></span><span></span><span></span>
-                    </div>
-                    <div class="neural-orb"></div>
-                    <div class="loader-text">Generating Scene</div>
-                    <div class="loader-subtext">Analyzing character & environment...</div>
-                </div>
-            `;
-            els.messages.appendChild(loaderDiv);
-            els.container.scrollTop = els.container.scrollHeight;
-
-            // Extract current scene context from last bot message
-            let sceneContext = '';
-            if (state.history.length > 0) {
-                const lastBotMessage = [...state.history].reverse().find(m => m.role === 'model');
-                if (lastBotMessage && lastBotMessage.parts) {
-                    // Get first 300 chars of last bot response for scene context
-                    sceneContext = String(lastBotMessage.parts).substring(0, 300);
-                    console.log('🎬 Scene context extracted:', sceneContext.substring(0, 100) + '...');
-                }
-            }
-
-            try {
-                // Only send last message, not full history (optimization)
-                const lastMessage = state.history.length > 0 ? state.history[state.history.length - 1] : null;
-
-                const response = await fetch(`${BACKEND_URL}/generate-image`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        lastMessage: lastMessage,  // Only last message needed
-                        style: els.artStyle.value,
-                        genre: els.genre.value,
-                        characterCard: state.characterCard,
-                        lastImageUrl: state.lastGeneratedImage,
-                        sceneContext: sceneContext
-                    })
-                });
-
-                // Handle 503 (overloaded) with retry
-                if (response.status === 503) {
-                    if (retryCount < maxRetries) {
-                        console.log(`⚠️ Model overloaded, retrying in ${(retryCount + 1) * 2} seconds... (${retryCount + 1}/${maxRetries})`);
-                        loaderDiv.querySelector('.loader-subtext').textContent = `Server busy, retrying (${retryCount + 1}/${maxRetries})...`;
-                        await new Promise(r => setTimeout(r, (retryCount + 1) * 2000));
-                        loaderDiv.remove();
-                        return generateImageAuto(retryCount + 1);
-                    }
-                    throw new Error('Model is overloaded. Please try again in a few minutes.');
-                }
-
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('Image generation failed:', response.status, errorText);
-                    throw new Error(`Failed to generate image: ${response.status}`);
-                }
+                if (!response.ok) throw new Error('Network response was not ok');
 
                 const data = await response.json();
-                console.log('Image generation response:', data);
+                let replyText = data.reply;
 
-                // Remove loader
-                loaderDiv.remove();
+                // Parse Follow-up JSON (It's at the end)
+                let followUps = [];
+                const jsonMatch = replyText.match(/```json\s*({[\s\S]*?})\s*```$/);
 
-                if (data.imageUrl) {
-                    displayGeneratedImage(data.imageUrl);
-                } else {
-                    throw new Error('No image URL in response');
+                if (jsonMatch) {
+                    try {
+                        const jsonBlock = JSON.parse(jsonMatch[1]);
+                        if (jsonBlock.followUps) {
+                            followUps = jsonBlock.followUps;
+                            // Remove the JSON block from the display text
+                            replyText = replyText.replace(jsonMatch[0], '').trim();
+                        }
+                    } catch (e) {
+                        console.warn('Failed to parse follow-up JSON', e);
+                    }
                 }
 
-            } catch (e) {
-                console.error("Image Gen Error", e);
-                loaderDiv.remove();
+                // Render Bot Message
+                addMessage({ text: replyText, role: 'model', followUps });
 
-                // Friendly error in chat
-                const errorDiv = document.createElement('div');
-                errorDiv.className = 'message bot-message';
-                errorDiv.innerHTML = `<div style="color: #ff6b6b; padding: 10px; border-left: 3px solid #ff6b6b;">⚠️ ${e.message.includes('overloaded') ? 'AI is busy right now. Image will generate on next turn!' : 'Image generation paused. Story continues...'}</div>`;
-                els.messages.appendChild(errorDiv);
-                els.container.scrollTop = els.container.scrollHeight;
+                // Update History
+                state.history.push({
+                    role: 'model',
+                    parts: [{ text: replyText }] // We store clean text without JSON usually, or with it? Let's store clean.
+                });
+
+            } catch (error) {
+                removeLoadingIndicator(loadingId);
+                addMessage({ text: `⚠️ Error: ${error.message}`, role: 'system' });
             } finally {
-                state.isGeneratingImage = false; // Release lock
+                state.isSending = false;
             }
         }
 
-        // Manual button (hidden, kept for backwards compatibility)
-        els.genArtBtn.addEventListener('click', async () => {
-            if (els.genArtBtn.disabled) return;
-            await generateImageAuto();
-        });
-
-        function displayGeneratedImage(url) {
+        function addMessage({ text, image, role, followUps }) {
             const div = document.createElement('div');
-            div.className = 'message bot-message image-message';
-            div.innerHTML = `
-                <div class="generated-image-container">
-                    <img src="${url}" alt="Generated Scene" class="generated-image" onload="this.style.opacity=1">
-                    <div class="image-controls">
-                        <a href="${url}" download="storyforge-scene.png" target="_blank" class="download-img-btn">⬇️ Download Art</a>
-                    </div>
-                </div>
-            `;
+            div.className = `message ${role === 'model' ? 'bot' : 'user'}`;
+
+            let html = `<div class="message-bubble">`;
+
+            if (image) {
+                html += `<img src="${image}" class="attached-image">`;
+            }
+
+            if (role === 'model') {
+                html += `<div class="message-content">${marked.parse(text)}</div>`;
+
+                // TTS Button
+                html += `
+                    <button class="audio-control-btn" data-text="${encodeURIComponent(text.substring(0, 500))}">
+                       <span class="icon">🔊</span> Listen
+                    </button>
+                `;
+
+                // Follow Ups
+                if (followUps && followUps.length > 0) {
+                    html += `<div class="follow-up-container">`;
+                    followUps.forEach(q => {
+                        html += `<button class="follow-up-chip">${q}</button>`;
+                    });
+                    html += `</div>`;
+                }
+            } else {
+                // User message (plain text usually fine, but escape html)
+                const safeText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                html += `<div class="message-content">${safeText}</div>`;
+            }
+
+            html += `</div>`;
+            div.innerHTML = html;
+
             els.messages.appendChild(div);
+            scrollToBottom();
 
-            // Store image for next generation reference
-            state.lastGeneratedImage = url;
-            console.log('✅ Stored image for next reference');
+            // Attach Listeners for dynamic elements
+            if (role === 'model') {
+                // Follow up clicks
+                const chips = div.querySelectorAll('.follow-up-chip');
+                chips.forEach(chip => {
+                    chip.addEventListener('click', () => sendMessage(chip.textContent));
+                });
 
-            // Scroll
-            setTimeout(() => {
-                els.container.scrollTop = els.container.scrollHeight;
-            }, 50);
+                // TTS clicks
+                const ttsBtn = div.querySelector('.audio-control-btn');
+                ttsBtn.addEventListener('click', (e) => playTTS(e.target.closest('button'), text));
+            }
         }
 
-        // Download button - download the cached audio
-        els.downloadBtn.addEventListener('click', () => {
-            if (state.audioCache) {
-                const url = URL.createObjectURL(state.audioCache);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `storyforge-audio-${Date.now()}.mp3`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            }
-        });
+        function addLoadingIndicator() {
+            const id = 'loader-' + Date.now();
+            const div = document.createElement('div');
+            div.id = id;
+            div.className = 'message bot';
+            div.innerHTML = `
+                <div class="message-bubble">
+                    <div class="typing-indicator"><span></span><span></span><span></span></div>
+                </div>`;
+            els.messages.appendChild(div);
+            scrollToBottom();
+            return id;
+        }
 
-        els.itemDrop.addEventListener('change', (e) => {
-            const idx = e.target.value;
-            if (idx !== "") {
-                const item = state.inventory[idx];
-                sendMessage(`I use the ${item.name}`);
-                e.target.value = "";
+        function removeLoadingIndicator(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        }
+
+        function scrollToBottom() {
+            els.container.scrollTop = els.container.scrollHeight;
+        }
+
+        // --- TTS Logic (Simplified) ---
+        async function playTTS(btn, text) {
+            if (btn.classList.contains('playing')) {
+                // Stop logic could be added here if we keep track of audio
+                return;
             }
-        });
+
+            btn.innerHTML = '⏳ Loading...';
+
+            try {
+                // Simple fetch to existing endpoint
+                const cleanText = text.replace(/[#*`]/g, ''); // Strip basic markdown
+                const response = await fetch(`${BACKEND_URL}/tts`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: cleanText, voice: 'alloy' })
+                });
+
+                if (!response.ok) throw new Error('TTS Failed');
+
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                const audio = new Audio(url);
+
+                audio.onplay = () => {
+                    btn.innerHTML = '🔊 Playing...';
+                    btn.classList.add('playing');
+                };
+                audio.onended = () => {
+                    btn.innerHTML = '🔊 Listen';
+                    btn.classList.remove('playing');
+                };
+                audio.play();
+
+            } catch (e) {
+                console.error(e);
+                btn.innerHTML = '⚠️ Error';
+            }
+        }
 
     })();
 </script>
-<!-- Squarespace Code Block End -->

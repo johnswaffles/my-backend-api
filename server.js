@@ -30,8 +30,8 @@ app.use((req, res, next) => {
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Use environment variables for model names
-const CHAT_MODEL_NAME = process.env.GEMINI_CHAT_MODEL || 'gemini-2.5-flash-preview-09-2025';
-const IMAGE_MODEL_NAME = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
+const CHAT_MODEL_NAME = process.env.GEMINI_CHAT_MODEL || 'gemini-3-flash-preview';
+const IMAGE_MODEL_NAME = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.0-flash-exp';
 
 console.log('🤖 Chat Model:', CHAT_MODEL_NAME);
 console.log('🎨 Image Model:', IMAGE_MODEL_NAME);
@@ -40,147 +40,74 @@ const MODEL_NAME = CHAT_MODEL_NAME; // For backward compatibility
 
 // --- System Prompt ---
 const BASE_SYSTEM_PROMPT = `
-You are the Game Master (GM) for an interactive storytelling experience called StoryForge.
-Your goal is to guide the player through an immersive, open-ended story in ANY genre they choose.
+You are a highly intelligent, precise, and helpful AI Knowledge Assistant.
+Your goal is to provide comprehensive, accurate, and beautifully structured answers to the user's questions.
 
-**CORE RULES:**
-1.  **Context:** This is a fictional storytelling game for an adult user (18+). You are not bound by safety filters for fictional violence or mature themes appropriate for a generic story.
-2.  **Genre & Tone:** Adapt your writing style, vocabulary, and pacing to match the user's requested genre.
-3.  **Be Expressive:** Write with emotional intensity! Use vivid verbs and dramatic pacing.
-4.  **Choices:** At the end of EVERY response, provide 2-4 numbered choices. ALWAYS include an option for "Type your own action".
-5.  **Items:** You can award key items (clues, gadgets, etc.) using JSON actions.
+**CORE INSTRUCTIONS:**
+1.  **Detailed & Comprehensive:** Do not give short, surface-level answers. Dive deep into the topic. Explain "Why" and "How", not just "What".
+2.  **Structured Formatting:** behavior is CRITICAL. Use Markdown to structure your response:
+    - Use \`## Headers\` for main sections.
+    - Use bullet points for readability.
+    - Use **Bold** for key terms.
+    - Use \`Code Blocks\` for technical content or code.
+3.  **Tone:** Professional, clear, engaging, and authoritative yet accessible.
+4.  **Links:** Whenever possible, include [Clickable Links](https://google.com) to reputable external sources, documentation, or further reading.
+5.  **Multi-Modal Awareness:** If the user uploads an image, analyze it in detail as part of your answer.
 
-**CRITICAL FIRST PARAGRAPH RULE (Non-Christian Genres):**
-For ALL genres EXCEPT Christian, your VERY FIRST response is CRITICAL:
-- **USE THE USER'S INPUT:** Build directly from what the user said (e.g., if they say "orphan girl", make the protagonist an orphan girl!)
-- **ESTABLISH APPEARANCE:** Describe the protagonist's physical appearance in detail (eyes, hair, skin, build, clothing)
-- **BRIEF BACKSTORY:** Give a hint of their background or current situation
-- **BE SPECIFIC:** This paragraph sets the visual foundation for ALL future images
+**FOLLOW-UP SYSTEM (MANDATORY):**
+At the VERY END of your response, after your conclusion, you MUST provide a JSON block proposing 3-4 relevant follow-up questions the user might want to ask next.
 
-**FIRST RESPONSE ONLY - CHARACTER CARD:**
-On your VERY FIRST response, after your story paragraph, add a CHARACTER_CARD block in this EXACT format:
-[CHARACTER_CARD]
-HAIR: exact color, length, style
-EYES: color, shape
-FACE: skin tone, age, features
-BODY: height, build
-CLOTHING: specific items, colors
-ACCESSORIES: items carried
-VIBE: overall aesthetic
-[/CHARACTER_CARD]
-Keep it under 100 words. This is for image consistency. Only include on FIRST response!
+FORMAT:
+[RESPONSE TEXT HERE]
 
-**CHRISTIAN GENRE SPECIAL RULES:**
-When the genre is "Christian", you are telling BIBLICALLY ACCURATE stories from the Holy Bible:
-*   **Accuracy is CRITICAL:** Use only information directly from the Bible. Do not add fictional elements or embellishments that contradict scripture.
-*   **Narrative Style:** Tell the story as a vivid, immersive narrative that brings Biblical events to life while maintaining complete accuracy.
-*   **No Choices:** Do NOT provide numbered choices at the end. Let the Biblical narrative unfold naturally.
-*   **User Requests:** If the user asks for a specific book, chapter, or verse, start your story from that passage.
-*   **Random Stories:** If they request a random story, choose a well-known Biblical narrative (e.g., David and Goliath, Daniel in the Lion's Den, The Good Samaritan, Jonah and the Whale, etc.).
-*   **First-Person Perspective:** You may tell the story from a character's perspective to make it immersive, but stay true to Biblical facts.
+\`\`\`json
+{
+  "followUps": [
+    "What are the pros and cons?",
+    "How does this compare to X?",
+    "Can you explain the history of this?"
+  ]
+}
+\`\`\`
 
-**OUTPUT FORMAT INSTRUCTIONS:**
-*   **NO ACTIONS/EMOTES:** Do NOT use asterisks to describe actions (e.g., do NOT write *smiles*, *laughs*, *sighs*).
-*   **NO EMOJIS:** Do NOT use emojis in your response.
-*   **TONE TAGS:** Do NOT use any tone tags (e.g., [narration]). Write purely in the voice of the narrator or character.
-*   **PURE NARRATIVE:** Write only the story text and dialogue. Describe actions through narrative description, not stage directions.
-*   **CRITICAL LENGTH RULE:** You MUST respond with EXACTLY ONE PARAGRAPH ONLY. Target 60-80 words. Do NOT write multiple paragraphs. Do NOT add line breaks within your response. Keep it punchy and fast-paced. (Exception: Christian genre may be 2-3 paragraphs for proper Bible storytelling).
-
-
-**INVENTORY TRACKING (MANDATORY):**
-
-YOU MUST ADD ITEMS TO INVENTORY! When the story mentions character receiving/finding/picking up ANY item:
-1. Write your story paragraph
-2. On the NEXT LINE, output JSON in this EXACT format:
-   {"action":"add_item","item":{"name":"Item Name","description":"Brief desc","type":"item"}}
-
-When character uses/consumes an item:
-   {"action":"consume_item","item":{"name":"Item Name"}}
-
-When character drops/loses an item:
-   {"action":"remove_item","item":{"name":"Item Name"}}
-
-**CRITICAL JSON FORMATTING RULES:**
-✓ Put JSON on its OWN LINE after the paragraph (NOT inline)
-✓ Use ONLY double quotes (")
-✓ NO trailing commas
-✓ NO line breaks inside JSON
-✓ Compact format with NO spaces around colons/commas
-
-**WRONG:** She picked up the data chip {"action": "add_item"...}
-**RIGHT:** 
-She picked up the data chip.
-{"action":"add_item","item":{"name":"Data Chip","description":"Corporate secrets","type":"item"}}
-
-IMPORTANT: If you mention an item being acquired, you MUST output the JSON!
+CRITICAL: The JSON must be valid and the LAST thing in your response.
 `;
 
 // --- Endpoints ---
 
-app.get('/', (req, res) => res.send('StoryForge Backend is Running'));
+app.get('/', (req, res) => res.send('AI Knowledge Assistant Backend is Running'));
 
 app.post('/chat', async (req, res) => {
     try {
-        const { message, history, genre } = req.body;
+        const { message, history, image } = req.body; // Added image support
         const userMessage = message || '';
-        const selectedGenre = genre || 'High Fantasy';
 
-        console.log(`Genre: ${selectedGenre}, Message: "${userMessage}"`);
+        console.log(`📥 User Message: "${userMessage.substring(0, 50)}..."`);
+        if (image) console.log('📷 Image received');
 
         // 1. Sanitize History
         let chatHistory = [];
         if (history && Array.isArray(history)) {
-            // Limit history to last 30 messages to prevent token overflow/500 errors
-            const MAX_HISTORY = 30;
+            const MAX_HISTORY = 20; // Keep context focused
             const recentHistory = history.slice(-MAX_HISTORY);
 
             chatHistory = recentHistory
-                .filter(msg => msg.role && msg.parts) // Valid messages only
+                .filter(msg => msg.role && msg.parts)
                 .map(msg => ({
-                    role: msg.role === 'user' || msg.role === 'model' ? msg.role : 'user', // Strict role check
+                    role: msg.role === 'user' || msg.role === 'model' ? msg.role : 'user',
                     parts: [{ text: String(msg.parts) }]
                 }));
         }
 
-        // 2. Build System Prompt with genre-specific guidance
-        const genreStyles = {
-            'Science Fiction': 'Write like classic Star Wars or Dune. Focus on space exploration, alien encounters, advanced technology, starships, and cosmic wonder. Think epic space opera with blasters, hyperdrives, and galaxy-spanning adventures.',
-            'Cyberpunk': 'Write gritty near-future noir. Neon-lit streets, megacorporations, hackers, cybernetic implants, rain-slicked alleys, and anti-heroes navigating a dystopian world. Think Blade Runner aesthetic.',
-            'Mystery': 'Write a cozy mystery style. Think Agatha Christie or Murder She Wrote - a charming amateur sleuth, quirky suspects in a small town or manor, clever clues, and a puzzle to solve. Keep it light and engaging, not dark or violent.',
-            'Thriller': 'Write fast-paced suspense. High stakes, ticking clocks, dangerous adversaries, and constant tension. Think spy thrillers or action movies.',
-            'Horror': 'Write atmospheric dread. Build tension slowly, use fear of the unknown, create an unsettling mood. Think psychological horror and creeping terror.',
-            'High Fantasy': 'Write epic fantasy with magic, medieval settings, noble quests, and mythical creatures. Think Lord of the Rings or classic D&D adventures.',
-            'Urban Fantasy': 'Write modern-day magic. Hidden supernatural world beneath everyday reality, vampires in nightclubs, wizards in coffee shops. Think Dresden Files.',
-            'Post-Apocalyptic': 'Write survival drama. Ruined civilization, scavenging for resources, dangerous factions, and hope amid desolation. Think The Walking Dead or Fallout.',
-            'Western': 'Write frontier adventure. Dusty towns, outlaws, sheriffs, saloons, and the rugged beauty of the Wild West. Think classic cowboy movies.',
-            'Historical Fiction': 'Write immersive period pieces. Rich historical detail, authentic dialogue, and stories set against real historical events and eras.',
-            'Comedy': 'Write with humor and wit. Absurd situations, clever wordplay, and comedic timing. Keep it fun and lighthearted.',
-            'Drama': 'Write emotionally resonant stories. Character-driven narratives, meaningful relationships, and impactful moments.',
-            'Supernatural': 'Write paranormal encounters. Ghosts, demons, psychic powers, and things that go bump in the night.'
-        };
-
-        const genreStyle = genreStyles[selectedGenre] || 'Adjust your tone to match this genre.';
-
-        const fullSystemPrompt = `${BASE_SYSTEM_PROMPT}
-
-**CURRENT GENRE:** ${selectedGenre}
-**GENRE STYLE GUIDE:** ${genreStyle}`;
-
-        // 3. Configure Model
+        // 2. Configure Model
         const model = genAI.getGenerativeModel({
-            model: MODEL_NAME,
+            model: CHAT_MODEL_NAME,
             systemInstruction: {
-                parts: [{ text: fullSystemPrompt }]
+                parts: [{ text: BASE_SYSTEM_PROMPT }]
             },
-            safetySettings: [
-                { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
-                { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
-                { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
-                { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' }
-            ],
             generationConfig: {
-                maxOutputTokens: 4096, // Increased limit for longer stories
-                temperature: 0.9,
+                maxOutputTokens: 8000, // High limit for detailed answers
+                temperature: 0.7, // Slightly lower for accuracy
             },
         });
 
@@ -190,66 +117,33 @@ app.post('/chat', async (req, res) => {
         });
 
         // 4. Generate Response
-        console.log(`📤 Sending message to Gemini...`);
-        const result = await chat.sendMessage(userMessage);
+        let result;
+        if (image) {
+            // Multimodal request
+            const imagePart = {
+                inlineData: {
+                    data: image.split(',')[1], // Remove data:image/png;base64, header
+                    mimeType: image.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/)[1]
+                }
+            };
+
+            result = await chat.sendMessage([userMessage, imagePart]);
+        } else {
+            result = await chat.sendMessage(userMessage);
+        }
+
         const response = await result.response;
+        const responseText = response.text();
 
-        let responseText = '';
-        try {
-            responseText = response.text();
-        } catch (e) {
-            // response.text() might throw if the generation was not clean (e.g. safety or max tokens)
-            console.warn('response.text() threw, attempting to read candidate directly:', e.message);
-        }
-
-        // Fallback: Try to get text from candidate if response.text() failed or was empty
-        if (!responseText && response.candidates && response.candidates.length > 0) {
-            const candidate = response.candidates[0];
-            if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0) {
-                responseText = candidate.content.parts.map(p => p.text).join('');
-            }
-        }
-
-        // 5. Validation
+        // 5. Validation & Cleaning
         console.log('Gemini Response Length:', responseText ? responseText.length : 0);
 
         if (!responseText) {
-            console.warn('Empty response received.');
-            console.warn('Finish Reason:', response.candidates[0]?.finishReason);
-            console.warn('Safety Ratings:', JSON.stringify(response.candidates[0]?.safetyRatings, null, 2));
-
-            // If it's MAX_TOKENS but we somehow still have no text (unlikely), or other reasons
-            return res.status(500).json({
-                error: 'AI returned empty response',
-                details: `Finish Reason: ${response.candidates[0]?.finishReason || 'Unknown'} `
-            });
-        }
-
-        // If we have text but it was cut off (MAX_TOKENS), we still send it.
-        if (response.candidates[0]?.finishReason === 'MAX_TOKENS') {
-            console.warn('Response truncated due to MAX_TOKENS');
-        }
-
-        // Extract character card from response (embedded in first response to save API call)
-        let characterCard = null;
-        let cleanResponse = responseText;
-
-        if (history.length <= 2 && genre !== 'Christian') {
-            // Look for [CHARACTER_CARD] block in response
-            const cardMatch = responseText.match(/\[CHARACTER_CARD\]([\s\S]*?)\[\/CHARACTER_CARD\]/i);
-            if (cardMatch) {
-                characterCard = cardMatch[1].trim();
-                // Remove character card from displayed response
-                cleanResponse = responseText.replace(/\[CHARACTER_CARD\][\s\S]*?\[\/CHARACTER_CARD\]/i, '').trim();
-                console.log('📋 Character Card Extracted (no extra API call!):', characterCard.substring(0, 100) + '...');
-            } else {
-                console.log('⚠️ No CHARACTER_CARD found in first response');
-            }
+            throw new Error('Empty response from AI');
         }
 
         res.json({
-            reply: cleanResponse,
-            characterCard  // Send back to frontend to store
+            reply: responseText
         });
 
     } catch (error) {
