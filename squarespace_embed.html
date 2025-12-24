@@ -11,7 +11,7 @@
     <!-- Header -->
     <header class="ai-header">
         <div class="header-left">
-            <button id="toggle-sidebar-btn" class="ai-icon-btn sidebar-toggle" title="Menu history">
+            <button id="toggle-sidebar-btn" class="ai-icon-btn sidebar-toggle active" title="Menu history">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="3" y1="12" x2="21" y2="12"></line>
                     <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -35,7 +35,7 @@
     <!-- Main Layout -->
     <div class="ai-main-layout">
         <!-- Sidebar -->
-        <aside id="ai-sidebar" class="ai-sidebar">
+        <aside id="ai-sidebar" class="ai-sidebar active">
             <div class="sidebar-header">
                 <button id="new-chat-btn" class="ai-btn primary full-width">
                     <span class="btn-icon">＋</span> New Chat
@@ -1942,6 +1942,10 @@
         }
 
         // Initialize
+        if (window.innerWidth <= 768) {
+            els.sidebar.classList.remove('active');
+            els.sidebarToggle.classList.remove('active');
+        }
         loadConversations();
         renderSidebar();
     });
