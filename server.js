@@ -96,7 +96,7 @@ app.post('/chat', async (req, res) => {
                 }));
         }
 
-        // 2. Configure Model
+        // 2. Configure Model with Google Search Grounding
         const model = genAI.getGenerativeModel({
             model: CHAT_MODEL_NAME,
             systemInstruction: {
@@ -106,6 +106,9 @@ app.post('/chat', async (req, res) => {
                 maxOutputTokens: 8000,
                 temperature: 0.7,
             },
+            tools: [{
+                googleSearch: {}
+            }],
         });
 
         // 3. Start Chat Session
