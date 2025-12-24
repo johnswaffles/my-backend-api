@@ -173,7 +173,10 @@ app.post('/generate-image', async (req, res) => {
 
         console.log(`🎨 Image generation request: "${prompt.substring(0, 50)}..."`);
 
-        const imageModelName = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.0-flash-exp';
+        const imageModelName = process.env.GEMINI_IMAGE_MODEL;
+        if (!imageModelName) {
+            return res.status(500).json({ error: 'GEMINI_IMAGE_MODEL not configured' });
+        }
         console.log(`Using image model: ${imageModelName}`);
 
         const imageModel = genAI.getGenerativeModel({ model: imageModelName });

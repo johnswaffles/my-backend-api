@@ -604,8 +604,12 @@
                 const data = await response.json();
                 let replyText = data.reply;
 
-                // Check for image generation request
-                const imageGenMatch = replyText.match(/```json\s*({[\s\S]*?"generateImage"[\s\S]*?})\s*```/);
+                // Check for image generation request (with or without code blocks)
+                let imageGenMatch = replyText.match(/```json\s*({[\s\S]*?"generateImage"[\s\S]*?})\s*```/);
+                if (!imageGenMatch) {
+                    // Try matching raw JSON without code blocks
+                    imageGenMatch = replyText.match(/^\s*({[\s\S]*?"generateImage"\s*:\s*true[\s\S]*?})\s*$/);
+                }
 
                 if (imageGenMatch) {
                     try {
