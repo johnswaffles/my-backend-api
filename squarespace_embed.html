@@ -1551,6 +1551,8 @@
                 els.sidebar.classList.remove('active');
                 els.sidebarToggle.classList.remove('active');
             }
+            // Auto-focus input
+            els.input.focus();
         }
 
         function selectConversation(id) {
@@ -1967,7 +1969,20 @@
         }
 
         async function playTTS(btn, text) {
-            if (btn.classList.contains('playing')) return;
+            // Check if audio is already loaded on this button
+            if (btn.audio) {
+                if (btn.audio.paused) {
+                    btn.audio.play();
+                    btn.innerHTML = '⏸️ Pause';
+                    btn.classList.add('playing');
+                } else {
+                    btn.audio.pause();
+                    btn.innerHTML = '▶️ Resume';
+                    btn.classList.remove('playing');
+                }
+                return;
+            }
+
             btn.innerHTML = '⏳ Loading...';
             try {
                 var response = await fetch(BACKEND_URL + '/tts', {
@@ -1978,11 +1993,31 @@
                 if (!response.ok) throw new Error('TTS Failed');
                 var blob = await response.blob();
                 var audio = new Audio(URL.createObjectURL(blob));
-                audio.onplay = function () { btn.innerHTML = '🔊 Playing...'; btn.classList.add('playing'); };
-                audio.onended = function () { btn.innerHTML = '🔊 Listen'; btn.classList.remove('playing'); };
+
+                // Attach audio to button for state management
+                btn.audio = audio;
+
+                audio.onplay = function () {
+                    btn.innerHTML = '⏸️ Pause';
+                    btn.classList.add('playing');
+                };
+                audio.onpause = function () {
+                    // Only change text if not ended (handled by onended)
+                    if (!audio.ended) {
+                        btn.innerHTML = '▶️ Resume';
+                        btn.classList.remove('playing');
+                    }
+                };
+                audio.onended = function () {
+                    btn.innerHTML = '🔊 Listen';
+                    btn.classList.remove('playing');
+                    btn.audio = null; // Reset
+                };
+
                 audio.play();
             } catch (e) {
                 btn.innerHTML = '⚠️ Error';
+                console.error(e);
             }
         }
 
