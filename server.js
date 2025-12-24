@@ -50,10 +50,22 @@ Your goal is to provide comprehensive, accurate, and beautifully structured answ
 4.  **Links:** Whenever possible, include [Clickable Links](https://google.com) to reputable external sources, documentation, or further reading.
 5.  **Multi-Modal Awareness:** If the user uploads an image, analyze it in detail as part of your answer.
 
-**FOLLOW-UP SYSTEM (MANDATORY):**
-At the VERY END of your response, after your conclusion, you MUST provide a JSON block proposing 3-4 relevant follow-up questions the user might want to ask next.
+**IMAGE GENERATION (IMPORTANT):**
+If the user asks you to create, generate, draw, or make an image/picture/illustration, you MUST respond with ONLY a JSON block in this exact format:
 
-FORMAT:
+\`\`\`json
+{
+  "generateImage": true,
+  "prompt": "A detailed description of the image to generate..."
+}
+\`\`\`
+
+Do NOT include any other text when generating an image. The prompt should be detailed and descriptive.
+
+**FOLLOW-UP SYSTEM (MANDATORY):**
+For non-image responses, at the VERY END of your response, after your conclusion, you MUST provide a JSON block proposing 3-4 relevant follow-up questions the user might want to ask next.
+
+FORMAT for regular responses:
 [RESPONSE TEXT HERE]
 
 \`\`\`json
@@ -145,6 +157,69 @@ app.post('/chat', async (req, res) => {
         console.error('Chat Endpoint Error:', error);
         res.status(500).json({
             error: 'Internal Server Error',
+            details: error.message
+        });
+    }
+});
+
+// --- Image Generation Endpoint ---
+app.post('/generate-image', async (req, res) => {
+    try {
+        const { prompt } = req.body;
+
+        if (!prompt) {
+            return res.status(400).json({ error: 'Prompt required' });
+        }
+
+        console.log(`🎨 Image generation request: "${prompt.substring(0, 50)}..."`);
+
+        const imageModelName = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.0-flash-exp';
+        console.log(`Using image model: ${imageModelName}`);
+
+        const imageModel = genAI.getGenerativeModel({ model: imageModelName });
+
+        const imagePrompt = `${prompt}
+
+REQUIREMENTS:
+- High quality, detailed illustration
+- No text, words, or writing in the image
+- Visually striking and professional`;
+
+        const result = await imageModel.generateContent(imagePrompt);
+        const response = await result.response;
+
+        if (!response.candidates || response.candidates.length === 0) {
+            throw new Error('No candidates in Gemini response');
+        }
+
+        const parts = response.candidates[0]?.content?.parts;
+        if (!parts || parts.length === 0) {
+            throw new Error('No parts in Gemini response');
+        }
+
+        // Find image data
+        let imageData = null;
+        for (const part of parts) {
+            if (part.inlineData) {
+                imageData = part.inlineData;
+                break;
+            }
+        }
+
+        if (!imageData) {
+            throw new Error('No image data in Gemini response');
+        }
+
+        const mimeType = imageData.mimeType || 'image/png';
+        const imageUrl = `data:${mimeType};base64,${imageData.data}`;
+
+        console.log(`✅ Image generated successfully`);
+        res.json({ imageUrl });
+
+    } catch (error) {
+        console.error('Image Generation Error:', error);
+        res.status(500).json({
+            error: 'Failed to generate image',
             details: error.message
         });
     }

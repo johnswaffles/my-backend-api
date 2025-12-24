@@ -599,12 +599,59 @@
                     })
                 });
 
-                removeLoadingIndicator(loadingId);
-
                 if (!response.ok) throw new Error('Network response was not ok');
 
                 const data = await response.json();
                 let replyText = data.reply;
+
+                // Check for image generation request
+                const imageGenMatch = replyText.match(/```json\s*({[\s\S]*?"generateImage"[\s\S]*?})\s*```/);
+
+                if (imageGenMatch) {
+                    try {
+                        const imageRequest = JSON.parse(imageGenMatch[1]);
+                        if (imageRequest.generateImage && imageRequest.prompt) {
+                            // Update loading message
+                            const loaderEl = document.getElementById(loadingId);
+                            if (loaderEl) {
+                                loaderEl.querySelector('.typing-indicator').innerHTML = '🎨 Generating image...';
+                            }
+
+                            // Call image generation endpoint
+                            const imageResponse = await fetch(`${BACKEND_URL}/generate-image`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ prompt: imageRequest.prompt })
+                            });
+
+                            removeLoadingIndicator(loadingId);
+
+                            if (!imageResponse.ok) throw new Error('Image generation failed');
+
+                            const imageData = await imageResponse.json();
+
+                            // Display the generated image
+                            addMessage({
+                                text: `Here's your generated image:`,
+                                generatedImage: imageData.imageUrl,
+                                role: 'model',
+                                followUps: ['Generate another variation', 'Make it more colorful', 'Try a different style']
+                            });
+
+                            state.history.push({
+                                role: 'model',
+                                parts: [{ text: 'Generated image based on prompt: ' + imageRequest.prompt }]
+                            });
+
+                            state.isSending = false;
+                            return; // Exit early for image generation
+                        }
+                    } catch (e) {
+                        console.warn('Failed to parse image generation JSON', e);
+                    }
+                }
+
+                removeLoadingIndicator(loadingId);
 
                 // Parse Follow-up JSON (It's at the end)
                 let followUps = [];
@@ -640,7 +687,7 @@
             }
         }
 
-        function addMessage({ text, image, role, followUps }) {
+        function addMessage({ text, image, generatedImage, role, followUps }) {
             const div = document.createElement('div');
             div.className = `message ${role === 'model' ? 'bot' : 'user'}`;
 
@@ -652,6 +699,11 @@
 
             if (role === 'model') {
                 html += `<div class="message-content">${marked.parse(text)}</div>`;
+
+                // Display generated image if present
+                if (generatedImage) {
+                    html += `<img src="${generatedImage}" class="generated-image" style="max-width: 100%; border-radius: 12px; margin-top: 16px; border: 1px solid var(--border-subtle);">`;
+                }
 
                 // TTS Button
                 html += `
