@@ -20,7 +20,7 @@
             </button>
             <div class="ai-brand">
                 <span class="ai-logo-icon">✦</span>
-                <span class="ai-title">Knowledge Assistant</span>
+                <span class="ai-title">JustAskJohnny.com powered by Gemini 3</span>
             </div>
         </div>
         <div class="ai-controls">
@@ -1463,13 +1463,25 @@
             });
         }
 
-        async function idbPutImage(imgData) {
+        async function idbPutImage(imgData, specificId) {
             var db = await idbOpen();
-            if (!db) return;
+            if (!db) return null;
+            var id = specificId || Date.now().toString();
             return new Promise(function (resolve) {
                 var tx = db.transaction('images', 'readwrite');
-                tx.objectStore('images').put({ id: Date.now().toString(), data: imgData, createdAt: new Date().toISOString() });
-                tx.oncomplete = function () { resolve(); };
+                tx.objectStore('images').put({ id: id, data: imgData, createdAt: new Date().toISOString() });
+                tx.oncomplete = function () { resolve(id); };
+            });
+        }
+
+        async function idbGetImage(id) {
+            var db = await idbOpen();
+            if (!db) return null;
+            return new Promise(function (resolve) {
+                var tx = db.transaction('images', 'readonly');
+                var req = tx.objectStore('images').get(id);
+                req.onsuccess = function () { resolve(req.result); };
+                req.onerror = function () { resolve(null); };
             });
         }
 
@@ -1600,16 +1612,25 @@
             });
         }
 
-        function renderChat() {
+        async function renderChat() {
             els.messages.innerHTML = '';
             var active = state.conversations.find(function (c) { return c.id === state.activeId; });
             if (!active || active.messages.length === 0) {
                 els.welcomeScreen.style.display = 'flex';
             } else {
                 els.welcomeScreen.style.display = 'none';
-                active.messages.forEach(function (msg) {
-                    addMessage(msg, true); // skip save
-                });
+                for (var msg of active.messages) {
+                    var renderMsg = JSON.parse(JSON.stringify(msg));
+                    if (renderMsg.generatedImageId && !renderMsg.generatedImage) {
+                        var img = await idbGetImage(renderMsg.generatedImageId);
+                        if (img) renderMsg.generatedImage = img.data;
+                    }
+                    if (renderMsg.imageId && !renderMsg.image) {
+                        var img = await idbGetImage(renderMsg.imageId);
+                        if (img) renderMsg.image = img.data;
+                    }
+                    addMessage(renderMsg, true); // skip save
+                }
             }
             scrollToBottom();
         }
@@ -1617,7 +1638,28 @@
         function saveMessageToActiveConvo(opts) {
             var active = state.conversations.find(function (c) { return c.id === state.activeId; });
             if (active) {
-                active.messages.push(opts);
+                var msgToSave = JSON.parse(JSON.stringify(opts));
+
+                // Strip base64 images to prevent localStorage quota errors
+                if (msgToSave.image && !msgToSave.imageId) {
+                    var imgId = 'img_' + Date.now();
+                    idbPutImage(msgToSave.image, imgId);
+                    msgToSave.imageId = imgId;
+                    delete msgToSave.image;
+                } else if (msgToSave.image) {
+                    delete msgToSave.image; // Already has ID
+                }
+
+                if (msgToSave.generatedImage && !msgToSave.generatedImageId) {
+                    var genId = 'gen_' + Date.now();
+                    idbPutImage(msgToSave.generatedImage, genId);
+                    msgToSave.generatedImageId = genId;
+                    delete msgToSave.generatedImage;
+                } else if (msgToSave.generatedImage) {
+                    delete msgToSave.generatedImage; // Already has ID
+                }
+
+                active.messages.push(msgToSave);
                 active.updatedAt = new Date().toISOString();
 
                 // Set title from first user message
@@ -1742,17 +1784,20 @@
                 if (response.ok) {
                     var data = await response.json();
                     var styleInfo = state.selectedStyle ? state.selectedStyle + ' ' : '';
+
+                    // Save to IDB first to get ID
+                    var imgId = await idbPutImage(data.imageUrl);
+
                     var resultMsg = {
                         text: 'Here is your ' + styleInfo + 'image:',
                         generatedImage: data.imageUrl,
+                        generatedImageId: imgId,
                         role: 'model',
                         followUps: ['Generate another variation', 'Try a different style']
                     };
                     addMessage(resultMsg);
                     state.history.push({ role: 'model', parts: 'Generated image: ' + fullPrompt });
-
-                    // Save image to IndexedDB
-                    idbPutImage(data.imageUrl).then(renderImagesGrid);
+                    renderImagesGrid();
                 } else {
                     addMessage({ text: '⚠️ Image generation failed. Please try again.', role: 'system' });
                 }
