@@ -103,6 +103,12 @@
                         <button class="pill" data-value="ultra">Ultra 8K</button>
                     </div>
                 </div>
+
+                <div class="option-group">
+                    <label>Custom Instructions (Optional)</label>
+                    <input type="text" id="custom-style-input" class="custom-style-input"
+                        placeholder="e.g., 'with neon lights', 'in a forest', 'wearing a hat'...">
+                </div>
             </div>
 
             <div class="modal-actions">
@@ -616,6 +622,30 @@
         box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
     }
 
+    .custom-style-input {
+        width: 100%;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 12px;
+        padding: 14px 16px;
+        font-size: 0.95rem;
+        color: var(--text-main);
+        font-family: var(--font-main);
+        outline: none;
+        transition: all 0.2s;
+    }
+
+    .custom-style-input::placeholder {
+        color: var(--text-muted);
+        opacity: 0.7;
+    }
+
+    .custom-style-input:focus {
+        border-color: var(--accent-secondary);
+        background: rgba(139, 92, 246, 0.1);
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.2);
+    }
+
     .modal-actions {
         display: flex;
         gap: 12px;
@@ -978,7 +1008,8 @@
             pendingImagePrompt: null,
             selectedStyle: 'photorealistic',
             selectedMood: 'vibrant',
-            selectedQuality: 'high'
+            selectedQuality: 'high',
+            customStyle: ''
         };
 
         var statusMessages = [
@@ -1006,7 +1037,8 @@
             generationLoader: document.getElementById('generation-loader'),
             loaderStatus: document.getElementById('loader-status'),
             cancelStyleBtn: document.getElementById('cancel-style-btn'),
-            generateBtn: document.getElementById('generate-btn')
+            generateBtn: document.getElementById('generate-btn'),
+            customStyleInput: document.getElementById('custom-style-input')
         };
 
         if (!els.sendBtn || !els.input) return;
@@ -1036,6 +1068,7 @@
         // Modal listeners
         els.cancelStyleBtn.addEventListener('click', hideStyleModal);
         els.generateBtn.addEventListener('click', function () {
+            state.customStyle = els.customStyleInput ? els.customStyleInput.value.trim() : '';
             hideStyleModal();
             generateImageWithStyle();
         });
@@ -1063,6 +1096,18 @@
             });
         });
 
+        // Custom style input - Enter key triggers generate
+        if (els.customStyleInput) {
+            els.customStyleInput.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    state.customStyle = els.customStyleInput.value.trim();
+                    hideStyleModal();
+                    generateImageWithStyle();
+                }
+            });
+        }
+
         function updateSendButton() {
             els.sendBtn.disabled = !els.input.value.trim() && !state.uploadedImage;
         }
@@ -1089,11 +1134,14 @@
 
         function showStyleModal(prompt) {
             state.pendingImagePrompt = prompt;
+            state.customStyle = '';
+            if (els.customStyleInput) els.customStyleInput.value = '';
             els.styleModal.classList.add('active');
         }
 
         function hideStyleModal() {
             els.styleModal.classList.remove('active');
+            if (els.customStyleInput) els.customStyleInput.value = '';
         }
 
         function showLoader() {
@@ -1117,6 +1165,11 @@
 
         async function generateImageWithStyle() {
             var fullPrompt = state.pendingImagePrompt + ', ' + state.selectedStyle + ' style, ' + state.selectedMood + ' mood, ' + state.selectedQuality + ' quality';
+
+            // Add custom style if provided
+            if (state.customStyle) {
+                fullPrompt += ', ' + state.customStyle;
+            }
 
             showLoader();
 
