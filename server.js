@@ -2,8 +2,6 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const OpenAI = require('openai');
-const { Readable } = require('stream');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -30,13 +28,11 @@ app.use((req, res, next) => {
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Use environment variables for model names
-const CHAT_MODEL_NAME = process.env.GEMINI_CHAT_MODEL || 'gemini-3-flash-preview';
+const CHAT_MODEL_NAME = process.env.GEMINI_CHAT_MODEL || 'gemini-2.0-flash';
 const IMAGE_MODEL_NAME = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.0-flash-exp';
 
 console.log('🤖 Chat Model:', CHAT_MODEL_NAME);
 console.log('🎨 Image Model:', IMAGE_MODEL_NAME);
-
-const MODEL_NAME = CHAT_MODEL_NAME; // For backward compatibility
 
 // --- System Prompt ---
 const BASE_SYSTEM_PROMPT = `
@@ -77,9 +73,10 @@ CRITICAL: The JSON must be valid and the LAST thing in your response.
 
 app.get('/', (req, res) => res.send('AI Knowledge Assistant Backend is Running'));
 
+// --- Chat Endpoint ---
 app.post('/chat', async (req, res) => {
     try {
-        const { message, history, image } = req.body; // Added image support
+        const { message, history, image } = req.body;
         const userMessage = message || '';
 
         console.log(`📥 User Message: "${userMessage.substring(0, 50)}..."`);
@@ -88,7 +85,7 @@ app.post('/chat', async (req, res) => {
         // 1. Sanitize History
         let chatHistory = [];
         if (history && Array.isArray(history)) {
-            const MAX_HISTORY = 20; // Keep context focused
+            const MAX_HISTORY = 20;
             const recentHistory = history.slice(-MAX_HISTORY);
 
             chatHistory = recentHistory
@@ -106,8 +103,8 @@ app.post('/chat', async (req, res) => {
                 parts: [{ text: BASE_SYSTEM_PROMPT }]
             },
             generationConfig: {
-                maxOutputTokens: 8000, // High limit for detailed answers
-                temperature: 0.7, // Slightly lower for accuracy
+                maxOutputTokens: 8000,
+                temperature: 0.7,
             },
         });
 
@@ -119,14 +116,12 @@ app.post('/chat', async (req, res) => {
         // 4. Generate Response
         let result;
         if (image) {
-            // Multimodal request
             const imagePart = {
                 inlineData: {
-                    data: image.split(',')[1], // Remove data:image/png;base64, header
+                    data: image.split(',')[1],
                     mimeType: image.match(/data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+).*,.*/)[1]
                 }
             };
-
             result = await chat.sendMessage([userMessage, imagePart]);
         } else {
             result = await chat.sendMessage(userMessage);
@@ -135,16 +130,13 @@ app.post('/chat', async (req, res) => {
         const response = await result.response;
         const responseText = response.text();
 
-        // 5. Validation & Cleaning
         console.log('Gemini Response Length:', responseText ? responseText.length : 0);
 
         if (!responseText) {
             throw new Error('Empty response from AI');
         }
 
-        res.json({
-            reply: responseText
-        });
+        res.json({ reply: responseText });
 
     } catch (error) {
         console.error('Chat Endpoint Error:', error);
@@ -155,141 +147,15 @@ app.post('/chat', async (req, res) => {
     }
 });
 
-// --- Image Generation Endpoint (Gemini 2.5 Flash Image) ---
-app.post('/generate-image', async (req, res) => {
-    try {
-        const { lastMessage, style, genre, characterCard, lastImageUrl, sceneContext } = req.body;
-
-        if (!process.env.GEMINI_API_KEY) {
-            return res.status(500).json({ error: "Gemini API Key missing for image generation" });
-        }
-
-        // Use Gemini image model from environment variable
-        const imageModelName = process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
-        console.log(`🎨 Using Gemini image model: ${imageModelName}`);
-
-        const geminiImageModel = genAI.getGenerativeModel({ model: imageModelName });
-
-        // Style guide for specific visual descriptions
-        const styleGuide = {
-            'Anime': 'Japanese anime style, big expressive eyes, clean linework, cel-shaded, vibrant colors, manga influenced',
-            'Oil Painting': 'visible brushstrokes, thick impasto texture, classical painting technique, rich colors, museum quality',
-            'Watercolor': 'soft edges, color bleeding, wet-on-wet technique, paper texture visible, transparent washes',
-            'Digital Art': 'clean digital illustration, modern concept art, smooth gradients, professional digital painting',
-            'Concept Art': 'entertainment industry concept art, detailed environment design, professional illustration',
-            'Comic Book': 'bold black outlines, halftone dots, dynamic action poses, Marvel/DC aesthetic',
-            'Manga': 'Japanese manga style, screentones, dramatic speed lines, expressive faces, black and white or limited color',
-            'Pixel Art': '16-bit retro game pixels, visible square pixels, limited color palette, nostalgic video game style',
-            'Impressionism': 'visible brushwork, light and color focus, Monet-style, soft edges, outdoor scenes',
-            'Art Nouveau': 'flowing organic lines, decorative borders, Alphonse Mucha style, ornate patterns',
-            'Pop Art': 'bold primary colors, Ben-Day dots, Andy Warhol style, commercial art aesthetic',
-            'Surrealism': 'dreamlike, impossible scenes, Salvador Dali influence, melting reality, symbolic imagery',
-            'Photorealistic': 'hyperrealistic, could be mistaken for a photograph, extreme detail, perfect lighting',
-            'Charcoal Sketch': 'black and white, rough sketch lines, smudged charcoal texture, artistic drawing',
-            'Fantasy Art': 'epic fantasy illustration, detailed armor and magic, Frank Frazetta inspired, heroic',
-            'Cyberpunk': 'neon lights, rain-slicked streets, high-tech low-life, blade runner aesthetic, futuristic',
-            'Steampunk': 'Victorian era technology, brass gears, steam-powered machinery, goggles and corsets',
-            'Studio Ghibli': 'Hayao Miyazaki style, soft colors, detailed backgrounds, whimsical, hand-drawn animation look'
-        };
-
-        const styleDesc = styleGuide[style] || style || 'detailed illustration';
-
-        // Build prompt
-        let imagePrompt = '';
-
-        if (characterCard) {
-            const sceneText = sceneContext || 'character standing in a dramatic setting';
-
-            // SCENE-FIRST prompt: Environment is primary, character is secondary
-            imagePrompt = `CREATE A NEW SCENE - Different from any previous image.
-
-SCENE TO ILLUSTRATE (THIS IS THE MOST IMPORTANT PART):
-"${sceneText}"
-
-Extract from above: What is the LOCATION? What is the CHARACTER DOING? What is the MOOD/ATMOSPHERE?
-Show this specific moment with a UNIQUE composition, angle, and environment.
-
-CHARACTER IN THIS SCENE (keep appearance consistent):
-${characterCard}
-
-Art Style: ${style || 'Digital Art'} (${styleDesc})
-Genre: ${genre || 'Science Fiction'}
-
-CRITICAL REQUIREMENTS:
-1. The ENVIRONMENT must match the scene description above - NOT a generic background
-2. Show a NEW camera angle/composition 
-3. Character should be DOING something relevant to the scene
-4. Lighting and atmosphere should reflect the current moment
-5. No text/words in image
-
-The scene and setting are the STAR - the character just needs to be recognizable.`;
-
-            console.log(`✅ Using character card for consistency`);
-        } else {
-            imagePrompt = `Art Style: ${style || 'Digital Art'} - ${styleDesc}
-
-Scene: ${lastMessage?.parts?.substring(0, 500) || 'dramatic scene'}
-
-Requirements:
-- Render in ${style || 'Digital Art'} style ONLY
-- No text, words, or writing in the image
-- ${genre || 'Science Fiction'} genre atmosphere`;
-        }
-
-        console.log(`📝 Image prompt (${imagePrompt.length} chars)`);
-
-        // Generate with Gemini
-        const result = await geminiImageModel.generateContent(imagePrompt);
-        const response = await result.response;
-
-        if (!response.candidates || response.candidates.length === 0) {
-            throw new Error('No candidates in Gemini response');
-        }
-
-        const parts = response.candidates[0]?.content?.parts;
-        if (!parts || parts.length === 0) {
-            throw new Error('No parts in Gemini response');
-        }
-
-        // Find image data
-        let imageData = null;
-        for (const part of parts) {
-            if (part.inlineData) {
-                imageData = part.inlineData;
-                break;
-            }
-        }
-
-        if (!imageData) {
-            throw new Error('No image data in Gemini response');
-        }
-
-        const mimeType = imageData.mimeType || 'image/png';
-        const imageUrl = `data:${mimeType};base64,${imageData.data}`;
-
-        console.log(`✅ Gemini image generated successfully`);
-
-        res.json({ imageUrl });
-
-    } catch (error) {
-        console.error("❌ Gemini Image Generation Error:", error);
-        console.error("Error details:", error.message);
-        res.status(500).json({
-            error: "Failed to generate image with Gemini",
-            details: error.message
-        });
-    }
-});
-
-// GET endpoint for TTS
+// --- TTS Endpoints ---
 app.get('/tts', async (req, res) => {
     try {
         const { text, voice } = req.query;
         if (!text) return res.status(400).json({ error: 'Text required' });
         if (!process.env.OPENAI_API_KEY) return res.status(500).json({ error: 'OpenAI API Key missing' });
 
-        const voiceName = voice || 'alloy'; // Default voice
-        const ttsModel = process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts';
+        const voiceName = voice || 'alloy';
+        const ttsModel = process.env.OPENAI_TTS_MODEL || 'tts-1';
 
         console.log(`🎤 TTS request: voice=${voiceName}, model=${ttsModel}, text length=${text.length}`);
 
@@ -315,7 +181,6 @@ app.get('/tts', async (req, res) => {
 
         res.setHeader('Content-Type', 'audio/mpeg');
 
-        // Stream the audio back
         const reader = response.body.getReader();
         while (true) {
             const { done, value } = await reader.read();
@@ -336,8 +201,8 @@ app.post('/tts', async (req, res) => {
         if (!text) return res.status(400).json({ error: 'Text required' });
         if (!process.env.OPENAI_API_KEY) return res.status(500).json({ error: 'OpenAI API Key missing' });
 
-        const voiceName = voice || 'alloy'; // Default voice
-        const ttsModel = process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts';
+        const voiceName = voice || 'alloy';
+        const ttsModel = process.env.OPENAI_TTS_MODEL || 'tts-1';
 
         console.log(`🎤 TTS POST request: voice=${voiceName}, model=${ttsModel}, text length=${text.length}`);
 
@@ -363,7 +228,6 @@ app.post('/tts', async (req, res) => {
 
         res.setHeader('Content-Type', 'audio/mpeg');
 
-        // Stream the audio back
         const reader = response.body.getReader();
         while (true) {
             const { done, value } = await reader.read();
