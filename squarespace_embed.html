@@ -75,7 +75,7 @@
                 <div class="option-group">
                     <label>Art Style</label>
                     <div class="option-pills" id="style-pills">
-                        <button class="pill active" data-value="photorealistic">📷 Photorealistic</button>
+                        <button class="pill" data-value="photorealistic">📷 Photorealistic</button>
                         <button class="pill" data-value="digital-art">🖼️ Digital Art</button>
                         <button class="pill" data-value="anime">🎌 Anime</button>
                         <button class="pill" data-value="oil-painting">🎨 Oil Painting</button>
@@ -87,7 +87,7 @@
                 <div class="option-group">
                     <label>Mood / Tone</label>
                     <div class="option-pills" id="mood-pills">
-                        <button class="pill active" data-value="vibrant">✨ Vibrant</button>
+                        <button class="pill" data-value="vibrant">✨ Vibrant</button>
                         <button class="pill" data-value="dark">🌑 Dark</button>
                         <button class="pill" data-value="dreamy">☁️ Dreamy</button>
                         <button class="pill" data-value="cinematic">🎬 Cinematic</button>
@@ -99,7 +99,7 @@
                     <label>Quality</label>
                     <div class="option-pills" id="quality-pills">
                         <button class="pill" data-value="standard">Standard</button>
-                        <button class="pill active" data-value="high">HD Quality</button>
+                        <button class="pill" data-value="high">HD Quality</button>
                         <button class="pill" data-value="ultra">Ultra 8K</button>
                     </div>
                 </div>
@@ -150,9 +150,111 @@
             <div class="loader-status" id="loader-status">Initializing neural pathways...</div>
         </div>
     </div>
+
+    <!-- Full Screen Image Viewer -->
+    <div id="image-viewer" class="image-viewer">
+        <button id="close-viewer-btn" class="viewer-close-btn" title="Close">×</button>
+        <div class="viewer-content">
+            <img id="viewer-img" src="" alt="Full Screen View">
+        </div>
+        <div class="viewer-footer">
+            <a id="download-link" href="#" download="generated-image.png" class="download-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v4m4-5l5 5 5-5m-5 5V3" />
+                </svg>
+                Download Image
+            </a>
+        </div>
+    </div>
 </div>
 
 <style>
+    /* Full Screen Viewer Styling */
+    .image-viewer {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.95);
+        backdrop-filter: blur(15px);
+        z-index: 1000;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        animation: fadeIn 0.3s ease;
+    }
+
+    .image-viewer.active {
+        display: flex;
+    }
+
+    .viewer-close-btn {
+        position: absolute;
+        top: 24px;
+        right: 24px;
+        background: rgba(255, 255, 255, 0.1);
+        border: none;
+        color: white;
+        font-size: 32px;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+        z-index: 1001;
+    }
+
+    .viewer-close-btn:hover {
+        background: rgba(239, 68, 68, 0.8);
+        transform: rotate(90deg);
+    }
+
+    .viewer-content {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 40px;
+        width: 100%;
+    }
+
+    .viewer-content img {
+        max-width: 90%;
+        max-height: 80vh;
+        border-radius: 12px;
+        box-shadow: 0 0 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(59, 130, 246, 0.2);
+        object-fit: contain;
+    }
+
+    .viewer-footer {
+        padding: 40px;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+    }
+
+    .download-btn {
+        background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+        color: white;
+        text-decoration: none;
+        padding: 14px 28px;
+        border-radius: 30px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+        transition: all 0.2s;
+    }
+
+    .download-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
+        filter: brightness(1.1);
+    }
+
     :root {
         --bg-app: #121212;
         --bg-panel: #1e1e1e;
@@ -1006,9 +1108,9 @@
             isSending: false,
             uploadedImage: null,
             pendingImagePrompt: null,
-            selectedStyle: 'photorealistic',
-            selectedMood: 'vibrant',
-            selectedQuality: 'high',
+            selectedStyle: null,
+            selectedMood: null,
+            selectedQuality: null,
             customStyle: ''
         };
 
@@ -1038,7 +1140,11 @@
             loaderStatus: document.getElementById('loader-status'),
             cancelStyleBtn: document.getElementById('cancel-style-btn'),
             generateBtn: document.getElementById('generate-btn'),
-            customStyleInput: document.getElementById('custom-style-input')
+            customStyleInput: document.getElementById('custom-style-input'),
+            imageViewer: document.getElementById('image-viewer'),
+            viewerImg: document.getElementById('viewer-img'),
+            closeViewerBtn: document.getElementById('close-viewer-btn'),
+            downloadLink: document.getElementById('download-link')
         };
 
         if (!els.sendBtn || !els.input) return;
@@ -1071,6 +1177,20 @@
             state.customStyle = els.customStyleInput ? els.customStyleInput.value.trim() : '';
             hideStyleModal();
             generateImageWithStyle();
+        });
+
+        // Viewer listeners
+        els.closeViewerBtn.addEventListener('click', closeImageViewer);
+        els.imageViewer.addEventListener('click', function (e) {
+            if (e.target === els.imageViewer) closeImageViewer();
+        });
+
+        // Global key listeners
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                hideStyleModal();
+                closeImageViewer();
+            }
         });
 
         // Pill selection
@@ -1164,12 +1284,12 @@
         }
 
         async function generateImageWithStyle() {
-            var fullPrompt = state.pendingImagePrompt + ', ' + state.selectedStyle + ' style, ' + state.selectedMood + ' mood, ' + state.selectedQuality + ' quality';
+            var fullPrompt = state.pendingImagePrompt;
 
-            // Add custom style if provided
-            if (state.customStyle) {
-                fullPrompt += ', ' + state.customStyle;
-            }
+            if (state.selectedStyle) fullPrompt += ', ' + state.selectedStyle + ' style';
+            if (state.selectedMood) fullPrompt += ', ' + state.selectedMood + ' mood';
+            if (state.selectedQuality) fullPrompt += ', ' + state.selectedQuality + ' quality';
+            if (state.customStyle) fullPrompt += ', ' + state.customStyle;
 
             showLoader();
 
@@ -1184,11 +1304,12 @@
 
                 if (response.ok) {
                     var data = await response.json();
+                    var styleInfo = state.selectedStyle ? state.selectedStyle + ' ' : '';
                     addMessage({
-                        text: 'Here is your ' + state.selectedStyle + ' image:',
+                        text: 'Here is your ' + styleInfo + 'image:',
                         generatedImage: data.imageUrl,
                         role: 'model',
-                        followUps: ['Generate another variation', 'Try a different style', 'Make it more ' + state.selectedMood]
+                        followUps: ['Generate another variation', 'Try a different style']
                     });
                     state.history.push({ role: 'model', parts: 'Generated image: ' + fullPrompt });
                 } else {
@@ -1311,6 +1432,14 @@
                 var ttsBtn = div.querySelector('.audio-control-btn');
                 if (ttsBtn) ttsBtn.addEventListener('click', function () { playTTS(this, text); });
             }
+
+            // Image click for full-screen viewer
+            div.querySelectorAll('img').forEach(function (img) {
+                img.style.cursor = 'zoom-in';
+                img.addEventListener('click', function () {
+                    openImageViewer(this.src);
+                });
+            });
         }
 
         function addLoadingIndicator() {
@@ -1331,6 +1460,20 @@
 
         function scrollToBottom() {
             els.container.scrollTop = els.container.scrollHeight;
+        }
+
+        function openImageViewer(src) {
+            if (!els.imageViewer) return;
+            els.viewerImg.src = src;
+            els.downloadLink.href = src;
+            els.imageViewer.classList.add('active');
+            document.body.style.overflow = 'hidden'; // Prevent scroll
+        }
+
+        function closeImageViewer() {
+            if (!els.imageViewer) return;
+            els.imageViewer.classList.remove('active');
+            document.body.style.overflow = ''; // Restore scroll
         }
 
         async function playTTS(btn, text) {
