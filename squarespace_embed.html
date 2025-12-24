@@ -484,18 +484,18 @@
 </style>
 
 <script>
-    (function () {
-        const BACKEND_URL = 'https://my-backend-api-1niy.onrender.com';
+    document.addEventListener('DOMContentLoaded', function () {
+        var BACKEND_URL = 'https://my-backend-api-1niy.onrender.com';
 
         // --- State ---
-        const state = {
+        var state = {
             history: [],
             isSending: false,
             uploadedImage: null
         };
 
         // --- DOM Elements ---
-        const els = {
+        var els = {
             container: document.getElementById('chat-container'),
             messages: document.getElementById('chat-messages'),
             input: document.getElementById('chat-input'),
@@ -508,6 +508,12 @@
             welcomeScreen: document.getElementById('welcome-screen'),
             clearHistoryBtn: document.getElementById('clear-history-btn')
         };
+
+        // Check if elements exist
+        if (!els.sendBtn || !els.input) {
+            console.error('AI Assistant: Required elements not found');
+            return;
+        }
 
         // --- Event Listeners ---
         els.sendBtn.addEventListener('click', function () { sendMessage(); });
@@ -795,5 +801,5 @@
             }
         }
 
-    })();
+    });
 </script>
