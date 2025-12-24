@@ -278,6 +278,13 @@
         border: 1px solid var(--border-subtle);
     }
 
+    .generated-image {
+        max-width: 100%;
+        border-radius: 12px;
+        margin-top: 16px;
+        border: 1px solid var(--border-subtle);
+    }
+
     /* Loading Indicator */
     .typing-indicator span {
         display: inline-block;
@@ -484,7 +491,7 @@
         const state = {
             history: [],
             isSending: false,
-            uploadedImage: null // Base64 string
+            uploadedImage: null
         };
 
         // --- DOM Elements ---
@@ -503,29 +510,26 @@
         };
 
         // --- Event Listeners ---
-        els.sendBtn.addEventListener('click', () => sendMessage());
+        els.sendBtn.addEventListener('click', function () { sendMessage(); });
 
-        els.input.addEventListener('keydown', (e) => {
+        els.input.addEventListener('keydown', function (e) {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 sendMessage();
             }
-            // Auto-resize
             els.input.style.height = 'auto';
             els.input.style.height = Math.min(els.input.scrollHeight, 120) + 'px';
         });
 
-        els.input.addEventListener('input', () => {
+        els.input.addEventListener('input', function () {
             updateSendButton();
         });
 
-        // Image Upload
-        els.uploadBtn.addEventListener('click', () => els.imageInput.click());
+        els.uploadBtn.addEventListener('click', function () { els.imageInput.click(); });
         els.imageInput.addEventListener('change', handleImageUpload);
         els.removeImageBtn.addEventListener('click', clearImage);
 
-        // Clear History
-        els.clearHistoryBtn.addEventListener('click', () => {
+        els.clearHistoryBtn.addEventListener('click', function () {
             if (confirm('Clear conversation history?')) {
                 state.history = [];
                 els.messages.innerHTML = '';
@@ -540,12 +544,12 @@
         }
 
         function handleImageUpload(e) {
-            const file = e.target.files[0];
+            var file = e.target.files[0];
             if (!file) return;
 
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                state.uploadedImage = e.target.result; // Base64
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                state.uploadedImage = e.target.result;
                 els.imagePreviewImg.src = state.uploadedImage;
                 els.imagePreviewArea.style.display = 'block';
                 updateSendButton();
@@ -560,113 +564,100 @@
             updateSendButton();
         }
 
-        async function sendMessage(text = null) {
+        async function sendMessage(text) {
             if (state.isSending) return;
 
-            const msgText = text || els.input.value.trim();
-            const msgImage = state.uploadedImage; // Capture current image
+            var msgText = text || els.input.value.trim();
+            var msgImage = state.uploadedImage;
 
             if (!msgText && !msgImage) return;
 
-            // UI Updates
             state.isSending = true;
             els.welcomeScreen.style.display = 'none';
             els.input.value = '';
             els.input.style.height = 'auto';
-            clearImage(); // Clear preview after sending
+            clearImage();
             updateSendButton();
 
-            // Render User Message
             addMessage({ text: msgText, image: msgImage, role: 'user' });
 
-            // Add to history
             state.history.push({
                 role: 'user',
-                parts: msgImage ? [{ text: msgText }, { inline_data: { mime_type: "image/jpeg", data: msgImage.split(',')[1] } }] : [{ text: msgText }]
+                parts: msgText
             });
 
-            // Show Loading
-            const loadingId = addLoadingIndicator();
+            var loadingId = addLoadingIndicator();
 
             try {
-                const response = await fetch(`${BACKEND_URL}/chat`, {
+                var response = await fetch(BACKEND_URL + '/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         message: msgText,
                         history: state.history,
-                        image: msgImage // Send image if present
+                        image: msgImage
                     })
                 });
 
                 if (!response.ok) throw new Error('Network response was not ok');
 
-                const data = await response.json();
-                let replyText = data.reply;
+                var data = await response.json();
+                var replyText = data.reply;
 
-                // Check for image generation request (with or without code blocks)
-                let imageGenMatch = replyText.match(/```json\s*({[\s\S]*?"generateImage"[\s\S]*?})\s*```/);
+                // Check for image generation request
+                var imageGenMatch = replyText.match(/\{\s*"generateImage"\s*:\s*true[^}]*"prompt"\s*:\s*"([^"]+)"[^}]*\}/);
                 if (!imageGenMatch) {
-                    // Try matching raw JSON without code blocks
-                    imageGenMatch = replyText.match(/^\s*({[\s\S]*?"generateImage"\s*:\s*true[\s\S]*?})\s*$/);
+                    imageGenMatch = replyText.match(/\{\s*"prompt"\s*:\s*"([^"]+)"[^}]*"generateImage"\s*:\s*true[^}]*\}/);
                 }
 
                 if (imageGenMatch) {
-                    try {
-                        const imageRequest = JSON.parse(imageGenMatch[1]);
-                        if (imageRequest.generateImage && imageRequest.prompt) {
-                            // Update loading message
-                            const loaderEl = document.getElementById(loadingId);
-                            if (loaderEl) {
-                                loaderEl.querySelector('.typing-indicator').innerHTML = '🎨 Generating image...';
-                            }
+                    var imagePrompt = imageGenMatch[1];
 
-                            // Call image generation endpoint
-                            const imageResponse = await fetch(`${BACKEND_URL}/generate-image`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ prompt: imageRequest.prompt })
-                            });
-
-                            removeLoadingIndicator(loadingId);
-
-                            if (!imageResponse.ok) throw new Error('Image generation failed');
-
-                            const imageData = await imageResponse.json();
-
-                            // Display the generated image
-                            addMessage({
-                                text: `Here's your generated image:`,
-                                generatedImage: imageData.imageUrl,
-                                role: 'model',
-                                followUps: ['Generate another variation', 'Make it more colorful', 'Try a different style']
-                            });
-
-                            state.history.push({
-                                role: 'model',
-                                parts: [{ text: 'Generated image based on prompt: ' + imageRequest.prompt }]
-                            });
-
-                            state.isSending = false;
-                            return; // Exit early for image generation
-                        }
-                    } catch (e) {
-                        console.warn('Failed to parse image generation JSON', e);
+                    var loaderEl = document.getElementById(loadingId);
+                    if (loaderEl) {
+                        loaderEl.innerHTML = '<div class="message-bubble"><div class="typing-indicator">🎨 Generating image...</div></div>';
                     }
+
+                    var imageResponse = await fetch(BACKEND_URL + '/generate-image', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt: imagePrompt })
+                    });
+
+                    removeLoadingIndicator(loadingId);
+
+                    if (imageResponse.ok) {
+                        var imageData = await imageResponse.json();
+                        addMessage({
+                            text: 'Here is your generated image:',
+                            generatedImage: imageData.imageUrl,
+                            role: 'model',
+                            followUps: ['Generate another variation', 'Make it more colorful', 'Try a different style']
+                        });
+
+                        state.history.push({
+                            role: 'model',
+                            parts: 'Generated image: ' + imagePrompt
+                        });
+                    } else {
+                        addMessage({ text: '⚠️ Image generation failed', role: 'system' });
+                    }
+
+                    state.isSending = false;
+                    return;
                 }
 
                 removeLoadingIndicator(loadingId);
 
-                // Parse Follow-up JSON (It's at the end)
-                let followUps = [];
-                const jsonMatch = replyText.match(/```json\s*({[\s\S]*?})\s*```$/);
+                // Parse Follow-up JSON
+                var followUps = [];
+                var jsonMatch = replyText.match(/```json\s*(\{[\s\S]*?\})\s*```$/);
 
                 if (jsonMatch) {
                     try {
-                        const jsonBlock = JSON.parse(jsonMatch[1]);
+                        var jsonBlock = JSON.parse(jsonMatch[1]);
                         if (jsonBlock.followUps) {
                             followUps = jsonBlock.followUps;
-                            // Remove the JSON block from the display text
                             replyText = replyText.replace(jsonMatch[0], '').trim();
                         }
                     } catch (e) {
@@ -674,98 +665,94 @@
                     }
                 }
 
-                // Render Bot Message
-                addMessage({ text: replyText, role: 'model', followUps });
+                addMessage({ text: replyText, role: 'model', followUps: followUps });
 
-                // Update History
                 state.history.push({
                     role: 'model',
-                    parts: [{ text: replyText }] // We store clean text without JSON usually, or with it? Let's store clean.
+                    parts: replyText
                 });
 
             } catch (error) {
                 removeLoadingIndicator(loadingId);
-                addMessage({ text: `⚠️ Error: ${error.message}`, role: 'system' });
+                addMessage({ text: '⚠️ Error: ' + error.message, role: 'system' });
             } finally {
                 state.isSending = false;
             }
         }
 
-        function addMessage({ text, image, generatedImage, role, followUps }) {
-            const div = document.createElement('div');
-            div.className = `message ${role === 'model' ? 'bot' : 'user'}`;
+        function addMessage(opts) {
+            var text = opts.text || '';
+            var image = opts.image;
+            var generatedImage = opts.generatedImage;
+            var role = opts.role;
+            var followUps = opts.followUps || [];
 
-            let html = `<div class="message-bubble">`;
+            var div = document.createElement('div');
+            div.className = 'message ' + (role === 'model' ? 'bot' : 'user');
+
+            var html = '<div class="message-bubble">';
 
             if (image) {
-                html += `<img src="${image}" class="attached-image">`;
+                html += '<img src="' + image + '" class="attached-image">';
             }
 
             if (role === 'model') {
-                html += `<div class="message-content">${marked.parse(text)}</div>`;
+                html += '<div class="message-content">' + marked.parse(text) + '</div>';
 
-                // Display generated image if present
                 if (generatedImage) {
-                    html += `<img src="${generatedImage}" class="generated-image" style="max-width: 100%; border-radius: 12px; margin-top: 16px; border: 1px solid var(--border-subtle);">`;
+                    html += '<img src="' + generatedImage + '" class="generated-image">';
                 }
 
-                // TTS Button
-                html += `
-                    <button class="audio-control-btn" data-text="${encodeURIComponent(text.substring(0, 500))}">
-                       <span class="icon">🔊</span> Listen
-                    </button>
-                `;
+                html += '<button class="audio-control-btn"><span class="icon">🔊</span> Listen</button>';
 
-                // Follow Ups
-                if (followUps && followUps.length > 0) {
-                    html += `<div class="follow-up-container">`;
-                    followUps.forEach(q => {
-                        html += `<button class="follow-up-chip">${q}</button>`;
-                    });
-                    html += `</div>`;
+                if (followUps.length > 0) {
+                    html += '<div class="follow-up-container">';
+                    for (var i = 0; i < followUps.length; i++) {
+                        html += '<button class="follow-up-chip">' + followUps[i] + '</button>';
+                    }
+                    html += '</div>';
                 }
             } else {
-                // User message (plain text usually fine, but escape html)
-                const safeText = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                html += `<div class="message-content">${safeText}</div>`;
+                var safeText = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                html += '<div class="message-content">' + safeText + '</div>';
             }
 
-            html += `</div>`;
+            html += '</div>';
             div.innerHTML = html;
 
             els.messages.appendChild(div);
             scrollToBottom();
 
-            // Attach Listeners for dynamic elements
             if (role === 'model') {
-                // Follow up clicks
-                const chips = div.querySelectorAll('.follow-up-chip');
-                chips.forEach(chip => {
-                    chip.addEventListener('click', () => sendMessage(chip.textContent));
-                });
+                var chips = div.querySelectorAll('.follow-up-chip');
+                for (var j = 0; j < chips.length; j++) {
+                    chips[j].addEventListener('click', function () {
+                        sendMessage(this.textContent);
+                    });
+                }
 
-                // TTS clicks
-                const ttsBtn = div.querySelector('.audio-control-btn');
-                ttsBtn.addEventListener('click', (e) => playTTS(e.target.closest('button'), text));
+                var ttsBtn = div.querySelector('.audio-control-btn');
+                if (ttsBtn) {
+                    ttsBtn.addEventListener('click', function () {
+                        playTTS(this, text);
+                    });
+                }
             }
         }
 
         function addLoadingIndicator() {
-            const id = 'loader-' + Date.now();
-            const div = document.createElement('div');
+            var id = 'loader-' + Date.now();
+            var div = document.createElement('div');
             div.id = id;
             div.className = 'message bot';
-            div.innerHTML = `
-                <div class="message-bubble">
-                    <div class="typing-indicator"><span></span><span></span><span></span></div>
-                </div>`;
+            div.innerHTML = '<div class="message-bubble"><div class="typing-indicator"><span></span><span></span><span></span></div></div>';
             els.messages.appendChild(div);
             scrollToBottom();
             return id;
         }
 
         function removeLoadingIndicator(id) {
-            const el = document.getElementById(id);
+            var el = document.getElementById(id);
             if (el) el.remove();
         }
 
@@ -773,19 +760,14 @@
             els.container.scrollTop = els.container.scrollHeight;
         }
 
-        // --- TTS Logic (Simplified) ---
         async function playTTS(btn, text) {
-            if (btn.classList.contains('playing')) {
-                // Stop logic could be added here if we keep track of audio
-                return;
-            }
+            if (btn.classList.contains('playing')) return;
 
             btn.innerHTML = '⏳ Loading...';
 
             try {
-                // Simple fetch to existing endpoint
-                const cleanText = text.replace(/[#*`]/g, ''); // Strip basic markdown
-                const response = await fetch(`${BACKEND_URL}/tts`, {
+                var cleanText = text.replace(/[#*`]/g, '');
+                var response = await fetch(BACKEND_URL + '/tts', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text: cleanText, voice: 'alloy' })
@@ -793,15 +775,15 @@
 
                 if (!response.ok) throw new Error('TTS Failed');
 
-                const blob = await response.blob();
-                const url = URL.createObjectURL(blob);
-                const audio = new Audio(url);
+                var blob = await response.blob();
+                var url = URL.createObjectURL(blob);
+                var audio = new Audio(url);
 
-                audio.onplay = () => {
+                audio.onplay = function () {
                     btn.innerHTML = '🔊 Playing...';
                     btn.classList.add('playing');
                 };
-                audio.onended = () => {
+                audio.onended = function () {
                     btn.innerHTML = '🔊 Listen';
                     btn.classList.remove('playing');
                 };
