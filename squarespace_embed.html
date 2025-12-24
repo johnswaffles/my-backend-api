@@ -90,8 +90,7 @@
                         </svg>
                     </button>
                     <input type="file" id="image-input" accept="image/*" style="display: none;">
-                    <textarea id="chat-input" placeholder="Ask a question or describe an image to create..."
-                        rows="1"></textarea>
+                    <textarea id="chat-input" placeholder="Type a message..." rows="1"></textarea>
                     <button id="send-btn" class="send-btn" disabled>
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" class="send-icon">
                             <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" stroke="currentColor" stroke-width="2"
@@ -392,6 +391,31 @@
             position: absolute;
             width: 260px;
             box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .ai-header {
+            padding: 12px 16px;
+        }
+
+        .ai-title {
+            font-size: 0.85rem;
+        }
+
+        #chat-container {
+            padding: 20px 15px;
+        }
+
+        .ai-footer {
+            padding: 12px 16px;
+        }
+
+        .message-bubble {
+            max-width: 90%;
+            font-size: 0.9rem;
+        }
+
+        .welcome-screen h2 {
+            font-size: 1.2rem;
         }
     }
 
@@ -723,16 +747,51 @@
         color: var(--accent-primary);
     }
 
+    .audio-controls-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 10px;
+    }
+
     .audio-control-btn {
-        margin-top: 8px;
-        background: transparent;
-        border: none;
-        color: var(--text-muted);
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border-subtle);
+        color: var(--text-main);
+        padding: 6px 14px;
+        border-radius: 20px;
         font-size: 0.8rem;
+        cursor: pointer;
         display: flex;
         align-items: center;
         gap: 6px;
+        transition: all 0.2s;
+    }
+
+    .audio-control-btn.playing {
+        background: rgba(59, 130, 246, 0.2);
+        border-color: var(--accent-primary);
+        color: var(--accent-primary);
+    }
+
+    .audio-download-btn {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border-subtle);
+        color: var(--text-muted);
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none;
+    }
+
+    .audio-download-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--text-main);
     }
 
     .ai-footer {
@@ -1896,7 +1955,10 @@
             if (role === 'model') {
                 html += '<div class="message-content">' + marked.parse(text) + '</div>';
                 if (generatedImage) html += '<img src="' + generatedImage + '" class="generated-image">';
+                html += '<div class="audio-controls-group">';
                 html += '<button class="audio-control-btn"><span>🔊</span> Listen</button>';
+                html += '<a class="audio-download-btn" style="display:none" title="Download Audio"><span>📥</span></a>';
+                html += '</div>';
                 if (followUps.length > 0) {
                     html += '<div class="follow-up-container">';
                     for (var i = 0; i < followUps.length; i++) {
@@ -1969,6 +2031,9 @@
         }
 
         async function playTTS(btn, text) {
+            var container = btn.parentElement;
+            var dlBtn = container.querySelector('.audio-download-btn');
+
             // Check if audio is already loaded on this button
             if (btn.audio) {
                 if (btn.audio.paused) {
@@ -1992,10 +2057,18 @@
                 });
                 if (!response.ok) throw new Error('TTS Failed');
                 var blob = await response.blob();
-                var audio = new Audio(URL.createObjectURL(blob));
+                var audioUrl = URL.createObjectURL(blob);
+                var audio = new Audio(audioUrl);
 
                 // Attach audio to button for state management
                 btn.audio = audio;
+
+                // Set up Download button
+                if (dlBtn) {
+                    dlBtn.href = audioUrl;
+                    dlBtn.download = 'voice-response.mp3';
+                    dlBtn.style.display = 'flex';
+                }
 
                 audio.onplay = function () {
                     btn.innerHTML = '⏸️ Pause';
