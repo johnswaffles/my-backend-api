@@ -285,6 +285,27 @@ h2:not(:first-child) {
   gap: 6px;
 }
 
+.asset-lock-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.asset-lock-row input {
+  margin: 0;
+}
+
+.asset-meta-line {
+  border: 1px solid rgba(207, 240, 253, 0.22);
+  border-radius: 8px;
+  background: rgba(13, 31, 36, 0.65);
+  padding: 6px 8px;
+  font-size: 0.78rem;
+  color: #c3edf8;
+}
+
 .asset-controls select,
 .asset-controls input,
 .asset-controls textarea {
@@ -304,7 +325,20 @@ h2:not(:first-child) {
   gap: 6px;
 }
 
-#assetPreview {
+.asset-compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.asset-compare-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+#assetPreviewOld,
+#assetPreviewNew {
   display: block;
   width: 100%;
   min-height: 120px;

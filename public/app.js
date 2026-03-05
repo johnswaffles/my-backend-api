@@ -90,6 +90,21 @@ const ASSET_PRESETS = [
   { id: 'road_5', label: 'Road Sample (mask 5)', filename: 'road_5.png', prompt: `${COZY_STYLE_PROMPT} Top-down asphalt road tile on transparent background, road mask 5 connection layout.` }
 ];
 
+const STARTER_PACK_PRESET_IDS = [
+  'terrain_grass',
+  'terrain_forest',
+  'terrain_hill',
+  'terrain_water0',
+  'terrain_water1',
+  'service_park',
+  'service_school',
+  'service_police',
+  'service_powerplant',
+  'res_2',
+  'com_2',
+  'ind_2'
+];
+
 const COLORS = {
   terrain: {
     grass: '#7acb5f',
@@ -159,6 +174,11 @@ const sprites = {
   road: {},
   zone: { res: [], com: [], ind: [] },
   service: {}
+};
+
+const assetMeta = {
+  versions: {},
+  locks: {}
 };
 
 function clamp(value, min, max) {
@@ -479,23 +499,85 @@ function selectedPreset() {
   return ASSET_PRESETS.find((p) => p.id === presetId) || ASSET_PRESETS[0];
 }
 
+function assetMetaKey(filename) {
+  return filename.trim().toLowerCase();
+}
+
+function loadAssetMeta() {
+  try {
+    const raw = localStorage.getItem('skylineAssetMeta');
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    assetMeta.versions = parsed.versions || {};
+    assetMeta.locks = parsed.locks || {};
+  } catch (_err) {
+    assetMeta.versions = {};
+    assetMeta.locks = {};
+  }
+}
+
+function saveAssetMeta() {
+  localStorage.setItem('skylineAssetMeta', JSON.stringify(assetMeta));
+}
+
+function assetVersion(filename) {
+  return assetMeta.versions[assetMetaKey(filename)] || 0;
+}
+
+function assetLocked(filename) {
+  return Boolean(assetMeta.locks[assetMetaKey(filename)]);
+}
+
+function setAssetLock(filename, locked) {
+  const key = assetMetaKey(filename);
+  assetMeta.locks[key] = Boolean(locked);
+  saveAssetMeta();
+}
+
+function bumpAssetVersion(filename) {
+  const key = assetMetaKey(filename);
+  assetMeta.versions[key] = (assetMeta.versions[key] || 0) + 1;
+  saveAssetMeta();
+}
+
+function refreshAssetMetaLine(filename) {
+  const metaLine = document.getElementById('assetMetaLine');
+  const lock = assetLocked(filename) ? 'Locked' : 'Unlocked';
+  metaLine.textContent = `Version: ${assetVersion(filename)} | ${lock}`;
+}
+
 function applyPresetToAssetForm(preset) {
   document.getElementById('assetFilename').value = preset.filename;
   document.getElementById('assetPrompt').value = preset.prompt;
+  document.getElementById('assetLock').checked = assetLocked(preset.filename);
+  refreshAssetMetaLine(preset.filename);
 }
 
-async function generateAssetFromForm() {
-  const status = document.getElementById('assetGenStatus');
-  const preview = document.getElementById('assetPreview');
-  const filename = document.getElementById('assetFilename').value.trim();
-  const prompt = document.getElementById('assetPrompt').value.trim();
+function tryLoadPreviewImage(url, imgEl) {
+  tryLoadImage(url, (_img) => {
+    imgEl.src = url;
+  });
+}
 
-  if (!filename || !prompt) {
-    status.textContent = 'Filename and prompt are required.';
-    return;
+function previewCurrentFileAsOld(filename) {
+  const oldImg = document.getElementById('assetPreviewOld');
+  const assetPath = `/assets/${filename}?v=${Date.now()}`;
+  tryLoadPreviewImage(assetPath, oldImg);
+}
+
+async function requestAssetGeneration(filename, prompt, updatePreview = true) {
+  const status = document.getElementById('assetGenStatus');
+  const previewNew = document.getElementById('assetPreviewNew');
+
+  if (assetLocked(filename)) {
+    status.textContent = `Skipped ${filename} (locked).`;
+    refreshAssetMetaLine(filename);
+    return false;
   }
 
-  status.textContent = 'Generating asset... this can take 10-40 seconds.';
+  previewCurrentFileAsOld(filename);
+  status.textContent = `Generating ${filename}... this can take 10-40 seconds.`;
+
   try {
     const response = await fetch('/api/ai/generate-asset', {
       method: 'POST',
@@ -509,8 +591,8 @@ async function generateAssetFromForm() {
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Asset generation failed');
 
-    if (data.imageBase64) {
-      preview.src = `data:image/png;base64,${data.imageBase64}`;
+    if (updatePreview && data.imageBase64) {
+      previewNew.src = `data:image/png;base64,${data.imageBase64}`;
     }
 
     if (data.savedTo) {
@@ -520,30 +602,73 @@ async function generateAssetFromForm() {
       });
     }
 
+    bumpAssetVersion(filename);
+    refreshAssetMetaLine(filename);
     status.textContent = `Generated and saved: ${filename}`;
+    return true;
   } catch (error) {
     status.textContent = `Asset error: ${error.message}`;
+    return false;
   }
 }
 
-function reloadAssetFromForm() {
+async function generateAssetFromForm() {
+  const filename = document.getElementById('assetFilename').value.trim();
+  const prompt = document.getElementById('assetPrompt').value.trim();
   const status = document.getElementById('assetGenStatus');
-  const preview = document.getElementById('assetPreview');
+  if (!filename || !prompt) {
+    status.textContent = 'Filename and prompt are required.';
+    return;
+  }
+  await requestAssetGeneration(filename, prompt, true);
+}
+
+function reloadAssetFromForm(updateOldPreview = false) {
+  const status = document.getElementById('assetGenStatus');
+  const previewNew = document.getElementById('assetPreviewNew');
   const filename = document.getElementById('assetFilename').value.trim();
   if (!filename) {
     status.textContent = 'Enter a filename first.';
     return;
   }
 
+  if (updateOldPreview) {
+    previewCurrentFileAsOld(filename);
+  }
+
   const assetPath = `/assets/${filename}?v=${Date.now()}`;
   tryLoadImage(assetPath, (img) => {
-    preview.src = assetPath;
+    previewNew.src = assetPath;
     assignAssetImageByFilename(filename, img);
     status.textContent = `Reloaded: ${filename}`;
+    refreshAssetMetaLine(filename);
   });
 }
 
+async function generateStarterPack() {
+  const status = document.getElementById('assetGenStatus');
+  status.textContent = 'Generating cozy starter pack...';
+  let successCount = 0;
+  let skippedCount = 0;
+
+  for (const presetId of STARTER_PACK_PRESET_IDS) {
+    const preset = ASSET_PRESETS.find((p) => p.id === presetId);
+    if (!preset) continue;
+    if (assetLocked(preset.filename)) {
+      skippedCount += 1;
+      continue;
+    }
+    const ok = await requestAssetGeneration(preset.filename, preset.prompt, false);
+    if (ok) successCount += 1;
+    await new Promise((resolve) => setTimeout(resolve, 350));
+  }
+
+  status.textContent = `Starter pack complete. Generated ${successCount}, skipped ${skippedCount} locked assets.`;
+  reloadAssetFromForm();
+}
+
 function initAssetGeneratorUI() {
+  loadAssetMeta();
   const presetSelect = document.getElementById('assetPreset');
   ASSET_PRESETS.forEach((preset) => {
     const option = document.createElement('option');
@@ -557,9 +682,25 @@ function initAssetGeneratorUI() {
   });
 
   document.getElementById('assetGenerateBtn').addEventListener('click', generateAssetFromForm);
-  document.getElementById('assetReloadBtn').addEventListener('click', reloadAssetFromForm);
+  document.getElementById('assetReloadBtn').addEventListener('click', () => reloadAssetFromForm(true));
+  document.getElementById('assetBatchBtn').addEventListener('click', generateStarterPack);
+
+  const filenameInput = document.getElementById('assetFilename');
+  filenameInput.addEventListener('input', () => {
+    const filename = filenameInput.value.trim();
+    document.getElementById('assetLock').checked = filename ? assetLocked(filename) : false;
+    if (filename) refreshAssetMetaLine(filename);
+  });
+
+  document.getElementById('assetLock').addEventListener('change', (event) => {
+    const filename = filenameInput.value.trim();
+    if (!filename) return;
+    setAssetLock(filename, event.target.checked);
+    refreshAssetMetaLine(filename);
+  });
 
   applyPresetToAssetForm(ASSET_PRESETS[0]);
+  reloadAssetFromForm();
 }
 
 function randomHash(x, y, seed) {

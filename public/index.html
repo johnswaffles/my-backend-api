@@ -77,13 +77,28 @@
           <div class="asset-controls">
             <select id="assetPreset"></select>
             <input id="assetFilename" type="text" placeholder="filename.png" />
+            <label class="asset-lock-row">
+              <input id="assetLock" type="checkbox" />
+              Lock this asset (skip overwrite)
+            </label>
+            <div id="assetMetaLine" class="asset-meta-line">Version: 0 | Unlocked</div>
             <textarea id="assetPrompt" rows="4" placeholder="Asset prompt"></textarea>
             <div class="asset-actions">
               <button id="assetGenerateBtn" class="btn">Generate Asset</button>
               <button id="assetReloadBtn" class="btn">Reload File</button>
             </div>
+            <button id="assetBatchBtn" class="btn full">Generate Cozy Starter Pack</button>
             <div id="assetGenStatus" class="info-box">Choose a preset and generate.</div>
-            <img id="assetPreview" alt="Generated asset preview" />
+            <div class="asset-compare">
+              <div>
+                <div class="asset-compare-label">Previous</div>
+                <img id="assetPreviewOld" alt="Previous asset preview" />
+              </div>
+              <div>
+                <div class="asset-compare-label">New</div>
+                <img id="assetPreviewNew" alt="New asset preview" />
+              </div>
+            </div>
           </div>
 
           <h2>Legend</h2>
