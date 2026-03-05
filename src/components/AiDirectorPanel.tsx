@@ -12,7 +12,15 @@ interface AdvisorResponse {
 
 interface CommandResponse {
   message: string;
-  commands: Array<{ action: 'place'; type: 'road' | 'house' | 'powerPlant'; x: number; z: number }>;
+  commands: Array<
+    | {
+        action: 'place';
+        type: 'road' | 'house' | 'restaurant' | 'shop' | 'park' | 'workshop' | 'powerPlant';
+        x: number;
+        z: number;
+      }
+    | { action: 'bulldoze'; x: number; z: number }
+  >;
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
@@ -77,7 +85,7 @@ export function AiDirectorPanel({ state }: AiDirectorPanelProps): JSX.Element {
         snapshot
       });
       const outcome = executeAiCommands(data.commands || []);
-      const actionMessage = `${data.message} Applied ${outcome.placed} placement(s), ${outcome.failed} skipped.`;
+      const actionMessage = `${data.message} Applied ${outcome.placed} placement(s), bulldozed ${outcome.removed}, skipped ${outcome.failed}.`;
       setAiLastAction(actionMessage);
       setResult(actionMessage);
     } catch (error) {

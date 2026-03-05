@@ -95,7 +95,7 @@ app.post('/api/ai/game-command', async (req, res) => {
       {
         role: 'system',
         content:
-          'You are the AI mayor for a cozy city builder. Return only JSON with this exact shape: {"message":"short text","commands":[{"action":"place","type":"road|house|powerPlant","x":number,"z":number}]}. Rules: place houses adjacent to roads, avoid placing power plants within 3 tiles of houses, prefer compact growth near current town, and keep enough power margin before adding many houses. Max 6 commands. No markdown.'
+          'You are the AI mayor for a cozy city builder. Return only JSON with this shape: {"message":"short text","commands":[{"action":"place","type":"road|house|restaurant|shop|park|workshop|powerPlant","x":number,"z":number},{"action":"bulldoze","x":number,"z":number}]}. Rules: houses/businesses near roads, power plants/workshops away from houses, and use bulldoze when fixing bad layouts. Max 8 commands. No markdown.'
       },
       {
         role: 'user',
@@ -134,7 +134,7 @@ app.post('/api/ai/game-command', async (req, res) => {
     }
 
     const commands = parsed.commands
-      .slice(0, 10)
+      .slice(0, 12)
       .map((c) => ({
         action: c?.action,
         type: c?.type,
@@ -143,17 +143,23 @@ app.post('/api/ai/game-command', async (req, res) => {
       }))
       .filter(
         (c) =>
-          c.action === 'place' &&
-          (c.type === 'road' || c.type === 'house' || c.type === 'powerPlant') &&
+          (c.action === 'place' || c.action === 'bulldoze') &&
+          (c.action !== 'place' ||
+            c.type === 'road' ||
+            c.type === 'house' ||
+            c.type === 'restaurant' ||
+            c.type === 'shop' ||
+            c.type === 'park' ||
+            c.type === 'workshop' ||
+            c.type === 'powerPlant') &&
           Number.isFinite(c.x) &&
           Number.isFinite(c.z)
       )
-      .map((c) => ({
-        action: 'place',
-        type: c.type,
-        x: Math.round(c.x),
-        z: Math.round(c.z)
-      }));
+      .map((c) =>
+        c.action === 'bulldoze'
+          ? { action: 'bulldoze', x: Math.round(c.x), z: Math.round(c.z) }
+          : { action: 'place', type: c.type, x: Math.round(c.x), z: Math.round(c.z) }
+      );
 
     return res.json({
       message: typeof parsed.message === 'string' ? parsed.message : 'Planned actions ready.',

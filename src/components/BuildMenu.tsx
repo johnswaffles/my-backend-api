@@ -1,10 +1,14 @@
-import { setPlacementMode } from '../game/actions';
+import { BUILDING_ECONOMY, setPlacementMode } from '../game/actions';
 import type { BuildType } from '../game/state';
 
-const BUILD_ITEMS: Array<{ type: BuildType; label: string; cost: number; desc: string }> = [
-  { type: 'road', label: 'Road', cost: 12, desc: 'Connects your town' },
-  { type: 'house', label: 'House', cost: 180, desc: 'Adds population' },
-  { type: 'powerPlant', label: 'Power Plant', cost: 1200, desc: 'Generates electricity' }
+const BUILD_ITEMS: Array<{ type: BuildType; label: string; desc: string }> = [
+  { type: 'road', label: 'Road', desc: 'Connects every district' },
+  { type: 'house', label: 'House', desc: 'Adds residents' },
+  { type: 'shop', label: 'Shop', desc: 'Commerce + neighborhood jobs' },
+  { type: 'restaurant', label: 'Restaurant', desc: 'Food economy + appeal' },
+  { type: 'park', label: 'Park', desc: 'Recreation + happiness boost' },
+  { type: 'workshop', label: 'Workshop', desc: 'Heavy job producer' },
+  { type: 'powerPlant', label: 'Power Plant', desc: 'City-wide electricity' }
 ];
 
 interface BuildMenuProps {
@@ -13,7 +17,7 @@ interface BuildMenuProps {
 
 export function BuildMenu({ placementMode }: BuildMenuProps): JSX.Element {
   return (
-    <aside className="pointer-events-auto panel-glass absolute left-4 top-28 z-20 w-72 rounded-2xl p-4 text-slate-100">
+    <aside className="pointer-events-auto panel-glass absolute left-4 top-28 z-20 w-[19.5rem] rounded-2xl p-4 text-slate-100">
       <div className="mb-3 text-xs uppercase tracking-[0.18em] text-cyan-300">Build Menu</div>
       <div className="flex flex-col gap-2">
         {BUILD_ITEMS.map((item) => {
@@ -31,7 +35,7 @@ export function BuildMenu({ placementMode }: BuildMenuProps): JSX.Element {
             >
               <div className="flex items-center justify-between">
                 <span className="font-medium">{item.label}</span>
-                <span className="text-xs text-slate-300">-${item.cost}</span>
+                <span className="text-xs text-slate-300">-${BUILDING_ECONOMY[item.type].cost}</span>
               </div>
               <div className="mt-1 text-xs text-slate-300">{item.desc}</div>
             </button>

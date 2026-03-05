@@ -3,6 +3,7 @@ import { cycleGameSpeed, toggleAiAutoplay } from '../game/actions';
 interface TopBarProps {
   money: number;
   population: number;
+  jobs: number;
   powerUsed: number;
   powerProduced: number;
   day: number;
@@ -12,6 +13,9 @@ interface TopBarProps {
     housing: number;
     roads: number;
     power: number;
+    commerce: number;
+    recreation: number;
+    jobs: number;
   };
   aiAutoplayEnabled: boolean;
   aiLastAction: string;
@@ -44,6 +48,7 @@ function formatMoney(value: number): string {
 export function TopBar({
   money,
   population,
+  jobs,
   powerUsed,
   powerProduced,
   day,
@@ -87,8 +92,13 @@ export function TopBar({
           valueClassName="min-w-[10ch] pr-2 text-right tabular-nums"
         />
         <Stat label="Population" value={population.toLocaleString()} />
+        <Stat label="Jobs" value={jobs.toLocaleString()} />
         <Stat label="Power" value={`${powerUsed}/${powerProduced} (${net >= 0 ? '+' : ''}${net})`} />
-        <Stat label="Demand" value={`H ${demand.housing} | R ${demand.roads} | P ${demand.power}`} />
+        <Stat
+          label="Demand"
+          value={`H ${demand.housing} C ${demand.commerce} J ${demand.jobs} P ${demand.power}`}
+          valueClassName="text-base"
+        />
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-export type BuildType = 'road' | 'house' | 'powerPlant';
+export type BuildType = 'road' | 'house' | 'restaurant' | 'shop' | 'park' | 'workshop' | 'powerPlant';
 
 export interface TileData {
   elevation: number;
@@ -16,6 +16,7 @@ export interface Building {
 export interface Resources {
   money: number;
   population: number;
+  jobs: number;
   powerUsed: number;
   powerProduced: number;
 }
@@ -24,6 +25,9 @@ export interface Demand {
   housing: number;
   roads: number;
   power: number;
+  commerce: number;
+  recreation: number;
+  jobs: number;
 }
 
 export interface HoverCell {
@@ -83,6 +87,7 @@ export const initialGameState: GameState = {
   resources: {
     money: 12500,
     population: 16,
+    jobs: 12,
     powerUsed: 4,
     powerProduced: 16
   },
@@ -91,7 +96,10 @@ export const initialGameState: GameState = {
   demand: {
     housing: 55,
     roads: 35,
-    power: 18
+    power: 18,
+    commerce: 42,
+    recreation: 38,
+    jobs: 44
   },
   gameSpeed: 1,
   simSeconds: 0,

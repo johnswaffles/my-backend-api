@@ -42,6 +42,7 @@ export default function App(): JSX.Element {
       <TopBar
         money={state.resources.money}
         population={state.resources.population}
+        jobs={state.resources.jobs}
         powerUsed={state.resources.powerUsed}
         powerProduced={state.resources.powerProduced}
         day={state.day}

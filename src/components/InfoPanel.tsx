@@ -1,3 +1,4 @@
+import { BUILDING_ECONOMY } from '../game/actions';
 import type { Building } from '../game/state';
 
 interface InfoPanelProps {
@@ -6,6 +7,7 @@ interface InfoPanelProps {
 
 function prettyType(type: Building['type']): string {
   if (type === 'powerPlant') return 'Power Plant';
+  if (type === 'workshop') return 'Workshop';
   return type.charAt(0).toUpperCase() + type.slice(1);
 }
 
@@ -28,11 +30,12 @@ export function InfoPanel({ building }: InfoPanelProps): JSX.Element {
             <div className="text-sm">X: {building.x} | Z: {building.z}</div>
           </div>
           <div>
-            <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Stats (Placeholder)</div>
+            <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Stats</div>
             <ul className="list-disc space-y-1 pl-5 text-sm text-slate-200">
-              <li>Condition: 100%</li>
-              <li>Efficiency: 92%</li>
-              <li>Maintenance: Low</li>
+              <li>Build Cost: ${BUILDING_ECONOMY[building.type].cost}</li>
+              <li>Jobs: {BUILDING_ECONOMY[building.type].jobs}</li>
+              <li>Housing: {BUILDING_ECONOMY[building.type].housing}</li>
+              <li>Power: -{BUILDING_ECONOMY[building.type].powerUse} / +{BUILDING_ECONOMY[building.type].powerProduce}</li>
             </ul>
           </div>
         </div>

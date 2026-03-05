@@ -8,14 +8,20 @@ function countByType(state: GameState, type: 'road' | 'house' | 'powerPlant'): n
   return state.buildings.filter((b) => b.type === type).length;
 }
 
+function countBusinesses(state: GameState): number {
+  return state.buildings.filter((b) => b.type === 'shop' || b.type === 'restaurant').length;
+}
+
 export function TownProgressPanel({ state }: TownProgressPanelProps): JSX.Element {
   const roads = countByType(state, 'road');
   const houses = countByType(state, 'house');
   const plants = countByType(state, 'powerPlant');
+  const businesses = countBusinesses(state);
   const milestones = [
     { label: 'Build first road', done: roads >= 1 },
     { label: 'Build first house', done: houses >= 1 },
     { label: 'Build first power plant', done: plants >= 1 },
+    { label: 'Open 3 businesses', done: businesses >= 3 },
     { label: 'Reach population 80', done: state.resources.population >= 80 },
     { label: 'Keep happiness above 70%', done: state.happiness >= 70 }
   ];
@@ -23,6 +29,8 @@ export function TownProgressPanel({ state }: TownProgressPanelProps): JSX.Elemen
   const warnings: string[] = [];
   if (state.resources.powerUsed > state.resources.powerProduced) warnings.push('Power deficit: build more plants.');
   if (state.resources.money < 0) warnings.push('Budget is negative. Slow expansion.');
+  if (state.demand.jobs > 60) warnings.push('Job demand is high. Add workshops or commercial buildings.');
+  if (state.demand.commerce > 60) warnings.push('Commerce demand is high. Add shops and restaurants.');
   if (state.happiness < 45) warnings.push('Happiness is low. Improve roads and power coverage.');
 
   return (
