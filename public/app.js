@@ -83,6 +83,12 @@ const game = {
     y: 0,
     zoom: 1
   },
+  aiAgent: {
+    enabled: false,
+    accumulatorMs: 0,
+    lastAction: 'Idle',
+    actions: 0
+  },
   undoStack: [],
   redoStack: [],
   mapNeedsMinimapRefresh: true
@@ -383,6 +389,177 @@ function applyTool(x, y, tool) {
     game.money -= 4 * game.brushSize * game.brushSize;
     game.mapNeedsMinimapRefresh = true;
   }
+}
+
+function zoneCount(zoneType) {
+  let total = 0;
+  for (let y = 0; y < ROWS; y += 1) {
+    for (let x = 0; x < COLS; x += 1) {
+      if (game.world[y][x].zone === zoneType) total += 1;
+    }
+  }
+  return total;
+}
+
+function serviceCount(serviceType) {
+  let total = 0;
+  for (let y = 0; y < ROWS; y += 1) {
+    for (let x = 0; x < COLS; x += 1) {
+      if (game.world[y][x].service === serviceType) total += 1;
+    }
+  }
+  return total;
+}
+
+function unpoweredZoneCount() {
+  let total = 0;
+  for (let y = 0; y < ROWS; y += 1) {
+    for (let x = 0; x < COLS; x += 1) {
+      const tile = game.world[y][x];
+      if (tile.zone && !tile.power && tile.terrain !== 'water') total += 1;
+    }
+  }
+  return total;
+}
+
+function bestTileFor(scoreFn, tries = 1200) {
+  let best = null;
+  let bestScore = -Infinity;
+  for (let i = 0; i < tries; i += 1) {
+    const x = Math.floor(Math.random() * COLS);
+    const y = Math.floor(Math.random() * ROWS);
+    const tile = game.world[y][x];
+    const score = scoreFn(tile, x, y);
+    if (score > bestScore) {
+      bestScore = score;
+      best = { x, y };
+    }
+  }
+  return best;
+}
+
+function focusCameraOn(x, y) {
+  const tileSize = BASE_TILE * game.camera.zoom;
+  game.camera.x = x * tileSize - canvas.width / 2;
+  game.camera.y = y * tileSize - canvas.height / 2;
+  moveCameraBy(0, 0);
+}
+
+function aiApply(tool, target, brush = 1, message = 'Action') {
+  if (!target) return false;
+  pushHistory();
+  const prevBrush = game.brushSize;
+  game.brushSize = brush;
+  game.selectedTool = tool;
+  applyTool(target.x, target.y, tool);
+  game.brushSize = prevBrush;
+  game.aiAgent.lastAction = message;
+  game.aiAgent.actions += 1;
+  focusCameraOn(target.x, target.y);
+  syncToolHighlights();
+  return true;
+}
+
+function runAIAutoplayStep() {
+  const powerPlants = serviceCount('powerplant');
+  const schools = serviceCount('school');
+  const police = serviceCount('police');
+  const parks = serviceCount('park');
+  const resTiles = zoneCount('res');
+  const comTiles = zoneCount('com');
+  const indTiles = zoneCount('ind');
+  const noPower = unpoweredZoneCount();
+
+  if (powerPlants === 0 && game.money > 3000) {
+    const spot = bestTileFor((tile, x, y) => {
+      if (tile.terrain === 'water' || tile.service) return -Infinity;
+      const waterNear = countNear(x, y, (t) => t.terrain === 'water', 4);
+      const roadsNear = countNear(x, y, (t) => t.road, 5);
+      return 80 + waterNear * 2 + roadsNear;
+    });
+    if (aiApply('powerplant', spot, 1, 'Built initial power plant')) return;
+  }
+
+  if (noPower > 20 && game.money > 2800) {
+    const spot = bestTileFor((tile, x, y) => {
+      if (tile.terrain === 'water' || tile.service) return -Infinity;
+      const zonesNear = countNear(x, y, (t) => Boolean(t.zone), 8);
+      return zonesNear * 2 + (tile.landValue / 5);
+    });
+    if (aiApply('powerplant', spot, 1, 'Expanded power grid')) return;
+  }
+
+  if (game.happiness < 55 && parks < Math.max(4, Math.floor(game.population / 1200)) && game.money > 500) {
+    const spot = bestTileFor((tile, x, y) => {
+      if (tile.terrain === 'water' || tile.service) return -Infinity;
+      const resNear = countNear(x, y, (t) => t.zone === 'res', 6);
+      return resNear * 6 - tile.pollution;
+    });
+    if (aiApply('park', spot, 1, 'Built park for happiness')) return;
+  }
+
+  if (game.population > 900 && schools < Math.floor(game.population / 3500) + 1 && game.money > 1200) {
+    const spot = bestTileFor((tile, x, y) => {
+      if (tile.terrain === 'water' || tile.service) return -Infinity;
+      const resNear = countNear(x, y, (t) => t.zone === 'res', 7);
+      return resNear * 5 + (tile.landValue / 6);
+    });
+    if (aiApply('school', spot, 1, 'Built school near neighborhoods')) return;
+  }
+
+  if (game.population > 1200 && police < Math.floor(game.population / 4000) + 1 && game.money > 1300) {
+    const spot = bestTileFor((tile, x, y) => {
+      if (tile.terrain === 'water' || tile.service) return -Infinity;
+      const comNear = countNear(x, y, (t) => t.zone === 'com', 8);
+      const resNear = countNear(x, y, (t) => t.zone === 'res', 8);
+      return comNear * 4 + resNear * 2;
+    });
+    if (aiApply('police', spot, 1, 'Built police coverage')) return;
+  }
+
+  const zonePressure = {
+    res: game.demandRes + (game.jobs > game.population ? 12 : 0),
+    com: game.demandCom + (game.population > 300 ? 8 : 0),
+    ind: game.demandInd + (game.jobs < game.population * 0.82 ? 10 : 0)
+  };
+
+  let preferredZone = 'res';
+  if (zonePressure.com > zonePressure[preferredZone]) preferredZone = 'com';
+  if (zonePressure.ind > zonePressure[preferredZone]) preferredZone = 'ind';
+  if (preferredZone === 'res' && resTiles < Math.max(comTiles + indTiles, 12)) preferredZone = 'res';
+
+  const zoneSpot = bestTileFor((tile, x, y) => {
+    if (tile.terrain === 'water' || tile.service) return -Infinity;
+    if (tile.zone && tile.zone !== preferredZone) return -20;
+    if (tile.zone === preferredZone && tile.density > 0.55) return -5;
+
+    const roadScore = hasRoadNeighbor(x, y) ? 18 : -25;
+    const land = tile.landValue;
+    const pollution = tile.pollution;
+    const roadsNear = countNear(x, y, (t) => t.road, 4);
+    const forestNear = countNear(x, y, (t) => t.terrain === 'forest', 4);
+    const resNear = countNear(x, y, (t) => t.zone === 'res', 6);
+    const indNear = countNear(x, y, (t) => t.zone === 'ind', 6);
+    const comNear = countNear(x, y, (t) => t.zone === 'com', 6);
+
+    if (preferredZone === 'res') return roadScore + land * 0.9 + forestNear * 2 - pollution * 1.2 - indNear * 2;
+    if (preferredZone === 'com') return roadScore + land * 0.6 + resNear * 2.5 + roadsNear * 1.1 - pollution * 0.6;
+    return roadScore + (100 - land) * 0.35 + comNear * 1.8 + roadsNear * 1.2 - resNear * 2.2;
+  }, 1600);
+
+  if (zoneSpot && aiApply(preferredZone, zoneSpot, game.population > 6000 ? 2 : 1, `Zoned ${preferredZone.toUpperCase()} district`)) return;
+
+  const roadSpot = bestTileFor((tile, x, y) => {
+    if (tile.terrain === 'water' || tile.road || tile.service) return -Infinity;
+    const zoneNear = countNear(x, y, (t) => Boolean(t.zone), 3);
+    const roadNear = countNear(x, y, (t) => t.road, 2);
+    if (zoneNear === 0 || roadNear === 0) return -Infinity;
+    return zoneNear * 6 + roadNear * 4;
+  }, 1800);
+
+  if (roadSpot && aiApply('road', roadSpot, 1, 'Expanded road network')) return;
+
+  game.aiAgent.lastAction = 'Holding pattern';
 }
 
 function recomputePowerMap() {
@@ -715,6 +892,10 @@ function syncToolHighlights() {
   document.getElementById('speed3Btn').classList.toggle('active', !game.paused && game.speed === 3);
   document.getElementById('speed6Btn').classList.toggle('active', !game.paused && game.speed === 6);
   document.getElementById('pauseBtn').classList.toggle('active', game.paused);
+  const aiBtn = document.getElementById('aiAgentBtn');
+  aiBtn.classList.toggle('active', game.aiAgent.enabled);
+  aiBtn.classList.toggle('ai-on', game.aiAgent.enabled);
+  aiBtn.textContent = game.aiAgent.enabled ? 'AI Autoplay: On' : 'AI Autoplay: Off';
 }
 
 function renderStats() {
@@ -738,7 +919,12 @@ function renderStats() {
     <div><strong>Camera:</strong> ${game.camera.zoom.toFixed(2)}x</div>
     <div><strong>Controls:</strong> Pan (RMB) / Zoom (Wheel)</div>
     <div><strong>Mode:</strong> ${game.selectedTool}</div>
+    <div><strong>Agent:</strong> ${game.aiAgent.enabled ? 'Active' : 'Off'}</div>
   `;
+
+  document.getElementById('aiAgentStatus').textContent = game.aiAgent.enabled
+    ? `Active\nLast: ${game.aiAgent.lastAction}\nActions: ${game.aiAgent.actions}`
+    : 'Autoplay disabled.';
 }
 
 function renderInspector() {
@@ -776,6 +962,7 @@ function worldToSave() {
     selectedTool: game.selectedTool,
     overlay: game.overlay,
     camera: game.camera,
+    aiAgent: game.aiAgent,
     world: game.world
   };
 }
@@ -796,6 +983,8 @@ function loadFromSave(payload) {
   game.selectedTool = payload.selectedTool ?? 'road';
   game.overlay = payload.overlay ?? 'none';
   game.camera = payload.camera ?? { x: 0, y: 0, zoom: 1 };
+  game.aiAgent = payload.aiAgent ?? { enabled: false, accumulatorMs: 0, lastAction: 'Idle', actions: 0 };
+  game.aiAgent.accumulatorMs = 0;
   game.world = payload.world;
   game.mapNeedsMinimapRefresh = true;
   game.undoStack = [];
@@ -956,6 +1145,13 @@ function initInteractions() {
       game.selectedTool = hotkeys[event.key];
       syncToolHighlights();
     }
+
+    if (event.key === '0') {
+      game.aiAgent.enabled = !game.aiAgent.enabled;
+      game.aiAgent.accumulatorMs = 0;
+      if (game.aiAgent.enabled) game.aiAgent.lastAction = 'Autoplay engaged';
+      syncToolHighlights();
+    }
   });
 }
 
@@ -1038,6 +1234,13 @@ function initUI() {
     syncToolHighlights();
   });
 
+  document.getElementById('aiAgentBtn').addEventListener('click', () => {
+    game.aiAgent.enabled = !game.aiAgent.enabled;
+    game.aiAgent.accumulatorMs = 0;
+    if (game.aiAgent.enabled) game.aiAgent.lastAction = 'Autoplay engaged';
+    syncToolHighlights();
+  });
+
   document.getElementById('undoBtn').addEventListener('click', undo);
   document.getElementById('redoBtn').addEventListener('click', redo);
 
@@ -1074,6 +1277,14 @@ function frame(timestamp) {
       simulateStep();
       simAccumulator -= 1000;
       game.mapNeedsMinimapRefresh = true;
+    }
+  }
+
+  if (game.aiAgent.enabled && !game.panning && !game.painting) {
+    game.aiAgent.accumulatorMs += delta;
+    if (game.aiAgent.accumulatorMs >= 1500) {
+      game.aiAgent.accumulatorMs = 0;
+      runAIAutoplayStep();
     }
   }
 
