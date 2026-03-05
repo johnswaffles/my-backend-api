@@ -24,7 +24,7 @@ app.post('/api/ai/city-advisor', async (req, res) => {
       return res.status(500).json({ error: 'OPENAI_API_KEY is not configured on server.' });
     }
 
-    const model = process.env.OPENAI_MODEL || 'gpt-4.1-mini';
+    const model = process.env.OPENAI_MODEL || 'gpt-5.3-codex';
     const input = [
       {
         role: 'system',
@@ -60,6 +60,105 @@ app.post('/api/ai/city-advisor', async (req, res) => {
 
     const text = data.output_text || 'No advice returned.';
     return res.json({ advice: text });
+  } catch (error) {
+    return res.status(500).json({ error: 'Unexpected server error', details: String(error.message || error) });
+  }
+});
+
+function extractFirstJsonObject(text) {
+  if (!text || typeof text !== 'string') return null;
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start === -1 || end === -1 || end <= start) return null;
+  const candidate = text.slice(start, end + 1);
+  try {
+    return JSON.parse(candidate);
+  } catch {
+    return null;
+  }
+}
+
+app.post('/api/ai/game-command', async (req, res) => {
+  try {
+    const { prompt, snapshot } = req.body || {};
+    if (!prompt || typeof prompt !== 'string') {
+      return res.status(400).json({ error: 'Prompt is required.' });
+    }
+
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: 'OPENAI_API_KEY is not configured on server.' });
+    }
+
+    const model = process.env.OPENAI_MODEL || 'gpt-5.3-codex';
+    const input = [
+      {
+        role: 'system',
+        content:
+          'You are the AI mayor for a cozy city builder. Return only JSON with this exact shape: {"message":"short text","commands":[{"action":"place","type":"road|house|powerPlant","x":number,"z":number}]}. Commands should be practical and near existing city center. Max 6 commands. No markdown.'
+      },
+      {
+        role: 'user',
+        content: `Player request: ${prompt}\n\nGame snapshot:\n${JSON.stringify(snapshot || {}, null, 2)}`
+      }
+    ];
+
+    const response = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model,
+        input,
+        max_output_tokens: 350
+      })
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      return res.status(response.status).json({
+        error: 'OpenAI request failed',
+        details: data
+      });
+    }
+
+    const outputText = data.output_text || '';
+    const parsed = extractFirstJsonObject(outputText);
+    if (!parsed || !Array.isArray(parsed.commands)) {
+      return res.status(502).json({
+        error: 'Model returned invalid command format.',
+        raw: outputText
+      });
+    }
+
+    const commands = parsed.commands
+      .slice(0, 10)
+      .map((c) => ({
+        action: c?.action,
+        type: c?.type,
+        x: Number(c?.x),
+        z: Number(c?.z)
+      }))
+      .filter(
+        (c) =>
+          c.action === 'place' &&
+          (c.type === 'road' || c.type === 'house' || c.type === 'powerPlant') &&
+          Number.isFinite(c.x) &&
+          Number.isFinite(c.z)
+      )
+      .map((c) => ({
+        action: 'place',
+        type: c.type,
+        x: Math.round(c.x),
+        z: Math.round(c.z)
+      }));
+
+    return res.json({
+      message: typeof parsed.message === 'string' ? parsed.message : 'Planned actions ready.',
+      commands
+    });
   } catch (error) {
     return res.status(500).json({ error: 'Unexpected server error', details: String(error.message || error) });
   }

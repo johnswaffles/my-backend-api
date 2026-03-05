@@ -33,6 +33,8 @@ export interface GameState {
   selectedBuildingId: number | null;
   placementMode: BuildType | null;
   hoverCell: HoverCell | null;
+  aiAutoplayEnabled: boolean;
+  aiLastAction: string;
   resources: Resources;
   nextBuildingId: number;
 }
@@ -65,6 +67,8 @@ export const initialGameState: GameState = {
   selectedBuildingId: null,
   placementMode: null,
   hoverCell: null,
+  aiAutoplayEnabled: false,
+  aiLastAction: 'Idle',
   resources: {
     money: 12500,
     population: 16,

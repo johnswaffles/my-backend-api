@@ -44,6 +44,7 @@ export function BuildMenu({ placementMode }: BuildMenuProps): JSX.Element {
         <div>Right click or Esc cancel</div>
         <div>Drag RMB/MMB to pan, wheel to zoom</div>
         <div>WASD or arrows to pan</div>
+        <div>Top bar toggles AI autoplay</div>
       </div>
     </aside>
   );

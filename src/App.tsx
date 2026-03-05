@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { BuildMenu } from './components/BuildMenu';
 import { InfoPanel } from './components/InfoPanel';
 import { TopBar } from './components/TopBar';
+import { AiDirectorPanel } from './components/AiDirectorPanel';
 import { selectedBuilding } from './game/actions';
 import { InputController } from './game/input';
 import { GameRenderer } from './game/render';
@@ -35,16 +36,20 @@ export default function App(): JSX.Element {
   return (
     <div className="relative h-full w-full overflow-hidden">
       <div ref={mountRef} className="absolute inset-0" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(75%_55%_at_50%_0%,rgba(255,255,255,0.35),rgba(255,255,255,0)_65%)]" />
 
       <TopBar
         money={state.resources.money}
         population={state.resources.population}
         powerUsed={state.resources.powerUsed}
         powerProduced={state.resources.powerProduced}
+        aiAutoplayEnabled={state.aiAutoplayEnabled}
+        aiLastAction={state.aiLastAction}
       />
 
       <BuildMenu placementMode={state.placementMode} />
       <InfoPanel building={selected} />
+      <AiDirectorPanel state={state} />
     </div>
   );
 }

@@ -44,6 +44,26 @@ export function cancelPlacement(): void {
   }));
 }
 
+export function setAiAutoplayEnabled(enabled: boolean): void {
+  gameStore.update((state) => ({
+    ...state,
+    aiAutoplayEnabled: enabled,
+    aiLastAction: enabled ? 'Autoplay enabled' : 'Autoplay disabled'
+  }));
+}
+
+export function toggleAiAutoplay(): void {
+  const state = gameStore.getState();
+  setAiAutoplayEnabled(!state.aiAutoplayEnabled);
+}
+
+export function setAiLastAction(message: string): void {
+  gameStore.update((state) => ({
+    ...state,
+    aiLastAction: message
+  }));
+}
+
 export function setHoverCell(cell: { x: number; z: number } | null): void {
   gameStore.update((state) => {
     if (!cell) {
@@ -138,4 +158,31 @@ export function placeBuildingAt(type: BuildType, x: number, z: number): Building
 export function selectedBuilding(state: GameState): Building | null {
   if (state.selectedBuildingId == null) return null;
   return state.buildings.find((b) => b.id === state.selectedBuildingId) ?? null;
+}
+
+export interface AiGameCommand {
+  action: 'place';
+  type: BuildType;
+  x: number;
+  z: number;
+}
+
+export function executeAiCommands(commands: AiGameCommand[]): { placed: number; failed: number } {
+  let placed = 0;
+  let failed = 0;
+
+  for (const command of commands.slice(0, 10)) {
+    if (command.action !== 'place') {
+      failed += 1;
+      continue;
+    }
+    const created = placeBuildingAt(command.type, command.x, command.z);
+    if (created) {
+      placed += 1;
+    } else {
+      failed += 1;
+    }
+  }
+
+  return { placed, failed };
 }

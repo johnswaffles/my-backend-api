@@ -4,6 +4,7 @@ import { gameStore } from './state';
 
 interface RoadVisualData {
   connectors: Record<'n' | 'e' | 's' | 'w', THREE.Mesh>;
+  stripes: Record<'ns' | 'ew', THREE.Mesh>;
 }
 
 export class GameRenderer {
@@ -51,33 +52,35 @@ export class GameRenderer {
   private readonly cameraDesired = {
     x: 0,
     z: 0,
-    distance: 28
+    distance: 16
   };
 
   private readonly cameraCurrent = {
     x: 0,
     z: 0,
-    distance: 28
+    distance: 16
   };
 
   constructor(container: HTMLElement) {
     this.container = container;
-    this.scene.background = new THREE.Color(0xb9d7ec);
-    this.scene.fog = new THREE.Fog(0xb9d7ec, 44, 95);
+    this.scene.background = new THREE.Color(0xc9e4f6);
+    this.scene.fog = new THREE.Fog(0xc9e4f6, 34, 88);
 
     const state = gameStore.getState();
 
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.08;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.domElement.className = 'h-full w-full';
     this.container.appendChild(this.renderer.domElement);
 
-    const ambient = new THREE.AmbientLight(0xfff6e8, 0.68);
+    const ambient = new THREE.AmbientLight(0xfff6e8, 0.74);
     this.scene.add(ambient);
 
     const directional = new THREE.DirectionalLight(0xfff5da, 1.35);
-    directional.position.set(24, 38, 18);
+    directional.position.set(20, 36, 14);
     directional.castShadow = true;
     directional.shadow.mapSize.set(2048, 2048);
     directional.shadow.camera.near = 1;
@@ -88,11 +91,11 @@ export class GameRenderer {
     directional.shadow.camera.bottom = -30;
     this.scene.add(directional);
 
-    const fill = new THREE.DirectionalLight(0xa6e1ff, 0.35);
+    const fill = new THREE.DirectionalLight(0xa6e1ff, 0.45);
     fill.position.set(-25, 18, -18);
     this.scene.add(fill);
 
-    const tileGeometry = new THREE.BoxGeometry(1, 0.12, 1);
+    const tileGeometry = new THREE.BoxGeometry(1, 0.14, 1);
     const tileMaterial = new THREE.MeshStandardMaterial({
       vertexColors: true,
       roughness: 0.9,
@@ -118,7 +121,7 @@ export class GameRenderer {
         );
         this.tileMesh.setMatrixAt(idx, matrix);
 
-        color.setRGB(0.56 * tile.tint, 0.8 * tile.tint, 0.52 * tile.tint);
+        color.setRGB(0.55 * tile.tint, 0.79 * tile.tint, 0.56 * tile.tint);
         this.tileMesh.setColorAt(idx, color);
 
         idx += 1;
@@ -201,7 +204,7 @@ export class GameRenderer {
   }
 
   zoomBy(delta: number): void {
-    this.cameraDesired.distance = THREE.MathUtils.clamp(this.cameraDesired.distance + delta, 11, 55);
+    this.cameraDesired.distance = THREE.MathUtils.clamp(this.cameraDesired.distance + delta, 9, 45);
   }
 
   playPlacementPulse(x: number, z: number): void {
@@ -336,6 +339,8 @@ export class GameRenderer {
       roadData.connectors.e.visible = east;
       roadData.connectors.s.visible = south;
       roadData.connectors.w.visible = west;
+      roadData.stripes.ns.visible = north || south || (!east && !west);
+      roadData.stripes.ew.visible = east || west;
     }
   }
 
@@ -378,27 +383,51 @@ export class GameRenderer {
   private createBuildingObject(building: Building): THREE.Object3D {
     if (building.type === 'road') {
       const group = new THREE.Group();
-      const base = new THREE.Mesh(
-        new THREE.BoxGeometry(0.92, 0.05, 0.92),
-        new THREE.MeshStandardMaterial({ color: 0x3f4a56, roughness: 0.92, metalness: 0.02 })
-      );
-      base.position.y = 0.025;
+      const asphaltMaterial = new THREE.MeshStandardMaterial({ color: 0x4b5662, roughness: 0.88, metalness: 0.04 });
+      const sidewalkMaterial = new THREE.MeshStandardMaterial({ color: 0x8da1b3, roughness: 0.92, metalness: 0.01 });
+
+      const sidewalk = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.06, 0.98), sidewalkMaterial);
+      sidewalk.position.y = 0.03;
+      sidewalk.receiveShadow = true;
+      sidewalk.castShadow = false;
+      sidewalk.userData.buildingId = building.id;
+      group.add(sidewalk);
+
+      const base = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.04, 0.84), asphaltMaterial);
+      base.position.y = 0.055;
       base.receiveShadow = true;
       base.castShadow = false;
       base.userData.buildingId = building.id;
       group.add(base);
 
-      const connectorGeom = new THREE.BoxGeometry(0.28, 0.052, 0.5);
-      const connectorMat = new THREE.MeshStandardMaterial({ color: 0x3f4a56, roughness: 0.94, metalness: 0.02 });
+      const laneStripeMat = new THREE.MeshStandardMaterial({
+        color: 0xe8ecef,
+        roughness: 0.6,
+        metalness: 0.01,
+        emissive: 0x111111,
+        emissiveIntensity: 0.15
+      });
+      const stripeNS = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.005, 0.52), laneStripeMat);
+      stripeNS.position.set(0, 0.08, 0);
+      stripeNS.userData.buildingId = building.id;
+      group.add(stripeNS);
+
+      const stripeEW = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.005, 0.08), laneStripeMat.clone());
+      stripeEW.position.set(0, 0.08, 0);
+      stripeEW.userData.buildingId = building.id;
+      group.add(stripeEW);
+
+      const connectorGeom = new THREE.BoxGeometry(0.26, 0.042, 0.48);
+      const connectorMat = asphaltMaterial;
       const n = new THREE.Mesh(connectorGeom, connectorMat.clone());
       const e = new THREE.Mesh(connectorGeom, connectorMat.clone());
       const s = new THREE.Mesh(connectorGeom, connectorMat.clone());
       const w = new THREE.Mesh(connectorGeom, connectorMat.clone());
 
-      n.position.set(0, 0.026, -0.33);
-      s.position.set(0, 0.026, 0.33);
-      e.position.set(0.33, 0.026, 0);
-      w.position.set(-0.33, 0.026, 0);
+      n.position.set(0, 0.055, -0.31);
+      s.position.set(0, 0.055, 0.31);
+      e.position.set(0.31, 0.055, 0);
+      w.position.set(-0.31, 0.055, 0);
       e.rotation.y = Math.PI / 2;
       w.rotation.y = Math.PI / 2;
       [n, e, s, w].forEach((part) => {
@@ -408,60 +437,127 @@ export class GameRenderer {
         group.add(part);
       });
 
-      this.selectableMeshes.set(building.id, [base, n, e, s, w]);
-      this.roadVisuals.set(building.id, { connectors: { n, e, s, w } });
+      this.selectableMeshes.set(building.id, [base, n, e, s, w, stripeNS, stripeEW]);
+      this.roadVisuals.set(building.id, { connectors: { n, e, s, w }, stripes: { ns: stripeNS, ew: stripeEW } });
       return group;
     }
 
     if (building.type === 'house') {
       const group = new THREE.Group();
-      const base = new THREE.Mesh(
-        new THREE.BoxGeometry(0.72, 0.5, 0.72),
-        new THREE.MeshStandardMaterial({ color: 0xf3e6c6, roughness: 0.8, metalness: 0.01 })
-      );
-      base.position.y = 0.25;
+      const wallMat = new THREE.MeshStandardMaterial({ color: 0xf6ecd6, roughness: 0.72, metalness: 0.02 });
+      const trimMat = new THREE.MeshStandardMaterial({ color: 0xebd7b4, roughness: 0.75, metalness: 0.01 });
+      const roofMat = new THREE.MeshStandardMaterial({ color: 0xd17a4e, roughness: 0.7, metalness: 0.03 });
+      const windowMat = new THREE.MeshStandardMaterial({
+        color: 0xf5f8ff,
+        roughness: 0.35,
+        metalness: 0.2,
+        emissive: 0x223355,
+        emissiveIntensity: 0.12
+      });
+
+      const base = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.46, 0.68), wallMat);
+      base.position.y = 0.23;
       base.castShadow = true;
       base.receiveShadow = true;
       base.userData.buildingId = building.id;
 
       const roof = new THREE.Mesh(
-        new THREE.ConeGeometry(0.56, 0.36, 4),
-        new THREE.MeshStandardMaterial({ color: 0xd97745, roughness: 0.78, metalness: 0.01 })
+        new THREE.ConeGeometry(0.52, 0.34, 4),
+        roofMat
       );
-      roof.position.y = 0.68;
+      roof.position.y = 0.62;
       roof.rotation.y = Math.PI / 4;
       roof.castShadow = true;
       roof.receiveShadow = true;
       roof.userData.buildingId = building.id;
 
+      const porch = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.06, 0.18), trimMat);
+      porch.position.set(0, 0.05, 0.36);
+      porch.castShadow = true;
+      porch.receiveShadow = true;
+      porch.userData.buildingId = building.id;
+
+      const windowLeft = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.02), windowMat);
+      windowLeft.position.set(-0.18, 0.28, 0.35);
+      windowLeft.userData.buildingId = building.id;
+      const windowRight = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.02), windowMat);
+      windowRight.position.set(0.18, 0.28, 0.35);
+      windowRight.userData.buildingId = building.id;
+
+      const sideWindow = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.11, 0.12), windowMat.clone());
+      sideWindow.position.set(0.35, 0.27, 0.12);
+      sideWindow.userData.buildingId = building.id;
+
+      const door = new THREE.Mesh(
+        new THREE.BoxGeometry(0.12, 0.2, 0.03),
+        new THREE.MeshStandardMaterial({ color: 0x9d6f4f, roughness: 0.75, metalness: 0.02 })
+      );
+      door.position.set(0, 0.15, 0.355);
+      door.userData.buildingId = building.id;
+
+      const chimney = new THREE.Mesh(
+        new THREE.BoxGeometry(0.09, 0.22, 0.09),
+        new THREE.MeshStandardMaterial({ color: 0x8d5f48, roughness: 0.82, metalness: 0.02 })
+      );
+      chimney.position.set(0.17, 0.78, -0.12);
+      chimney.castShadow = true;
+      chimney.receiveShadow = true;
+      chimney.userData.buildingId = building.id;
+
       group.add(base);
       group.add(roof);
-      this.selectableMeshes.set(building.id, [base, roof]);
+      group.add(porch);
+      group.add(windowLeft);
+      group.add(windowRight);
+      group.add(sideWindow);
+      group.add(door);
+      group.add(chimney);
+
+      this.selectableMeshes.set(building.id, [base, roof, porch, windowLeft, windowRight, sideWindow, door, chimney]);
       return group;
     }
 
     const group = new THREE.Group();
-    const body = new THREE.Mesh(
-      new THREE.BoxGeometry(1.1, 0.75, 0.9),
-      new THREE.MeshStandardMaterial({ color: 0x8b9aae, roughness: 0.73, metalness: 0.08 })
-    );
-    body.position.y = 0.38;
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x96a6bb, roughness: 0.7, metalness: 0.1 });
+    const pipeMat = new THREE.MeshStandardMaterial({ color: 0x6f7a89, roughness: 0.72, metalness: 0.18 });
+    const accentMat = new THREE.MeshStandardMaterial({ color: 0xd3dbe5, roughness: 0.58, metalness: 0.2 });
+
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.72, 0.92), bodyMat);
+    body.position.y = 0.36;
     body.castShadow = true;
     body.receiveShadow = true;
     body.userData.buildingId = building.id;
 
-    const chimney = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.13, 0.16, 0.95, 12),
-      new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.86, metalness: 0.06 })
-    );
-    chimney.position.set(0.3, 0.95, -0.2);
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(1.22, 0.08, 0.98), accentMat);
+    roof.position.set(0, 0.74, 0);
+    roof.castShadow = true;
+    roof.receiveShadow = true;
+    roof.userData.buildingId = building.id;
+
+    const chimney = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.92, 12), pipeMat);
+    chimney.position.set(0.31, 0.95, -0.24);
     chimney.castShadow = true;
     chimney.receiveShadow = true;
     chimney.userData.buildingId = building.id;
 
+    const chimney2 = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.76, 12), pipeMat);
+    chimney2.position.set(-0.28, 0.85, 0.18);
+    chimney2.castShadow = true;
+    chimney2.receiveShadow = true;
+    chimney2.userData.buildingId = building.id;
+
+    const vent = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.16, 0.22), accentMat);
+    vent.position.set(-0.05, 0.84, -0.18);
+    vent.castShadow = true;
+    vent.receiveShadow = true;
+    vent.userData.buildingId = building.id;
+
     group.add(body);
+    group.add(roof);
     group.add(chimney);
-    this.selectableMeshes.set(building.id, [body, chimney]);
+    group.add(chimney2);
+    group.add(vent);
+    this.selectableMeshes.set(building.id, [body, roof, chimney, chimney2, vent]);
     return group;
   }
 
