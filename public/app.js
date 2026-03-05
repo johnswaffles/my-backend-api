@@ -122,7 +122,8 @@ const game = {
     accumulatorMs: 0,
     lastAction: 'Idle',
     actions: 0,
-    profile: 'balanced'
+    profile: 'balanced',
+    followCamera: false
   },
   undoStack: [],
   redoStack: [],
@@ -359,6 +360,55 @@ function buildServiceSprites() {
     sctx.fillRect(12, 16, 8, 4);
     sctx.fillStyle = 'rgba(0,0,0,0.24)';
     sctx.fillRect(0, 27, 32, 5);
+  });
+}
+
+function tryLoadImage(url, onLoad) {
+  const img = new Image();
+  img.onload = () => onLoad(img);
+  img.onerror = () => {};
+  img.src = url;
+}
+
+function tryLoadExternalSprites() {
+  const terrainMap = {
+    grass: '/assets/terrain_grass.png',
+    forest: '/assets/terrain_forest.png',
+    hill: '/assets/terrain_hill.png',
+    water0: '/assets/terrain_water0.png',
+    water1: '/assets/terrain_water1.png'
+  };
+
+  Object.entries(terrainMap).forEach(([key, url]) => {
+    tryLoadImage(url, (img) => {
+      sprites.terrain[key] = img;
+      game.mapNeedsMinimapRefresh = true;
+    });
+  });
+
+  for (let mask = 0; mask < 16; mask += 1) {
+    tryLoadImage(`/assets/road_${mask}.png`, (img) => {
+      sprites.road[mask] = img;
+      game.mapNeedsMinimapRefresh = true;
+    });
+  }
+
+  const zoneTypes = ['res', 'com', 'ind'];
+  zoneTypes.forEach((zoneType) => {
+    for (let level = 0; level < 4; level += 1) {
+      tryLoadImage(`/assets/${zoneType}_${level}.png`, (img) => {
+        sprites.zone[zoneType][level] = img;
+        game.mapNeedsMinimapRefresh = true;
+      });
+    }
+  });
+
+  const serviceTypes = ['powerplant', 'park', 'school', 'police'];
+  serviceTypes.forEach((service) => {
+    tryLoadImage(`/assets/service_${service}.png`, (img) => {
+      sprites.service[service] = img;
+      game.mapNeedsMinimapRefresh = true;
+    });
   });
 }
 
@@ -713,7 +763,9 @@ function aiApply(tool, target, brush = 1, message = 'Action') {
   game.brushSize = prevBrush;
   game.aiAgent.lastAction = message;
   game.aiAgent.actions += 1;
-  focusCameraOn(target.x, target.y);
+  if (game.aiAgent.followCamera) {
+    focusCameraOn(target.x, target.y);
+  }
   syncToolHighlights();
   return true;
 }
@@ -1282,6 +1334,9 @@ function syncToolHighlights() {
   aiBtn.classList.toggle('active', game.aiAgent.enabled);
   aiBtn.classList.toggle('ai-on', game.aiAgent.enabled);
   aiBtn.textContent = game.aiAgent.enabled ? 'AI Autoplay: On' : 'AI Autoplay: Off';
+  const followBtn = document.getElementById('aiFollowBtn');
+  followBtn.classList.toggle('active', game.aiAgent.followCamera);
+  followBtn.textContent = game.aiAgent.followCamera ? 'Follow AI Cam: On' : 'Follow AI Cam: Off';
 }
 
 function renderStats() {
@@ -1307,10 +1362,11 @@ function renderStats() {
     <div><strong>Mode:</strong> ${game.selectedTool}</div>
     <div><strong>Agent:</strong> ${game.aiAgent.enabled ? 'Active' : 'Off'}</div>
     <div><strong>Style:</strong> ${(AI_PROFILES[game.aiAgent.profile] || AI_PROFILES.balanced).label}</div>
+    <div><strong>AI Camera:</strong> ${game.aiAgent.followCamera ? 'Follow' : 'Locked'}</div>
   `;
 
   document.getElementById('aiAgentStatus').textContent = game.aiAgent.enabled
-    ? `Active (${(AI_PROFILES[game.aiAgent.profile] || AI_PROFILES.balanced).label})\nLast: ${game.aiAgent.lastAction}\nActions: ${game.aiAgent.actions}`
+    ? `Active (${(AI_PROFILES[game.aiAgent.profile] || AI_PROFILES.balanced).label})\nCamera: ${game.aiAgent.followCamera ? 'Following AI' : 'Static'}\nLast: ${game.aiAgent.lastAction}\nActions: ${game.aiAgent.actions}`
     : 'Autoplay disabled.';
 }
 
@@ -1354,7 +1410,8 @@ function worldToSave() {
       accumulatorMs: game.aiAgent.accumulatorMs,
       lastAction: game.aiAgent.lastAction,
       actions: game.aiAgent.actions,
-      profile: game.aiAgent.profile
+      profile: game.aiAgent.profile,
+      followCamera: game.aiAgent.followCamera
     },
     world: game.world
   };
@@ -1376,8 +1433,16 @@ function loadFromSave(payload) {
   game.selectedTool = payload.selectedTool ?? 'road';
   game.overlay = payload.overlay ?? 'none';
   game.camera = payload.camera ?? { x: 0, y: 0, zoom: 1 };
-  game.aiAgent = payload.aiAgent ?? { enabled: false, accumulatorMs: 0, lastAction: 'Idle', actions: 0, profile: 'balanced' };
+  game.aiAgent = payload.aiAgent ?? {
+    enabled: false,
+    accumulatorMs: 0,
+    lastAction: 'Idle',
+    actions: 0,
+    profile: 'balanced',
+    followCamera: false
+  };
   if (!AI_PROFILES[game.aiAgent.profile]) game.aiAgent.profile = 'balanced';
+  if (typeof game.aiAgent.followCamera !== 'boolean') game.aiAgent.followCamera = false;
   game.aiAgent.accumulatorMs = 0;
   game.world = payload.world;
   game.mapNeedsMinimapRefresh = true;
@@ -1546,6 +1611,11 @@ function initInteractions() {
       if (game.aiAgent.enabled) game.aiAgent.lastAction = 'Autoplay engaged';
       syncToolHighlights();
     }
+
+    if (event.key.toLowerCase() === 'f') {
+      game.aiAgent.followCamera = !game.aiAgent.followCamera;
+      syncToolHighlights();
+    }
   });
 }
 
@@ -1635,6 +1705,11 @@ function initUI() {
     syncToolHighlights();
   });
 
+  document.getElementById('aiFollowBtn').addEventListener('click', () => {
+    game.aiAgent.followCamera = !game.aiAgent.followCamera;
+    syncToolHighlights();
+  });
+
   document.querySelectorAll('.ai-profile').forEach((button) => {
     button.addEventListener('click', () => {
       game.aiAgent.profile = button.dataset.profile;
@@ -1708,6 +1783,7 @@ function frame(timestamp) {
 
 function boot() {
   buildSprites();
+  tryLoadExternalSprites();
 
   const autosave = localStorage.getItem('skylineProtocolAutosave');
   if (autosave) {
