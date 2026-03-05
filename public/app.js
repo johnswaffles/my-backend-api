@@ -3,10 +3,10 @@ const ctx = canvas.getContext('2d');
 const minimap = document.getElementById('minimap');
 const mctx = minimap.getContext('2d');
 
-const COLS = 96;
-const ROWS = 64;
-const BASE_TILE = 24;
-const SPRITE_SIZE = 32;
+const COLS = 48;
+const ROWS = 34;
+const BASE_TILE = 40;
+const SPRITE_SIZE = 128;
 
 const TERRAIN_TOOLS = [
   { id: 'grass', label: 'Grass' },
@@ -170,106 +170,116 @@ function buildSprites() {
   buildServiceSprites();
 }
 
-function paintPixelNoise(sctx, count, baseColor, alpha = 0.18) {
-  sctx.fillStyle = baseColor;
+function paintTextureDots(sctx, count, color, size = 2, alpha = 0.2) {
+  sctx.fillStyle = color;
+  sctx.globalAlpha = alpha;
   for (let i = 0; i < count; i += 1) {
     const x = Math.floor(Math.random() * SPRITE_SIZE);
     const y = Math.floor(Math.random() * SPRITE_SIZE);
-    const size = Math.random() > 0.82 ? 2 : 1;
-    sctx.globalAlpha = alpha;
-    sctx.fillRect(x, y, size, size);
+    sctx.beginPath();
+    sctx.arc(x, y, size * (0.35 + Math.random() * 0.8), 0, Math.PI * 2);
+    sctx.fill();
   }
   sctx.globalAlpha = 1;
 }
 
+function paintBaseGradient(sctx, top, bottom) {
+  const grad = sctx.createLinearGradient(0, 0, 0, SPRITE_SIZE);
+  grad.addColorStop(0, top);
+  grad.addColorStop(1, bottom);
+  sctx.fillStyle = grad;
+  sctx.fillRect(0, 0, SPRITE_SIZE, SPRITE_SIZE);
+}
+
 function buildTerrainSprites() {
   sprites.terrain.grass = makeSprite((sctx) => {
-    sctx.fillStyle = '#7acb5f';
-    sctx.fillRect(0, 0, SPRITE_SIZE, SPRITE_SIZE);
-    paintPixelNoise(sctx, 65, '#9fe07b', 0.22);
-    paintPixelNoise(sctx, 45, '#5ea84f', 0.2);
+    paintBaseGradient(sctx, '#9adf7f', '#61b058');
+    paintTextureDots(sctx, 240, '#a9e695', 2.4, 0.2);
+    paintTextureDots(sctx, 170, '#4b9344', 2.1, 0.16);
   });
 
   sprites.terrain.water0 = makeSprite((sctx) => {
-    sctx.fillStyle = '#3f8de4';
-    sctx.fillRect(0, 0, SPRITE_SIZE, SPRITE_SIZE);
-    sctx.strokeStyle = 'rgba(170,220,255,0.35)';
-    sctx.lineWidth = 2;
-    for (let i = 0; i < 4; i += 1) {
-      const y = 5 + i * 7;
+    paintBaseGradient(sctx, '#63b7ff', '#2e76c6');
+    sctx.strokeStyle = 'rgba(223,244,255,0.35)';
+    sctx.lineWidth = 3;
+    for (let i = 0; i < 7; i += 1) {
+      const y = 12 + i * 16;
       sctx.beginPath();
-      sctx.moveTo(2, y);
-      sctx.quadraticCurveTo(12, y - 2, 22, y);
-      sctx.quadraticCurveTo(28, y + 1, 30, y);
+      sctx.moveTo(4, y);
+      sctx.quadraticCurveTo(SPRITE_SIZE * 0.3, y - 5, SPRITE_SIZE * 0.6, y);
+      sctx.quadraticCurveTo(SPRITE_SIZE * 0.82, y + 4, SPRITE_SIZE - 5, y);
       sctx.stroke();
     }
   });
 
   sprites.terrain.water1 = makeSprite((sctx) => {
-    sctx.fillStyle = '#3a86d8';
-    sctx.fillRect(0, 0, SPRITE_SIZE, SPRITE_SIZE);
-    sctx.strokeStyle = 'rgba(190,232,255,0.35)';
-    sctx.lineWidth = 2;
-    for (let i = 0; i < 4; i += 1) {
-      const y = 4 + i * 7;
+    paintBaseGradient(sctx, '#59b0f7', '#2b6eb8');
+    sctx.strokeStyle = 'rgba(237,250,255,0.34)';
+    sctx.lineWidth = 3;
+    for (let i = 0; i < 7; i += 1) {
+      const y = 11 + i * 16;
       sctx.beginPath();
-      sctx.moveTo(2, y);
-      sctx.quadraticCurveTo(9, y + 2, 18, y);
-      sctx.quadraticCurveTo(24, y - 2, 30, y);
+      sctx.moveTo(3, y);
+      sctx.quadraticCurveTo(SPRITE_SIZE * 0.2, y + 4, SPRITE_SIZE * 0.46, y);
+      sctx.quadraticCurveTo(SPRITE_SIZE * 0.74, y - 5, SPRITE_SIZE - 4, y);
       sctx.stroke();
     }
   });
 
   sprites.terrain.forest = makeSprite((sctx) => {
-    sctx.fillStyle = '#3f9e4f';
-    sctx.fillRect(0, 0, SPRITE_SIZE, SPRITE_SIZE);
-    paintPixelNoise(sctx, 45, '#2f8442', 0.26);
-    const trees = [
-      [8, 10, 5], [18, 11, 5], [12, 20, 6], [23, 20, 4]
-    ];
-    for (const [x, y, r] of trees) {
-      sctx.fillStyle = '#1f6c2a';
+    paintBaseGradient(sctx, '#6fbf66', '#4e9850');
+    for (let i = 0; i < 9; i += 1) {
+      const x = 18 + (i % 3) * 34 + Math.random() * 8;
+      const y = 20 + Math.floor(i / 3) * 34 + Math.random() * 8;
+      sctx.fillStyle = '#2d6f35';
       sctx.beginPath();
-      sctx.arc(x, y, r, 0, Math.PI * 2);
+      sctx.arc(x, y, 14 + Math.random() * 8, 0, Math.PI * 2);
       sctx.fill();
-      sctx.fillStyle = '#2f8442';
+      sctx.fillStyle = 'rgba(110,188,108,0.55)';
       sctx.beginPath();
-      sctx.arc(x - 1, y - 1, Math.max(2, r - 2), 0, Math.PI * 2);
+      sctx.arc(x - 4, y - 4, 8 + Math.random() * 6, 0, Math.PI * 2);
       sctx.fill();
     }
   });
 
   sprites.terrain.hill = makeSprite((sctx) => {
-    sctx.fillStyle = '#7f9e55';
+    paintBaseGradient(sctx, '#a9bf7a', '#6f8f4d');
+    const ridge = sctx.createLinearGradient(0, 0, SPRITE_SIZE, SPRITE_SIZE);
+    ridge.addColorStop(0, 'rgba(255,255,255,0.22)');
+    ridge.addColorStop(1, 'rgba(0,0,0,0.22)');
+    sctx.fillStyle = ridge;
     sctx.fillRect(0, 0, SPRITE_SIZE, SPRITE_SIZE);
-    sctx.fillStyle = 'rgba(255,255,255,0.16)';
-    sctx.fillRect(0, 0, SPRITE_SIZE, 8);
-    sctx.fillStyle = 'rgba(0,0,0,0.22)';
-    sctx.fillRect(0, 22, SPRITE_SIZE, 10);
-    paintPixelNoise(sctx, 35, '#95b86a', 0.2);
+    paintTextureDots(sctx, 120, '#8aa55e', 2.6, 0.2);
   });
 }
 
 function buildRoadSprites() {
   for (let mask = 0; mask < 16; mask += 1) {
     sprites.road[mask] = makeSprite((sctx) => {
-      sctx.fillStyle = '#686868';
-      sctx.fillRect(0, 0, SPRITE_SIZE, SPRITE_SIZE);
-      sctx.fillStyle = 'rgba(255,255,255,0.06)';
-      sctx.fillRect(0, 0, SPRITE_SIZE, 4);
-      sctx.strokeStyle = 'rgba(0,0,0,0.26)';
-      sctx.strokeRect(0.5, 0.5, SPRITE_SIZE - 1, SPRITE_SIZE - 1);
-
+      sctx.clearRect(0, 0, SPRITE_SIZE, SPRITE_SIZE);
+      const laneW = 18;
       const cx = SPRITE_SIZE / 2;
       const cy = SPRITE_SIZE / 2;
-      sctx.strokeStyle = 'rgba(245,245,245,0.55)';
-      sctx.lineWidth = 2;
+
+      sctx.fillStyle = '#7b7b7b';
       sctx.beginPath();
-      if (mask & 1) { sctx.moveTo(cx, cy); sctx.lineTo(cx, 0); }
+      sctx.arc(cx, cy, laneW, 0, Math.PI * 2);
+      sctx.fill();
+      if (mask & 1) sctx.fillRect(cx - laneW, 0, laneW * 2, cy);
+      if (mask & 2) sctx.fillRect(cx, cy - laneW, SPRITE_SIZE - cx, laneW * 2);
+      if (mask & 4) sctx.fillRect(cx - laneW, cy, laneW * 2, SPRITE_SIZE - cy);
+      if (mask & 8) sctx.fillRect(0, cy - laneW, cx, laneW * 2);
+      if (mask === 0) sctx.fillRect(cx - laneW, 0, laneW * 2, SPRITE_SIZE);
+
+      sctx.fillStyle = 'rgba(255,255,255,0.11)';
+      sctx.fillRect(0, 0, SPRITE_SIZE, 10);
+      sctx.strokeStyle = 'rgba(255,255,255,0.28)';
+      sctx.lineWidth = 3;
+      sctx.beginPath();
+      if (mask & 1 || mask === 0) { sctx.moveTo(cx, cy); sctx.lineTo(cx, 0); }
       if (mask & 2) { sctx.moveTo(cx, cy); sctx.lineTo(SPRITE_SIZE, cy); }
-      if (mask & 4) { sctx.moveTo(cx, cy); sctx.lineTo(cx, SPRITE_SIZE); }
+      if (mask & 4 || mask === 0) { sctx.moveTo(cx, cy); sctx.lineTo(cx, SPRITE_SIZE); }
       if (mask & 8) { sctx.moveTo(cx, cy); sctx.lineTo(0, cy); }
-      if (mask === 0) { sctx.moveTo(cx, 4); sctx.lineTo(cx, SPRITE_SIZE - 4); }
       sctx.stroke();
     });
   }
@@ -277,37 +287,45 @@ function buildRoadSprites() {
 
 function buildZoneSprites() {
   const zoneDefs = [
-    ['res', '#73ccff', '#d5f2ff'],
-    ['com', '#ffd361', '#fff0b5'],
-    ['ind', '#d98360', '#f0c2ad']
+    ['res', '#79cfff', '#e8f6ff'],
+    ['com', '#ffd87c', '#fff1c8'],
+    ['ind', '#d78c6a', '#f2c8b5']
   ];
 
   for (const [zoneKey, base, tint] of zoneDefs) {
     for (let level = 0; level < 4; level += 1) {
       sprites.zone[zoneKey][level] = makeSprite((sctx) => {
         sctx.clearRect(0, 0, SPRITE_SIZE, SPRITE_SIZE);
-        const width = 12 + level * 4;
-        const height = 10 + level * 5;
+        const width = 44 + level * 12;
+        const height = 34 + level * 20;
         const bx = Math.floor((SPRITE_SIZE - width) / 2);
-        const by = SPRITE_SIZE - height - 3;
+        const by = SPRITE_SIZE - height - 10;
 
-        sctx.fillStyle = 'rgba(0,0,0,0.25)';
-        sctx.fillRect(bx + 2, by + height, width - 3, 2);
+        sctx.fillStyle = 'rgba(0,0,0,0.24)';
+        sctx.fillRect(bx + 4, by + height, width - 8, 7);
 
-        sctx.fillStyle = base;
+        const wall = sctx.createLinearGradient(0, by, 0, by + height);
+        wall.addColorStop(0, tint);
+        wall.addColorStop(1, base);
+        sctx.fillStyle = wall;
         sctx.fillRect(bx, by, width, height);
-        sctx.fillStyle = tint;
-        sctx.fillRect(bx, by, width, 3);
+
+        sctx.fillStyle = 'rgba(255,255,255,0.35)';
+        sctx.fillRect(bx, by, width, 7);
+        sctx.fillStyle = 'rgba(0,0,0,0.14)';
+        sctx.fillRect(bx, by + height - 5, width, 5);
 
         if (zoneKey !== 'ind') {
-          sctx.fillStyle = 'rgba(255,255,255,0.35)';
-          for (let y = by + 5; y < by + height - 2; y += 5) {
-            sctx.fillRect(bx + 2, y, 2, 2);
-            sctx.fillRect(bx + width - 5, y, 2, 2);
+          sctx.fillStyle = 'rgba(255,255,255,0.38)';
+          for (let wy = by + 11; wy < by + height - 9; wy += 10) {
+            sctx.fillRect(bx + 8, wy, 7, 5);
+            sctx.fillRect(bx + width - 15, wy, 7, 5);
           }
         } else {
-          sctx.fillStyle = '#b56a4a';
-          sctx.fillRect(bx + width - 4, by - 4, 3, 5);
+          sctx.fillStyle = '#91543f';
+          sctx.fillRect(bx + width - 14, by - 10, 8, 12);
+          sctx.fillStyle = 'rgba(255,255,255,0.18)';
+          sctx.fillRect(bx + width - 14, by - 10, 8, 3);
         }
       });
     }
@@ -316,50 +334,52 @@ function buildZoneSprites() {
 
 function buildServiceSprites() {
   sprites.service.powerplant = makeSprite((sctx) => {
-    sctx.fillStyle = '#9f5f4c';
-    sctx.fillRect(4, 11, 24, 17);
-    sctx.fillStyle = '#7f4635';
-    sctx.fillRect(21, 4, 5, 10);
+    sctx.fillStyle = '#b26c55';
+    sctx.fillRect(18, 40, 92, 68);
+    sctx.fillStyle = '#8f523f';
+    sctx.fillRect(84, 18, 18, 34);
     sctx.fillStyle = 'rgba(255,255,255,0.28)';
-    sctx.fillRect(6, 13, 20, 3);
-    sctx.fillStyle = 'rgba(0,0,0,0.22)';
-    sctx.fillRect(0, 28, 32, 4);
+    sctx.fillRect(18, 40, 92, 8);
+    sctx.fillStyle = 'rgba(0,0,0,0.25)';
+    sctx.fillRect(8, 108, 110, 9);
   });
 
   sprites.service.park = makeSprite((sctx) => {
-    sctx.fillStyle = '#4ebb6e';
-    sctx.fillRect(0, 0, SPRITE_SIZE, SPRITE_SIZE);
-    sctx.fillStyle = '#2f8442';
-    sctx.beginPath();
-    sctx.arc(10, 12, 6, 0, Math.PI * 2);
-    sctx.arc(22, 17, 7, 0, Math.PI * 2);
-    sctx.fill();
-    sctx.fillStyle = '#b68c5d';
-    sctx.fillRect(8, 23, 16, 3);
+    paintBaseGradient(sctx, '#83d68b', '#59b672');
+    for (let i = 0; i < 6; i += 1) {
+      const x = 18 + i * 17;
+      const y = 28 + (i % 2) * 20;
+      sctx.fillStyle = '#2f8442';
+      sctx.beginPath();
+      sctx.arc(x, y, 11, 0, Math.PI * 2);
+      sctx.fill();
+    }
+    sctx.fillStyle = '#c09a6a';
+    sctx.fillRect(16, 84, 96, 8);
   });
 
   sprites.service.school = makeSprite((sctx) => {
-    sctx.fillStyle = '#7584f1';
-    sctx.fillRect(5, 10, 22, 16);
-    sctx.fillStyle = '#dce1ff';
-    sctx.fillRect(5, 10, 22, 3);
+    sctx.fillStyle = '#8d9bfa';
+    sctx.fillRect(18, 38, 92, 68);
+    sctx.fillStyle = '#e9edff';
+    sctx.fillRect(18, 38, 92, 8);
     sctx.fillStyle = '#ffffff';
-    sctx.fillRect(9, 16, 4, 4);
-    sctx.fillRect(18, 16, 4, 4);
+    sctx.fillRect(34, 58, 14, 14);
+    sctx.fillRect(78, 58, 14, 14);
     sctx.fillStyle = 'rgba(0,0,0,0.24)';
-    sctx.fillRect(0, 27, 32, 5);
+    sctx.fillRect(8, 106, 110, 10);
   });
 
   sprites.service.police = makeSprite((sctx) => {
-    sctx.fillStyle = '#8f66e6';
-    sctx.fillRect(5, 10, 22, 16);
-    sctx.fillStyle = '#d8cbff';
-    sctx.fillRect(5, 10, 22, 3);
-    sctx.fillStyle = '#f5f5f5';
-    sctx.fillRect(14, 14, 4, 8);
-    sctx.fillRect(12, 16, 8, 4);
+    sctx.fillStyle = '#a082f0';
+    sctx.fillRect(18, 38, 92, 68);
+    sctx.fillStyle = '#e5dcff';
+    sctx.fillRect(18, 38, 92, 8);
+    sctx.fillStyle = '#f2f2f2';
+    sctx.fillRect(56, 56, 16, 32);
+    sctx.fillRect(48, 64, 32, 16);
     sctx.fillStyle = 'rgba(0,0,0,0.24)';
-    sctx.fillRect(0, 27, 32, 5);
+    sctx.fillRect(8, 106, 110, 10);
   });
 }
 
