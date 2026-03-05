@@ -167,14 +167,14 @@ export class InputController {
     const d = state.demand;
 
     if (d.power >= 60) types.push('powerPlant', 'powerPlant');
-    if (d.roads >= 45 || roads < 4) types.push('road', 'road');
+    if (d.roads >= 40 || roads < 6) types.push('road', 'road', 'road');
     if (d.housing >= 45) types.push('house', 'house');
     if (d.commerce >= 45) types.push('shop', 'restaurant');
     if (d.recreation >= 45) types.push('park');
     if (d.jobs >= 45) types.push('workshop', 'shop');
 
     if (!types.length) {
-      types.push('house', 'shop', 'park', 'road');
+      types.push('house', 'shop', 'park', 'road', 'road');
     }
 
     const sorted = [...types].sort((a, b) => this.typePriorityScore(b) - this.typePriorityScore(a));
@@ -211,7 +211,7 @@ export class InputController {
 
     let best: { x: number; z: number; score: number } | null = null;
 
-    for (let i = 0; i < 260; i += 1) {
+    for (let i = 0; i < 320; i += 1) {
       const radius = Math.min(19, 3 + Math.floor(i / 8));
       const x = center + Math.floor((Math.random() * 2 - 1) * radius);
       const z = center + Math.floor((Math.random() * 2 - 1) * radius);
@@ -219,7 +219,8 @@ export class InputController {
       if (occupied.has(`${x}:${z}`)) continue;
       if (!canPlaceBuilding(state, type, x, z)) continue;
 
-      const nearRoad = roads.filter((b) => Math.abs(b.x - x) + Math.abs(b.z - z) <= 1).length;
+      const nearRoadCells = roads.filter((b) => Math.abs(b.x - x) + Math.abs(b.z - z) <= 1);
+      const nearRoad = nearRoadCells.length;
       const nearHouses = houses.filter((b) => Math.abs(b.x - x) + Math.abs(b.z - z) <= 3).length;
       const nearCommerce = commerce.filter((b) => Math.abs(b.x - x) + Math.abs(b.z - z) <= 3).length;
       const nearParks = parks.filter((b) => Math.abs(b.x - x) + Math.abs(b.z - z) <= 3).length;
@@ -227,15 +228,24 @@ export class InputController {
       const distCenter = Math.abs(x - center) + Math.abs(z - center);
       const tile = state.tiles[z * state.gridSize + x];
 
-      let score = Math.random() * 0.25;
+      let score = Math.random() * 0.12;
       if (type === 'road') {
-        score += nearHouses * 2.6 + nearCommerce * 2.1 + nearRoad * 1.7 - distCenter * 0.04;
+        const roadGraph = this.roadPlacementScore(x, z);
+        score +=
+          nearHouses * 2.4 +
+          nearCommerce * 2.0 +
+          roadGraph.connectivity +
+          roadGraph.straightness +
+          roadGraph.frontier +
+          roadGraph.lotPotential -
+          roadGraph.junkPenalty -
+          distCenter * 0.032;
       } else if (type === 'house') {
-        score += nearRoad * 4.2 + nearParks * 1.5 + nearCommerce * 0.9 - nearIndustry * 2.6 - distCenter * 0.03;
+        score += nearRoad * 5.2 + nearParks * 1.4 + nearCommerce * 0.9 - nearIndustry * 2.6 - distCenter * 0.028;
       } else if (type === 'shop') {
-        score += nearRoad * 3.1 + nearHouses * 1.8 + nearCommerce * 0.7 - nearIndustry * 0.8;
+        score += nearRoad * 3.6 + nearHouses * 1.9 + nearCommerce * 0.7 - nearIndustry * 0.8;
       } else if (type === 'restaurant') {
-        score += nearRoad * 2.7 + nearHouses * 1.6 + nearParks * 1.2 - nearIndustry * 1.2;
+        score += nearRoad * 3.2 + nearHouses * 1.6 + nearParks * 1.2 - nearIndustry * 1.2;
       } else if (type === 'park') {
         score += nearHouses * 2.4 + nearRoad * 1.4 + tile.tint * 1.2 - nearIndustry * 1.8;
       } else if (type === 'workshop') {
@@ -264,7 +274,13 @@ export class InputController {
       let score = 0;
       if (b.type === 'road') {
         const roadNeighbors = roads.filter((r) => Math.abs(r.x - b.x) + Math.abs(r.z - b.z) === 1).length;
-        score += roadNeighbors === 0 ? 6 : roadNeighbors === 1 ? 2 : -2;
+        score += roadNeighbors === 0 ? 7.5 : roadNeighbors === 1 ? 2.2 : -2.2;
+        const nearDeveloped = state.buildings.filter(
+          (o) =>
+            o.type !== 'road' &&
+            (Math.abs(o.x - b.x) + Math.abs(o.z - b.z) <= 2)
+        ).length;
+        if (nearDeveloped === 0 && roadNeighbors <= 1) score += 2.6;
       }
 
       if (b.type === 'powerPlant') {
@@ -288,6 +304,65 @@ export class InputController {
 
     if (!best || best.score < 3.5) return null;
     return { action: 'bulldoze', x: best.x, z: best.z };
+  }
+
+  private roadPlacementScore(x: number, z: number): {
+    connectivity: number;
+    straightness: number;
+    frontier: number;
+    lotPotential: number;
+    junkPenalty: number;
+  } {
+    const state = gameStore.getState();
+    const isRoadAt = (tx: number, tz: number) =>
+      state.buildings.some((b) => b.type === 'road' && b.x === tx && b.z === tz);
+
+    const n = isRoadAt(x, z - 1);
+    const e = isRoadAt(x + 1, z);
+    const s = isRoadAt(x, z + 1);
+    const w = isRoadAt(x - 1, z);
+    const neighbors = Number(n) + Number(e) + Number(s) + Number(w);
+
+    let connectivity = 0;
+    if (neighbors === 1) connectivity += 4.2; // extend endpoint
+    if (neighbors === 2) connectivity += 2.6; // continue a line/corner
+    if (neighbors === 3) connectivity += 0.6; // T junction
+    if (neighbors === 4) connectivity -= 0.4; // avoid too many 4-ways
+
+    let straightness = 0;
+    if ((n && s) || (e && w)) straightness += 2.2; // prefer straight street segments
+    if ((n && e) || (e && s) || (s && w) || (w && n)) straightness += 0.7;
+
+    // Reward roads that create buildable frontage.
+    let lotPotential = 0;
+    const around: Array<[number, number]> = [
+      [x + 1, z],
+      [x - 1, z],
+      [x, z + 1],
+      [x, z - 1]
+    ];
+    for (const [tx, tz] of around) {
+      if (tx < 0 || tz < 0 || tx >= state.gridSize || tz >= state.gridSize) continue;
+      const occupied = state.buildings.some((b) => b.x === tx && b.z === tz);
+      if (!occupied) lotPotential += 0.8;
+    }
+
+    // Encourage outward growth but not far-away spam roads.
+    const center = Math.floor(state.gridSize / 2);
+    const dist = Math.abs(x - center) + Math.abs(z - center);
+    const frontier = Math.max(0, Math.min(2.2, dist * 0.06));
+
+    // Penalize isolated roads or pointless micro-jogs.
+    let junkPenalty = 0;
+    if (neighbors === 0) junkPenalty += 3.6;
+    if (neighbors === 2 && ((n && e) || (e && s) || (s && w) || (w && n))) {
+      const nearbyRoads = state.buildings.filter(
+        (b) => b.type === 'road' && Math.abs(b.x - x) + Math.abs(b.z - z) <= 2
+      ).length;
+      if (nearbyRoads < 3) junkPenalty += 1.5;
+    }
+
+    return { connectivity, straightness, frontier, lotPotential, junkPenalty };
   }
 
   private readonly onContextMenu = (event: MouseEvent): void => {
