@@ -131,6 +131,7 @@ export class InputController {
       const removed = bulldozeAt(decision.x, decision.z);
       if (removed) {
         this.renderer.playRemovalPulse(decision.x, decision.z);
+        this.renderer.focusOnCell(decision.x, decision.z, 0.36);
         this.sfx.beep(190, 0.08, 'sawtooth', 0.025);
         setAiLastAction(`Bulldozed ${removed.type} at (${decision.x}, ${decision.z})`);
       } else {
@@ -143,6 +144,7 @@ export class InputController {
     const placed = placeBuildingAt(decision.type, decision.x, decision.z);
     if (placed) {
       this.renderer.playPlacementPulse(placed.x, placed.z);
+      this.renderer.focusOnCell(placed.x, placed.z, 0.32);
       this.sfx.beep(420, 0.07, 'triangle', 0.026);
       setAiLastAction(`Placed ${decision.type} at (${decision.x}, ${decision.z})`);
     } else {
@@ -434,7 +436,9 @@ export class InputController {
 
   private readonly onWheel = (event: WheelEvent): void => {
     event.preventDefault();
-    this.renderer.zoomBy(event.deltaY * 0.012);
+    this.renderer.setPointerFromClient(event.clientX, event.clientY);
+    const focus = this.renderer.pickGridCell();
+    this.renderer.zoomBy(event.deltaY * 0.012, focus ?? undefined);
   };
 
   private readonly onLeave = (): void => {

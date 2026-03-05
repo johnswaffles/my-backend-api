@@ -224,10 +224,30 @@ export class GameRenderer {
   panBy(dx: number, dz: number): void {
     this.cameraDesired.x += dx;
     this.cameraDesired.z += dz;
+    this.clampCameraTarget();
   }
 
-  zoomBy(delta: number): void {
-    this.cameraDesired.distance = THREE.MathUtils.clamp(this.cameraDesired.distance + delta, 9, 45);
+  zoomBy(delta: number, focusCell?: { x: number; z: number }): void {
+    const previousDistance = this.cameraDesired.distance;
+    const nextDistance = THREE.MathUtils.clamp(this.cameraDesired.distance + delta, 9, 45);
+    this.cameraDesired.distance = nextDistance;
+
+    if (focusCell && previousDistance > 0) {
+      const state = gameStore.getState();
+      const focus = this.gridToWorld(focusCell.x, focusCell.z, state.gridSize);
+      const ratio = nextDistance / previousDistance;
+      this.cameraDesired.x = focus.x + (this.cameraDesired.x - focus.x) * ratio;
+      this.cameraDesired.z = focus.z + (this.cameraDesired.z - focus.z) * ratio;
+    }
+    this.clampCameraTarget();
+  }
+
+  focusOnCell(x: number, z: number, strength = 0.28): void {
+    const state = gameStore.getState();
+    const focus = this.gridToWorld(x, z, state.gridSize);
+    this.cameraDesired.x = THREE.MathUtils.lerp(this.cameraDesired.x, focus.x, strength);
+    this.cameraDesired.z = THREE.MathUtils.lerp(this.cameraDesired.z, focus.z, strength);
+    this.clampCameraTarget();
   }
 
   playPlacementPulse(x: number, z: number): void {
@@ -968,6 +988,14 @@ export class GameRenderer {
       x: x - half,
       z: z - half
     };
+  }
+
+  private clampCameraTarget(): void {
+    const state = gameStore.getState();
+    const half = (state.gridSize - 1) * 0.5;
+    const margin = 2.5;
+    this.cameraDesired.x = THREE.MathUtils.clamp(this.cameraDesired.x, -half - margin, half + margin);
+    this.cameraDesired.z = THREE.MathUtils.clamp(this.cameraDesired.z, -half - margin, half + margin);
   }
 
   private createGroundDecor(state: GameState): void {
