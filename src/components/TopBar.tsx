@@ -1,4 +1,4 @@
-import { cycleGameSpeed, toggleAiAutoplay } from '../game/actions';
+import { cycleGameSpeed, redoAction, toggleAiAutoplay, undoAction } from '../game/actions';
 
 interface TopBarProps {
   money: number;
@@ -9,6 +9,8 @@ interface TopBarProps {
   day: number;
   happiness: number;
   gameSpeed: 0 | 1 | 2;
+  undoCount: number;
+  redoCount: number;
   demand: {
     housing: number;
     roads: number;
@@ -54,6 +56,8 @@ export function TopBar({
   day,
   happiness,
   gameSpeed,
+  undoCount,
+  redoCount,
   demand,
   aiAutoplayEnabled,
   aiLastAction
@@ -69,6 +73,22 @@ export function TopBar({
           <div className="mt-1 max-w-[24rem] truncate text-xs text-cyan-100">AI: {aiLastAction}</div>
         </div>
         <div className="flex shrink-0 gap-2">
+          <button
+            type="button"
+            onClick={() => undoAction()}
+            disabled={undoCount === 0}
+            className="rounded-xl border border-slate-300/50 bg-slate-600/20 px-3 py-2 text-sm font-medium text-slate-100 transition enabled:hover:bg-slate-600/35 disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            Undo ({undoCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => redoAction()}
+            disabled={redoCount === 0}
+            className="rounded-xl border border-slate-300/50 bg-slate-600/20 px-3 py-2 text-sm font-medium text-slate-100 transition enabled:hover:bg-slate-600/35 disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            Redo ({redoCount})
+          </button>
           <button
             type="button"
             onClick={() => cycleGameSpeed()}

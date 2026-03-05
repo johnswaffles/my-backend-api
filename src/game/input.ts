@@ -3,11 +3,13 @@ import {
   canPlaceBuilding,
   cancelPlacement,
   placeBuildingAt,
+  redoAction,
   selectBuildingById,
   setAiLastAction,
   setPlacementMode,
   setHoverCell,
-  tickSimulation
+  tickSimulation,
+  undoAction
 } from './actions';
 import { gameStore } from './state';
 import type { BuildType } from './state';
@@ -16,6 +18,38 @@ import { GameRenderer } from './render';
 type AiAction =
   | { action: 'place'; type: BuildType; x: number; z: number }
   | { action: 'bulldoze'; x: number; z: number };
+
+class SoundFx {
+  private context: AudioContext | null = null;
+
+  unlock(): void {
+    if (this.context) return;
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx) return;
+    try {
+      this.context = new Ctx();
+    } catch {
+      this.context = null;
+    }
+  }
+
+  beep(frequency: number, duration = 0.06, type: OscillatorType = 'triangle', volume = 0.03): void {
+    if (!this.context) return;
+    const ctx = this.context;
+    const t = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(frequency, t);
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(volume, t + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(t);
+    osc.stop(t + duration);
+  }
+}
 
 export class InputController {
   private readonly renderer: GameRenderer;
@@ -29,6 +63,8 @@ export class InputController {
   private readonly keySet = new Set<string>();
 
   private aiAccumulator = 0;
+
+  private readonly sfx = new SoundFx();
 
   constructor(renderer: GameRenderer) {
     this.renderer = renderer;
@@ -94,9 +130,11 @@ export class InputController {
     if (decision.action === 'bulldoze') {
       const removed = bulldozeAt(decision.x, decision.z);
       if (removed) {
-        this.renderer.playPlacementPulse(decision.x, decision.z);
+        this.renderer.playRemovalPulse(decision.x, decision.z);
+        this.sfx.beep(190, 0.08, 'sawtooth', 0.025);
         setAiLastAction(`Bulldozed ${removed.type} at (${decision.x}, ${decision.z})`);
       } else {
+        this.sfx.beep(145, 0.04, 'square', 0.02);
         setAiLastAction('Bulldoze skipped (no valid target)');
       }
       return;
@@ -105,8 +143,10 @@ export class InputController {
     const placed = placeBuildingAt(decision.type, decision.x, decision.z);
     if (placed) {
       this.renderer.playPlacementPulse(placed.x, placed.z);
+      this.sfx.beep(420, 0.07, 'triangle', 0.026);
       setAiLastAction(`Placed ${decision.type} at (${decision.x}, ${decision.z})`);
     } else {
+      this.sfx.beep(145, 0.04, 'square', 0.02);
       setAiLastAction(`Skipped invalid placement (${decision.x}, ${decision.z})`);
     }
   }
@@ -223,9 +263,7 @@ export class InputController {
 
       let score = 0;
       if (b.type === 'road') {
-        const roadNeighbors = roads.filter(
-          (r) => Math.abs(r.x - b.x) + Math.abs(r.z - b.z) === 1
-        ).length;
+        const roadNeighbors = roads.filter((r) => Math.abs(r.x - b.x) + Math.abs(r.z - b.z) === 1).length;
         score += roadNeighbors === 0 ? 6 : roadNeighbors === 1 ? 2 : -2;
       }
 
@@ -258,6 +296,7 @@ export class InputController {
   };
 
   private readonly onPointerDown = (event: PointerEvent): void => {
+    this.sfx.unlock();
     this.renderer.setPointerFromClient(event.clientX, event.clientY);
 
     if (event.button === 1 || event.button === 2) {
@@ -279,6 +318,9 @@ export class InputController {
       const created = placeBuildingAt(state.placementMode, grid.x, grid.z);
       if (created) {
         this.renderer.playPlacementPulse(created.x, created.z);
+        this.sfx.beep(520, 0.075, 'triangle', 0.03);
+      } else {
+        this.sfx.beep(150, 0.05, 'square', 0.022);
       }
       return;
     }
@@ -286,6 +328,7 @@ export class InputController {
     const hitBuildingId = this.renderer.pickBuildingId();
     if (hitBuildingId != null) {
       selectBuildingById(hitBuildingId);
+      this.sfx.beep(300, 0.03, 'triangle', 0.02);
     } else {
       selectBuildingById(null);
     }
@@ -345,6 +388,19 @@ export class InputController {
     if (shortcutType) {
       const state = gameStore.getState();
       setPlacementMode(state.placementMode === shortcutType ? null : shortcutType);
+      this.sfx.beep(320, 0.04, 'triangle', 0.02);
+      return;
+    }
+
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+      event.preventDefault();
+      if (undoAction()) this.sfx.beep(210, 0.06, 'triangle', 0.025);
+      return;
+    }
+
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'y') {
+      event.preventDefault();
+      if (redoAction()) this.sfx.beep(360, 0.06, 'triangle', 0.025);
       return;
     }
 
@@ -353,7 +409,11 @@ export class InputController {
       if (selected != null) {
         const building = gameStore.getState().buildings.find((b) => b.id === selected);
         if (building) {
-          bulldozeAt(building.x, building.z);
+          const removed = bulldozeAt(building.x, building.z);
+          if (removed) {
+            this.renderer.playRemovalPulse(building.x, building.z);
+            this.sfx.beep(180, 0.08, 'sawtooth', 0.03);
+          }
         }
       }
       return;

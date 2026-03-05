@@ -40,6 +40,11 @@ export class GameRenderer {
     new THREE.MeshBasicMaterial({ color: 0x6ee7b7, transparent: true, opacity: 0 })
   );
 
+  private readonly removalPulse = new THREE.Mesh(
+    new THREE.RingGeometry(0.18, 0.38, 36),
+    new THREE.MeshBasicMaterial({ color: 0xfb7185, transparent: true, opacity: 0 })
+  );
+
   private readonly buildingRoot = new THREE.Group();
   private readonly decorRoot = new THREE.Group();
 
@@ -181,6 +186,9 @@ export class GameRenderer {
     this.placementPulse.rotation.x = -Math.PI / 2;
     this.placementPulse.position.y = 0.02;
     this.scene.add(this.placementPulse);
+    this.removalPulse.rotation.x = -Math.PI / 2;
+    this.removalPulse.position.y = 0.02;
+    this.scene.add(this.removalPulse);
 
     this.scene.add(this.buildingRoot);
 
@@ -229,6 +237,15 @@ export class GameRenderer {
     const mat = this.placementPulse.material as THREE.MeshBasicMaterial;
     mat.opacity = 0.7;
     this.placementPulse.scale.setScalar(0.45);
+  }
+
+  playRemovalPulse(x: number, z: number): void {
+    const state = gameStore.getState();
+    const world = this.gridToWorld(x, z, state.gridSize);
+    this.removalPulse.position.set(world.x, 0.036, world.z);
+    const mat = this.removalPulse.material as THREE.MeshBasicMaterial;
+    mat.opacity = 0.75;
+    this.removalPulse.scale.setScalar(0.4);
   }
 
   pickGridCell(): { x: number; z: number } | null {
@@ -298,6 +315,11 @@ export class GameRenderer {
     if (pulseMat.opacity > 0.01) {
       this.placementPulse.scale.multiplyScalar(1 + dt * 2.4);
       pulseMat.opacity *= 0.91;
+    }
+    const removalMat = this.removalPulse.material as THREE.MeshBasicMaterial;
+    if (removalMat.opacity > 0.01) {
+      this.removalPulse.scale.multiplyScalar(1 + dt * 2.1);
+      removalMat.opacity *= 0.9;
     }
 
     this.composer.render();

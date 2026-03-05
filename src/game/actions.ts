@@ -93,6 +93,53 @@ export const BUILDING_ECONOMY: Record<BuildType, BuildingEconomy> = {
   }
 };
 
+type StateSnapshot = Pick<
+  GameState,
+  'buildings' | 'selectedBuildingId' | 'resources' | 'happiness' | 'demand' | 'day' | 'simSeconds' | 'nextBuildingId'
+>;
+
+const MAX_HISTORY = 10;
+const undoStack: StateSnapshot[] = [];
+const redoStack: StateSnapshot[] = [];
+
+function cloneSnapshot(state: GameState): StateSnapshot {
+  return {
+    buildings: state.buildings.map((b) => ({ ...b })),
+    selectedBuildingId: state.selectedBuildingId,
+    resources: { ...state.resources },
+    happiness: state.happiness,
+    demand: { ...state.demand },
+    day: state.day,
+    simSeconds: state.simSeconds,
+    nextBuildingId: state.nextBuildingId
+  };
+}
+
+function stackCounts() {
+  return { undoCount: undoStack.length, redoCount: redoStack.length };
+}
+
+function pushUndo(state: GameState): void {
+  undoStack.push(cloneSnapshot(state));
+  if (undoStack.length > MAX_HISTORY) undoStack.shift();
+  redoStack.length = 0;
+}
+
+function applySnapshot(state: GameState, snapshot: StateSnapshot): GameState {
+  return {
+    ...state,
+    buildings: snapshot.buildings.map((b) => ({ ...b })),
+    selectedBuildingId: snapshot.selectedBuildingId,
+    resources: { ...snapshot.resources },
+    happiness: snapshot.happiness,
+    demand: { ...snapshot.demand },
+    day: snapshot.day,
+    simSeconds: snapshot.simSeconds,
+    nextBuildingId: snapshot.nextBuildingId,
+    ...stackCounts()
+  };
+}
+
 function buildingAt(state: GameState, x: number, z: number): Building | undefined {
   return state.buildings.find((b) => b.x === x && b.z === z);
 }
@@ -254,6 +301,24 @@ export function setPlacementMode(type: BuildType | null): void {
   }));
 }
 
+export function undoAction(): boolean {
+  const state = gameStore.getState();
+  const previous = undoStack.pop();
+  if (!previous) return false;
+  redoStack.push(cloneSnapshot(state));
+  gameStore.setState(applySnapshot(state, previous));
+  return true;
+}
+
+export function redoAction(): boolean {
+  const state = gameStore.getState();
+  const next = redoStack.pop();
+  if (!next) return false;
+  undoStack.push(cloneSnapshot(state));
+  gameStore.setState(applySnapshot(state, next));
+  return true;
+}
+
 export function cancelPlacement(): void {
   gameStore.update((state) => ({
     ...state,
@@ -334,6 +399,7 @@ export function placeBuildingAt(type: BuildType, x: number, z: number): Building
 
   gameStore.update((state) => {
     if (!canPlaceBuilding(state, type, x, z)) return state;
+    pushUndo(state);
 
     const newBuilding: Building = {
       id: state.nextBuildingId,
@@ -381,7 +447,8 @@ export function placeBuildingAt(type: BuildType, x: number, z: number): Building
         money: nextState.resources.money
       },
       happiness: derived.happiness,
-      demand: derived.demand
+      demand: derived.demand,
+      ...stackCounts()
     };
   });
 
@@ -393,6 +460,7 @@ export function bulldozeAt(x: number, z: number): Building | null {
   gameStore.update((state) => {
     const target = buildingAt(state, x, z);
     if (!target) return state;
+    pushUndo(state);
 
     removed = target;
     const refund = BUILDING_ECONOMY[target.type].cost * 0.45;
@@ -414,7 +482,8 @@ export function bulldozeAt(x: number, z: number): Building | null {
         money: Math.round(nextState.resources.money * 100) / 100
       },
       happiness: derived.happiness,
-      demand: derived.demand
+      demand: derived.demand,
+      ...stackCounts()
     };
   });
 

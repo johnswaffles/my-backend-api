@@ -51,6 +51,8 @@ export interface GameState {
   demand: Demand;
   gameSpeed: 0 | 1 | 2;
   simSeconds: number;
+  undoCount: number;
+  redoCount: number;
   nextBuildingId: number;
 }
 
@@ -103,6 +105,8 @@ export const initialGameState: GameState = {
   },
   gameSpeed: 1,
   simSeconds: 0,
+  undoCount: 0,
+  redoCount: 0,
   nextBuildingId: 1
 };
 

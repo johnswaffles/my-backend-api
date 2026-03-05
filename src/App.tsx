@@ -4,6 +4,7 @@ import { InfoPanel } from './components/InfoPanel';
 import { TopBar } from './components/TopBar';
 import { AiDirectorPanel } from './components/AiDirectorPanel';
 import { TownProgressPanel } from './components/TownProgressPanel';
+import { HoverTooltip } from './components/HoverTooltip';
 import { selectedBuilding } from './game/actions';
 import { InputController } from './game/input';
 import { GameRenderer } from './game/render';
@@ -48,6 +49,8 @@ export default function App(): JSX.Element {
         day={state.day}
         happiness={state.happiness}
         gameSpeed={state.gameSpeed}
+        undoCount={state.undoCount}
+        redoCount={state.redoCount}
         demand={state.demand}
         aiAutoplayEnabled={state.aiAutoplayEnabled}
         aiLastAction={state.aiLastAction}
@@ -57,6 +60,7 @@ export default function App(): JSX.Element {
       <InfoPanel building={selected} />
       <TownProgressPanel state={state} />
       <AiDirectorPanel state={state} />
+      <HoverTooltip state={state} />
     </div>
   );
 }
