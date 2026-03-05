@@ -1,5 +1,4 @@
-import { toggleAiAutoplay } from '../game/actions';
-import { cycleGameSpeed } from '../game/actions';
+import { cycleGameSpeed, toggleAiAutoplay } from '../game/actions';
 
 interface TopBarProps {
   money: number;
@@ -18,13 +17,28 @@ interface TopBarProps {
   aiLastAction: string;
 }
 
-function Stat({ label, value }: { label: string; value: string }): JSX.Element {
+function Stat({
+  label,
+  value,
+  valueClassName = ''
+}: {
+  label: string;
+  value: string;
+  valueClassName?: string;
+}): JSX.Element {
   return (
-    <div className="panel-glass rounded-xl px-4 py-2 shadow-glow">
+    <div className="panel-glass min-w-[10.25rem] whitespace-nowrap rounded-xl px-4 py-2 shadow-glow">
       <div className="text-[10px] uppercase tracking-[0.18em] text-slate-300">{label}</div>
-      <div className="text-lg font-semibold text-white">{value}</div>
+      <div className={`text-lg font-semibold text-white ${valueClassName}`}>{value}</div>
     </div>
   );
+}
+
+function formatMoney(value: number): string {
+  return `$${value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`;
 }
 
 export function TopBar({
@@ -67,7 +81,11 @@ export function TopBar({
         >
           {aiAutoplayEnabled ? 'AI Auto: ON' : 'AI Auto: OFF'}
         </button>
-        <Stat label="Money" value={`$${money.toLocaleString()}`} />
+        <Stat
+          label="Money"
+          value={formatMoney(money)}
+          valueClassName="min-w-[10ch] pr-2 text-right tabular-nums"
+        />
         <Stat label="Population" value={population.toLocaleString()} />
         <Stat label="Power" value={`${powerUsed}/${powerProduced} (${net >= 0 ? '+' : ''}${net})`} />
         <Stat label="Demand" value={`H ${demand.housing} | R ${demand.roads} | P ${demand.power}`} />

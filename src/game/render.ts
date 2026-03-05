@@ -522,43 +522,62 @@ export class GameRenderer {
 
     if (building.type === 'house') {
       const group = new THREE.Group();
-      const wallMat = new THREE.MeshStandardMaterial({ color: 0xf6ecd6, roughness: 0.72, metalness: 0.02 });
-      const trimMat = new THREE.MeshStandardMaterial({ color: 0xebd7b4, roughness: 0.75, metalness: 0.01 });
-      const roofMat = new THREE.MeshStandardMaterial({ color: 0xd17a4e, roughness: 0.7, metalness: 0.03 });
+      const variant = building.id % 4;
+      const wallPalette = [0xcaa17b, 0xe1c9a9, 0xb78f63, 0xd7b58c];
+      const roofPalette = [0x6d5140, 0x9b5b3e, 0x6f6f72, 0x845742];
+      const trimPalette = [0xaf7d52, 0xd9bc93, 0x9b7a57, 0xc69f74];
+      const wallMat = new THREE.MeshStandardMaterial({
+        color: wallPalette[variant],
+        roughness: 0.78,
+        metalness: 0.02
+      });
+      const trimMat = new THREE.MeshStandardMaterial({
+        color: trimPalette[variant],
+        roughness: 0.8,
+        metalness: 0.01
+      });
+      const roofMat = new THREE.MeshStandardMaterial({
+        color: roofPalette[variant],
+        roughness: 0.82,
+        metalness: 0.02
+      });
       const windowMat = new THREE.MeshStandardMaterial({
-        color: 0xf5f8ff,
-        roughness: 0.35,
-        metalness: 0.2,
-        emissive: 0x223355,
-        emissiveIntensity: 0.12
+        color: 0xffefc7,
+        roughness: 0.4,
+        metalness: 0.08,
+        emissive: 0xf59e0b,
+        emissiveIntensity: 0.22
       });
 
-      const base = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.46, 0.68), wallMat);
-      base.position.y = 0.23;
+      const base = new THREE.Mesh(
+        new THREE.BoxGeometry(variant === 3 ? 0.74 : 0.68, 0.46, variant === 0 ? 0.72 : 0.64),
+        wallMat
+      );
+      base.position.y = 0.235;
       base.castShadow = true;
       base.receiveShadow = true;
       base.userData.buildingId = building.id;
 
-      const roof = new THREE.Mesh(
-        new THREE.ConeGeometry(0.52, 0.34, 4),
-        roofMat
-      );
-      roof.position.y = 0.62;
-      roof.rotation.y = Math.PI / 4;
+      const roof =
+        variant === 1
+          ? new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.3, 4), roofMat)
+          : new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.11, 0.82), roofMat);
+      roof.position.y = variant === 1 ? 0.62 : 0.58;
+      roof.rotation.y = variant === 1 ? Math.PI / 4 : variant === 2 ? Math.PI / 15 : 0;
       roof.castShadow = true;
       roof.receiveShadow = true;
       roof.userData.buildingId = building.id;
 
-      const porch = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.06, 0.18), trimMat);
-      porch.position.set(0, 0.05, 0.36);
+      const porch = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.06, 0.2), trimMat);
+      porch.position.set(0, 0.05, 0.36 + (variant === 0 ? 0.02 : 0));
       porch.castShadow = true;
       porch.receiveShadow = true;
       porch.userData.buildingId = building.id;
 
-      const windowLeft = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.02), windowMat);
+      const windowLeft = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.02), windowMat.clone());
       windowLeft.position.set(-0.18, 0.28, 0.35);
       windowLeft.userData.buildingId = building.id;
-      const windowRight = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.02), windowMat);
+      const windowRight = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.02), windowMat.clone());
       windowRight.position.set(0.18, 0.28, 0.35);
       windowRight.userData.buildingId = building.id;
 
@@ -568,30 +587,93 @@ export class GameRenderer {
 
       const door = new THREE.Mesh(
         new THREE.BoxGeometry(0.12, 0.2, 0.03),
-        new THREE.MeshStandardMaterial({ color: 0x9d6f4f, roughness: 0.75, metalness: 0.02 })
+        new THREE.MeshStandardMaterial({ color: 0x7b5636, roughness: 0.82, metalness: 0.01 })
       );
       door.position.set(0, 0.15, 0.355);
       door.userData.buildingId = building.id;
 
       const chimney = new THREE.Mesh(
-        new THREE.BoxGeometry(0.09, 0.22, 0.09),
-        new THREE.MeshStandardMaterial({ color: 0x8d5f48, roughness: 0.82, metalness: 0.02 })
+        new THREE.BoxGeometry(0.08, variant === 2 ? 0.14 : 0.22, 0.08),
+        new THREE.MeshStandardMaterial({ color: 0x7f6659, roughness: 0.88, metalness: 0.01 })
       );
-      chimney.position.set(0.17, 0.78, -0.12);
+      chimney.position.set(0.19, variant === 2 ? 0.66 : 0.78, -0.14);
       chimney.castShadow = true;
       chimney.receiveShadow = true;
       chimney.userData.buildingId = building.id;
 
+      const roofStrip = new THREE.Mesh(
+        new THREE.BoxGeometry(0.12, 0.03, 0.86),
+        new THREE.MeshStandardMaterial({ color: 0xb0825a, roughness: 0.9, metalness: 0.01 })
+      );
+      roofStrip.position.set(0, 0.63, 0);
+      roofStrip.rotation.y = variant === 1 ? Math.PI / 4 : 0;
+      roofStrip.castShadow = true;
+      roofStrip.receiveShadow = true;
+      roofStrip.userData.buildingId = building.id;
+
+      const barrel = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.05, 0.055, 0.09, 10),
+        new THREE.MeshStandardMaterial({ color: 0x6f7478, roughness: 0.76, metalness: 0.22 })
+      );
+      barrel.position.set(-0.28, 0.045, 0.28);
+      barrel.castShadow = true;
+      barrel.receiveShadow = true;
+      barrel.userData.buildingId = building.id;
+
+      const crate = new THREE.Mesh(
+        new THREE.BoxGeometry(0.11, 0.08, 0.11),
+        new THREE.MeshStandardMaterial({ color: 0x9a6a3e, roughness: 0.86, metalness: 0.01 })
+      );
+      crate.position.set(0.27, 0.04, 0.26);
+      crate.castShadow = true;
+      crate.receiveShadow = true;
+      crate.userData.buildingId = building.id;
+
+      const awning = new THREE.Mesh(
+        new THREE.BoxGeometry(0.24, 0.03, 0.14),
+        new THREE.MeshStandardMaterial({ color: 0xbe7f4d, roughness: 0.8, metalness: 0.01 })
+      );
+      awning.position.set(0, 0.29, 0.39);
+      awning.castShadow = true;
+      awning.receiveShadow = true;
+      awning.userData.buildingId = building.id;
+      awning.visible = variant === 0 || variant === 3;
+
+      const step = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.03, 0.1), trimMat.clone());
+      step.position.set(0, 0.025, 0.43);
+      step.castShadow = true;
+      step.receiveShadow = true;
+      step.userData.buildingId = building.id;
+
       group.add(base);
       group.add(roof);
+      group.add(roofStrip);
       group.add(porch);
       group.add(windowLeft);
       group.add(windowRight);
       group.add(sideWindow);
       group.add(door);
       group.add(chimney);
+      group.add(barrel);
+      group.add(crate);
+      group.add(awning);
+      group.add(step);
 
-      this.selectableMeshes.set(building.id, [base, roof, porch, windowLeft, windowRight, sideWindow, door, chimney]);
+      this.selectableMeshes.set(building.id, [
+        base,
+        roof,
+        roofStrip,
+        porch,
+        windowLeft,
+        windowRight,
+        sideWindow,
+        door,
+        chimney,
+        barrel,
+        crate,
+        awning,
+        step
+      ]);
       return group;
     }
 

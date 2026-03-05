@@ -280,10 +280,10 @@ export function tickSimulation(dtSeconds: number): void {
     const roads = state.buildings.filter((b) => b.type === 'road').length;
     const plants = state.buildings.filter((b) => b.type === 'powerPlant').length;
 
-    const incomePerSecond = derived.resources.population * 0.085;
-    const maintenancePerSecond = houses * 0.42 + roads * 0.06 + plants * 1.6;
-    const powerPenalty = Math.max(0, derived.resources.powerUsed - derived.resources.powerProduced) * 0.5;
-    const happinessBonus = (derived.happiness - 50) * 0.015;
+    const incomePerSecond = derived.resources.population * 0.062;
+    const maintenancePerSecond = houses * 0.13 + roads * 0.018 + plants * 0.48;
+    const powerPenalty = Math.max(0, derived.resources.powerUsed - derived.resources.powerProduced) * 0.16;
+    const happinessBonus = (derived.happiness - 50) * 0.009;
     const deltaMoney = (incomePerSecond - maintenancePerSecond - powerPenalty + happinessBonus) * dtSeconds;
 
     const simSeconds = state.simSeconds + dtSeconds;
