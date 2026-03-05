@@ -280,6 +280,41 @@ h2:not(:first-child) {
   font: inherit;
 }
 
+.asset-controls {
+  display: grid;
+  gap: 6px;
+}
+
+.asset-controls select,
+.asset-controls input,
+.asset-controls textarea {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--line-soft);
+  background: rgba(16, 42, 49, 0.8);
+  color: var(--text);
+  padding: 8px;
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+.asset-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+#assetPreview {
+  display: block;
+  width: 100%;
+  min-height: 120px;
+  max-height: 220px;
+  object-fit: contain;
+  border: 1px solid rgba(207, 240, 253, 0.27);
+  border-radius: 8px;
+  background: var(--glass-2);
+}
+
 .legend {
   list-style: none;
   padding: 0;

@@ -73,6 +73,19 @@
             <button class="tool ai-profile" data-profile="eco">Eco City</button>
           </div>
 
+          <h2>Asset Generator</h2>
+          <div class="asset-controls">
+            <select id="assetPreset"></select>
+            <input id="assetFilename" type="text" placeholder="filename.png" />
+            <textarea id="assetPrompt" rows="4" placeholder="Asset prompt"></textarea>
+            <div class="asset-actions">
+              <button id="assetGenerateBtn" class="btn">Generate Asset</button>
+              <button id="assetReloadBtn" class="btn">Reload File</button>
+            </div>
+            <div id="assetGenStatus" class="info-box">Choose a preset and generate.</div>
+            <img id="assetPreview" alt="Generated asset preview" />
+          </div>
+
           <h2>Legend</h2>
           <ul class="legend">
             <li><span class="swatch grass"></span>Grass</li>

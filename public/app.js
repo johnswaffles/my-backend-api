@@ -71,6 +71,25 @@ const AI_PROFILES = {
   }
 };
 
+const COZY_STYLE_PROMPT =
+  'Top-down cozy town city-builder asset, hand-painted illustration style, warm palette, clean silhouette, readable at small scale, transparent background where appropriate, no text, no logos.';
+
+const ASSET_PRESETS = [
+  { id: 'terrain_grass', label: 'Terrain: Grass', filename: 'terrain_grass.png', prompt: `${COZY_STYLE_PROMPT} Single seamless grass ground tile, soft detail, natural variation.` },
+  { id: 'terrain_forest', label: 'Terrain: Forest', filename: 'terrain_forest.png', prompt: `${COZY_STYLE_PROMPT} Single seamless forest tile with clustered tree canopies.` },
+  { id: 'terrain_hill', label: 'Terrain: Hill', filename: 'terrain_hill.png', prompt: `${COZY_STYLE_PROMPT} Single seamless hill tile with soft elevation shading.` },
+  { id: 'terrain_water0', label: 'Terrain: Water A', filename: 'terrain_water0.png', prompt: `${COZY_STYLE_PROMPT} Single seamless water tile with gentle wave highlights.` },
+  { id: 'terrain_water1', label: 'Terrain: Water B', filename: 'terrain_water1.png', prompt: `${COZY_STYLE_PROMPT} Single seamless water tile variation with different wave pattern.` },
+  { id: 'service_park', label: 'Service: Park', filename: 'service_park.png', prompt: `${COZY_STYLE_PROMPT} Top-down city park tile with paths and greenery, cozy style.` },
+  { id: 'service_school', label: 'Service: School', filename: 'service_school.png', prompt: `${COZY_STYLE_PROMPT} Top-down school building tile, friendly cozy architecture.` },
+  { id: 'service_police', label: 'Service: Police', filename: 'service_police.png', prompt: `${COZY_STYLE_PROMPT} Top-down police station tile, clean civic building style.` },
+  { id: 'service_powerplant', label: 'Service: Power Plant', filename: 'service_powerplant.png', prompt: `${COZY_STYLE_PROMPT} Top-down power plant tile, stylized but readable in cozy town aesthetic.` },
+  { id: 'res_2', label: 'Residential Mid', filename: 'res_2.png', prompt: `${COZY_STYLE_PROMPT} Top-down residential mid-density building tile, cozy neighborhood look.` },
+  { id: 'com_2', label: 'Commercial Mid', filename: 'com_2.png', prompt: `${COZY_STYLE_PROMPT} Top-down commercial mid-density building tile, shops and offices.` },
+  { id: 'ind_2', label: 'Industrial Mid', filename: 'ind_2.png', prompt: `${COZY_STYLE_PROMPT} Top-down industrial mid-density tile, tasteful factory aesthetic.` },
+  { id: 'road_5', label: 'Road Sample (mask 5)', filename: 'road_5.png', prompt: `${COZY_STYLE_PROMPT} Top-down asphalt road tile on transparent background, road mask 5 connection layout.` }
+];
+
 const COLORS = {
   terrain: {
     grass: '#7acb5f',
@@ -430,6 +449,117 @@ function tryLoadExternalSprites() {
       game.mapNeedsMinimapRefresh = true;
     });
   });
+}
+
+function assignAssetImageByFilename(filename, img) {
+  if (filename.startsWith('terrain_') && filename.endsWith('.png')) {
+    const key = filename.replace('terrain_', '').replace('.png', '');
+    if (sprites.terrain[key] !== undefined) sprites.terrain[key] = img;
+  } else if (filename.startsWith('road_') && filename.endsWith('.png')) {
+    const n = Number(filename.replace('road_', '').replace('.png', ''));
+    if (!Number.isNaN(n) && n >= 0 && n <= 15) sprites.road[n] = img;
+  } else if (filename.startsWith('service_') && filename.endsWith('.png')) {
+    const key = filename.replace('service_', '').replace('.png', '');
+    if (sprites.service[key] !== undefined) sprites.service[key] = img;
+  } else {
+    const zoneMatch = filename.match(/^(res|com|ind)_(\d)\.png$/);
+    if (zoneMatch) {
+      const zoneKey = zoneMatch[1];
+      const level = Number(zoneMatch[2]);
+      if (sprites.zone[zoneKey] && level >= 0 && level < sprites.zone[zoneKey].length) {
+        sprites.zone[zoneKey][level] = img;
+      }
+    }
+  }
+  game.mapNeedsMinimapRefresh = true;
+}
+
+function selectedPreset() {
+  const presetId = document.getElementById('assetPreset').value;
+  return ASSET_PRESETS.find((p) => p.id === presetId) || ASSET_PRESETS[0];
+}
+
+function applyPresetToAssetForm(preset) {
+  document.getElementById('assetFilename').value = preset.filename;
+  document.getElementById('assetPrompt').value = preset.prompt;
+}
+
+async function generateAssetFromForm() {
+  const status = document.getElementById('assetGenStatus');
+  const preview = document.getElementById('assetPreview');
+  const filename = document.getElementById('assetFilename').value.trim();
+  const prompt = document.getElementById('assetPrompt').value.trim();
+
+  if (!filename || !prompt) {
+    status.textContent = 'Filename and prompt are required.';
+    return;
+  }
+
+  status.textContent = 'Generating asset... this can take 10-40 seconds.';
+  try {
+    const response = await fetch('/api/ai/generate-asset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt,
+        size: '1024x1024',
+        filename
+      })
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Asset generation failed');
+
+    if (data.imageBase64) {
+      preview.src = `data:image/png;base64,${data.imageBase64}`;
+    }
+
+    if (data.savedTo) {
+      const assetPath = `${data.savedTo}?v=${Date.now()}`;
+      tryLoadImage(assetPath, (img) => {
+        assignAssetImageByFilename(filename, img);
+      });
+    }
+
+    status.textContent = `Generated and saved: ${filename}`;
+  } catch (error) {
+    status.textContent = `Asset error: ${error.message}`;
+  }
+}
+
+function reloadAssetFromForm() {
+  const status = document.getElementById('assetGenStatus');
+  const preview = document.getElementById('assetPreview');
+  const filename = document.getElementById('assetFilename').value.trim();
+  if (!filename) {
+    status.textContent = 'Enter a filename first.';
+    return;
+  }
+
+  const assetPath = `/assets/${filename}?v=${Date.now()}`;
+  tryLoadImage(assetPath, (img) => {
+    preview.src = assetPath;
+    assignAssetImageByFilename(filename, img);
+    status.textContent = `Reloaded: ${filename}`;
+  });
+}
+
+function initAssetGeneratorUI() {
+  const presetSelect = document.getElementById('assetPreset');
+  ASSET_PRESETS.forEach((preset) => {
+    const option = document.createElement('option');
+    option.value = preset.id;
+    option.textContent = preset.label;
+    presetSelect.appendChild(option);
+  });
+
+  presetSelect.addEventListener('change', () => {
+    applyPresetToAssetForm(selectedPreset());
+  });
+
+  document.getElementById('assetGenerateBtn').addEventListener('click', generateAssetFromForm);
+  document.getElementById('assetReloadBtn').addEventListener('click', reloadAssetFromForm);
+
+  applyPresetToAssetForm(ASSET_PRESETS[0]);
 }
 
 function randomHash(x, y, seed) {
@@ -1690,6 +1820,7 @@ function initUI() {
   buildButtons('infraTools', INFRA_TOOLS, 'tool');
   buildButtons('zoneTools', ZONE_TOOLS, 'tool');
   buildButtons('overlayTools', OVERLAYS, 'overlay');
+  initAssetGeneratorUI();
 
   document.getElementById('brushSize').addEventListener('input', (event) => {
     game.brushSize = Number(event.target.value);
