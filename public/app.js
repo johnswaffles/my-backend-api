@@ -6,6 +6,7 @@ const mctx = minimap.getContext('2d');
 const COLS = 96;
 const ROWS = 64;
 const BASE_TILE = 24;
+const SPRITE_SIZE = 32;
 
 const TERRAIN_TOOLS = [
   { id: 'grass', label: 'Grass' },
@@ -133,12 +134,232 @@ let lastTimestamp = 0;
 let minimapEvery = 0;
 let lastAutoSave = 0;
 
+const sprites = {
+  terrain: {},
+  road: {},
+  zone: { res: [], com: [], ind: [] },
+  service: {}
+};
+
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
 function lerp(a, b, t) {
   return a + (b - a) * t;
+}
+
+function makeSprite(drawFn) {
+  const s = document.createElement('canvas');
+  s.width = SPRITE_SIZE;
+  s.height = SPRITE_SIZE;
+  const sctx = s.getContext('2d');
+  drawFn(sctx);
+  return s;
+}
+
+function hash2d(x, y, salt = 0) {
+  return (((x * 73856093) ^ (y * 19349663) ^ salt) >>> 0);
+}
+
+function buildSprites() {
+  buildTerrainSprites();
+  buildRoadSprites();
+  buildZoneSprites();
+  buildServiceSprites();
+}
+
+function paintPixelNoise(sctx, count, baseColor, alpha = 0.18) {
+  sctx.fillStyle = baseColor;
+  for (let i = 0; i < count; i += 1) {
+    const x = Math.floor(Math.random() * SPRITE_SIZE);
+    const y = Math.floor(Math.random() * SPRITE_SIZE);
+    const size = Math.random() > 0.82 ? 2 : 1;
+    sctx.globalAlpha = alpha;
+    sctx.fillRect(x, y, size, size);
+  }
+  sctx.globalAlpha = 1;
+}
+
+function buildTerrainSprites() {
+  sprites.terrain.grass = makeSprite((sctx) => {
+    sctx.fillStyle = '#7acb5f';
+    sctx.fillRect(0, 0, SPRITE_SIZE, SPRITE_SIZE);
+    paintPixelNoise(sctx, 65, '#9fe07b', 0.22);
+    paintPixelNoise(sctx, 45, '#5ea84f', 0.2);
+  });
+
+  sprites.terrain.water0 = makeSprite((sctx) => {
+    sctx.fillStyle = '#3f8de4';
+    sctx.fillRect(0, 0, SPRITE_SIZE, SPRITE_SIZE);
+    sctx.strokeStyle = 'rgba(170,220,255,0.35)';
+    sctx.lineWidth = 2;
+    for (let i = 0; i < 4; i += 1) {
+      const y = 5 + i * 7;
+      sctx.beginPath();
+      sctx.moveTo(2, y);
+      sctx.quadraticCurveTo(12, y - 2, 22, y);
+      sctx.quadraticCurveTo(28, y + 1, 30, y);
+      sctx.stroke();
+    }
+  });
+
+  sprites.terrain.water1 = makeSprite((sctx) => {
+    sctx.fillStyle = '#3a86d8';
+    sctx.fillRect(0, 0, SPRITE_SIZE, SPRITE_SIZE);
+    sctx.strokeStyle = 'rgba(190,232,255,0.35)';
+    sctx.lineWidth = 2;
+    for (let i = 0; i < 4; i += 1) {
+      const y = 4 + i * 7;
+      sctx.beginPath();
+      sctx.moveTo(2, y);
+      sctx.quadraticCurveTo(9, y + 2, 18, y);
+      sctx.quadraticCurveTo(24, y - 2, 30, y);
+      sctx.stroke();
+    }
+  });
+
+  sprites.terrain.forest = makeSprite((sctx) => {
+    sctx.fillStyle = '#3f9e4f';
+    sctx.fillRect(0, 0, SPRITE_SIZE, SPRITE_SIZE);
+    paintPixelNoise(sctx, 45, '#2f8442', 0.26);
+    const trees = [
+      [8, 10, 5], [18, 11, 5], [12, 20, 6], [23, 20, 4]
+    ];
+    for (const [x, y, r] of trees) {
+      sctx.fillStyle = '#1f6c2a';
+      sctx.beginPath();
+      sctx.arc(x, y, r, 0, Math.PI * 2);
+      sctx.fill();
+      sctx.fillStyle = '#2f8442';
+      sctx.beginPath();
+      sctx.arc(x - 1, y - 1, Math.max(2, r - 2), 0, Math.PI * 2);
+      sctx.fill();
+    }
+  });
+
+  sprites.terrain.hill = makeSprite((sctx) => {
+    sctx.fillStyle = '#7f9e55';
+    sctx.fillRect(0, 0, SPRITE_SIZE, SPRITE_SIZE);
+    sctx.fillStyle = 'rgba(255,255,255,0.16)';
+    sctx.fillRect(0, 0, SPRITE_SIZE, 8);
+    sctx.fillStyle = 'rgba(0,0,0,0.22)';
+    sctx.fillRect(0, 22, SPRITE_SIZE, 10);
+    paintPixelNoise(sctx, 35, '#95b86a', 0.2);
+  });
+}
+
+function buildRoadSprites() {
+  for (let mask = 0; mask < 16; mask += 1) {
+    sprites.road[mask] = makeSprite((sctx) => {
+      sctx.fillStyle = '#686868';
+      sctx.fillRect(0, 0, SPRITE_SIZE, SPRITE_SIZE);
+      sctx.fillStyle = 'rgba(255,255,255,0.06)';
+      sctx.fillRect(0, 0, SPRITE_SIZE, 4);
+      sctx.strokeStyle = 'rgba(0,0,0,0.26)';
+      sctx.strokeRect(0.5, 0.5, SPRITE_SIZE - 1, SPRITE_SIZE - 1);
+
+      const cx = SPRITE_SIZE / 2;
+      const cy = SPRITE_SIZE / 2;
+      sctx.strokeStyle = 'rgba(245,245,245,0.55)';
+      sctx.lineWidth = 2;
+      sctx.beginPath();
+      if (mask & 1) { sctx.moveTo(cx, cy); sctx.lineTo(cx, 0); }
+      if (mask & 2) { sctx.moveTo(cx, cy); sctx.lineTo(SPRITE_SIZE, cy); }
+      if (mask & 4) { sctx.moveTo(cx, cy); sctx.lineTo(cx, SPRITE_SIZE); }
+      if (mask & 8) { sctx.moveTo(cx, cy); sctx.lineTo(0, cy); }
+      if (mask === 0) { sctx.moveTo(cx, 4); sctx.lineTo(cx, SPRITE_SIZE - 4); }
+      sctx.stroke();
+    });
+  }
+}
+
+function buildZoneSprites() {
+  const zoneDefs = [
+    ['res', '#73ccff', '#d5f2ff'],
+    ['com', '#ffd361', '#fff0b5'],
+    ['ind', '#d98360', '#f0c2ad']
+  ];
+
+  for (const [zoneKey, base, tint] of zoneDefs) {
+    for (let level = 0; level < 4; level += 1) {
+      sprites.zone[zoneKey][level] = makeSprite((sctx) => {
+        sctx.clearRect(0, 0, SPRITE_SIZE, SPRITE_SIZE);
+        const width = 12 + level * 4;
+        const height = 10 + level * 5;
+        const bx = Math.floor((SPRITE_SIZE - width) / 2);
+        const by = SPRITE_SIZE - height - 3;
+
+        sctx.fillStyle = 'rgba(0,0,0,0.25)';
+        sctx.fillRect(bx + 2, by + height, width - 3, 2);
+
+        sctx.fillStyle = base;
+        sctx.fillRect(bx, by, width, height);
+        sctx.fillStyle = tint;
+        sctx.fillRect(bx, by, width, 3);
+
+        if (zoneKey !== 'ind') {
+          sctx.fillStyle = 'rgba(255,255,255,0.35)';
+          for (let y = by + 5; y < by + height - 2; y += 5) {
+            sctx.fillRect(bx + 2, y, 2, 2);
+            sctx.fillRect(bx + width - 5, y, 2, 2);
+          }
+        } else {
+          sctx.fillStyle = '#b56a4a';
+          sctx.fillRect(bx + width - 4, by - 4, 3, 5);
+        }
+      });
+    }
+  }
+}
+
+function buildServiceSprites() {
+  sprites.service.powerplant = makeSprite((sctx) => {
+    sctx.fillStyle = '#9f5f4c';
+    sctx.fillRect(4, 11, 24, 17);
+    sctx.fillStyle = '#7f4635';
+    sctx.fillRect(21, 4, 5, 10);
+    sctx.fillStyle = 'rgba(255,255,255,0.28)';
+    sctx.fillRect(6, 13, 20, 3);
+    sctx.fillStyle = 'rgba(0,0,0,0.22)';
+    sctx.fillRect(0, 28, 32, 4);
+  });
+
+  sprites.service.park = makeSprite((sctx) => {
+    sctx.fillStyle = '#4ebb6e';
+    sctx.fillRect(0, 0, SPRITE_SIZE, SPRITE_SIZE);
+    sctx.fillStyle = '#2f8442';
+    sctx.beginPath();
+    sctx.arc(10, 12, 6, 0, Math.PI * 2);
+    sctx.arc(22, 17, 7, 0, Math.PI * 2);
+    sctx.fill();
+    sctx.fillStyle = '#b68c5d';
+    sctx.fillRect(8, 23, 16, 3);
+  });
+
+  sprites.service.school = makeSprite((sctx) => {
+    sctx.fillStyle = '#7584f1';
+    sctx.fillRect(5, 10, 22, 16);
+    sctx.fillStyle = '#dce1ff';
+    sctx.fillRect(5, 10, 22, 3);
+    sctx.fillStyle = '#ffffff';
+    sctx.fillRect(9, 16, 4, 4);
+    sctx.fillRect(18, 16, 4, 4);
+    sctx.fillStyle = 'rgba(0,0,0,0.24)';
+    sctx.fillRect(0, 27, 32, 5);
+  });
+
+  sprites.service.police = makeSprite((sctx) => {
+    sctx.fillStyle = '#8f66e6';
+    sctx.fillRect(5, 10, 22, 16);
+    sctx.fillStyle = '#d8cbff';
+    sctx.fillRect(5, 10, 22, 3);
+    sctx.fillStyle = '#f5f5f5';
+    sctx.fillRect(14, 14, 4, 8);
+    sctx.fillRect(12, 16, 8, 4);
+    sctx.fillStyle = 'rgba(0,0,0,0.24)';
+    sctx.fillRect(0, 27, 32, 5);
+  });
 }
 
 function randomHash(x, y, seed) {
@@ -934,11 +1155,26 @@ function drawBuildingDetail(tile, px, py, tileSize) {
   }
 }
 
+function spriteForTerrain(tile, x, y, waveShift) {
+  if (tile.terrain === 'water') {
+    return Math.sin(waveShift + x * 0.35 + y * 0.22) > 0 ? sprites.terrain.water0 : sprites.terrain.water1;
+  }
+  if (tile.terrain === 'forest') return sprites.terrain.forest;
+  if (tile.terrain === 'hill') return sprites.terrain.hill;
+  return sprites.terrain.grass;
+}
+
+function drawSprite(sprite, px, py, tileSize) {
+  if (!sprite) return;
+  ctx.drawImage(sprite, px, py, tileSize, tileSize);
+}
+
 function drawScene(timestamp) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const tileSize = BASE_TILE * game.camera.zoom;
   const waveShift = timestamp * 0.004;
+  ctx.imageSmoothingEnabled = tileSize > 18;
 
   const startX = clamp(Math.floor(game.camera.x / tileSize), 0, COLS - 1);
   const startY = clamp(Math.floor(game.camera.y / tileSize), 0, ROWS - 1);
@@ -951,8 +1187,12 @@ function drawScene(timestamp) {
       const px = x * tileSize - game.camera.x;
       const py = y * tileSize - game.camera.y;
 
-      ctx.fillStyle = getTileColor(tile, waveShift + x * 0.11 + y * 0.09);
-      ctx.fillRect(px, py, tileSize, tileSize);
+      if (game.overlay === 'none') {
+        drawSprite(spriteForTerrain(tile, x, y, waveShift), px, py, tileSize);
+      } else {
+        ctx.fillStyle = getTileColor(tile, waveShift + x * 0.11 + y * 0.09);
+        ctx.fillRect(px, py, tileSize, tileSize);
+      }
 
       if (game.overlay === 'none') {
         if (tile.terrain === 'water') {
@@ -969,14 +1209,17 @@ function drawScene(timestamp) {
         }
 
         if (tile.road) {
-          drawRoadDetail(px, py, tileSize, roadMask(x, y));
+          drawSprite(sprites.road[roadMask(x, y)], px, py, tileSize);
         }
 
-        if (tile.terrain === 'forest') {
-          drawForestDetail(px, py, tileSize, x, y);
+        if (tile.service) {
+          drawSprite(sprites.service[tile.service], px, py, tileSize);
         }
 
-        drawBuildingDetail(tile, px, py, tileSize);
+        if (tile.zone && !tile.service) {
+          const level = clamp(Math.floor(tile.density * 3.999), 0, 3);
+          drawSprite(sprites.zone[tile.zone][level], px, py, tileSize);
+        }
       }
 
       ctx.strokeStyle = COLORS.grid;
@@ -1464,6 +1707,8 @@ function frame(timestamp) {
 }
 
 function boot() {
+  buildSprites();
+
   const autosave = localStorage.getItem('skylineProtocolAutosave');
   if (autosave) {
     const parsed = JSON.parse(autosave);
