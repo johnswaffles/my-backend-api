@@ -37,6 +37,39 @@ const OVERLAYS = [
   { id: 'traffic', label: 'Traffic' }
 ];
 
+const AI_PROFILES = {
+  balanced: {
+    label: 'Balanced',
+    cadenceMs: 1500,
+    parkBias: 1,
+    schoolBias: 1,
+    policeBias: 1,
+    industryBias: 1,
+    residentialBias: 1,
+    commercialBias: 1
+  },
+  aggressive: {
+    label: 'Aggressive Growth',
+    cadenceMs: 950,
+    parkBias: 0.55,
+    schoolBias: 0.75,
+    policeBias: 0.75,
+    industryBias: 1.5,
+    residentialBias: 1.22,
+    commercialBias: 1.24
+  },
+  eco: {
+    label: 'Eco City',
+    cadenceMs: 1850,
+    parkBias: 1.85,
+    schoolBias: 1.2,
+    policeBias: 1.1,
+    industryBias: 0.45,
+    residentialBias: 1.08,
+    commercialBias: 0.95
+  }
+};
+
 const COLORS = {
   terrain: {
     grass: '#7acb5f',
@@ -87,7 +120,8 @@ const game = {
     enabled: false,
     accumulatorMs: 0,
     lastAction: 'Idle',
-    actions: 0
+    actions: 0,
+    profile: 'balanced'
   },
   undoStack: [],
   redoStack: [],
@@ -278,6 +312,9 @@ function generateWorld() {
   game.demandRes = 0;
   game.demandCom = 0;
   game.demandInd = 0;
+  game.aiAgent.accumulatorMs = 0;
+  game.aiAgent.actions = 0;
+  game.aiAgent.lastAction = 'Idle';
   game.camera.x = 0;
   game.camera.y = 0;
   game.camera.zoom = 1;
@@ -461,6 +498,7 @@ function aiApply(tool, target, brush = 1, message = 'Action') {
 }
 
 function runAIAutoplayStep() {
+  const profile = AI_PROFILES[game.aiAgent.profile] || AI_PROFILES.balanced;
   const powerPlants = serviceCount('powerplant');
   const schools = serviceCount('school');
   const police = serviceCount('police');
@@ -489,38 +527,50 @@ function runAIAutoplayStep() {
     if (aiApply('powerplant', spot, 1, 'Expanded power grid')) return;
   }
 
-  if (game.happiness < 55 && parks < Math.max(4, Math.floor(game.population / 1200)) && game.money > 500) {
+  if (
+    game.happiness < 58 &&
+    parks < Math.max(3, Math.floor((game.population / 1300) * profile.parkBias)) &&
+    game.money > 450
+  ) {
     const spot = bestTileFor((tile, x, y) => {
       if (tile.terrain === 'water' || tile.service) return -Infinity;
       const resNear = countNear(x, y, (t) => t.zone === 'res', 6);
-      return resNear * 6 - tile.pollution;
+      return resNear * (5.5 + profile.parkBias) - tile.pollution * 0.9;
     });
     if (aiApply('park', spot, 1, 'Built park for happiness')) return;
   }
 
-  if (game.population > 900 && schools < Math.floor(game.population / 3500) + 1 && game.money > 1200) {
+  if (
+    game.population > 900 &&
+    schools < Math.floor((game.population / 3600) * profile.schoolBias) + 1 &&
+    game.money > 1100
+  ) {
     const spot = bestTileFor((tile, x, y) => {
       if (tile.terrain === 'water' || tile.service) return -Infinity;
       const resNear = countNear(x, y, (t) => t.zone === 'res', 7);
-      return resNear * 5 + (tile.landValue / 6);
+      return resNear * (4.8 + profile.schoolBias * 0.8) + (tile.landValue / 6);
     });
     if (aiApply('school', spot, 1, 'Built school near neighborhoods')) return;
   }
 
-  if (game.population > 1200 && police < Math.floor(game.population / 4000) + 1 && game.money > 1300) {
+  if (
+    game.population > 1200 &&
+    police < Math.floor((game.population / 4100) * profile.policeBias) + 1 &&
+    game.money > 1200
+  ) {
     const spot = bestTileFor((tile, x, y) => {
       if (tile.terrain === 'water' || tile.service) return -Infinity;
       const comNear = countNear(x, y, (t) => t.zone === 'com', 8);
       const resNear = countNear(x, y, (t) => t.zone === 'res', 8);
-      return comNear * 4 + resNear * 2;
+      return comNear * (3.5 + profile.policeBias) + resNear * 2;
     });
     if (aiApply('police', spot, 1, 'Built police coverage')) return;
   }
 
   const zonePressure = {
-    res: game.demandRes + (game.jobs > game.population ? 12 : 0),
-    com: game.demandCom + (game.population > 300 ? 8 : 0),
-    ind: game.demandInd + (game.jobs < game.population * 0.82 ? 10 : 0)
+    res: (game.demandRes + (game.jobs > game.population ? 12 : 0)) * profile.residentialBias,
+    com: (game.demandCom + (game.population > 300 ? 8 : 0)) * profile.commercialBias,
+    ind: (game.demandInd + (game.jobs < game.population * 0.82 ? 10 : 0)) * profile.industryBias
   };
 
   let preferredZone = 'res';
@@ -542,9 +592,13 @@ function runAIAutoplayStep() {
     const indNear = countNear(x, y, (t) => t.zone === 'ind', 6);
     const comNear = countNear(x, y, (t) => t.zone === 'com', 6);
 
-    if (preferredZone === 'res') return roadScore + land * 0.9 + forestNear * 2 - pollution * 1.2 - indNear * 2;
-    if (preferredZone === 'com') return roadScore + land * 0.6 + resNear * 2.5 + roadsNear * 1.1 - pollution * 0.6;
-    return roadScore + (100 - land) * 0.35 + comNear * 1.8 + roadsNear * 1.2 - resNear * 2.2;
+    if (preferredZone === 'res') {
+      return roadScore + land * 0.9 + forestNear * (1.3 + profile.parkBias * 0.5) - pollution * 1.2 - indNear * (1.6 + profile.parkBias * 0.3);
+    }
+    if (preferredZone === 'com') {
+      return roadScore + land * 0.6 + resNear * (2 + profile.commercialBias) + roadsNear * 1.1 - pollution * 0.6;
+    }
+    return roadScore + (100 - land) * 0.35 + comNear * (1.2 + profile.industryBias * 0.8) + roadsNear * 1.2 - resNear * (1.4 + profile.parkBias * 0.8);
   }, 1600);
 
   if (zoneSpot && aiApply(preferredZone, zoneSpot, game.population > 6000 ? 2 : 1, `Zoned ${preferredZone.toUpperCase()} district`)) return;
@@ -888,6 +942,10 @@ function syncToolHighlights() {
     btn.classList.toggle('active', btn.dataset.tool === game.selectedTool || btn.dataset.overlay === game.overlay);
   });
 
+  document.querySelectorAll('.ai-profile').forEach((btn) => {
+    btn.classList.toggle('active', btn.dataset.profile === game.aiAgent.profile);
+  });
+
   document.getElementById('speed1Btn').classList.toggle('active', !game.paused && game.speed === 1);
   document.getElementById('speed3Btn').classList.toggle('active', !game.paused && game.speed === 3);
   document.getElementById('speed6Btn').classList.toggle('active', !game.paused && game.speed === 6);
@@ -920,10 +978,11 @@ function renderStats() {
     <div><strong>Controls:</strong> Pan (RMB) / Zoom (Wheel)</div>
     <div><strong>Mode:</strong> ${game.selectedTool}</div>
     <div><strong>Agent:</strong> ${game.aiAgent.enabled ? 'Active' : 'Off'}</div>
+    <div><strong>Style:</strong> ${(AI_PROFILES[game.aiAgent.profile] || AI_PROFILES.balanced).label}</div>
   `;
 
   document.getElementById('aiAgentStatus').textContent = game.aiAgent.enabled
-    ? `Active\nLast: ${game.aiAgent.lastAction}\nActions: ${game.aiAgent.actions}`
+    ? `Active (${(AI_PROFILES[game.aiAgent.profile] || AI_PROFILES.balanced).label})\nLast: ${game.aiAgent.lastAction}\nActions: ${game.aiAgent.actions}`
     : 'Autoplay disabled.';
 }
 
@@ -962,7 +1021,13 @@ function worldToSave() {
     selectedTool: game.selectedTool,
     overlay: game.overlay,
     camera: game.camera,
-    aiAgent: game.aiAgent,
+    aiAgent: {
+      enabled: game.aiAgent.enabled,
+      accumulatorMs: game.aiAgent.accumulatorMs,
+      lastAction: game.aiAgent.lastAction,
+      actions: game.aiAgent.actions,
+      profile: game.aiAgent.profile
+    },
     world: game.world
   };
 }
@@ -983,7 +1048,8 @@ function loadFromSave(payload) {
   game.selectedTool = payload.selectedTool ?? 'road';
   game.overlay = payload.overlay ?? 'none';
   game.camera = payload.camera ?? { x: 0, y: 0, zoom: 1 };
-  game.aiAgent = payload.aiAgent ?? { enabled: false, accumulatorMs: 0, lastAction: 'Idle', actions: 0 };
+  game.aiAgent = payload.aiAgent ?? { enabled: false, accumulatorMs: 0, lastAction: 'Idle', actions: 0, profile: 'balanced' };
+  if (!AI_PROFILES[game.aiAgent.profile]) game.aiAgent.profile = 'balanced';
   game.aiAgent.accumulatorMs = 0;
   game.world = payload.world;
   game.mapNeedsMinimapRefresh = true;
@@ -1241,6 +1307,15 @@ function initUI() {
     syncToolHighlights();
   });
 
+  document.querySelectorAll('.ai-profile').forEach((button) => {
+    button.addEventListener('click', () => {
+      game.aiAgent.profile = button.dataset.profile;
+      game.aiAgent.lastAction = `Switched to ${(AI_PROFILES[game.aiAgent.profile] || AI_PROFILES.balanced).label}`;
+      game.aiAgent.accumulatorMs = 0;
+      syncToolHighlights();
+    });
+  });
+
   document.getElementById('undoBtn').addEventListener('click', undo);
   document.getElementById('redoBtn').addEventListener('click', redo);
 
@@ -1282,7 +1357,8 @@ function frame(timestamp) {
 
   if (game.aiAgent.enabled && !game.panning && !game.painting) {
     game.aiAgent.accumulatorMs += delta;
-    if (game.aiAgent.accumulatorMs >= 1500) {
+    const cadenceMs = (AI_PROFILES[game.aiAgent.profile] || AI_PROFILES.balanced).cadenceMs;
+    if (game.aiAgent.accumulatorMs >= cadenceMs) {
       game.aiAgent.accumulatorMs = 0;
       runAIAutoplayStep();
     }

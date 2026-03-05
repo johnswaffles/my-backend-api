@@ -17,23 +17,54 @@
 body {
   margin: 0;
   color: var(--text);
-  font-family: "Avenir Next", "Trebuchet MS", sans-serif;
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
   background:
     radial-gradient(1000px 420px at -10% -20%, #2f7a8f 0%, transparent 60%),
     radial-gradient(950px 420px at 120% 0%, #5b846a 0%, transparent 60%),
     linear-gradient(165deg, #0d1b22 0%, #122630 45%, #1c2f3a 100%);
+  position: relative;
+  overflow-x: hidden;
+}
+
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  width: 55vw;
+  height: 55vw;
+  border-radius: 999px;
+  pointer-events: none;
+  filter: blur(70px);
+  opacity: 0.18;
+  z-index: -1;
+  animation: drift 16s ease-in-out infinite;
+}
+
+body::before {
+  left: -12vw;
+  top: 8vh;
+  background: #38c3ff;
+}
+
+body::after {
+  right: -14vw;
+  bottom: -8vh;
+  background: #56d38e;
+  animation-delay: -6s;
 }
 
 .app-shell {
   min-height: 100vh;
   padding: 12px;
+  max-width: 1900px;
+  margin: 0 auto;
 }
 
 .glass {
   backdrop-filter: blur(8px);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
   border: 1px solid rgba(185, 220, 233, 0.24);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .topbar {
@@ -48,6 +79,8 @@ body {
 .brand h1 {
   margin: 0;
   letter-spacing: 0.4px;
+  font-size: 1.55rem;
+  text-shadow: 0 2px 14px rgba(111, 232, 215, 0.2);
 }
 
 .brand p {
@@ -69,10 +102,13 @@ body {
   border-radius: 9px;
   padding: 7px 11px;
   cursor: pointer;
+  transition: transform 120ms ease, filter 120ms ease, box-shadow 120ms ease;
 }
 
 .btn:hover {
   filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.25);
 }
 
 .btn.active {
@@ -128,6 +164,11 @@ body {
 .panel {
   border-radius: 12px;
   padding: 10px;
+  transition: transform 200ms ease;
+}
+
+.panel:hover {
+  transform: translateY(-1px);
 }
 
 h2 {
@@ -153,6 +194,12 @@ h2:not(:first-child) {
   color: var(--text);
   font-size: 0.8rem;
   cursor: pointer;
+  transition: transform 120ms ease, background 120ms ease;
+}
+
+.tool:hover {
+  transform: translateY(-1px);
+  background: rgba(25, 62, 72, 0.9);
 }
 
 .tool.active {
@@ -182,6 +229,7 @@ h2:not(:first-child) {
   border: 1px solid rgba(202, 238, 250, 0.4);
   background: #1f2f35;
   image-rendering: pixelated;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.34);
 }
 
 #minimap {
@@ -213,6 +261,14 @@ h2:not(:first-child) {
   font-size: 0.82rem;
   min-height: 60px;
   white-space: pre-wrap;
+}
+
+.profile-grid {
+  grid-template-columns: 1fr;
+}
+
+.ai-profile {
+  text-align: left;
 }
 
 #advisorPrompt {
@@ -256,6 +312,12 @@ h2:not(:first-child) {
 .res { background: #73ccff; }
 .com { background: #ffd361; }
 .ind { background: #d98360; }
+
+@keyframes drift {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(3vw, -2vh, 0) scale(1.07); }
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+}
 
 @media (max-width: 1320px) {
   .workspace {
