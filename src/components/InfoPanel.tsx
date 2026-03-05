@@ -13,7 +13,7 @@ function prettyType(type: Building['type']): string {
 
 export function InfoPanel({ building }: InfoPanelProps): JSX.Element {
   return (
-    <aside className="pointer-events-auto panel-glass absolute right-4 top-28 z-20 w-80 rounded-2xl p-4 text-slate-100">
+    <aside className="pointer-events-auto panel-glass absolute right-4 top-40 z-20 w-80 rounded-2xl p-4 text-slate-100">
       <div className="mb-3 text-xs uppercase tracking-[0.18em] text-emerald-300">Selection</div>
       {!building ? (
         <div className="rounded-xl border border-slate-500/30 bg-slate-900/40 p-4 text-sm text-slate-300">

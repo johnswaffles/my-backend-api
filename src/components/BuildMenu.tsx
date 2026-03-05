@@ -17,9 +17,10 @@ interface BuildMenuProps {
 
 export function BuildMenu({ placementMode }: BuildMenuProps): JSX.Element {
   return (
-    <aside className="pointer-events-auto panel-glass absolute left-4 top-28 z-20 w-[19.5rem] rounded-2xl p-4 text-slate-100">
+    <aside className="pointer-events-auto panel-glass absolute left-4 top-40 z-20 w-[19.5rem] rounded-2xl p-4 text-slate-100">
       <div className="mb-3 text-xs uppercase tracking-[0.18em] text-cyan-300">Build Menu</div>
-      <div className="flex flex-col gap-2">
+      <div className="max-h-[46vh] overflow-y-auto pr-1">
+        <div className="flex flex-col gap-2">
         {BUILD_ITEMS.map((item) => {
           const active = placementMode === item.type;
           return (
@@ -41,6 +42,7 @@ export function BuildMenu({ placementMode }: BuildMenuProps): JSX.Element {
             </button>
           );
         })}
+        </div>
       </div>
       <div className="mt-4 text-xs text-slate-300">
         <div>Controls:</div>
