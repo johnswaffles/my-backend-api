@@ -5,6 +5,7 @@ import {
   placeBuildingAt,
   selectBuildingById,
   setAiLastAction,
+  setPlacementMode,
   setHoverCell,
   tickSimulation
 } from './actions';
@@ -323,7 +324,41 @@ export class InputController {
   };
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
+    const target = event.target as HTMLElement | null;
+    const tag = target?.tagName?.toLowerCase();
+    const typing = tag === 'input' || tag === 'textarea' || target?.isContentEditable;
+    if (typing) return;
+
     this.keySet.add(event.key.toLowerCase());
+
+    const shortcuts: Record<string, BuildType> = {
+      '1': 'road',
+      '2': 'house',
+      '3': 'shop',
+      '4': 'restaurant',
+      '5': 'park',
+      '6': 'workshop',
+      '7': 'powerPlant'
+    };
+
+    const shortcutType = shortcuts[event.key];
+    if (shortcutType) {
+      const state = gameStore.getState();
+      setPlacementMode(state.placementMode === shortcutType ? null : shortcutType);
+      return;
+    }
+
+    if (event.key === 'Backspace' || event.key === 'Delete') {
+      const selected = gameStore.getState().selectedBuildingId;
+      if (selected != null) {
+        const building = gameStore.getState().buildings.find((b) => b.id === selected);
+        if (building) {
+          bulldozeAt(building.x, building.z);
+        }
+      }
+      return;
+    }
+
     if (event.key === 'Escape') {
       cancelPlacement();
     }

@@ -883,12 +883,42 @@ export class GameRenderer {
     vent.receiveShadow = true;
     vent.userData.buildingId = building.id;
 
+    const powerCore = new THREE.Mesh(
+      new THREE.SphereGeometry(0.12, 14, 14),
+      new THREE.MeshStandardMaterial({
+        color: 0xffd84f,
+        roughness: 0.35,
+        metalness: 0.08,
+        emissive: 0xffb300,
+        emissiveIntensity: 0.5
+      })
+    );
+    powerCore.position.set(0, 0.6, 0.34);
+    powerCore.castShadow = true;
+    powerCore.receiveShadow = true;
+    powerCore.userData.buildingId = building.id;
+
+    const panel = new THREE.Mesh(
+      new THREE.BoxGeometry(0.22, 0.16, 0.03),
+      new THREE.MeshStandardMaterial({
+        color: 0xf8f4dc,
+        roughness: 0.45,
+        metalness: 0.06,
+        emissive: 0xf59e0b,
+        emissiveIntensity: 0.22
+      })
+    );
+    panel.position.set(0, 0.36, 0.47);
+    panel.userData.buildingId = building.id;
+
     group.add(body);
     group.add(roof);
     group.add(chimney);
     group.add(chimney2);
     group.add(vent);
-    this.selectableMeshes.set(building.id, [body, roof, chimney, chimney2, vent]);
+    group.add(powerCore);
+    group.add(panel);
+    this.selectableMeshes.set(building.id, [body, roof, chimney, chimney2, vent, powerCore, panel]);
     return group;
   }
 

@@ -1,4 +1,4 @@
-import { BUILDING_ECONOMY } from '../game/actions';
+import { BUILDING_ECONOMY, bulldozeAt } from '../game/actions';
 import type { Building } from '../game/state';
 
 interface InfoPanelProps {
@@ -9,6 +9,16 @@ function prettyType(type: Building['type']): string {
   if (type === 'powerPlant') return 'Power Plant';
   if (type === 'workshop') return 'Workshop';
   return type.charAt(0).toUpperCase() + type.slice(1);
+}
+
+function iconForType(type: Building['type']): string {
+  if (type === 'powerPlant') return 'PW';
+  if (type === 'workshop') return 'WK';
+  if (type === 'restaurant') return 'RT';
+  if (type === 'shop') return 'SH';
+  if (type === 'park') return 'PK';
+  if (type === 'house') return 'HS';
+  return 'RD';
 }
 
 export function InfoPanel({ building }: InfoPanelProps): JSX.Element {
@@ -23,7 +33,12 @@ export function InfoPanel({ building }: InfoPanelProps): JSX.Element {
         <div className="space-y-3 rounded-xl border border-emerald-300/30 bg-slate-900/50 p-4">
           <div>
             <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Type</div>
-            <div className="text-lg font-semibold text-white">{prettyType(building.type)}</div>
+            <div className="flex items-center gap-2 text-lg font-semibold text-white">
+              <span className="rounded-md border border-slate-400/40 bg-slate-700/40 px-1.5 py-0.5 text-[10px] tracking-[0.12em] text-cyan-100">
+                {iconForType(building.type)}
+              </span>
+              {prettyType(building.type)}
+            </div>
           </div>
           <div>
             <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Grid Position</div>
@@ -38,6 +53,13 @@ export function InfoPanel({ building }: InfoPanelProps): JSX.Element {
               <li>Power: -{BUILDING_ECONOMY[building.type].powerUse} / +{BUILDING_ECONOMY[building.type].powerProduce}</li>
             </ul>
           </div>
+          <button
+            type="button"
+            onClick={() => bulldozeAt(building.x, building.z)}
+            className="w-full rounded-lg border border-rose-300/60 bg-rose-500/20 px-3 py-2 text-sm font-medium text-rose-100 transition hover:bg-rose-500/30"
+          >
+            Bulldoze (+45% refund)
+          </button>
         </div>
       )}
     </aside>

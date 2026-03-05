@@ -1,14 +1,14 @@
 import { BUILDING_ECONOMY, setPlacementMode } from '../game/actions';
 import type { BuildType } from '../game/state';
 
-const BUILD_ITEMS: Array<{ type: BuildType; label: string; desc: string }> = [
-  { type: 'road', label: 'Road', desc: 'Connects every district' },
-  { type: 'house', label: 'House', desc: 'Adds residents' },
-  { type: 'shop', label: 'Shop', desc: 'Commerce + neighborhood jobs' },
-  { type: 'restaurant', label: 'Restaurant', desc: 'Food economy + appeal' },
-  { type: 'park', label: 'Park', desc: 'Recreation + happiness boost' },
-  { type: 'workshop', label: 'Workshop', desc: 'Heavy job producer' },
-  { type: 'powerPlant', label: 'Power Plant', desc: 'City-wide electricity' }
+const BUILD_ITEMS: Array<{ type: BuildType; label: string; desc: string; icon: string; hotkey: string }> = [
+  { type: 'road', label: 'Road', desc: 'Connects every district', icon: 'RD', hotkey: '1' },
+  { type: 'house', label: 'House', desc: 'Adds residents', icon: 'HS', hotkey: '2' },
+  { type: 'shop', label: 'Shop', desc: 'Commerce + neighborhood jobs', icon: 'SH', hotkey: '3' },
+  { type: 'restaurant', label: 'Restaurant', desc: 'Food economy + appeal', icon: 'RT', hotkey: '4' },
+  { type: 'park', label: 'Park', desc: 'Recreation + happiness boost', icon: 'PK', hotkey: '5' },
+  { type: 'workshop', label: 'Workshop', desc: 'Heavy job producer', icon: 'WK', hotkey: '6' },
+  { type: 'powerPlant', label: 'Power Plant', desc: 'City-wide electricity', icon: 'PW', hotkey: '7' }
 ];
 
 interface BuildMenuProps {
@@ -35,10 +35,16 @@ export function BuildMenu({ placementMode }: BuildMenuProps): JSX.Element {
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="font-medium">{item.label}</span>
+                <span className="flex items-center gap-2 font-medium">
+                  <span className="rounded-md border border-slate-400/40 bg-slate-700/40 px-1.5 py-0.5 text-[10px] tracking-[0.12em] text-cyan-100">{item.icon}</span>
+                  {item.label}
+                </span>
                 <span className="text-xs text-slate-300">-${BUILDING_ECONOMY[item.type].cost}</span>
               </div>
-              <div className="mt-1 text-xs text-slate-300">{item.desc}</div>
+              <div className="mt-1 flex items-center justify-between text-xs text-slate-300">
+                <span>{item.desc}</span>
+                <span className="rounded border border-slate-500/50 px-1 py-0.5 text-[10px] text-slate-300">{item.hotkey}</span>
+              </div>
             </button>
           );
         })}
@@ -50,6 +56,8 @@ export function BuildMenu({ placementMode }: BuildMenuProps): JSX.Element {
         <div>Right click or Esc cancel</div>
         <div>Drag RMB/MMB to pan, wheel to zoom</div>
         <div>WASD or arrows to pan</div>
+        <div>1-7 quick-build shortcuts</div>
+        <div>Backspace bulldozes selected</div>
         <div>Top bar toggles AI autoplay</div>
       </div>
     </aside>
