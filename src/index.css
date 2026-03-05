@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -12,7 +14,8 @@ body,
 
 body {
   overflow: hidden;
-  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-family: 'Manrope', 'Segoe UI', sans-serif;
+  background: linear-gradient(180deg, #ecf6ff 0%, #d7ecff 100%);
 }
 
 .panel-glass {

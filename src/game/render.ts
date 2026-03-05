@@ -1,10 +1,15 @@
 import * as THREE from 'three';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import type { BuildType, Building, GameState } from './state';
 import { gameStore } from './state';
 
 interface RoadVisualData {
   connectors: Record<'n' | 'e' | 's' | 'w', THREE.Mesh>;
   stripes: Record<'ns' | 'ew', THREE.Mesh>;
+  corners: Record<'ne' | 'se' | 'sw' | 'nw', THREE.Mesh>;
+  intersection: THREE.Mesh;
 }
 
 export class GameRenderer {
@@ -15,6 +20,8 @@ export class GameRenderer {
   private readonly camera = new THREE.PerspectiveCamera(45, 1, 0.1, 400);
 
   private readonly renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+
+  private readonly composer: EffectComposer;
 
   private readonly raycaster = new THREE.Raycaster();
 
@@ -34,6 +41,7 @@ export class GameRenderer {
   );
 
   private readonly buildingRoot = new THREE.Group();
+  private readonly decorRoot = new THREE.Group();
 
   private readonly buildingMeshes = new Map<number, THREE.Object3D>();
 
@@ -63,8 +71,8 @@ export class GameRenderer {
 
   constructor(container: HTMLElement) {
     this.container = container;
-    this.scene.background = new THREE.Color(0xc9e4f6);
-    this.scene.fog = new THREE.Fog(0xc9e4f6, 34, 88);
+    this.scene.background = new THREE.Color(0xd2eaf8);
+    this.scene.fog = new THREE.Fog(0xd2eaf8, 28, 94);
 
     const state = gameStore.getState();
 
@@ -75,11 +83,15 @@ export class GameRenderer {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.domElement.className = 'h-full w-full';
     this.container.appendChild(this.renderer.domElement);
+    this.composer = new EffectComposer(this.renderer);
+    this.composer.addPass(new RenderPass(this.scene, this.camera));
+    const bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.15, 0.55, 0.92);
+    this.composer.addPass(bloomPass);
 
-    const ambient = new THREE.AmbientLight(0xfff6e8, 0.74);
+    const ambient = new THREE.AmbientLight(0xfff6e8, 0.78);
     this.scene.add(ambient);
 
-    const directional = new THREE.DirectionalLight(0xfff5da, 1.35);
+    const directional = new THREE.DirectionalLight(0xfff5da, 1.5);
     directional.position.set(20, 36, 14);
     directional.castShadow = true;
     directional.shadow.mapSize.set(2048, 2048);
@@ -91,15 +103,15 @@ export class GameRenderer {
     directional.shadow.camera.bottom = -30;
     this.scene.add(directional);
 
-    const fill = new THREE.DirectionalLight(0xa6e1ff, 0.45);
+    const fill = new THREE.DirectionalLight(0xa6e1ff, 0.52);
     fill.position.set(-25, 18, -18);
     this.scene.add(fill);
 
     const tileGeometry = new THREE.BoxGeometry(1, 0.14, 1);
     const tileMaterial = new THREE.MeshStandardMaterial({
       vertexColors: true,
-      roughness: 0.9,
-      metalness: 0.02
+      roughness: 0.94,
+      metalness: 0.01
     });
 
     this.tileMesh = new THREE.InstancedMesh(tileGeometry, tileMaterial, state.gridSize * state.gridSize);
@@ -121,7 +133,7 @@ export class GameRenderer {
         );
         this.tileMesh.setMatrixAt(idx, matrix);
 
-        color.setRGB(0.55 * tile.tint, 0.79 * tile.tint, 0.56 * tile.tint);
+        color.setRGB(0.52 * tile.tint, (0.78 + tile.elevation * 0.12) * tile.tint, 0.54 * tile.tint);
         this.tileMesh.setColorAt(idx, color);
 
         idx += 1;
@@ -130,6 +142,8 @@ export class GameRenderer {
     this.tileMesh.instanceMatrix.needsUpdate = true;
     if (this.tileMesh.instanceColor) this.tileMesh.instanceColor.needsUpdate = true;
     this.scene.add(this.tileMesh);
+    this.scene.add(this.decorRoot);
+    this.createGroundDecor(state);
 
     const planeSize = state.gridSize + 0.2;
     this.groundPlane = new THREE.Mesh(
@@ -181,6 +195,7 @@ export class GameRenderer {
     cancelAnimationFrame(this.frameHandle);
     window.removeEventListener('resize', this.resize);
     this.renderer.dispose();
+    this.composer.dispose();
     this.container.innerHTML = '';
   }
 
@@ -250,6 +265,8 @@ export class GameRenderer {
     this.camera.aspect = width / Math.max(height, 1);
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height, false);
+    this.composer.setSize(width, height);
+    this.composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   };
 
   private readonly loop = (time: number): void => {
@@ -283,7 +300,7 @@ export class GameRenderer {
       pulseMat.opacity *= 0.91;
     }
 
-    this.renderer.render(this.scene, this.camera);
+    this.composer.render();
   };
 
   private syncFromState(state: GameState): void {
@@ -341,6 +358,12 @@ export class GameRenderer {
       roadData.connectors.w.visible = west;
       roadData.stripes.ns.visible = north || south || (!east && !west);
       roadData.stripes.ew.visible = east || west;
+      roadData.corners.ne.visible = north && east && !south && !west;
+      roadData.corners.se.visible = south && east && !north && !west;
+      roadData.corners.sw.visible = south && west && !north && !east;
+      roadData.corners.nw.visible = north && west && !south && !east;
+      const roadCount = Number(north) + Number(east) + Number(south) + Number(west);
+      roadData.intersection.visible = roadCount >= 3;
     }
   }
 
@@ -417,6 +440,43 @@ export class GameRenderer {
       stripeEW.userData.buildingId = building.id;
       group.add(stripeEW);
 
+      const cornerMat = asphaltMaterial.clone();
+      const cornerGeom = new THREE.CylinderGeometry(0.31, 0.31, 0.043, 22, 1, false, 0, Math.PI / 2);
+      const cornerSE = new THREE.Mesh(cornerGeom, cornerMat);
+      const cornerSW = new THREE.Mesh(cornerGeom, cornerMat.clone());
+      const cornerNW = new THREE.Mesh(cornerGeom, cornerMat.clone());
+      const cornerNE = new THREE.Mesh(cornerGeom, cornerMat.clone());
+      cornerSE.position.y = 0.055;
+      cornerSW.position.y = 0.055;
+      cornerNW.position.y = 0.055;
+      cornerNE.position.y = 0.055;
+      cornerSW.rotation.y = Math.PI / 2;
+      cornerNW.rotation.y = Math.PI;
+      cornerNE.rotation.y = Math.PI * 1.5;
+      [cornerNE, cornerSE, cornerSW, cornerNW].forEach((part) => {
+        part.receiveShadow = true;
+        part.castShadow = false;
+        part.userData.buildingId = building.id;
+        part.visible = false;
+        group.add(part);
+      });
+
+      const intersectionMark = new THREE.Mesh(
+        new THREE.CircleGeometry(0.1, 20),
+        new THREE.MeshStandardMaterial({
+          color: 0xeef2f6,
+          roughness: 0.6,
+          metalness: 0.02,
+          emissive: 0x0f141a,
+          emissiveIntensity: 0.12
+        })
+      );
+      intersectionMark.rotation.x = -Math.PI / 2;
+      intersectionMark.position.y = 0.083;
+      intersectionMark.userData.buildingId = building.id;
+      intersectionMark.visible = false;
+      group.add(intersectionMark);
+
       const connectorGeom = new THREE.BoxGeometry(0.26, 0.042, 0.48);
       const connectorMat = asphaltMaterial;
       const n = new THREE.Mesh(connectorGeom, connectorMat.clone());
@@ -437,8 +497,26 @@ export class GameRenderer {
         group.add(part);
       });
 
-      this.selectableMeshes.set(building.id, [base, n, e, s, w, stripeNS, stripeEW]);
-      this.roadVisuals.set(building.id, { connectors: { n, e, s, w }, stripes: { ns: stripeNS, ew: stripeEW } });
+      this.selectableMeshes.set(building.id, [
+        base,
+        n,
+        e,
+        s,
+        w,
+        stripeNS,
+        stripeEW,
+        cornerNE,
+        cornerSE,
+        cornerSW,
+        cornerNW,
+        intersectionMark
+      ]);
+      this.roadVisuals.set(building.id, {
+        connectors: { n, e, s, w },
+        stripes: { ns: stripeNS, ew: stripeEW },
+        corners: { ne: cornerNE, se: cornerSE, sw: cornerSW, nw: cornerNW },
+        intersection: intersectionMark
+      });
       return group;
     }
 
@@ -579,6 +657,37 @@ export class GameRenderer {
       x: x - half,
       z: z - half
     };
+  }
+
+  private createGroundDecor(state: GameState): void {
+    const treeTrunk = new THREE.CylinderGeometry(0.028, 0.036, 0.16, 8);
+    const treeLeaf = new THREE.ConeGeometry(0.14, 0.32, 9);
+    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x8a6645, roughness: 0.95, metalness: 0.01 });
+    const leafMat = new THREE.MeshStandardMaterial({ color: 0x5f9566, roughness: 0.86, metalness: 0.01 });
+
+    for (let z = 1; z < state.gridSize - 1; z += 1) {
+      for (let x = 1; x < state.gridSize - 1; x += 1) {
+        const isBorder = x < 4 || z < 4 || x > state.gridSize - 5 || z > state.gridSize - 5;
+        if (!isBorder) continue;
+
+        const n = state.tiles[z * state.gridSize + x].tint;
+        if (n < 0.98) continue;
+
+        const world = this.gridToWorld(x, z, state.gridSize);
+        const trunk = new THREE.Mesh(treeTrunk, trunkMat);
+        trunk.position.set(world.x, 0.08, world.z);
+        trunk.castShadow = true;
+        trunk.receiveShadow = true;
+
+        const leaf = new THREE.Mesh(treeLeaf, leafMat);
+        leaf.position.set(world.x, 0.28, world.z);
+        leaf.castShadow = true;
+        leaf.receiveShadow = true;
+
+        this.decorRoot.add(trunk);
+        this.decorRoot.add(leaf);
+      }
+    }
   }
 
   private disposeObject(object: THREE.Object3D): void {
