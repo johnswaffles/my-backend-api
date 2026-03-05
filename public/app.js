@@ -849,10 +849,94 @@ function getTileColor(tile, waveShift) {
   return color;
 }
 
+function roadMask(x, y) {
+  if (!game.world[y][x].road) return 0;
+  let mask = 0;
+  if (inBounds(x, y - 1) && game.world[y - 1][x].road) mask |= 1;
+  if (inBounds(x + 1, y) && game.world[y][x + 1].road) mask |= 2;
+  if (inBounds(x, y + 1) && game.world[y + 1][x].road) mask |= 4;
+  if (inBounds(x - 1, y) && game.world[y][x - 1].road) mask |= 8;
+  return mask;
+}
+
+function drawRoadDetail(px, py, tileSize, mask) {
+  const cx = px + tileSize * 0.5;
+  const cy = py + tileSize * 0.5;
+  const lane = Math.max(1, tileSize * 0.08);
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.30)';
+  ctx.lineWidth = lane;
+  ctx.beginPath();
+  if (mask & 1) {
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx, py);
+  }
+  if (mask & 2) {
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(px + tileSize, cy);
+  }
+  if (mask & 4) {
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(cx, py + tileSize);
+  }
+  if (mask & 8) {
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(px, cy);
+  }
+  if (mask === 0) {
+    ctx.moveTo(cx, py + tileSize * 0.2);
+    ctx.lineTo(cx, py + tileSize * 0.8);
+  }
+  ctx.stroke();
+}
+
+function drawForestDetail(px, py, tileSize, x, y) {
+  const sway = (Math.sin((x * 0.5 + y * 0.8 + game.day * 0.06)) + 1) * 0.5;
+  ctx.fillStyle = 'rgba(18, 77, 30, 0.78)';
+  const r1 = tileSize * (0.2 + 0.08 * sway);
+  const r2 = tileSize * (0.16 + 0.05 * sway);
+  ctx.beginPath();
+  ctx.arc(px + tileSize * 0.32, py + tileSize * 0.44, r1, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(px + tileSize * 0.62, py + tileSize * 0.54, r2, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawBuildingDetail(tile, px, py, tileSize) {
+  if (!tile.zone || tile.density <= 0.05) return;
+
+  const baseW = tileSize * (0.34 + tile.density * 0.34);
+  const baseH = tileSize * (0.28 + tile.density * 0.52);
+  const bx = px + (tileSize - baseW) * 0.5;
+  const by = py + tileSize - baseH - tileSize * 0.08;
+
+  const tint = tile.zone === 'res' ? '#bde9ff' : tile.zone === 'com' ? '#ffe7ad' : '#eab39c';
+  const wall = mixColors(COLORS.zone[tile.zone], tint, 0.35);
+  const roof = mixColors(wall, '#ffffff', 0.22);
+
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  ctx.fillRect(bx + tileSize * 0.05, by + baseH, baseW * 0.92, tileSize * 0.08);
+
+  ctx.fillStyle = wall;
+  ctx.fillRect(bx, by, baseW, baseH);
+  ctx.fillStyle = roof;
+  ctx.fillRect(bx, by, baseW, Math.max(2, tileSize * 0.08));
+
+  if (tile.zone !== 'ind') {
+    ctx.fillStyle = 'rgba(255,255,255,0.32)';
+    const winRows = Math.max(1, Math.floor(baseH / (tileSize * 0.18)));
+    for (let r = 0; r < winRows; r += 1) {
+      const wy = by + tileSize * 0.12 + r * tileSize * 0.16;
+      ctx.fillRect(bx + tileSize * 0.08, wy, baseW * 0.16, tileSize * 0.05);
+      ctx.fillRect(bx + tileSize * 0.34, wy, baseW * 0.16, tileSize * 0.05);
+    }
+  }
+}
+
 function drawScene(timestamp) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  const dayLight = 0.65 + 0.35 * Math.sin((game.day % 160) / 160 * Math.PI * 2);
   const tileSize = BASE_TILE * game.camera.zoom;
   const waveShift = timestamp * 0.004;
 
@@ -871,24 +955,28 @@ function drawScene(timestamp) {
       ctx.fillRect(px, py, tileSize, tileSize);
 
       if (game.overlay === 'none') {
+        if (tile.terrain === 'water') {
+          const shore = countNear(x, y, (t) => t.terrain !== 'water', 1);
+          if (shore > 0) {
+            ctx.fillStyle = 'rgba(180, 225, 255, 0.24)';
+            ctx.fillRect(px, py + tileSize * 0.08, tileSize, tileSize * 0.18);
+          }
+        }
+
         if (tile.terrain === 'hill' && tile.elev > 0) {
           ctx.fillStyle = `rgba(0,0,0,${0.05 + tile.elev * 0.03})`;
           ctx.fillRect(px, py, tileSize, tileSize);
         }
 
-        if (tile.zone && !tile.service && tile.density > 0) {
-          ctx.fillStyle = 'rgba(0,0,0,0.32)';
-          ctx.fillRect(px + 2, py + tileSize - 4, (tileSize - 4) * tile.density, 2);
+        if (tile.road) {
+          drawRoadDetail(px, py, tileSize, roadMask(x, y));
         }
 
-        if (tile.road) {
-          ctx.strokeStyle = 'rgba(255,255,255,0.28)';
-          ctx.lineWidth = Math.max(1, tileSize * 0.08);
-          ctx.beginPath();
-          ctx.moveTo(px + tileSize * 0.5, py + tileSize * 0.14);
-          ctx.lineTo(px + tileSize * 0.5, py + tileSize * 0.86);
-          ctx.stroke();
+        if (tile.terrain === 'forest') {
+          drawForestDetail(px, py, tileSize, x, y);
         }
+
+        drawBuildingDetail(tile, px, py, tileSize);
       }
 
       ctx.strokeStyle = COLORS.grid;
@@ -904,9 +992,6 @@ function drawScene(timestamp) {
     ctx.lineWidth = 2;
     ctx.strokeRect(hx + 1, hy + 1, tileSize - 2, tileSize - 2);
   }
-
-  ctx.fillStyle = `rgba(0, 0, 0, ${1 - dayLight})`;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
 
 function drawMinimap() {
