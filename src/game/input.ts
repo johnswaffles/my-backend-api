@@ -1,9 +1,11 @@
 import {
+  canPlaceBuilding,
   cancelPlacement,
   placeBuildingAt,
   selectBuildingById,
   setAiLastAction,
-  setHoverCell
+  setHoverCell,
+  tickSimulation
 } from './actions';
 import { gameStore } from './state';
 import { GameRenderer } from './render';
@@ -62,7 +64,10 @@ export class InputController {
       this.renderer.panBy(panX, panZ);
     }
 
-    this.updateAiAutoplay(dtSeconds);
+    const state = gameStore.getState();
+    const scaledDt = dtSeconds * state.gameSpeed;
+    tickSimulation(scaledDt);
+    this.updateAiAutoplay(scaledDt);
   }
 
   private updateAiAutoplay(dtSeconds: number): void {
@@ -70,7 +75,7 @@ export class InputController {
     if (!state.aiAutoplayEnabled) return;
 
     this.aiAccumulator += dtSeconds;
-    if (this.aiAccumulator < 1.35) return;
+    if (this.aiAccumulator < 1.15) return;
     this.aiAccumulator = 0;
 
     const decision = this.pickAiPlacement();
@@ -90,45 +95,67 @@ export class InputController {
 
   private pickAiPlacement(): { type: 'road' | 'house' | 'powerPlant'; x: number; z: number } | null {
     const state = gameStore.getState();
+    if (state.gameSpeed === 0) return null;
 
-    const count = {
-      road: state.buildings.filter((b) => b.type === 'road').length,
-      house: state.buildings.filter((b) => b.type === 'house').length,
-      powerPlant: state.buildings.filter((b) => b.type === 'powerPlant').length
-    };
+    const roads = state.buildings.filter((b) => b.type === 'road');
+    const houses = state.buildings.filter((b) => b.type === 'house');
+    const plants = state.buildings.filter((b) => b.type === 'powerPlant');
 
-    let nextType: 'road' | 'house' | 'powerPlant' = 'house';
-    if (count.powerPlant === 0 || state.resources.powerUsed >= state.resources.powerProduced - 4) {
-      nextType = 'powerPlant';
-    } else if (count.road < count.house * 0.45) {
-      nextType = 'road';
-    }
+    const powerGap = state.resources.powerProduced - state.resources.powerUsed;
+    const needPower = plants.length === 0 || powerGap < Math.max(4, houses.length * 0.7);
+    const needRoads = roads.length < Math.max(4, Math.floor(houses.length * 0.9));
+    const needHousing = state.demand.housing >= Math.max(state.demand.roads, state.demand.power) - 8;
 
-    // Try random samples around center for cozy clustered growth.
+    const weightedTypes: Array<'road' | 'house' | 'powerPlant'> = [];
+    if (needPower) weightedTypes.push('powerPlant', 'powerPlant');
+    if (needRoads) weightedTypes.push('road', 'road');
+    if (needHousing) weightedTypes.push('house', 'house', 'house');
+    if (!weightedTypes.length) weightedTypes.push('house', 'road');
+
+    const type = weightedTypes[Math.floor(Math.random() * weightedTypes.length)];
+    return this.bestPlacementForType(type);
+  }
+
+  private bestPlacementForType(type: 'road' | 'house' | 'powerPlant'): { type: 'road' | 'house' | 'powerPlant'; x: number; z: number } | null {
+    const state = gameStore.getState();
     const center = Math.floor(state.gridSize / 2);
-    for (let i = 0; i < 90; i += 1) {
-      const radius = Math.min(16, 3 + Math.floor(i / 6));
+
+    const roads = state.buildings.filter((b) => b.type === 'road');
+    const houses = state.buildings.filter((b) => b.type === 'house');
+    const plants = state.buildings.filter((b) => b.type === 'powerPlant');
+    const occupied = new Set(state.buildings.map((b) => `${b.x}:${b.z}`));
+
+    let best: { x: number; z: number; score: number } | null = null;
+    for (let i = 0; i < 220; i += 1) {
+      const radius = Math.min(18, 3 + Math.floor(i / 8));
       const x = center + Math.floor((Math.random() * 2 - 1) * radius);
       const z = center + Math.floor((Math.random() * 2 - 1) * radius);
       if (x < 0 || z < 0 || x >= state.gridSize || z >= state.gridSize) continue;
+      if (occupied.has(`${x}:${z}`)) continue;
+      if (!canPlaceBuilding(state, type, x, z)) continue;
 
-      const occupied = state.buildings.some((b) => b.x === x && b.z === z);
-      if (occupied) continue;
+      const nearRoad = roads.filter((b) => Math.abs(b.x - x) + Math.abs(b.z - z) <= 1).length;
+      const nearHouses = houses.filter((b) => Math.abs(b.x - x) + Math.abs(b.z - z) <= 2).length;
+      const nearPlants = plants.filter((b) => Math.abs(b.x - x) + Math.abs(b.z - z) <= 5).length;
+      const distCenter = Math.abs(x - center) + Math.abs(z - center);
+      const tile = state.tiles[z * state.gridSize + x];
 
-      if (nextType === 'road') {
-        const nearRoad = state.buildings.some((b) => b.type === 'road' && Math.abs(b.x - x) + Math.abs(b.z - z) <= 1);
-        if (count.road > 0 && !nearRoad) continue;
+      let score = Math.random() * 0.35;
+      if (type === 'road') {
+        score += nearHouses * 2.8 + nearRoad * 1.8 - distCenter * 0.05 + tile.tint * 0.4;
+      } else if (type === 'house') {
+        score += nearRoad * 4 + nearHouses * 0.8 - nearPlants * 3.2 - distCenter * 0.03 + tile.tint;
+      } else {
+        score += nearRoad * 1.2 + distCenter * 0.08 - nearHouses * 2.6;
       }
 
-      if (nextType === 'house') {
-        const nearRoad = state.buildings.some((b) => b.type === 'road' && Math.abs(b.x - x) + Math.abs(b.z - z) <= 1);
-        if (!nearRoad && count.road > 2) continue;
+      if (!best || score > best.score) {
+        best = { x, z, score };
       }
-
-      return { type: nextType, x, z };
     }
 
-    return null;
+    if (!best) return null;
+    return { type, x: best.x, z: best.z };
   }
 
   private readonly onContextMenu = (event: MouseEvent): void => {

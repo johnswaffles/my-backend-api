@@ -1,10 +1,19 @@
 import { toggleAiAutoplay } from '../game/actions';
+import { cycleGameSpeed } from '../game/actions';
 
 interface TopBarProps {
   money: number;
   population: number;
   powerUsed: number;
   powerProduced: number;
+  day: number;
+  happiness: number;
+  gameSpeed: 0 | 1 | 2;
+  demand: {
+    housing: number;
+    roads: number;
+    power: number;
+  };
   aiAutoplayEnabled: boolean;
   aiLastAction: string;
 }
@@ -23,6 +32,10 @@ export function TopBar({
   population,
   powerUsed,
   powerProduced,
+  day,
+  happiness,
+  gameSpeed,
+  demand,
   aiAutoplayEnabled,
   aiLastAction
 }: TopBarProps): JSX.Element {
@@ -32,9 +45,17 @@ export function TopBar({
       <div className="panel-glass rounded-2xl px-5 py-3">
         <div className="text-xl font-semibold text-white">Cozy Town Builder</div>
         <div className="text-xs text-slate-300">Vertical Slice: Isometric 2.5D Prototype</div>
+        <div className="mt-1 text-xs text-slate-100">Day {day} | Happiness {happiness}%</div>
         <div className="mt-1 text-xs text-cyan-100">AI: {aiLastAction}</div>
       </div>
       <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => cycleGameSpeed()}
+          className="rounded-xl border border-amber-300/60 bg-amber-400/20 px-4 py-2 text-sm font-medium text-amber-100 transition hover:bg-amber-400/30"
+        >
+          Speed: {gameSpeed === 0 ? 'Pause' : `${gameSpeed}x`}
+        </button>
         <button
           type="button"
           onClick={() => toggleAiAutoplay()}
@@ -49,6 +70,7 @@ export function TopBar({
         <Stat label="Money" value={`$${money.toLocaleString()}`} />
         <Stat label="Population" value={population.toLocaleString()} />
         <Stat label="Power" value={`${powerUsed}/${powerProduced} (${net >= 0 ? '+' : ''}${net})`} />
+        <Stat label="Demand" value={`H ${demand.housing} | R ${demand.roads} | P ${demand.power}`} />
       </div>
     </div>
   );

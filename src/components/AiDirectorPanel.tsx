@@ -38,6 +38,10 @@ export function AiDirectorPanel({ state }: AiDirectorPanelProps): JSX.Element {
   const snapshot = useMemo(
     () => ({
       gridSize: state.gridSize,
+      day: state.day,
+      happiness: state.happiness,
+      demand: state.demand,
+      gameSpeed: state.gameSpeed,
       resources: state.resources,
       placementMode: state.placementMode,
       selectedBuildingId: state.selectedBuildingId,

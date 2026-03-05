@@ -20,6 +20,12 @@ export interface Resources {
   powerProduced: number;
 }
 
+export interface Demand {
+  housing: number;
+  roads: number;
+  power: number;
+}
+
 export interface HoverCell {
   x: number;
   z: number;
@@ -36,6 +42,11 @@ export interface GameState {
   aiAutoplayEnabled: boolean;
   aiLastAction: string;
   resources: Resources;
+  day: number;
+  happiness: number;
+  demand: Demand;
+  gameSpeed: 0 | 1 | 2;
+  simSeconds: number;
   nextBuildingId: number;
 }
 
@@ -75,6 +86,15 @@ export const initialGameState: GameState = {
     powerUsed: 4,
     powerProduced: 16
   },
+  day: 1,
+  happiness: 65,
+  demand: {
+    housing: 55,
+    roads: 35,
+    power: 18
+  },
+  gameSpeed: 1,
+  simSeconds: 0,
   nextBuildingId: 1
 };
 

@@ -3,6 +3,7 @@ import { BuildMenu } from './components/BuildMenu';
 import { InfoPanel } from './components/InfoPanel';
 import { TopBar } from './components/TopBar';
 import { AiDirectorPanel } from './components/AiDirectorPanel';
+import { TownProgressPanel } from './components/TownProgressPanel';
 import { selectedBuilding } from './game/actions';
 import { InputController } from './game/input';
 import { GameRenderer } from './game/render';
@@ -43,12 +44,17 @@ export default function App(): JSX.Element {
         population={state.resources.population}
         powerUsed={state.resources.powerUsed}
         powerProduced={state.resources.powerProduced}
+        day={state.day}
+        happiness={state.happiness}
+        gameSpeed={state.gameSpeed}
+        demand={state.demand}
         aiAutoplayEnabled={state.aiAutoplayEnabled}
         aiLastAction={state.aiLastAction}
       />
 
       <BuildMenu placementMode={state.placementMode} />
       <InfoPanel building={selected} />
+      <TownProgressPanel state={state} />
       <AiDirectorPanel state={state} />
     </div>
   );
