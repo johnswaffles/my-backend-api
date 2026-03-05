@@ -1,4 +1,7 @@
 node_modules/
+dist/
+.npm-cache/
+tsconfig.tsbuildinfo
 .env
 *.log
 .DS_Store
