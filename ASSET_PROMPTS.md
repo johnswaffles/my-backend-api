@@ -1,77 +1,64 @@
-# Cozy Town Asset Prompt Pack (OpenAI Image)
+# Cozy Town Asset Prompts (Simple Version)
 
-This game now supports higher-detail sprite art. The map is a cozy town scale and loads custom assets from `public/assets/`.
+Use short prompts. One asset per prompt.
 
-## Recommended model
-- `gpt-image-1` (best quality)
-- If available in your account, you can test smaller variants, but quality should be validated visually.
+## Model
+- Use: `gpt-image-1`
 
-## Art direction (global)
-Use this style prefix in every prompt:
+## Core style line (prepend to every prompt)
+Top-down cozy town game asset. Digital painting style. Warm colors. Clean shape. No text. No logo. Transparent background.
 
-"Top-down cozy town city-builder asset, hand-painted illustration style, soft lighting, high-detail, clean silhouette, readable at small scale, no text, no border, transparent background where appropriate, family-friendly, warm color palette, modern indie game quality."
+## Output rules
+- Generate square image.
+- Save as PNG.
+- Crop/resize final file to `128x128`.
+- Put files in `public/assets/`.
+- Use exact filenames.
 
-## Resolution and export
-- Generate at 1024x1024 or 1536x1536, then downscale/crop to 128x128 PNG.
-- Final runtime asset size expected by the game: `128x128`.
-- Keep filenames exact.
-
-## Terrain assets
+## Terrain prompts
 - `terrain_grass.png`
+  - "Create one seamless grass tile. Top-down view. No roads. No buildings."
 - `terrain_forest.png`
+  - "Create one seamless forest tile with tree canopy. Top-down view."
 - `terrain_hill.png`
+  - "Create one seamless hill tile with soft slope shading. Top-down view."
 - `terrain_water0.png`
+  - "Create one seamless water tile with soft ripples. Top-down view."
 - `terrain_water1.png`
+  - "Create one seamless water tile variant with a different ripple pattern. Top-down view."
 
-Prompt template (terrain):
-"{global style}. Single seamless square ground tile for {terrain type}. Top-down orthographic. No buildings, no roads. 128x128 target composition."
-
-## Roads
-Generate all 16 road connection masks:
+## Road prompts
 - `road_0.png` ... `road_15.png`
+- For each file use:
+  - "Create one road tile. Top-down view. Transparent background. Connection mask = X."
+  - Replace `X` with the mask number.
 
-Prompt template (roads):
-"{global style}. Single top-down road tile on transparent background, asphalt with painted lane details, mask variant {mask id} where connections are represented by north/east/south/west exits. 128x128 target composition."
+## Zone prompts
+- Residential: `res_0.png` ... `res_3.png`
+  - "Create one residential building tile. Density level X. Top-down view."
+- Commercial: `com_0.png` ... `com_3.png`
+  - "Create one commercial building tile. Density level X. Top-down view."
+- Industrial: `ind_0.png` ... `ind_3.png`
+  - "Create one industrial building tile. Density level X. Top-down view."
 
-## Zoning buildings (4 levels each)
-Residential:
-- `res_0.png`, `res_1.png`, `res_2.png`, `res_3.png`
-
-Commercial:
-- `com_0.png`, `com_1.png`, `com_2.png`, `com_3.png`
-
-Industrial:
-- `ind_0.png`, `ind_1.png`, `ind_2.png`, `ind_3.png`
-
-Prompt template (zones):
-"{global style}. Single top-down building tile for {zone type}, density level {0-3}, transparent background, centered footprint, soft baked shadow, visually consistent with cozy town style."
-
-## Service buildings
-- `service_powerplant.png`
+## Service prompts
 - `service_park.png`
+  - "Create one park tile with paths and trees. Top-down view."
 - `service_school.png`
+  - "Create one school tile. Top-down view. Centered building."
 - `service_police.png`
+  - "Create one police station tile. Top-down view. Centered building."
+- `service_powerplant.png`
+  - "Create one small power plant tile. Top-down view. Centered building."
 
-Prompt template (services):
-"{global style}. Single top-down service building tile for {service}, transparent background, centered, clear silhouette, cozy town aesthetic."
-
-## Save location
-Put all PNGs in:
-- `public/assets/`
-
-The game auto-loads these files. Missing files fall back to built-in art.
-
-## Optional API workflow (from this app)
-You can generate an image via backend endpoint:
+## API endpoint in this app
 - `POST /api/ai/generate-asset`
 
-Example body:
+Body example:
 ```json
 {
-  "prompt": "Top-down cozy town city-builder asset ...",
+  "prompt": "Top-down cozy town game asset... Create one seamless grass tile.",
   "size": "1024x1024",
   "filename": "terrain_grass.png"
 }
 ```
-
-If `filename` is provided, the server saves it under `public/assets/`.

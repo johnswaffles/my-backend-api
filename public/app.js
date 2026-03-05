@@ -72,22 +72,22 @@ const AI_PROFILES = {
 };
 
 const COZY_STYLE_PROMPT =
-  'Top-down cozy town city-builder asset, hand-painted illustration style, warm palette, clean silhouette, readable at small scale, transparent background where appropriate, no text, no logos.';
+  'Top-down cozy town game asset. Digital painting style. Clean shape. Warm colors. No text. No logo. Transparent background.';
 
 const ASSET_PRESETS = [
-  { id: 'terrain_grass', label: 'Terrain: Grass', filename: 'terrain_grass.png', prompt: `${COZY_STYLE_PROMPT} Single seamless grass ground tile, soft detail, natural variation.` },
-  { id: 'terrain_forest', label: 'Terrain: Forest', filename: 'terrain_forest.png', prompt: `${COZY_STYLE_PROMPT} Single seamless forest tile with clustered tree canopies.` },
-  { id: 'terrain_hill', label: 'Terrain: Hill', filename: 'terrain_hill.png', prompt: `${COZY_STYLE_PROMPT} Single seamless hill tile with soft elevation shading.` },
-  { id: 'terrain_water0', label: 'Terrain: Water A', filename: 'terrain_water0.png', prompt: `${COZY_STYLE_PROMPT} Single seamless water tile with gentle wave highlights.` },
-  { id: 'terrain_water1', label: 'Terrain: Water B', filename: 'terrain_water1.png', prompt: `${COZY_STYLE_PROMPT} Single seamless water tile variation with different wave pattern.` },
-  { id: 'service_park', label: 'Service: Park', filename: 'service_park.png', prompt: `${COZY_STYLE_PROMPT} Top-down city park tile with paths and greenery, cozy style.` },
-  { id: 'service_school', label: 'Service: School', filename: 'service_school.png', prompt: `${COZY_STYLE_PROMPT} Top-down school building tile, friendly cozy architecture.` },
-  { id: 'service_police', label: 'Service: Police', filename: 'service_police.png', prompt: `${COZY_STYLE_PROMPT} Top-down police station tile, clean civic building style.` },
-  { id: 'service_powerplant', label: 'Service: Power Plant', filename: 'service_powerplant.png', prompt: `${COZY_STYLE_PROMPT} Top-down power plant tile, stylized but readable in cozy town aesthetic.` },
-  { id: 'res_2', label: 'Residential Mid', filename: 'res_2.png', prompt: `${COZY_STYLE_PROMPT} Top-down residential mid-density building tile, cozy neighborhood look.` },
-  { id: 'com_2', label: 'Commercial Mid', filename: 'com_2.png', prompt: `${COZY_STYLE_PROMPT} Top-down commercial mid-density building tile, shops and offices.` },
-  { id: 'ind_2', label: 'Industrial Mid', filename: 'ind_2.png', prompt: `${COZY_STYLE_PROMPT} Top-down industrial mid-density tile, tasteful factory aesthetic.` },
-  { id: 'road_5', label: 'Road Sample (mask 5)', filename: 'road_5.png', prompt: `${COZY_STYLE_PROMPT} Top-down asphalt road tile on transparent background, road mask 5 connection layout.` }
+  { id: 'terrain_grass', label: 'Terrain: Grass', filename: 'terrain_grass.png', prompt: `${COZY_STYLE_PROMPT} Create one seamless grass tile. Top-down view. No buildings. No roads.` },
+  { id: 'terrain_forest', label: 'Terrain: Forest', filename: 'terrain_forest.png', prompt: `${COZY_STYLE_PROMPT} Create one seamless forest tile with tree canopy. Top-down view.` },
+  { id: 'terrain_hill', label: 'Terrain: Hill', filename: 'terrain_hill.png', prompt: `${COZY_STYLE_PROMPT} Create one seamless hill tile with gentle slope shading. Top-down view.` },
+  { id: 'terrain_water0', label: 'Terrain: Water A', filename: 'terrain_water0.png', prompt: `${COZY_STYLE_PROMPT} Create one seamless water tile with soft ripples. Top-down view.` },
+  { id: 'terrain_water1', label: 'Terrain: Water B', filename: 'terrain_water1.png', prompt: `${COZY_STYLE_PROMPT} Create one seamless water tile variant with different ripple pattern. Top-down view.` },
+  { id: 'service_park', label: 'Service: Park', filename: 'service_park.png', prompt: `${COZY_STYLE_PROMPT} Create one park tile with paths and trees. Top-down view.` },
+  { id: 'service_school', label: 'Service: School', filename: 'service_school.png', prompt: `${COZY_STYLE_PROMPT} Create one school building tile. Top-down view. Centered composition.` },
+  { id: 'service_police', label: 'Service: Police', filename: 'service_police.png', prompt: `${COZY_STYLE_PROMPT} Create one police station tile. Top-down view. Centered composition.` },
+  { id: 'service_powerplant', label: 'Service: Power Plant', filename: 'service_powerplant.png', prompt: `${COZY_STYLE_PROMPT} Create one small power plant tile. Top-down view. Centered composition.` },
+  { id: 'res_2', label: 'Residential Mid', filename: 'res_2.png', prompt: `${COZY_STYLE_PROMPT} Create one mid-density residential building tile. Top-down view.` },
+  { id: 'com_2', label: 'Commercial Mid', filename: 'com_2.png', prompt: `${COZY_STYLE_PROMPT} Create one mid-density commercial building tile. Top-down view.` },
+  { id: 'ind_2', label: 'Industrial Mid', filename: 'ind_2.png', prompt: `${COZY_STYLE_PROMPT} Create one mid-density industrial building tile. Top-down view.` },
+  { id: 'road_5', label: 'Road Sample (mask 5)', filename: 'road_5.png', prompt: `${COZY_STYLE_PROMPT} Create one road tile. Top and bottom connected only. Transparent background.` }
 ];
 
 const STARTER_PACK_PRESET_IDS = [
