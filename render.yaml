@@ -1,13 +1,14 @@
-# Render Deployment Configuration
-
 services:
   - type: web
-    name: gemini-backend
-    env: node
+    name: world-builder
+    runtime: node
+    plan: free
     buildCommand: npm install
     startCommand: npm start
     envVars:
-      - key: GEMINI_API_KEY
+      - key: OPENAI_API_KEY
         sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4.1-mini
       - key: PORT
         value: 3000

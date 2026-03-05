@@ -1,31 +1,16 @@
 {
-  "name": "gemini-backend",
+  "name": "world-builder",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "City-focused world builder game",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "node server.js"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/johnswaffles/gemini-backend.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/johnswaffles/gemini-backend/issues"
-  },
-  "homepage": "https://github.com/johnswaffles/gemini-backend#readme",
-  "description": "",
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.24.1",
-    "cors": "^2.8.5",
-    "dotenv": "^17.2.3",
-    "express": "^5.1.0",
-    "openai": "^4.20.0"
+    "express": "^4.19.2"
   }
 }
