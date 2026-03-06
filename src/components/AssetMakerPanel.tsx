@@ -74,7 +74,7 @@ function buildPrompt(type: BuildType, details: string, artStyleId: string): stri
   const base = BUILDING_ECONOMY[type].name;
   const style = ART_STYLES.find((item) => item.id === artStyleId) ?? ART_STYLES[0];
   const detailText = details.trim() ? ` Details: ${details.trim()}.` : '';
-  return `Isometric town-builder building asset for a single ${base.toLowerCase()}. ${style.prompt}. Isolated building only. Transparent or clean empty background. Three-quarter angle. Strong silhouette. Readable at game scale.${detailText} No text labels. No UI.`;
+  return `Isometric town-builder building asset for a single ${base.toLowerCase()}. ${style.prompt}. Building only, centered, clean silhouette, readable at game scale. Transparent background required. No ground tile. No grass base. No sidewalk. No road. No path. No trees. No bushes. No props outside the building footprint. No floating shadow on a floor plane. Three-quarter isometric angle.${detailText} No text labels. No UI.`;
 }
 
 export function AssetMakerPanel({ state }: AssetMakerPanelProps): JSX.Element {
@@ -206,7 +206,7 @@ export function AssetMakerPanel({ state }: AssetMakerPanelProps): JSX.Element {
       <textarea
         value={details}
         onChange={(event) => setDetails(event.target.value)}
-        placeholder="Example: warm brick corner cafe with green awning and flower boxes"
+        placeholder="Example: warm brick corner cafe with green awning and flower boxes, building only"
         className="mt-3 h-24 w-full resize-none rounded-xl border border-slate-500/40 bg-slate-900/50 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-300"
       />
 
