@@ -54,6 +54,16 @@ export class GameRenderer {
 
   private readonly roadVisuals = new Map<number, RoadVisualData>();
 
+  private readonly houseAnimations = new Map<
+    number,
+    {
+      windows: THREE.Mesh[];
+      smoke: THREE.Mesh[];
+      baseY: number;
+      wobble: number;
+    }
+  >();
+
   private readonly buildingByCell = new Map<string, Building>();
 
   private frameHandle = 0;
@@ -65,19 +75,19 @@ export class GameRenderer {
   private readonly cameraDesired = {
     x: 0,
     z: 0,
-    distance: 16
+    distance: 12.25
   };
 
   private readonly cameraCurrent = {
     x: 0,
     z: 0,
-    distance: 16
+    distance: 12.25
   };
 
   constructor(container: HTMLElement) {
     this.container = container;
     this.scene.background = new THREE.Color(0xd2eaf8);
-    this.scene.fog = new THREE.Fog(0xd2eaf8, 28, 94);
+    this.scene.fog = new THREE.Fog(0xd2eaf8, 24, 72);
 
     const state = gameStore.getState();
 
@@ -229,7 +239,7 @@ export class GameRenderer {
 
   zoomBy(delta: number, focusCell?: { x: number; z: number }): void {
     const previousDistance = this.cameraDesired.distance;
-    const nextDistance = THREE.MathUtils.clamp(this.cameraDesired.distance + delta, 9, 45);
+    const nextDistance = THREE.MathUtils.clamp(this.cameraDesired.distance + delta, 7, 34);
     this.cameraDesired.distance = nextDistance;
 
     if (focusCell && previousDistance > 0) {
@@ -331,6 +341,8 @@ export class GameRenderer {
     this.camera.position.set(this.cameraCurrent.x + offset.x, offset.y, this.cameraCurrent.z + offset.z);
     this.camera.lookAt(this.cameraCurrent.x, 0, this.cameraCurrent.z);
 
+    this.animateAmbientBuildings(time / 1000);
+
     const pulseMat = this.placementPulse.material as THREE.MeshBasicMaterial;
     if (pulseMat.opacity > 0.01) {
       this.placementPulse.scale.multiplyScalar(1 + dt * 2.4);
@@ -344,6 +356,32 @@ export class GameRenderer {
 
     this.composer.render();
   };
+
+  private animateAmbientBuildings(timeSeconds: number): void {
+    for (const [id, anim] of this.houseAnimations.entries()) {
+      const object = this.buildingMeshes.get(id);
+      if (!object) continue;
+
+      const bob = Math.sin(timeSeconds * 1.1 + anim.wobble) * 0.012;
+      object.position.y = anim.baseY + Math.max(0, bob);
+
+      const glow = 0.18 + (Math.sin(timeSeconds * 0.9 + anim.wobble * 1.7) * 0.5 + 0.5) * 0.18;
+      for (const windowMesh of anim.windows) {
+        const material = windowMesh.material as THREE.MeshStandardMaterial;
+        material.emissiveIntensity = glow;
+      }
+
+      anim.smoke.forEach((puff, index) => {
+        const cycle = (timeSeconds * 0.26 + anim.wobble * 0.11 + index * 0.33) % 1;
+        puff.position.y = 0.86 + cycle * 0.34 + index * 0.04;
+        puff.position.x = 0.18 + Math.sin(timeSeconds * 0.7 + index) * 0.025;
+        puff.position.z = -0.14 + cycle * 0.05;
+        puff.scale.setScalar(0.55 + cycle * 0.6);
+        const smokeMat = puff.material as THREE.MeshStandardMaterial;
+        smokeMat.opacity = Math.max(0, 0.22 - cycle * 0.18);
+      });
+    }
+  }
 
   private syncFromState(state: GameState): void {
     this.syncBuildingMaps(state);
@@ -381,6 +419,7 @@ export class GameRenderer {
       this.buildingMeshes.delete(id);
       this.selectableMeshes.delete(id);
       this.roadVisuals.delete(id);
+      this.houseAnimations.delete(id);
     }
 
     this.syncRoadVisuals();
@@ -564,10 +603,10 @@ export class GameRenderer {
 
     if (building.type === 'house') {
       const group = new THREE.Group();
-      const variant = building.id % 4;
-      const wallPalette = [0xcaa17b, 0xe1c9a9, 0xb78f63, 0xd7b58c];
-      const roofPalette = [0x6d5140, 0x9b5b3e, 0x6f6f72, 0x845742];
-      const trimPalette = [0xaf7d52, 0xd9bc93, 0x9b7a57, 0xc69f74];
+      const variant = building.id % 5;
+      const wallPalette = [0xcaa17b, 0xe1c9a9, 0xb78f63, 0xd7b58c, 0xcfa7a1];
+      const roofPalette = [0x6d5140, 0x9b5b3e, 0x6f6f72, 0x845742, 0x4d5b71];
+      const trimPalette = [0xaf7d52, 0xd9bc93, 0x9b7a57, 0xc69f74, 0xb48c84];
       const wallMat = new THREE.MeshStandardMaterial({
         color: wallPalette[variant],
         roughness: 0.78,
@@ -591,10 +630,36 @@ export class GameRenderer {
         emissiveIntensity: 0.22
       });
 
-      const base = new THREE.Mesh(
-        new THREE.BoxGeometry(variant === 3 ? 0.74 : 0.68, 0.46, variant === 0 ? 0.72 : 0.64),
-        wallMat
+      const lot = new THREE.Mesh(
+        new THREE.BoxGeometry(0.96, 0.06, 0.96),
+        new THREE.MeshStandardMaterial({ color: 0x7cab72, roughness: 0.96, metalness: 0.01 })
       );
+      lot.position.y = 0.03;
+      lot.receiveShadow = true;
+      lot.userData.buildingId = building.id;
+
+      const path = new THREE.Mesh(
+        new THREE.BoxGeometry(0.18, 0.015, 0.5),
+        new THREE.MeshStandardMaterial({ color: 0xd2bf9f, roughness: 0.92, metalness: 0.01 })
+      );
+      path.position.set(0, 0.06, 0.24);
+      path.userData.buildingId = building.id;
+
+      const hedgeLeft = new THREE.Mesh(
+        new THREE.BoxGeometry(0.14, 0.16, 0.32),
+        new THREE.MeshStandardMaterial({ color: 0x5c8f59, roughness: 0.93, metalness: 0.01 })
+      );
+      hedgeLeft.position.set(-0.34, 0.11, 0.2);
+      hedgeLeft.userData.buildingId = building.id;
+
+      const planterRight = new THREE.Mesh(
+        new THREE.BoxGeometry(0.16, 0.1, 0.18),
+        new THREE.MeshStandardMaterial({ color: 0x976742, roughness: 0.88, metalness: 0.01 })
+      );
+      planterRight.position.set(0.33, 0.08, 0.28);
+      planterRight.userData.buildingId = building.id;
+
+      const base = new THREE.Mesh(new THREE.BoxGeometry(0.66 + (variant === 4 ? 0.06 : 0), 0.44 + (variant === 3 ? 0.08 : 0), 0.62 + (variant === 0 ? 0.08 : 0)), wallMat);
       base.position.y = 0.235;
       base.castShadow = true;
       base.receiveShadow = true;
@@ -602,15 +667,17 @@ export class GameRenderer {
 
       const roof =
         variant === 1
-          ? new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.3, 4), roofMat)
-          : new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.11, 0.82), roofMat);
-      roof.position.y = variant === 1 ? 0.62 : 0.58;
-      roof.rotation.y = variant === 1 ? Math.PI / 4 : variant === 2 ? Math.PI / 15 : 0;
+          ? new THREE.Mesh(new THREE.ConeGeometry(0.49, 0.31, 4), roofMat)
+          : variant === 4
+            ? new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.1, 0.68), roofMat)
+            : new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.11, 0.82), roofMat);
+      roof.position.y = variant === 1 ? 0.62 : variant === 3 ? 0.66 : 0.58;
+      roof.rotation.y = variant === 1 ? Math.PI / 4 : variant === 2 ? Math.PI / 15 : variant === 4 ? -Math.PI / 22 : 0;
       roof.castShadow = true;
       roof.receiveShadow = true;
       roof.userData.buildingId = building.id;
 
-      const porch = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.06, 0.2), trimMat);
+      const porch = new THREE.Mesh(new THREE.BoxGeometry(variant === 3 ? 0.38 : 0.32, 0.06, 0.2), trimMat);
       porch.position.set(0, 0.05, 0.36 + (variant === 0 ? 0.02 : 0));
       porch.castShadow = true;
       porch.receiveShadow = true;
@@ -627,6 +694,11 @@ export class GameRenderer {
       sideWindow.position.set(0.35, 0.27, 0.12);
       sideWindow.userData.buildingId = building.id;
 
+      const atticWindow = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.11, 0.02), windowMat.clone());
+      atticWindow.position.set(0, variant === 3 ? 0.52 : 0.42, 0.33);
+      atticWindow.userData.buildingId = building.id;
+      atticWindow.visible = variant === 0 || variant === 3 || variant === 4;
+
       const door = new THREE.Mesh(
         new THREE.BoxGeometry(0.12, 0.2, 0.03),
         new THREE.MeshStandardMaterial({ color: 0x7b5636, roughness: 0.82, metalness: 0.01 })
@@ -642,6 +714,7 @@ export class GameRenderer {
       chimney.castShadow = true;
       chimney.receiveShadow = true;
       chimney.userData.buildingId = building.id;
+      chimney.visible = variant !== 4;
 
       const roofStrip = new THREE.Mesh(
         new THREE.BoxGeometry(0.12, 0.03, 0.86),
@@ -652,6 +725,7 @@ export class GameRenderer {
       roofStrip.castShadow = true;
       roofStrip.receiveShadow = true;
       roofStrip.userData.buildingId = building.id;
+      roofStrip.visible = variant !== 4;
 
       const barrel = new THREE.Mesh(
         new THREE.CylinderGeometry(0.05, 0.055, 0.09, 10),
@@ -679,7 +753,7 @@ export class GameRenderer {
       awning.castShadow = true;
       awning.receiveShadow = true;
       awning.userData.buildingId = building.id;
-      awning.visible = variant === 0 || variant === 3;
+      awning.visible = variant === 0 || variant === 3 || variant === 4;
 
       const step = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.03, 0.1), trimMat.clone());
       step.position.set(0, 0.025, 0.43);
@@ -687,35 +761,114 @@ export class GameRenderer {
       step.receiveShadow = true;
       step.userData.buildingId = building.id;
 
+      const sideWing = new THREE.Mesh(
+        new THREE.BoxGeometry(0.22, 0.22, 0.24),
+        wallMat.clone()
+      );
+      sideWing.position.set(0.29, 0.14, -0.08);
+      sideWing.castShadow = true;
+      sideWing.receiveShadow = true;
+      sideWing.userData.buildingId = building.id;
+      sideWing.visible = variant === 2 || variant === 4;
+
+      const fence = new THREE.Mesh(
+        new THREE.BoxGeometry(0.5, 0.12, 0.03),
+        new THREE.MeshStandardMaterial({ color: 0xa97b53, roughness: 0.9, metalness: 0.01 })
+      );
+      fence.position.set(0, 0.08, -0.4);
+      fence.userData.buildingId = building.id;
+      fence.visible = variant === 1 || variant === 4;
+
+      const flowerBox = new THREE.Mesh(
+        new THREE.BoxGeometry(0.16, 0.05, 0.08),
+        new THREE.MeshStandardMaterial({ color: 0xc45e5d, roughness: 0.82, metalness: 0.01 })
+      );
+      flowerBox.position.set(-0.19, 0.16, 0.37);
+      flowerBox.userData.buildingId = building.id;
+      flowerBox.visible = variant !== 2;
+
+      const porchPostLeft = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.18, 0.03), trimMat.clone());
+      porchPostLeft.position.set(-0.11, 0.14, 0.4);
+      porchPostLeft.userData.buildingId = building.id;
+      porchPostLeft.visible = variant === 0 || variant === 3 || variant === 4;
+
+      const porchPostRight = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.18, 0.03), trimMat.clone());
+      porchPostRight.position.set(0.11, 0.14, 0.4);
+      porchPostRight.userData.buildingId = building.id;
+      porchPostRight.visible = variant === 0 || variant === 3 || variant === 4;
+
+      const smokePuffs = Array.from({ length: 3 }, (_, index) => {
+        const puff = new THREE.Mesh(
+          new THREE.SphereGeometry(0.07, 10, 10),
+          new THREE.MeshStandardMaterial({
+            color: 0xe8edf1,
+            roughness: 1,
+            metalness: 0,
+            transparent: true,
+            opacity: 0.12
+          })
+        );
+        puff.position.set(0.18, 0.9 + index * 0.05, -0.14);
+        puff.userData.buildingId = building.id;
+        puff.visible = variant !== 4;
+        return puff;
+      });
+
+      group.add(lot);
+      group.add(path);
+      group.add(hedgeLeft);
+      group.add(planterRight);
       group.add(base);
       group.add(roof);
       group.add(roofStrip);
+      group.add(sideWing);
+      group.add(fence);
       group.add(porch);
       group.add(windowLeft);
       group.add(windowRight);
       group.add(sideWindow);
+      group.add(atticWindow);
+      group.add(flowerBox);
       group.add(door);
       group.add(chimney);
       group.add(barrel);
       group.add(crate);
       group.add(awning);
       group.add(step);
+      group.add(porchPostLeft);
+      group.add(porchPostRight);
+      smokePuffs.forEach((puff) => group.add(puff));
 
       this.selectableMeshes.set(building.id, [
+        lot,
+        path,
         base,
         roof,
         roofStrip,
+        sideWing,
         porch,
         windowLeft,
         windowRight,
         sideWindow,
+        atticWindow,
         door,
         chimney,
         barrel,
         crate,
         awning,
-        step
+        step,
+        fence,
+        flowerBox,
+        porchPostLeft,
+        porchPostRight,
+        ...smokePuffs
       ]);
+      this.houseAnimations.set(building.id, {
+        windows: [windowLeft, windowRight, sideWindow, atticWindow].filter((mesh) => mesh.visible),
+        smoke: smokePuffs.filter((mesh) => mesh.visible),
+        baseY: 0,
+        wobble: variant * 0.8 + building.id * 0.11
+      });
       return group;
     }
 
