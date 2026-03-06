@@ -11,7 +11,7 @@ import {
   tickSimulation,
   undoAction
 } from './actions';
-import { gameStore, INFINITE_MONEY } from './state';
+import { gameStore, INFINITE_MONEY, requiresGeneratedAsset } from './state';
 import type { BuildType } from './state';
 import { GameRenderer } from './render';
 
@@ -179,7 +179,7 @@ export class InputController {
     if (d.safety >= 40) types.push('policeStation', 'fireStation');
 
     if (!types.length) {
-      types.push('house', 'shop', 'cornerStore', 'park', 'road', 'road');
+      types.push('park', 'workshop', 'road', 'road');
     }
 
     if (d.roads >= 36 || roads < 10) {
@@ -189,6 +189,7 @@ export class InputController {
 
     const sorted = [...types].sort((a, b) => this.typePriorityScore(b) - this.typePriorityScore(a));
     for (const type of sorted) {
+      if (requiresGeneratedAsset(type)) continue;
       const best = this.bestPlacementForType(type);
       if (best) return best;
     }
@@ -661,12 +662,8 @@ export class InputController {
 
     const shortcuts: Record<string, BuildType> = {
       '1': 'road',
-      '2': 'house',
-      '3': 'shop',
-      '4': 'restaurant',
-      '5': 'park',
-      '6': 'workshop',
-      '7': 'powerPlant'
+      '2': 'park',
+      '3': 'workshop'
     };
 
     const shortcutType = shortcuts[event.key];

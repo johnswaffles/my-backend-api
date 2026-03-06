@@ -1,5 +1,5 @@
 import { BUILDING_ECONOMY, bulldozeAt } from '../game/actions';
-import { footprintForType, gameStore } from '../game/state';
+import { footprintForType } from '../game/state';
 import type { Building } from '../game/state';
 
 interface InfoPanelProps {
@@ -33,14 +33,6 @@ function iconForType(type: Building['type']): string {
 }
 
 export function InfoPanel({ building }: InfoPanelProps): JSX.Element {
-  const currentVariation =
-    building?.assetVariationId == null
-      ? null
-      : gameStore
-          .getState()
-          .assetLibrary[building.type]
-          ?.find((variation) => variation.id === building.assetVariationId) ?? null;
-
   return (
     <aside className="pointer-events-auto panel-glass rounded-2xl p-4 text-slate-100 shadow-glow">
       <div className="mb-3 text-xs uppercase tracking-[0.18em] text-emerald-300">Selection</div>
@@ -65,7 +57,7 @@ export function InfoPanel({ building }: InfoPanelProps): JSX.Element {
           </div>
           <div>
             <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Style</div>
-            <div className="text-sm text-slate-200">{currentVariation?.name ?? 'Default look'}</div>
+            <div className="text-sm text-slate-200">{building.customStyleName ?? 'Default look'}</div>
           </div>
           <div>
             <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Stats</div>

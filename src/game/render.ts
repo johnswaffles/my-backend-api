@@ -2441,7 +2441,7 @@ export class GameRenderer {
       new THREE.PlaneGeometry(width, height),
       new THREE.MeshStandardMaterial({
         transparent: true,
-        alphaTest: 0.08,
+        alphaTest: 0.02,
         roughness: 0.8,
         metalness: 0.02,
         side: THREE.DoubleSide
@@ -2513,7 +2513,7 @@ export class GameRenderer {
       const r = data[index];
       const g = data[index + 1];
       const b = data[index + 2];
-      return r < 28 && g < 28 && b < 28;
+      return r < 20 && g < 20 && b < 20;
     };
 
     const enqueue = (x: number, y: number): void => {
@@ -2557,7 +2557,7 @@ export class GameRenderer {
     for (let y = 0; y < height; y += 1) {
       for (let x = 0; x < width; x += 1) {
         const alpha = data[(y * width + x) * 4 + 3];
-        if (alpha > 20) {
+        if (alpha > 6) {
           minX = Math.min(minX, x);
           minY = Math.min(minY, y);
           maxX = Math.max(maxX, x);
@@ -2576,12 +2576,12 @@ export class GameRenderer {
     const cropWidth = maxX - minX + 1;
     const cropHeight = maxY - minY + 1;
     const outputSize = Math.max(width, height);
-    const padding = Math.round(outputSize * 0.14);
+    const padding = Math.round(outputSize * 0.2);
     const drawScale = Math.min((outputSize - padding * 2) / cropWidth, (outputSize - padding * 2) / cropHeight);
     const drawWidth = cropWidth * drawScale;
     const drawHeight = cropHeight * drawScale;
     const offsetX = (outputSize - drawWidth) * 0.5;
-    const offsetY = (outputSize - drawHeight) * 0.52;
+    const offsetY = (outputSize - drawHeight) * 0.5;
 
     const outputCanvas = document.createElement('canvas');
     outputCanvas.width = outputSize;
@@ -2607,14 +2607,7 @@ export class GameRenderer {
   private createIllustratedBuilding(building: Building): THREE.Object3D {
     const group = new THREE.Group();
     const footprint = footprintForType(building.type);
-    const assetVariation =
-      building.assetVariationId == null
-        ? null
-        : (gameStore
-            .getState()
-            .assetLibrary[building.type]
-            ?.find((item) => item.id === building.assetVariationId) ?? null);
-    const usesCustomImage = Boolean(assetVariation?.imageUrl);
+    const usesCustomImage = Boolean(building.customImageUrl);
     const isHouse = building.type === 'house';
     const isUtility = building.type === 'powerPlant';
     const isCivic =
@@ -2660,9 +2653,9 @@ export class GameRenderer {
     curb.visible = !isHouse && !usesCustomImage;
 
     const hero =
-      assetVariation?.imageUrl
+      building.customImageUrl
         ? this.createCustomImageAsset(
-            assetVariation.imageUrl,
+            building.customImageUrl,
             building.type,
             building.id,
             footprint.width > 1 || footprint.depth > 1 ? 1.04 : 1

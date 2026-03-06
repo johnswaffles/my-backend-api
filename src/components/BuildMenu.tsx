@@ -11,40 +11,12 @@ interface BuildItem {
 
 const BUILD_SECTIONS: Array<{ title: string; accent: string; items: BuildItem[] }> = [
   {
-    title: 'Streets + Homes',
+    title: 'Core Tools',
     accent: 'text-cyan-200',
     items: [
       { type: 'road', label: 'Road', desc: 'Block layout and frontage', icon: 'RD', hotkey: '1' },
-      { type: 'house', label: 'House', desc: 'Residents and block life', icon: 'HS', hotkey: '2' }
-    ]
-  },
-  {
-    title: 'Commerce',
-    accent: 'text-amber-200',
-    items: [
-      { type: 'shop', label: 'Shop', desc: 'Main street retail', icon: 'SH', hotkey: '3' },
-      { type: 'restaurant', label: 'Restaurant', desc: 'Food and night glow', icon: 'RT', hotkey: '4' },
-      { type: 'groceryStore', label: 'Grocery', desc: 'Essential daily goods', icon: 'GR' },
-      { type: 'cornerStore', label: 'Corner Store', desc: 'Small convenience frontage', icon: 'CS' },
-      { type: 'bank', label: 'Bank', desc: 'Finance and district prestige', icon: 'BK' }
-    ]
-  },
-  {
-    title: 'Civic + Wellness',
-    accent: 'text-rose-200',
-    items: [
-      { type: 'park', label: 'Park', desc: 'Recreation and beauty', icon: 'PK', hotkey: '5' },
-      { type: 'hospital', label: 'Hospital', desc: 'Health coverage and jobs', icon: 'HP' },
-      { type: 'policeStation', label: 'Police', desc: 'Safety and order', icon: 'PL' },
-      { type: 'fireStation', label: 'Fire', desc: 'Emergency response', icon: 'FR' }
-    ]
-  },
-  {
-    title: 'Industry + Utilities',
-    accent: 'text-violet-200',
-    items: [
-      { type: 'workshop', label: 'Workshop', desc: 'Block-scale industry', icon: 'WK', hotkey: '6' },
-      { type: 'powerPlant', label: 'Power Plant', desc: 'Electricity for growth', icon: 'PW', hotkey: '7' }
+      { type: 'park', label: 'Park', desc: 'Recreation and beauty', icon: 'PK', hotkey: '2' },
+      { type: 'workshop', label: 'Workshop', desc: 'Block-scale industry', icon: 'WK', hotkey: '3' }
     ]
   }
 ];
@@ -96,7 +68,7 @@ export function BuildMenu({ placementMode }: BuildMenuProps): JSX.Element {
     <aside className="pointer-events-auto panel-glass flex min-h-0 flex-col rounded-2xl p-4 text-slate-100 shadow-glow">
       <div className="mb-3 flex items-end justify-between gap-3">
         <div className="text-xs uppercase tracking-[0.18em] text-cyan-300">Build Palette</div>
-        <div className="text-[11px] text-slate-300">Cozy block kit</div>
+        <div className="text-[11px] text-slate-300">Roads and non-custom tools</div>
       </div>
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
         {BUILD_SECTIONS.map((section) => (
@@ -115,7 +87,7 @@ export function BuildMenu({ placementMode }: BuildMenuProps): JSX.Element {
         <div>Wheel: zoom</div>
         <div>Right click or Esc: cancel</div>
         <div>WASD: pan</div>
-        <div>1-7: quick build core tools</div>
+        <div>1-3: quick build core tools</div>
         <div>Delete: bulldoze selected</div>
       </div>
     </aside>

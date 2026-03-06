@@ -1,5 +1,12 @@
 import type { AssetVariation, BuildType, Building, GameState } from './state';
-import { DISPLAY_MONEY_AMOUNT, gameStore, INFINITE_MONEY, occupiedCellsForBuilding, occupiedCellsForPlacement } from './state';
+import {
+  DISPLAY_MONEY_AMOUNT,
+  gameStore,
+  INFINITE_MONEY,
+  occupiedCellsForBuilding,
+  occupiedCellsForPlacement,
+  requiresGeneratedAsset
+} from './state';
 
 interface BuildingEconomy {
   name: string;
@@ -219,7 +226,7 @@ export const BUILDING_ECONOMY: Record<BuildType, BuildingEconomy> = {
 
 type StateSnapshot = Pick<
   GameState,
-  'buildings' | 'selectedBuildingId' | 'resources' | 'happiness' | 'demand' | 'day' | 'simSeconds' | 'nextBuildingId'
+  'buildings' | 'selectedBuildingId' | 'resources' | 'happiness' | 'demand' | 'day' | 'simSeconds' | 'nextBuildingId' | 'pendingBuildAsset'
 >;
 
 const MAX_HISTORY = 10;
@@ -235,7 +242,8 @@ function cloneSnapshot(state: GameState): StateSnapshot {
     demand: { ...state.demand },
     day: state.day,
     simSeconds: state.simSeconds,
-    nextBuildingId: state.nextBuildingId
+    nextBuildingId: state.nextBuildingId,
+    pendingBuildAsset: state.pendingBuildAsset ? { ...state.pendingBuildAsset } : null
   };
 }
 
@@ -260,6 +268,7 @@ function applySnapshot(state: GameState, snapshot: StateSnapshot): GameState {
     day: snapshot.day,
     simSeconds: snapshot.simSeconds,
     nextBuildingId: snapshot.nextBuildingId,
+    pendingBuildAsset: snapshot.pendingBuildAsset ? { ...snapshot.pendingBuildAsset } : null,
     ...stackCounts()
   };
 }
@@ -526,6 +535,11 @@ export function canPlaceBuilding(state: GameState, type: BuildType, x: number, z
     if (nearSensitive) return false;
   }
 
+  if (requiresGeneratedAsset(type)) {
+    const pending = state.pendingBuildAsset;
+    if (!pending || pending.type !== type || !pending.imageUrl) return false;
+  }
+
   return INFINITE_MONEY || state.resources.money >= BUILDING_ECONOMY[type].cost;
 }
 
@@ -641,6 +655,7 @@ export function placeBuildingAt(type: BuildType, x: number, z: number): Building
   gameStore.update((state) => {
     if (!canPlaceBuilding(state, type, x, z)) return state;
     pushUndo(state);
+    const pendingAsset = requiresGeneratedAsset(type) && state.pendingBuildAsset?.type === type ? state.pendingBuildAsset : null;
 
     const newBuilding: Building = {
       id: state.nextBuildingId,
@@ -648,7 +663,9 @@ export function placeBuildingAt(type: BuildType, x: number, z: number): Building
       x,
       z,
       createdAt: performance.now(),
-      assetVariationId: state.activeAssetVariation[type] ?? null
+      customImageUrl: pendingAsset?.imageUrl ?? null,
+      customStyleName: pendingAsset?.name ?? null,
+      customArtStyle: pendingAsset?.artStyle ?? null
     };
     created = newBuilding;
 
@@ -658,6 +675,7 @@ export function placeBuildingAt(type: BuildType, x: number, z: number): Building
       nextBuildingId: state.nextBuildingId + 1,
       selectedBuildingId: newBuilding.id,
       buildings: [...state.buildings, newBuilding],
+      pendingBuildAsset: pendingAsset ? null : state.pendingBuildAsset,
       resources: {
         ...state.resources,
         money: INFINITE_MONEY ? DISPLAY_MONEY_AMOUNT : state.resources.money - economy.cost
@@ -697,17 +715,7 @@ export function placeBuildingAt(type: BuildType, x: number, z: number): Building
   return created;
 }
 
-export function setActiveAssetVariation(type: BuildType, variationId: string | null): void {
-  gameStore.update((state) => ({
-    ...state,
-    activeAssetVariation: {
-      ...state.activeAssetVariation,
-      [type]: variationId
-    }
-  }));
-}
-
-export function saveAssetVariation(type: BuildType, variation: AssetVariation): { ok: boolean; error?: string } {
+export function queueGeneratedAsset(type: BuildType, variation: AssetVariation): { ok: boolean; error?: string } {
   let result: { ok: boolean; error?: string } = { ok: false, error: 'Unknown error' };
 
   gameStore.update((state) => {
@@ -717,19 +725,10 @@ export function saveAssetVariation(type: BuildType, variation: AssetVariation): 
       return state;
     }
 
-    const existing = state.assetLibrary[type] ?? [];
-    const nextList = [variation, ...existing.filter((item) => item.id !== variation.id)].slice(0, 4);
     result = { ok: true };
     return {
       ...state,
-      assetLibrary: {
-        ...state.assetLibrary,
-        [type]: nextList
-      },
-      activeAssetVariation: {
-        ...state.activeAssetVariation,
-        [type]: variation.id
-      },
+      pendingBuildAsset: variation,
       resources: {
         ...state.resources,
         money: INFINITE_MONEY ? DISPLAY_MONEY_AMOUNT : Math.round((state.resources.money - cost) * 100) / 100
@@ -740,35 +739,25 @@ export function saveAssetVariation(type: BuildType, variation: AssetVariation): 
   return result;
 }
 
-export function removeAssetVariation(type: BuildType, variationId: string): void {
+export function clearPendingBuildAsset(): void {
   gameStore.update((state) => {
-    const current = state.assetLibrary[type] ?? [];
-    const nextList = current.filter((item) => item.id !== variationId);
-    const nextActive =
-      state.activeAssetVariation[type] === variationId ? nextList[0]?.id ?? null : state.activeAssetVariation[type] ?? null;
-
     return {
       ...state,
-      assetLibrary: {
-        ...state.assetLibrary,
-        [type]: nextList
-      },
-      activeAssetVariation: {
-        ...state.activeAssetVariation,
-        [type]: nextActive
-      }
+      pendingBuildAsset: null
     };
   });
 }
 
-export function applyAssetVariationToBuilding(buildingId: number, variationId: string | null): void {
+export function applyGeneratedAssetToBuilding(buildingId: number, variation: AssetVariation): void {
   gameStore.update((state) => ({
     ...state,
     buildings: state.buildings.map((building) =>
       building.id === buildingId
         ? {
             ...building,
-            assetVariationId: variationId
+            customImageUrl: variation.imageUrl,
+            customStyleName: variation.name,
+            customArtStyle: variation.artStyle
           }
         : building
     )

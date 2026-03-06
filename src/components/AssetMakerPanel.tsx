@@ -1,11 +1,10 @@
 import { useMemo, useState } from 'react';
 import {
-  applyAssetVariationToBuilding,
+  applyGeneratedAssetToBuilding,
   ASSET_GENERATION_COST,
   BUILDING_ECONOMY,
-  removeAssetVariation,
-  saveAssetVariation,
-  setActiveAssetVariation,
+  clearPendingBuildAsset,
+  queueGeneratedAsset,
   setPlacementMode
 } from '../game/actions';
 import { INFINITE_MONEY } from '../game/state';
@@ -59,28 +58,28 @@ const ART_STYLES = [
 const TYPE_GUIDANCE: Record<BuildType, string> = {
   road: 'This game uses connected road kits, not standalone illustration props.',
   house:
-    'Cozy small-town city-builder house for a single 1x1 parcel. Compact footprint, readable at close zoom, front door facing the street edge, leave 10-15% transparent margin around the whole building so no roof, porch, chimney, or corner touches the image border.',
+    'Cozy small-town city-builder house for a single 1x1 parcel. Compact footprint, readable at close zoom, front door facing the street edge, leave 16-20% transparent margin around the whole building so no roof, porch, chimney, or corner touches the image border.',
   shop:
-    'Neighborhood storefront for a single 1x1 parcel. Compact main-street scale, clearly commercial, front entrance toward the street edge, leave 10-15% transparent margin around the full silhouette.',
+    'Neighborhood storefront for a single 1x1 parcel. Compact main-street scale, clearly commercial, front entrance toward the street edge, leave 16-20% transparent margin around the full silhouette.',
   restaurant:
-    'Small cozy restaurant for a single 1x1 parcel. Distinct dining identity, compact street-facing frontage, leave 10-15% transparent margin around the full silhouette.',
+    'Small cozy restaurant for a single 1x1 parcel. Distinct dining identity, compact street-facing frontage, leave 16-20% transparent margin around the full silhouette.',
   groceryStore:
-    'Compact grocery market for a single 1x1 parcel. Slightly broader storefront massing, still fits one tile, street-facing entrance, leave 10-15% transparent margin around the full silhouette.',
+    'Compact grocery market for a single 1x1 parcel. Slightly broader storefront massing, still fits one tile, street-facing entrance, leave 16-20% transparent margin around the full silhouette.',
   cornerStore:
-    'Tiny neighborhood corner store for a single 1x1 parcel. Compact silhouette, street-facing entrance, leave 10-15% transparent margin around the full silhouette.',
+    'Tiny neighborhood corner store for a single 1x1 parcel. Compact silhouette, street-facing entrance, leave 16-20% transparent margin around the full silhouette.',
   bank:
-    'Small-town bank for a single 1x1 parcel. More civic and formal than a shop, still compact, street-facing entrance, leave 10-15% transparent margin around the full silhouette.',
+    'Small-town bank for a single 1x1 parcel. More civic and formal than a shop, still compact, street-facing entrance, leave 16-20% transparent margin around the full silhouette.',
   policeStation:
-    'Distinct police station for a single 1x1 parcel. Civic silhouette, readable from isometric angle, leave 10-15% transparent margin around the full silhouette.',
+    'Distinct police station for a single 1x1 parcel. Civic silhouette, readable from isometric angle, leave 16-20% transparent margin around the full silhouette.',
   fireStation:
-    'Distinct fire station for a single 1x1 parcel. Service-bay identity, civic silhouette, leave 10-15% transparent margin around the full silhouette.',
+    'Distinct fire station for a single 1x1 parcel. Service-bay identity, civic silhouette, leave 16-20% transparent margin around the full silhouette.',
   hospital:
-    'Hospital landmark for a 2x2 parcel. Wider campus-like building, premium cozy-builder proportions, readable at close zoom, leave 10-15% transparent margin around the full silhouette.',
+    'Hospital landmark for a 2x2 parcel. Wider campus-like building, premium cozy-builder proportions, readable at close zoom, leave 16-20% transparent margin around the full silhouette.',
   park: 'This panel is for buildings, not park tiles.',
   workshop:
-    'Light industrial workshop for a single 1x1 parcel. Compact service-yard feel, fits cozy town scale, leave 10-15% transparent margin around the full silhouette.',
+    'Light industrial workshop for a single 1x1 parcel. Compact service-yard feel, fits cozy town scale, leave 16-20% transparent margin around the full silhouette.',
   powerPlant:
-    'Power plant landmark for a 2x2 parcel. Utility complex with strong silhouette, compact enough for a cozy block builder, leave 10-15% transparent margin around the full silhouette.'
+    'Power plant landmark for a 2x2 parcel. Utility complex with strong silhouette, compact enough for a cozy block builder, leave 16-20% transparent margin around the full silhouette.'
 };
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
@@ -102,35 +101,34 @@ function buildPrompt(type: BuildType, details: string, artStyleId: string): stri
   const style = ART_STYLES.find((item) => item.id === artStyleId) ?? ART_STYLES[0];
   const detailText = details.trim() ? ` Details: ${details.trim()}.` : '';
   const guidance = TYPE_GUIDANCE[type];
-  return `Create one premium isometric building asset for a cozy small-town city-builder game. ${style.prompt}. ${guidance} Building only, centered, clean silhouette, readable at close game zoom. Transparent background required. No ground tile. No grass base. No sidewalk. No road. No path. No trees. No bushes. No props outside the building footprint. No floating shadow plane. No cut-off corners. Three-quarter isometric angle.${detailText} No text labels. No UI.`;
+  return `Create one premium isometric building asset for a cozy small-town city-builder game. ${style.prompt}. ${guidance} Building only, centered, clean silhouette, readable at close game zoom. Transparent background required. Sticker-style cutout asset. No ground tile. No grass base. No sidewalk. No road. No path. No trees. No bushes. No props outside the building footprint. No floating shadow plane. No cut-off corners. No clipped porch. No clipped roof. Three-quarter isometric angle.${detailText} No text labels. No UI.`;
 }
 
 export function AssetMakerPanel({ state }: AssetMakerPanelProps): JSX.Element {
   const [type, setType] = useState<BuildType>('house');
   const [details, setDetails] = useState('');
   const [artStyle, setArtStyle] = useState<(typeof ART_STYLES)[number]['id']>('cozy-builder');
-  const [status, setStatus] = useState('Create a custom style, save up to 4 per type, and use one for new placements.');
+  const [status, setStatus] = useState('Generate one custom building, then place it once. Roads and core non-custom tools stay in the left palette.');
   const [busy, setBusy] = useState(false);
 
-  const variations = useMemo(() => state.assetLibrary[type] ?? [], [state.assetLibrary, type]);
-  const activeId = state.activeAssetVariation[type] ?? null;
   const generationCost = ASSET_GENERATION_COST[type];
   const selectedBuilding = useMemo<Building | null>(
     () => state.buildings.find((building) => building.id === state.selectedBuildingId) ?? null,
     [state.buildings, state.selectedBuildingId]
   );
-  const selectedType = selectedBuilding?.type ?? null;
-  const selectedTypeVariations = selectedType ? state.assetLibrary[selectedType] ?? [] : [];
+  const queuedAsset = state.pendingBuildAsset;
+  const queuedMatchesType = queuedAsset?.type === type;
+  const selectedMatchesType = selectedBuilding?.type === type;
 
   const generate = async (): Promise<void> => {
     if (busy) return;
     if (!INFINITE_MONEY && state.resources.money < generationCost) {
-      setStatus(`Not enough money. ${BUILDING_ECONOMY[type].name} styles cost $${generationCost}.`);
+      setStatus(`Not enough money. ${BUILDING_ECONOMY[type].name} builds cost $${generationCost}.`);
       return;
     }
 
     setBusy(true);
-    setStatus(`Generating ${BUILDING_ECONOMY[type].name.toLowerCase()} style...`);
+    setStatus(`Generating a new ${BUILDING_ECONOMY[type].name.toLowerCase()}...`);
 
     try {
       const stamp = Date.now();
@@ -150,7 +148,7 @@ export function AssetMakerPanel({ state }: AssetMakerPanelProps): JSX.Element {
       const variation: AssetVariation = {
         id: `${type}-${stamp}`,
         type,
-        name: details.trim() ? details.trim().slice(0, 32) : `${BUILDING_ECONOMY[type].name} Style ${variations.length + 1}`,
+        name: details.trim() ? details.trim().slice(0, 32) : `${BUILDING_ECONOMY[type].name} ${new Date(stamp).toLocaleTimeString()}`,
         prompt: buildPrompt(type, details, artStyle),
         imageUrl,
         artStyle,
@@ -158,20 +156,13 @@ export function AssetMakerPanel({ state }: AssetMakerPanelProps): JSX.Element {
         cost: generationCost
       };
 
-      const result = saveAssetVariation(type, variation);
+      const result = queueGeneratedAsset(type, variation);
       if (!result.ok) {
-        throw new Error(result.error || 'Could not save the new asset.');
+        throw new Error(result.error || 'Could not queue the new building.');
       }
 
-      if (selectedBuilding && selectedBuilding.type === type) {
-        applyAssetVariationToBuilding(selectedBuilding.id, variation.id);
-      }
-
-      setStatus(
-        selectedBuilding && selectedBuilding.type === type
-          ? `${BUILDING_ECONOMY[type].name} style saved and applied to the selected building.`
-          : `${BUILDING_ECONOMY[type].name} style saved. It is now active for new placements.`
-      );
+      setPlacementMode(type);
+      setStatus(`${BUILDING_ECONOMY[type].name} queued. Place it once on the map, or apply it to the selected ${BUILDING_ECONOMY[type].name.toLowerCase()}.`);
       setDetails('');
     } catch (error) {
       setStatus(`Asset generation failed: ${String((error as Error).message || error)}`);
@@ -184,7 +175,7 @@ export function AssetMakerPanel({ state }: AssetMakerPanelProps): JSX.Element {
     <aside className="pointer-events-auto panel-glass max-h-[calc(100vh-11.5rem)] overflow-y-auto rounded-2xl p-4 text-slate-100 shadow-glow">
       <div className="mb-3 flex items-end justify-between gap-3">
         <div className="text-xs uppercase tracking-[0.18em] text-amber-200">Asset Maker</div>
-        <div className="text-[11px] text-slate-300">4 saved looks per type</div>
+        <div className="text-[11px] text-slate-300">Single-use custom buildings</div>
       </div>
 
       <label className="mb-2 block text-[11px] uppercase tracking-[0.14em] text-slate-300">Building Type</label>
@@ -202,9 +193,10 @@ export function AssetMakerPanel({ state }: AssetMakerPanelProps): JSX.Element {
 
       <div className="mt-3 rounded-xl border border-slate-500/30 bg-slate-900/35 px-3 py-2 text-xs text-slate-200">
         {INFINITE_MONEY
-          ? `New ${BUILDING_ECONOMY[type].name} style cost: $${generationCost} (budget limits disabled)`
-          : `New ${BUILDING_ECONOMY[type].name} style cost: $${generationCost}`}
+          ? `New ${BUILDING_ECONOMY[type].name} build cost: $${generationCost} (budget limits disabled)`
+          : `New ${BUILDING_ECONOMY[type].name} build cost: $${generationCost}`}
       </div>
+
       {selectedBuilding && selectedBuilding.type !== 'road' && selectedBuilding.type !== 'park' && selectedBuilding.type !== 'workshop' ? (
         <button
           type="button"
@@ -236,15 +228,15 @@ export function AssetMakerPanel({ state }: AssetMakerPanelProps): JSX.Element {
       <textarea
         value={details}
         onChange={(event) => setDetails(event.target.value)}
-        placeholder="Example: cozy tan cottage with red tile roof, amber windows, compact porch, building only with transparent margin"
+        placeholder="Example: cozy tan cottage with red tile roof, amber windows, compact porch, extra transparent margin"
         className="mt-3 h-24 w-full resize-none rounded-xl border border-slate-500/40 bg-slate-900/50 px-3 py-2 text-sm text-slate-100 outline-none transition focus:border-cyan-300"
       />
 
       <div className="mt-3 rounded-xl border border-cyan-300/20 bg-cyan-400/8 px-3 py-2 text-[11px] leading-5 text-cyan-100">
-        Game art rules: cozy block-scale city builder, clean isometric silhouette, no base or scenery, fit the {BUILDING_ECONOMY[type].name.toLowerCase()} inside its parcel, and leave transparent margin on every side.
+        Game art rules: cozy block-scale city builder, clean isometric silhouette, no base or scenery, fit the {BUILDING_ECONOMY[type].name.toLowerCase()} inside its parcel, and leave generous transparent margin on every side.
       </div>
 
-      <div className="mt-3 flex gap-2">
+      <div className="mt-3 flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => {
@@ -253,16 +245,23 @@ export function AssetMakerPanel({ state }: AssetMakerPanelProps): JSX.Element {
           disabled={busy}
           className="rounded-xl border border-amber-300/60 bg-amber-400/16 px-3 py-2 text-sm font-medium text-amber-100 transition hover:bg-amber-400/28 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {busy ? 'Generating...' : 'Make Asset'}
+          {busy ? 'Generating...' : 'Generate New Building'}
         </button>
         <button
           type="button"
-          onClick={() => {
-            setPlacementMode(type);
-          }}
-          className="rounded-xl border border-cyan-300/50 bg-cyan-400/12 px-3 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-400/22"
+          onClick={() => setPlacementMode(type)}
+          disabled={!queuedMatchesType}
+          className="rounded-xl border border-cyan-300/50 bg-cyan-400/12 px-3 py-2 text-sm font-medium text-cyan-100 transition enabled:hover:bg-cyan-400/22 disabled:cursor-not-allowed disabled:opacity-45"
         >
-          Build {BUILDING_ECONOMY[type].name}
+          Place Queued Building
+        </button>
+        <button
+          type="button"
+          onClick={() => clearPendingBuildAsset()}
+          disabled={!queuedAsset}
+          className="rounded-xl border border-slate-400/40 bg-slate-700/30 px-3 py-2 text-sm text-slate-100 transition enabled:hover:bg-slate-700/45 disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          Clear Queue
         </button>
       </div>
 
@@ -270,97 +269,28 @@ export function AssetMakerPanel({ state }: AssetMakerPanelProps): JSX.Element {
         {status}
       </div>
 
-      <div className="mt-4">
-        <div className="mb-2 text-[11px] uppercase tracking-[0.14em] text-slate-300">Saved Variations</div>
-        <div className="grid grid-cols-2 gap-2">
-          {variations.map((variation) => {
-            const active = variation.id === activeId;
-            return (
-              <div
-                key={variation.id}
-                className={`rounded-xl border p-2 ${
-                  active ? 'border-cyan-300/70 bg-cyan-400/10' : 'border-slate-500/30 bg-slate-900/35'
-                }`}
+      <div className="mt-4 rounded-2xl border border-slate-500/30 bg-slate-900/35 p-3">
+        <div className="mb-2 text-[11px] uppercase tracking-[0.14em] text-slate-300">Queued Build</div>
+        {queuedAsset ? (
+          <>
+            <img src={queuedAsset.imageUrl} alt={queuedAsset.name} className="h-36 w-full rounded-xl object-contain bg-slate-950/40" />
+            <div className="mt-2 text-sm font-medium text-slate-100">{queuedAsset.name}</div>
+            <div className="mt-1 text-[11px] uppercase tracking-[0.12em] text-slate-400">
+              {BUILDING_ECONOMY[queuedAsset.type].name} · {ART_STYLES.find((style) => style.id === queuedAsset.artStyle)?.label ?? 'Custom'}
+            </div>
+            {selectedBuilding && selectedMatchesType ? (
+              <button
+                type="button"
+                onClick={() => applyGeneratedAssetToBuilding(selectedBuilding.id, queuedAsset)}
+                className="mt-3 w-full rounded-xl border border-emerald-300/50 bg-emerald-400/14 px-3 py-2 text-sm font-medium text-emerald-100 transition hover:bg-emerald-400/24"
               >
-                <img
-                  src={variation.imageUrl}
-                  alt={variation.name}
-                  className="h-24 w-full rounded-lg object-cover"
-                />
-                <div className="mt-2 truncate text-xs font-medium text-slate-100">{variation.name}</div>
-                <div className="mt-1 text-[10px] uppercase tracking-[0.12em] text-slate-400">
-                  {ART_STYLES.find((style) => style.id === variation.artStyle)?.label ?? 'Custom'}
-                </div>
-                <div className="mt-2 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveAssetVariation(type, variation.id);
-                      setPlacementMode(type);
-                    }}
-                    className="flex-1 rounded-lg border border-cyan-300/50 bg-cyan-400/12 px-2 py-1 text-[11px] text-cyan-100 transition hover:bg-cyan-400/22"
-                  >
-                    {active ? 'Active' : 'Use'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => removeAssetVariation(type, variation.id)}
-                    className="rounded-lg border border-rose-300/40 bg-rose-400/10 px-2 py-1 text-[11px] text-rose-100 transition hover:bg-rose-400/18"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-          {variations.length === 0 ? (
-            <div className="col-span-2 rounded-xl border border-dashed border-slate-500/35 bg-slate-900/25 p-4 text-xs text-slate-300">
-              No custom styles saved for this building type yet.
-            </div>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="mt-4 border-t border-slate-500/25 pt-4">
-        <div className="mb-2 text-[11px] uppercase tracking-[0.14em] text-slate-300">Restyle Selected</div>
-        {!selectedBuilding || selectedBuilding.type === 'road' || selectedBuilding.type === 'park' || selectedBuilding.type === 'workshop' ? (
-          <div className="rounded-xl border border-dashed border-slate-500/35 bg-slate-900/25 p-3 text-xs text-slate-300">
-            Select a placed building to apply one of its saved styles.
-          </div>
+                Apply Queued Look To Selected Building
+              </button>
+            ) : null}
+          </>
         ) : (
-          <div className="space-y-2">
-            <div className="rounded-xl border border-slate-500/30 bg-slate-900/35 px-3 py-2 text-xs text-slate-200">
-              Selected: {BUILDING_ECONOMY[selectedBuilding.type].name} at {selectedBuilding.x}, {selectedBuilding.z}
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {selectedTypeVariations.map((variation) => (
-                <button
-                  key={variation.id}
-                  type="button"
-                  onClick={() => applyAssetVariationToBuilding(selectedBuilding.id, variation.id)}
-                  className={`overflow-hidden rounded-xl border text-left transition ${
-                    selectedBuilding.assetVariationId === variation.id
-                      ? 'border-cyan-300/70 bg-cyan-400/10'
-                      : 'border-slate-500/30 bg-slate-900/35 hover:border-cyan-300/50'
-                  }`}
-                >
-                  <img src={variation.imageUrl} alt={variation.name} className="h-20 w-full object-cover" />
-                  <div className="px-2 py-2 text-[11px] text-slate-100">{variation.name}</div>
-                </button>
-              ))}
-              {selectedTypeVariations.length === 0 ? (
-                <div className="col-span-2 rounded-xl border border-dashed border-slate-500/35 bg-slate-900/25 p-3 text-xs text-slate-300">
-                  No saved variations for this building type yet.
-                </div>
-              ) : null}
-            </div>
-            <button
-              type="button"
-              onClick={() => applyAssetVariationToBuilding(selectedBuilding.id, null)}
-              className="w-full rounded-xl border border-slate-400/40 bg-slate-700/30 px-3 py-2 text-sm text-slate-100 transition hover:bg-slate-700/45"
-            >
-              Restore Default Look
-            </button>
+          <div className="rounded-xl border border-dashed border-slate-500/35 bg-slate-900/25 p-4 text-xs text-slate-300">
+            No custom building is queued right now. Generate one, then place it once on the map.
           </div>
         )}
       </div>
