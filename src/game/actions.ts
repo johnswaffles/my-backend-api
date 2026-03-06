@@ -4,8 +4,7 @@ import {
   gameStore,
   INFINITE_MONEY,
   occupiedCellsForBuilding,
-  occupiedCellsForPlacement,
-  requiresGeneratedAsset
+  occupiedCellsForPlacement
 } from './state';
 
 interface BuildingEconomy {
@@ -226,7 +225,7 @@ export const BUILDING_ECONOMY: Record<BuildType, BuildingEconomy> = {
 
 type StateSnapshot = Pick<
   GameState,
-  'buildings' | 'selectedBuildingId' | 'resources' | 'happiness' | 'demand' | 'day' | 'simSeconds' | 'nextBuildingId' | 'pendingBuildAsset'
+  'buildings' | 'selectedBuildingId' | 'resources' | 'happiness' | 'demand' | 'day' | 'simSeconds' | 'nextBuildingId'
 >;
 
 const MAX_HISTORY = 10;
@@ -242,8 +241,7 @@ function cloneSnapshot(state: GameState): StateSnapshot {
     demand: { ...state.demand },
     day: state.day,
     simSeconds: state.simSeconds,
-    nextBuildingId: state.nextBuildingId,
-    pendingBuildAsset: state.pendingBuildAsset ? { ...state.pendingBuildAsset } : null
+    nextBuildingId: state.nextBuildingId
   };
 }
 
@@ -268,7 +266,6 @@ function applySnapshot(state: GameState, snapshot: StateSnapshot): GameState {
     day: snapshot.day,
     simSeconds: snapshot.simSeconds,
     nextBuildingId: snapshot.nextBuildingId,
-    pendingBuildAsset: snapshot.pendingBuildAsset ? { ...snapshot.pendingBuildAsset } : null,
     ...stackCounts()
   };
 }
@@ -535,11 +532,6 @@ export function canPlaceBuilding(state: GameState, type: BuildType, x: number, z
     if (nearSensitive) return false;
   }
 
-  if (requiresGeneratedAsset(type)) {
-    const pending = state.pendingBuildAsset;
-    if (!pending || pending.type !== type || !pending.imageUrl) return false;
-  }
-
   return INFINITE_MONEY || state.resources.money >= BUILDING_ECONOMY[type].cost;
 }
 
@@ -655,7 +647,6 @@ export function placeBuildingAt(type: BuildType, x: number, z: number): Building
   gameStore.update((state) => {
     if (!canPlaceBuilding(state, type, x, z)) return state;
     pushUndo(state);
-    const pendingAsset = requiresGeneratedAsset(type) && state.pendingBuildAsset?.type === type ? state.pendingBuildAsset : null;
 
     const newBuilding: Building = {
       id: state.nextBuildingId,
@@ -663,9 +654,9 @@ export function placeBuildingAt(type: BuildType, x: number, z: number): Building
       x,
       z,
       createdAt: performance.now(),
-      customImageUrl: pendingAsset?.imageUrl ?? null,
-      customStyleName: pendingAsset?.name ?? null,
-      customArtStyle: pendingAsset?.artStyle ?? null
+      customImageUrl: null,
+      customStyleName: null,
+      customArtStyle: null
     };
     created = newBuilding;
 
@@ -675,7 +666,6 @@ export function placeBuildingAt(type: BuildType, x: number, z: number): Building
       nextBuildingId: state.nextBuildingId + 1,
       selectedBuildingId: newBuilding.id,
       buildings: [...state.buildings, newBuilding],
-      pendingBuildAsset: pendingAsset ? null : state.pendingBuildAsset,
       resources: {
         ...state.resources,
         money: INFINITE_MONEY ? DISPLAY_MONEY_AMOUNT : state.resources.money - economy.cost

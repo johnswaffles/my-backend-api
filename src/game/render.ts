@@ -67,8 +67,6 @@ export class GameRenderer {
 
   private readonly roadVisuals = new Map<number, RoadVisualData>();
 
-  private readonly customAssetTextureCache = new Map<string, THREE.Texture>();
-
   private readonly ambient = new THREE.AmbientLight(0xfff6e8, 0.78);
   private readonly directional = new THREE.DirectionalLight(0xfff5da, 1.5);
   private readonly fill = new THREE.DirectionalLight(0xa6e1ff, 0.52);
@@ -425,7 +423,6 @@ export class GameRenderer {
     }
 
     this.animateAmbientAgents(timeSeconds);
-    this.updateLightingCycle(timeSeconds);
   }
 
   private initAmbientActors(): void {
@@ -553,27 +550,6 @@ export class GameRenderer {
       group.rotation.y = side === 'e' ? Math.PI / 2 : side === 'w' ? -Math.PI / 2 : side === 'n' ? Math.PI : 0;
       group.visible = true;
     });
-  }
-
-  private updateLightingCycle(_timeSeconds: number): void {
-    const cycle = ((gameStore.getState().simSeconds / 30) % 1 + 1) % 1;
-    const sun = Math.sin(cycle * Math.PI);
-    const warm = Math.max(0, Math.sin((cycle + 0.08) * Math.PI));
-    const dayMix = THREE.MathUtils.clamp(sun * 1.15, 0.12, 1);
-
-    const sky = new THREE.Color().lerpColors(new THREE.Color(0x0f1726), new THREE.Color(0xdbeaf3), dayMix);
-    const fog = new THREE.Color().lerpColors(new THREE.Color(0x142034), new THREE.Color(0xdbeaf3), dayMix);
-    this.scene.background = sky;
-    if (this.scene.fog) {
-      this.scene.fog.color.copy(fog);
-    }
-
-    this.ambient.intensity = 0.38 + dayMix * 0.5;
-    this.directional.intensity = 0.42 + dayMix * 1.2;
-    this.fill.intensity = 0.18 + dayMix * 0.38;
-    this.directional.color.set(dayMix < 0.35 ? 0xf6c88d : warm > 0.9 ? 0xffdfac : 0xfff5da);
-    this.fill.color.set(dayMix < 0.35 ? 0x5c769d : 0xa6e1ff);
-    this.directional.position.set(18, 14 + dayMix * 16, 12 + (0.5 - cycle) * 8);
   }
 
   private syncFromState(state: GameState): void {
@@ -2574,198 +2550,10 @@ export class GameRenderer {
     return group;
   }
 
-  private createCustomImageAsset(
-    imageUrl: string,
-    type: BuildType,
-    buildingId: number,
-    scale = 1
-  ): THREE.Group {
-    const group = new THREE.Group();
-    const footprint = footprintForType(type);
-    const width =
-      footprint.width > 1 || footprint.depth > 1
-        ? 3.02 * scale
-        : type === 'house'
-          ? 1.56 * scale
-          : 1.82 * scale;
-    const height =
-      footprint.width > 1 || footprint.depth > 1
-        ? 2.48 * scale
-        : type === 'house'
-          ? 1.72 * scale
-          : 1.92 * scale;
-
-    const plane = new THREE.Mesh(
-      new THREE.PlaneGeometry(width, height),
-      new THREE.MeshStandardMaterial({
-        transparent: true,
-        alphaTest: 0.02,
-        roughness: 0.8,
-        metalness: 0.02,
-        side: THREE.DoubleSide
-      })
-    );
-    this.loadNormalizedCustomAssetTexture(imageUrl, plane.material as THREE.MeshStandardMaterial);
-    plane.rotation.y = Math.PI / 4;
-    plane.position.y = 0.04;
-    plane.renderOrder = 3;
-    plane.castShadow = true;
-    plane.receiveShadow = true;
-    plane.userData.buildingId = buildingId;
-
-    const softShadow = new THREE.Mesh(
-      new THREE.PlaneGeometry(width * 0.48, height * 0.1),
-      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.045, depthWrite: false })
-    );
-    softShadow.rotation.x = -Math.PI / 2;
-    softShadow.position.set(0, -height * 0.495, 0.01);
-    softShadow.userData.buildingId = buildingId;
-
-    group.add(plane);
-    group.add(softShadow);
-    return group;
-  }
-
-  private loadNormalizedCustomAssetTexture(imageUrl: string, material: THREE.MeshStandardMaterial): void {
-    const cached = this.customAssetTextureCache.get(imageUrl);
-    if (cached) {
-      material.map = cached;
-      material.needsUpdate = true;
-      return;
-    }
-
-    const image = new Image();
-    image.onload = () => {
-      const texture = this.normalizeCustomAssetTexture(image);
-      this.customAssetTextureCache.set(imageUrl, texture);
-      material.map = texture;
-      material.needsUpdate = true;
-    };
-    image.src = imageUrl;
-  }
-
-  private normalizeCustomAssetTexture(image: HTMLImageElement): THREE.Texture {
-    const width = image.naturalWidth || image.width || 1024;
-    const height = image.naturalHeight || image.height || 1024;
-    const sourceCanvas = document.createElement('canvas');
-    sourceCanvas.width = width;
-    sourceCanvas.height = height;
-    const sourceCtx = sourceCanvas.getContext('2d');
-    if (!sourceCtx) {
-      const fallback = new THREE.TextureLoader().load(image.src);
-      fallback.colorSpace = THREE.SRGBColorSpace;
-      fallback.anisotropy = Math.min(this.renderer.capabilities.getMaxAnisotropy(), 8);
-      return fallback;
-    }
-
-    sourceCtx.clearRect(0, 0, width, height);
-    sourceCtx.drawImage(image, 0, 0, width, height);
-    const imageData = sourceCtx.getImageData(0, 0, width, height);
-    const { data } = imageData;
-    const visited = new Uint8Array(width * height);
-    const queue: number[] = [];
-
-    const isBackgroundPixel = (index: number): boolean => {
-      const alpha = data[index + 3];
-      if (alpha < 16) return true;
-      const r = data[index];
-      const g = data[index + 1];
-      const b = data[index + 2];
-      return r < 20 && g < 20 && b < 20;
-    };
-
-    const enqueue = (x: number, y: number): void => {
-      const cell = y * width + x;
-      if (visited[cell]) return;
-      visited[cell] = 1;
-      const index = cell * 4;
-      if (!isBackgroundPixel(index)) return;
-      queue.push(cell);
-    };
-
-    for (let x = 0; x < width; x += 1) {
-      enqueue(x, 0);
-      enqueue(x, height - 1);
-    }
-    for (let y = 0; y < height; y += 1) {
-      enqueue(0, y);
-      enqueue(width - 1, y);
-    }
-
-    while (queue.length > 0) {
-      const cell = queue.pop();
-      if (cell == null) continue;
-      const x = cell % width;
-      const y = Math.floor(cell / width);
-      const index = cell * 4;
-      data[index + 3] = 0;
-
-      if (x > 0) enqueue(x - 1, y);
-      if (x + 1 < width) enqueue(x + 1, y);
-      if (y > 0) enqueue(x, y - 1);
-      if (y + 1 < height) enqueue(x, y + 1);
-    }
-
-    sourceCtx.putImageData(imageData, 0, 0);
-
-    let minX = width;
-    let minY = height;
-    let maxX = -1;
-    let maxY = -1;
-    for (let y = 0; y < height; y += 1) {
-      for (let x = 0; x < width; x += 1) {
-        const alpha = data[(y * width + x) * 4 + 3];
-        if (alpha > 6) {
-          minX = Math.min(minX, x);
-          minY = Math.min(minY, y);
-          maxX = Math.max(maxX, x);
-          maxY = Math.max(maxY, y);
-        }
-      }
-    }
-
-    if (maxX < minX || maxY < minY) {
-      const fallback = new THREE.CanvasTexture(sourceCanvas);
-      fallback.colorSpace = THREE.SRGBColorSpace;
-      fallback.anisotropy = Math.min(this.renderer.capabilities.getMaxAnisotropy(), 8);
-      return fallback;
-    }
-
-    const cropWidth = maxX - minX + 1;
-    const cropHeight = maxY - minY + 1;
-    const outputSize = Math.max(width, height);
-    const padding = Math.round(outputSize * 0.2);
-    const drawScale = Math.min((outputSize - padding * 2) / cropWidth, (outputSize - padding * 2) / cropHeight);
-    const drawWidth = cropWidth * drawScale;
-    const drawHeight = cropHeight * drawScale;
-    const offsetX = (outputSize - drawWidth) * 0.5;
-    const offsetY = (outputSize - drawHeight) * 0.5;
-
-    const outputCanvas = document.createElement('canvas');
-    outputCanvas.width = outputSize;
-    outputCanvas.height = outputSize;
-    const outputCtx = outputCanvas.getContext('2d');
-    if (!outputCtx) {
-      const fallback = new THREE.CanvasTexture(sourceCanvas);
-      fallback.colorSpace = THREE.SRGBColorSpace;
-      fallback.anisotropy = Math.min(this.renderer.capabilities.getMaxAnisotropy(), 8);
-      return fallback;
-    }
-
-    outputCtx.clearRect(0, 0, outputSize, outputSize);
-    outputCtx.drawImage(sourceCanvas, minX, minY, cropWidth, cropHeight, offsetX, offsetY, drawWidth, drawHeight);
-
-    const texture = new THREE.CanvasTexture(outputCanvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.anisotropy = Math.min(this.renderer.capabilities.getMaxAnisotropy(), 8);
-    texture.needsUpdate = true;
-    return texture;
-  }
-
   private createIllustratedBuilding(building: Building): THREE.Object3D {
     const group = new THREE.Group();
     const footprint = footprintForType(building.type);
-    const usesCustomImage = Boolean(building.customImageUrl);
+    const usesCustomImage = false;
     const frontage = this.roadFrontage(building);
     const frontageEntries = Object.entries(frontage) as Array<[keyof typeof frontage, number]>;
     frontageEntries.sort((a, b) => b[1] - a[1]);
@@ -2905,20 +2693,12 @@ export class GameRenderer {
     customCurb.userData.buildingId = building.id;
     customCurb.visible = usesCustomImage && !isHouse;
 
-    const hero =
-      building.customImageUrl
-        ? this.createCustomImageAsset(
-            building.customImageUrl,
-            building.type,
-            building.id,
-            footprint.width > 1 || footprint.depth > 1 ? 1.04 : 1
-          )
-        : this.createHeroAsset(
-            building.type,
-            building.id,
-            building.id,
-            footprint.width > 1 || footprint.depth > 1 ? 1.04 : 1
-          );
+    const hero = this.createHeroAsset(
+      building.type,
+      building.id,
+      building.id,
+      footprint.width > 1 || footprint.depth > 1 ? 1.04 : 1
+    );
     hero.position.set(
       0,
       usesCustomImage ? (footprint.width > 1 ? 0.76 : 0.5) : footprint.width > 1 ? 1.0 : 0.74,
