@@ -78,6 +78,8 @@ export class GameRenderer {
 
   private readonly buildingByCell = new Map<string, Building>();
 
+  private decorSignature = '';
+
   private frameHandle = 0;
 
   private lastTime = performance.now();
@@ -134,7 +136,20 @@ export class GameRenderer {
     fill.position.set(-25, 18, -18);
     this.scene.add(fill);
 
-    const tileGeometry = new THREE.BoxGeometry(1, 0.14, 1);
+    const terrainBase = new THREE.Mesh(
+      new THREE.PlaneGeometry(state.gridSize + 4, state.gridSize + 4),
+      new THREE.MeshStandardMaterial({
+        color: 0x6e9f68,
+        roughness: 0.98,
+        metalness: 0.01
+      })
+    );
+    terrainBase.rotation.x = -Math.PI / 2;
+    terrainBase.position.y = -0.12;
+    terrainBase.receiveShadow = true;
+    this.scene.add(terrainBase);
+
+    const tileGeometry = new THREE.BoxGeometry(0.94, 0.14, 0.94);
     const tileMaterial = new THREE.MeshStandardMaterial({
       vertexColors: true,
       roughness: 0.94,
@@ -176,7 +191,7 @@ export class GameRenderer {
     if (this.tileMesh.instanceColor) this.tileMesh.instanceColor.needsUpdate = true;
     this.scene.add(this.tileMesh);
     this.scene.add(this.decorRoot);
-    this.createGroundDecor(state);
+    this.rebuildGroundDecor(state);
 
     const planeSize = state.gridSize + 0.2;
     this.groundPlane = new THREE.Mesh(
@@ -414,6 +429,8 @@ export class GameRenderer {
         this.buildingByCell.set(`${cell.x}:${cell.z}`, b);
       });
     });
+
+    this.rebuildGroundDecor(state);
 
     const seen = new Set<number>();
     for (const b of state.buildings) {
@@ -1003,6 +1020,9 @@ export class GameRenderer {
       const yardBench = this.createBench(0.22, 0.04, -0.26, -0.6, building.id);
       yardBench.visible = variant === 0 || variant === 3;
 
+      const porchBike = this.createBike(-0.24, 0.03, 0.28, 0.45, building.id, variant === 2 ? 0xc85f4d : 0x587094);
+      porchBike.visible = variant === 2 || variant === 4;
+
       const smokePuffs = Array.from({ length: 3 }, (_, index) => {
         const puff = new THREE.Mesh(
           new THREE.SphereGeometry(0.07, 10, 10),
@@ -1049,6 +1069,7 @@ export class GameRenderer {
       group.add(bikeShed);
       group.add(mailbox);
       group.add(yardBench);
+      group.add(porchBike);
       smokePuffs.forEach((puff) => group.add(puff));
 
       const houseCard = this.createFacadeCard(building.type, building.id, variant);
@@ -1083,6 +1104,7 @@ export class GameRenderer {
         bikeShed,
         ...this.collectMeshes(mailbox),
         ...this.collectMeshes(yardBench),
+        ...this.collectMeshes(porchBike),
         houseCard,
         ...smokePuffs
       ]);
@@ -1481,6 +1503,16 @@ export class GameRenderer {
           ? this.createParkedCar(0x546c88, 0.18, 0.07, -0.29, 0, building.id, 0.92)
           : null;
 
+      const bikeRack = this.createBike(
+        isBank ? -0.26 : 0.24,
+        0.03,
+        0.27,
+        isBank ? -0.15 : 0.2,
+        building.id,
+        isRestaurant ? 0xc76b42 : isGrocery ? 0x5d7d52 : 0x587094
+      );
+      bikeRack.visible = isCornerStore || isGrocery || (isShop && variant === 1);
+
       group.add(lot);
       group.add(sidewalkApron);
       group.add(curbLip);
@@ -1520,6 +1552,7 @@ export class GameRenderer {
       group.add(planterAccentA);
       group.add(planterAccentB);
       group.add(dumpster);
+      group.add(bikeRack);
       const facadeCard = this.createFacadeCard(building.type, building.id, building.id);
       facadeCard.position.set(0, isShop ? 0.34 : isCornerStore ? 0.24 : 0.3, 0.42);
       group.add(facadeCard);
@@ -1562,6 +1595,7 @@ export class GameRenderer {
         ...this.collectMeshes(planterAccentA),
         ...this.collectMeshes(planterAccentB),
         dumpster,
+        ...this.collectMeshes(bikeRack),
         sandwichBoard,
         facadeCard
       ]);
@@ -2522,6 +2556,61 @@ export class GameRenderer {
     return group;
   }
 
+  private createBike(
+    x: number,
+    y: number,
+    z: number,
+    rotationY: number,
+    buildingId: number,
+    color: number
+  ): THREE.Group {
+    const group = new THREE.Group();
+    group.position.set(x, y, z);
+    group.rotation.y = rotationY;
+
+    const frameMat = new THREE.MeshStandardMaterial({ color, roughness: 0.74, metalness: 0.16 });
+    const wheelMat = new THREE.MeshStandardMaterial({ color: 0x2d3642, roughness: 0.86, metalness: 0.08 });
+
+    const wheelFront = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.01, 8, 18), wheelMat);
+    wheelFront.position.set(0.08, 0.06, 0);
+    wheelFront.rotation.y = Math.PI / 2;
+    wheelFront.castShadow = true;
+    wheelFront.receiveShadow = true;
+    wheelFront.userData.buildingId = buildingId;
+
+    const wheelBack = wheelFront.clone();
+    wheelBack.position.x = -0.08;
+    wheelBack.userData.buildingId = buildingId;
+
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.015, 0.015), frameMat);
+    frame.position.set(0, 0.08, 0);
+    frame.rotation.z = 0.45;
+    frame.castShadow = true;
+    frame.receiveShadow = true;
+    frame.userData.buildingId = buildingId;
+
+    const frameBack = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.015, 0.015), frameMat.clone());
+    frameBack.position.set(-0.02, 0.075, 0);
+    frameBack.rotation.z = -0.55;
+    frameBack.castShadow = true;
+    frameBack.receiveShadow = true;
+    frameBack.userData.buildingId = buildingId;
+
+    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.015, 0.015), frameMat.clone());
+    handle.position.set(0.09, 0.12, 0);
+    handle.rotation.z = -0.4;
+    handle.castShadow = true;
+    handle.receiveShadow = true;
+    handle.userData.buildingId = buildingId;
+
+    group.add(wheelFront);
+    group.add(wheelBack);
+    group.add(frame);
+    group.add(frameBack);
+    group.add(handle);
+    return group;
+  }
+
   private gridToWorld(x: number, z: number, gridSize: number): { x: number; z: number } {
     const half = (gridSize - 1) * 0.5;
     return {
@@ -2538,33 +2627,107 @@ export class GameRenderer {
     this.cameraDesired.z = THREE.MathUtils.clamp(this.cameraDesired.z, -half - margin, half + margin);
   }
 
+  private rebuildGroundDecor(state: GameState): void {
+    const signature = state.buildings
+      .map((building) => `${building.id}:${building.type}:${building.x}:${building.z}`)
+      .join('|');
+    if (signature === this.decorSignature) return;
+    this.decorSignature = signature;
+
+    while (this.decorRoot.children.length > 0) {
+      const child = this.decorRoot.children.pop();
+      if (!child) break;
+      this.disposeObject(child);
+    }
+
+    this.createGroundDecor(state);
+  }
+
   private createGroundDecor(state: GameState): void {
     const treeTrunk = new THREE.CylinderGeometry(0.028, 0.036, 0.16, 8);
     const treeLeaf = new THREE.ConeGeometry(0.14, 0.32, 9);
+    const shrubGeom = new THREE.SphereGeometry(0.075, 9, 9);
+    const flowerGeom = new THREE.SphereGeometry(0.028, 8, 8);
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x8a6645, roughness: 0.95, metalness: 0.01 });
     const leafMat = new THREE.MeshStandardMaterial({ color: 0x5f9566, roughness: 0.86, metalness: 0.01 });
+    const shrubMat = new THREE.MeshStandardMaterial({ color: 0x6f9b61, roughness: 0.92, metalness: 0.01 });
+    const flowerMats = [
+      new THREE.MeshStandardMaterial({ color: 0xf4b7b2, roughness: 0.82, metalness: 0.01 }),
+      new THREE.MeshStandardMaterial({ color: 0xf2d089, roughness: 0.82, metalness: 0.01 }),
+      new THREE.MeshStandardMaterial({ color: 0xcddfa4, roughness: 0.82, metalness: 0.01 })
+    ];
+
+    const isOccupied = (x: number, z: number) => this.buildingByCell.has(`${x}:${z}`);
+    const roadDistance = (x: number, z: number) => {
+      for (let dz = -1; dz <= 1; dz += 1) {
+        for (let dx = -1; dx <= 1; dx += 1) {
+          if (this.buildingByCell.get(`${x + dx}:${z + dz}`)?.type === 'road') return true;
+        }
+      }
+      return false;
+    };
 
     for (let z = 1; z < state.gridSize - 1; z += 1) {
       for (let x = 1; x < state.gridSize - 1; x += 1) {
-        const isBorder = x < 4 || z < 4 || x > state.gridSize - 5 || z > state.gridSize - 5;
-        if (!isBorder) continue;
-
-        const n = state.tiles[z * state.gridSize + x].tint;
-        if (n < 0.98) continue;
+        if (isOccupied(x, z)) continue;
 
         const world = this.gridToWorld(x, z, state.gridSize);
-        const trunk = new THREE.Mesh(treeTrunk, trunkMat);
-        trunk.position.set(world.x, 0.08, world.z);
-        trunk.castShadow = true;
-        trunk.receiveShadow = true;
+        const tint = state.tiles[z * state.gridSize + x].tint;
+        const border = x < 3 || z < 3 || x > state.gridSize - 4 || z > state.gridSize - 4;
+        const adjacentRoad = roadDistance(x, z);
+        const noise = (x * 37 + z * 19) % 11;
 
-        const leaf = new THREE.Mesh(treeLeaf, leafMat);
-        leaf.position.set(world.x, 0.28, world.z);
-        leaf.castShadow = true;
-        leaf.receiveShadow = true;
+        if (border && tint > 0.98 && noise < 5) {
+          const trunk = new THREE.Mesh(treeTrunk, trunkMat);
+          trunk.position.set(world.x, 0.08, world.z);
+          trunk.castShadow = true;
+          trunk.receiveShadow = true;
 
-        this.decorRoot.add(trunk);
-        this.decorRoot.add(leaf);
+          const leaf = new THREE.Mesh(treeLeaf, leafMat.clone());
+          leaf.position.set(world.x, 0.28, world.z);
+          leaf.scale.setScalar(0.9 + ((x + z) % 4) * 0.08);
+          leaf.castShadow = true;
+          leaf.receiveShadow = true;
+
+          this.decorRoot.add(trunk);
+          this.decorRoot.add(leaf);
+          continue;
+        }
+
+        if (adjacentRoad) {
+          if (noise === 0 || noise === 1) {
+            const shrub = new THREE.Mesh(shrubGeom, shrubMat.clone());
+            shrub.position.set(world.x + (noise === 0 ? -0.18 : 0.18), 0.06, world.z + 0.18);
+            shrub.scale.set(1.1, 0.7, 0.95);
+            shrub.castShadow = true;
+            shrub.receiveShadow = true;
+            this.decorRoot.add(shrub);
+          }
+          continue;
+        }
+
+        if (noise === 2 || noise === 3 || noise === 4) {
+          const shrub = new THREE.Mesh(shrubGeom, shrubMat.clone());
+          shrub.position.set(world.x + (((x + z) % 3) - 1) * 0.14, 0.055, world.z + (((x * 2 + z) % 3) - 1) * 0.12);
+          shrub.scale.set(1.2, 0.72, 1.05);
+          shrub.castShadow = true;
+          shrub.receiveShadow = true;
+          this.decorRoot.add(shrub);
+        }
+
+        if (noise === 5 || noise === 6) {
+          const patch = new THREE.Group();
+          patch.position.set(world.x, 0.045, world.z);
+          for (let i = 0; i < 3; i += 1) {
+            const flower = new THREE.Mesh(flowerGeom, flowerMats[(x + z + i) % flowerMats.length]);
+            flower.position.set(-0.09 + i * 0.08, 0.01 + i * 0.006, ((x + i) % 2 === 0 ? -0.04 : 0.04));
+            flower.scale.setScalar(0.9 + i * 0.12);
+            flower.castShadow = true;
+            flower.receiveShadow = true;
+            patch.add(flower);
+          }
+          this.decorRoot.add(patch);
+        }
       }
     }
   }
