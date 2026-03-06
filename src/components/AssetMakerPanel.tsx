@@ -172,7 +172,7 @@ export function AssetMakerPanel({ state }: AssetMakerPanelProps): JSX.Element {
   };
 
   return (
-    <aside className="pointer-events-auto panel-glass max-h-[calc(100vh-11.5rem)] overflow-y-auto rounded-2xl p-4 text-slate-100 shadow-glow">
+    <aside className="pointer-events-auto panel-glass h-full min-h-0 overflow-y-auto rounded-2xl p-4 text-slate-100 shadow-glow">
       <div className="mb-3 flex items-end justify-between gap-3">
         <div className="text-xs uppercase tracking-[0.18em] text-amber-200">Asset Maker</div>
         <div className="text-[11px] text-slate-300">Single-use custom buildings</div>
