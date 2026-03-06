@@ -2608,6 +2608,18 @@ export class GameRenderer {
     const group = new THREE.Group();
     const footprint = footprintForType(building.type);
     const usesCustomImage = Boolean(building.customImageUrl);
+    const frontage = this.roadFrontage(building);
+    const frontageEntries = Object.entries(frontage) as Array<[keyof typeof frontage, number]>;
+    frontageEntries.sort((a, b) => b[1] - a[1]);
+    const frontageSide: 'n' | 'e' | 's' | 'w' = frontageEntries[0] && frontageEntries[0][1] > 0 ? frontageEntries[0][0] : 's';
+    const orientPoint = (forward: number, lateral: number): { x: number; z: number } => {
+      if (frontageSide === 'n') return { x: -lateral, z: -forward };
+      if (frontageSide === 'e') return { x: forward, z: -lateral };
+      if (frontageSide === 'w') return { x: -forward, z: lateral };
+      return { x: lateral, z: forward };
+    };
+    const frontEdge = footprint.depth > 1 ? 0.42 : 0.34;
+    const yardDepth = footprint.depth > 1 ? 0.18 : 0.12;
     const isHouse = building.type === 'house';
     const isUtility = building.type === 'powerPlant';
     const isCivic =
@@ -2673,7 +2685,10 @@ export class GameRenderer {
         metalness: 0.01
       })
     );
-    customFrontPath.position.set(0, 0.038, footprint.depth * 0.34);
+    {
+      const pos = orientPoint(frontEdge, 0);
+      customFrontPath.position.set(pos.x, 0.038, pos.z);
+    }
     customFrontPath.userData.buildingId = building.id;
     customFrontPath.visible = usesCustomImage && (isHouse || isCommercial || isCivic);
 
@@ -2689,7 +2704,10 @@ export class GameRenderer {
       new THREE.BoxGeometry(footprint.width * 0.96, 0.02, 0.04),
       new THREE.MeshStandardMaterial({ color: 0xc7cfd5, roughness: 0.92, metalness: 0.01 })
     );
-    customCurb.position.set(0, 0.046, footprint.depth * 0.45);
+    {
+      const pos = orientPoint(footprint.depth > 1 ? 0.56 : 0.45, 0);
+      customCurb.position.set(pos.x, 0.046, pos.z);
+    }
     customCurb.userData.buildingId = building.id;
     customCurb.visible = usesCustomImage && !isHouse;
 
@@ -2712,6 +2730,11 @@ export class GameRenderer {
       usesCustomImage ? (footprint.width > 1 ? 0.8 : 0.56) : footprint.width > 1 ? 1.0 : 0.74,
       usesCustomImage ? -0.02 : footprint.depth > 1 ? 0.08 : 0.06
     );
+    if (usesCustomImage) {
+      const shift = orientPoint(-yardDepth, 0);
+      hero.position.x += shift.x;
+      hero.position.z += shift.z;
+    }
 
     const planterA = this.createPlanterBox(
       0x977352,
@@ -2728,13 +2751,17 @@ export class GameRenderer {
     const customPlanterA = this.createPlanterBox(
       isHouse ? 0x9a7a58 : 0x977352,
       isHouse ? 0x769f66 : isUtility ? 0x86a56a : isCivic ? 0x76a27a : 0x7cab72,
-      -footprint.width * 0.28,
+      0,
       0.038,
-      footprint.depth * 0.2,
+      0,
       building.id,
       footprint.width > 1 ? 0.16 : 0.1,
       footprint.width > 1 ? 0.13 : 0.1
     );
+    {
+      const pos = orientPoint(frontEdge - 0.08, -footprint.width * 0.28);
+      customPlanterA.position.set(pos.x, 0.038, pos.z);
+    }
     customPlanterA.visible = usesCustomImage && !isUtility;
 
     const planterB = this.createPlanterBox(
@@ -2752,13 +2779,17 @@ export class GameRenderer {
     const customPlanterB = this.createPlanterBox(
       0x977352,
       isCommercial ? 0x8eb664 : 0x7ca07a,
-      footprint.width * 0.28,
+      0,
       0.038,
-      footprint.depth * 0.18,
+      0,
       building.id,
       footprint.width > 1 ? 0.16 : 0.1,
       footprint.width > 1 ? 0.13 : 0.1
     );
+    {
+      const pos = orientPoint(frontEdge - 0.1, footprint.width * 0.28);
+      customPlanterB.position.set(pos.x, 0.038, pos.z);
+    }
     customPlanterB.visible = usesCustomImage && (isCommercial || isCivic);
 
     const lamp = this.createStreetLamp(
@@ -2771,18 +2802,26 @@ export class GameRenderer {
     lamp.visible = !isHouse && !usesCustomImage;
 
     const customLamp = this.createStreetLamp(
-      footprint.width * 0.34,
+      0,
       0.04,
-      footprint.depth * 0.12,
+      0,
       building.id,
       isUtility ? 0xffd45f : isCivic ? 0xd9ecff : 0xffe3a8
     );
+    {
+      const pos = orientPoint(frontEdge - 0.12, footprint.width * 0.34);
+      customLamp.position.set(pos.x, 0.04, pos.z);
+    }
     customLamp.visible = usesCustomImage && !isHouse && !isUtility;
 
     const bench = this.createBench(-footprint.width * 0.22, 0.05, footprint.depth * 0.18, 0, building.id);
     bench.visible = (isCommercial || isCivic) && !usesCustomImage;
 
-    const customBench = this.createBench(-footprint.width * 0.2, 0.04, footprint.depth * 0.15, 0, building.id);
+    const customBench = this.createBench(0, 0.04, 0, 0, building.id);
+    {
+      const pos = orientPoint(frontEdge - 0.12, -footprint.width * 0.2);
+      customBench.position.set(pos.x, 0.04, pos.z);
+    }
     customBench.visible = usesCustomImage && (isCommercial || isCivic);
 
     const bike = this.createBike(
@@ -2796,22 +2835,30 @@ export class GameRenderer {
     bike.visible = (isHouse || building.type === 'cornerStore' || building.type === 'groceryStore') && !usesCustomImage;
 
     const customBike = this.createBike(
-      isHouse ? -0.18 : 0.18,
+      0,
       0.028,
-      footprint.depth * 0.14,
+      0,
       isHouse ? 0.45 : -0.1,
       building.id,
       isHouse ? 0xc76b42 : 0x597596
     );
+    {
+      const pos = orientPoint(frontEdge - 0.14, isHouse ? -0.18 : 0.18);
+      customBike.position.set(pos.x, 0.028, pos.z);
+    }
     customBike.visible = usesCustomImage && (isHouse || building.type === 'cornerStore' || building.type === 'groceryStore');
 
     const customMailbox = this.createMailbox(
-      -footprint.width * 0.24,
+      0,
       0.03,
-      footprint.depth * 0.22,
+      0,
       building.id,
       0xc85d4a
     );
+    {
+      const pos = orientPoint(frontEdge - 0.04, -footprint.width * 0.24);
+      customMailbox.position.set(pos.x, 0.03, pos.z);
+    }
     customMailbox.visible = usesCustomImage && isHouse;
 
     group.add(customParcelBase);
