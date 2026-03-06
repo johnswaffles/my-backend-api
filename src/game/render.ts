@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
-import { getAssetCardOptions, paintAssetCard } from './assets';
+import { getAssetCardOptions, paintAssetCard, paintAssetSideCard } from './assets';
 import type { BuildType, Building, GameState } from './state';
 import {
   footprintForType,
@@ -89,13 +89,13 @@ export class GameRenderer {
   private readonly cameraDesired = {
     x: 0,
     z: 0,
-    distance: 8.8
+    distance: 6.7
   };
 
   private readonly cameraCurrent = {
     x: 0,
     z: 0,
-    distance: 8.8
+    distance: 6.7
   };
 
   constructor(container: HTMLElement) {
@@ -137,19 +137,19 @@ export class GameRenderer {
     this.scene.add(fill);
 
     const terrainBase = new THREE.Mesh(
-      new THREE.PlaneGeometry(state.gridSize + 4, state.gridSize + 4),
+      new THREE.PlaneGeometry(state.gridSize + 6, state.gridSize + 6),
       new THREE.MeshStandardMaterial({
-        color: 0x6e9f68,
-        roughness: 0.98,
+        color: 0x88b07f,
+        roughness: 0.96,
         metalness: 0.01
       })
     );
     terrainBase.rotation.x = -Math.PI / 2;
-    terrainBase.position.y = -0.12;
+    terrainBase.position.y = -0.05;
     terrainBase.receiveShadow = true;
     this.scene.add(terrainBase);
 
-    const tileGeometry = new THREE.BoxGeometry(0.94, 0.14, 0.94);
+    const tileGeometry = new THREE.BoxGeometry(1.01, 0.07, 1.01);
     const tileMaterial = new THREE.MeshStandardMaterial({
       vertexColors: true,
       roughness: 0.94,
@@ -169,18 +169,18 @@ export class GameRenderer {
         const tile = state.tiles[idx];
         const heightScale = 1 + tile.elevation;
         matrix.compose(
-          new THREE.Vector3(world.x, -0.04 + tile.elevation * 0.2, world.z),
+          new THREE.Vector3(world.x, -0.01 + tile.elevation * 0.09, world.z),
           new THREE.Quaternion(),
           new THREE.Vector3(1, heightScale, 1)
         );
         this.tileMesh.setMatrixAt(idx, matrix);
 
-        const warmPatch = ((x + z) % 3 === 0 ? 0.03 : 0) + Math.max(0, tile.elevation) * 0.08;
-        const coolPatch = ((x * 7 + z * 3) % 5 === 0 ? 0.025 : 0);
+        const warmPatch = ((x + z) % 3 === 0 ? 0.03 : 0.01) + Math.max(0, tile.elevation) * 0.05;
+        const coolPatch = ((x * 7 + z * 3) % 5 === 0 ? 0.018 : 0.006);
         color.setRGB(
-          (0.5 + warmPatch * 0.4) * tile.tint,
-          (0.76 + tile.elevation * 0.16 + warmPatch) * tile.tint,
-          (0.52 + coolPatch * 0.2) * tile.tint
+          (0.58 + warmPatch * 0.28) * tile.tint,
+          (0.82 + tile.elevation * 0.08 + warmPatch) * tile.tint,
+          (0.6 + coolPatch * 0.16) * tile.tint
         );
         this.tileMesh.setColorAt(idx, color);
 
@@ -272,7 +272,7 @@ export class GameRenderer {
 
   zoomBy(delta: number, focusCell?: { x: number; z: number }): void {
     const previousDistance = this.cameraDesired.distance;
-    const nextDistance = THREE.MathUtils.clamp(this.cameraDesired.distance + delta, 5.25, 24);
+    const nextDistance = THREE.MathUtils.clamp(this.cameraDesired.distance + delta, 4.2, 18);
     this.cameraDesired.distance = nextDistance;
 
     if (focusCell && previousDistance > 0) {
@@ -362,8 +362,8 @@ export class GameRenderer {
     this.cameraCurrent.z = THREE.MathUtils.lerp(this.cameraCurrent.z, this.cameraDesired.z, 0.11);
     this.cameraCurrent.distance = THREE.MathUtils.lerp(this.cameraCurrent.distance, this.cameraDesired.distance, 0.12);
 
-    const yaw = Math.PI / 4;
-    const pitch = THREE.MathUtils.degToRad(52);
+      const yaw = Math.PI / 4;
+      const pitch = THREE.MathUtils.degToRad(39);
     const r = this.cameraCurrent.distance;
     const offset = new THREE.Vector3(
       Math.cos(yaw) * Math.cos(pitch) * r,
@@ -372,7 +372,7 @@ export class GameRenderer {
     );
 
     this.camera.position.set(this.cameraCurrent.x + offset.x, offset.y, this.cameraCurrent.z + offset.z);
-    this.camera.lookAt(this.cameraCurrent.x, 0, this.cameraCurrent.z);
+    this.camera.lookAt(this.cameraCurrent.x, 0.38, this.cameraCurrent.z);
 
     this.animateAmbientBuildings(time / 1000);
 
@@ -637,8 +637,8 @@ export class GameRenderer {
       const curbMaterial = new THREE.MeshStandardMaterial({ color: 0xcbd3d9, roughness: 0.94, metalness: 0.01 });
 
       const sidewalkBase = new THREE.Mesh(
-        new THREE.BoxGeometry(1.08, 0.03, 1.08),
-        new THREE.MeshStandardMaterial({ color: 0xd9dddf, roughness: 0.96, metalness: 0.01 })
+        new THREE.BoxGeometry(1.18, 0.03, 1.18),
+        new THREE.MeshStandardMaterial({ color: 0xe0e3e4, roughness: 0.96, metalness: 0.01 })
       );
       sidewalkBase.position.y = 0.012;
       sidewalkBase.receiveShadow = true;
@@ -646,14 +646,14 @@ export class GameRenderer {
       sidewalkBase.userData.buildingId = building.id;
       group.add(sidewalkBase);
 
-      const asphaltBase = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.045, 0.98), asphaltMaterial);
+      const asphaltBase = new THREE.Mesh(new THREE.BoxGeometry(1.06, 0.045, 1.06), asphaltMaterial);
       asphaltBase.position.y = 0.028;
       asphaltBase.receiveShadow = true;
       asphaltBase.castShadow = false;
       asphaltBase.userData.buildingId = building.id;
       group.add(asphaltBase);
 
-      const carriageway = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.02, 0.78), shoulderMaterial);
+      const carriageway = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.02, 0.9), shoulderMaterial);
       carriageway.position.y = 0.053;
       carriageway.receiveShadow = true;
       carriageway.castShadow = false;
@@ -667,12 +667,12 @@ export class GameRenderer {
         emissive: 0x111111,
         emissiveIntensity: 0.15
       });
-      const stripeNS = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.005, 0.62), laneStripeMat);
+      const stripeNS = new THREE.Mesh(new THREE.BoxGeometry(0.038, 0.005, 0.76), laneStripeMat);
       stripeNS.position.set(0, 0.08, 0);
       stripeNS.userData.buildingId = building.id;
       group.add(stripeNS);
 
-      const stripeEW = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.005, 0.045), laneStripeMat.clone());
+      const stripeEW = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.005, 0.038), laneStripeMat.clone());
       stripeEW.position.set(0, 0.08, 0);
       stripeEW.userData.buildingId = building.id;
       group.add(stripeEW);
@@ -693,17 +693,17 @@ export class GameRenderer {
       intersectionMark.visible = false;
       group.add(intersectionMark);
 
-      const connectorGeom = new THREE.BoxGeometry(0.3, 0.044, 0.56);
+      const connectorGeom = new THREE.BoxGeometry(0.38, 0.044, 0.64);
       const connectorMat = asphaltMaterial;
       const n = new THREE.Mesh(connectorGeom, connectorMat.clone());
       const e = new THREE.Mesh(connectorGeom, connectorMat.clone());
       const s = new THREE.Mesh(connectorGeom, connectorMat.clone());
       const w = new THREE.Mesh(connectorGeom, connectorMat.clone());
 
-      n.position.set(0, 0.028, -0.39);
-      s.position.set(0, 0.028, 0.39);
-      e.position.set(0.39, 0.028, 0);
-      w.position.set(-0.39, 0.028, 0);
+      n.position.set(0, 0.028, -0.45);
+      s.position.set(0, 0.028, 0.45);
+      e.position.set(0.45, 0.028, 0);
+      w.position.set(-0.45, 0.028, 0);
       e.rotation.y = Math.PI / 2;
       w.rotation.y = Math.PI / 2;
       [n, e, s, w].forEach((part) => {
@@ -713,16 +713,16 @@ export class GameRenderer {
         group.add(part);
       });
 
-      const capGeomH = new THREE.BoxGeometry(0.9, 0.04, 0.12);
-      const capGeomV = new THREE.BoxGeometry(0.12, 0.04, 0.9);
+      const capGeomH = new THREE.BoxGeometry(1.04, 0.04, 0.12);
+      const capGeomV = new THREE.BoxGeometry(0.12, 0.04, 1.04);
       const capN = new THREE.Mesh(capGeomH, curbMaterial.clone());
       const capS = new THREE.Mesh(capGeomH, curbMaterial.clone());
       const capE = new THREE.Mesh(capGeomV, curbMaterial.clone());
       const capW = new THREE.Mesh(capGeomV, curbMaterial.clone());
-      capN.position.set(0, 0.034, -0.43);
-      capS.position.set(0, 0.034, 0.43);
-      capE.position.set(0.43, 0.034, 0);
-      capW.position.set(-0.43, 0.034, 0);
+      capN.position.set(0, 0.034, -0.53);
+      capS.position.set(0, 0.034, 0.53);
+      capE.position.set(0.53, 0.034, 0);
+      capW.position.set(-0.53, 0.034, 0);
       [capN, capS, capE, capW].forEach((part) => {
         part.receiveShadow = true;
         part.castShadow = false;
@@ -737,14 +737,14 @@ export class GameRenderer {
         emissive: 0x111111,
         emissiveIntensity: 0.06
       });
-      const cwN = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.004, 0.08), crosswalkMat);
-      const cwS = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.004, 0.08), crosswalkMat.clone());
-      const cwE = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.004, 0.44), crosswalkMat.clone());
-      const cwW = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.004, 0.44), crosswalkMat.clone());
-      cwN.position.set(0, 0.081, -0.27);
-      cwS.position.set(0, 0.081, 0.27);
-      cwE.position.set(0.27, 0.081, 0);
-      cwW.position.set(-0.27, 0.081, 0);
+      const cwN = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.004, 0.08), crosswalkMat);
+      const cwS = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.004, 0.08), crosswalkMat.clone());
+      const cwE = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.004, 0.52), crosswalkMat.clone());
+      const cwW = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.004, 0.52), crosswalkMat.clone());
+      cwN.position.set(0, 0.081, -0.31);
+      cwS.position.set(0, 0.081, 0.31);
+      cwE.position.set(0.31, 0.081, 0);
+      cwW.position.set(-0.31, 0.081, 0);
       [cwN, cwS, cwE, cwW].forEach((part) => {
         part.userData.buildingId = building.id;
         part.visible = false;
@@ -1072,8 +1072,8 @@ export class GameRenderer {
       group.add(porchBike);
       smokePuffs.forEach((puff) => group.add(puff));
 
-      const houseCard = this.createFacadeCard(building.type, building.id, variant);
-      houseCard.position.set(0, 0.29, 0.38);
+      const houseCard = this.createHybridAsset(building.type, building.id, variant, 1.16);
+      houseCard.position.set(0.02, 0.28, 0.43);
       group.add(houseCard);
 
       this.selectableMeshes.set(building.id, [
@@ -1105,7 +1105,7 @@ export class GameRenderer {
         ...this.collectMeshes(mailbox),
         ...this.collectMeshes(yardBench),
         ...this.collectMeshes(porchBike),
-        houseCard,
+        ...this.collectMeshes(houseCard),
         ...smokePuffs
       ]);
       this.houseAnimations.set(building.id, {
@@ -1553,8 +1553,8 @@ export class GameRenderer {
       group.add(planterAccentB);
       group.add(dumpster);
       group.add(bikeRack);
-      const facadeCard = this.createFacadeCard(building.type, building.id, building.id);
-      facadeCard.position.set(0, isShop ? 0.34 : isCornerStore ? 0.24 : 0.3, 0.42);
+      const facadeCard = this.createHybridAsset(building.type, building.id, building.id, isShop ? 1.2 : 1.14);
+      facadeCard.position.set(0.04, isShop ? 0.34 : isCornerStore ? 0.24 : 0.3, 0.46);
       group.add(facadeCard);
       this.selectableMeshes.set(building.id, [
         lot,
@@ -1597,7 +1597,7 @@ export class GameRenderer {
         dumpster,
         ...this.collectMeshes(bikeRack),
         sandwichBoard,
-        facadeCard
+        ...this.collectMeshes(facadeCard)
       ]);
       return group;
     }
@@ -1857,8 +1857,8 @@ export class GameRenderer {
         group.add(campusLampRight);
         group.add(campusPlanterLeft);
         group.add(campusPlanterRight);
-        const hospitalCard = this.createFacadeCard(building.type, building.id, building.id);
-        hospitalCard.position.set(0, 0.34, 0.84);
+        const hospitalCard = this.createHybridAsset(building.type, building.id, building.id, 1.38);
+        hospitalCard.position.set(-0.02, 0.34, 0.9);
         group.add(hospitalCard);
         this.selectableMeshes.set(building.id, [
           lot,
@@ -1879,7 +1879,7 @@ export class GameRenderer {
           ...this.collectMeshes(campusLampRight),
           ...this.collectMeshes(campusPlanterLeft),
           ...this.collectMeshes(campusPlanterRight),
-          hospitalCard
+          ...this.collectMeshes(hospitalCard)
         ]);
         return group;
       }
@@ -1961,8 +1961,8 @@ export class GameRenderer {
         group.add(policeWalk);
         group.add(precinctBench);
         group.add(precinctLamp);
-        const policeCard = this.createFacadeCard(building.type, building.id, building.id);
-        policeCard.position.set(0, 0.29, 0.38);
+        const policeCard = this.createHybridAsset(building.type, building.id, building.id, 1.14);
+        policeCard.position.set(0.02, 0.28, 0.42);
         group.add(policeCard);
         this.selectableMeshes.set(building.id, [
           lot,
@@ -1975,7 +1975,7 @@ export class GameRenderer {
           policeWalk,
           ...this.collectMeshes(precinctBench),
           ...this.collectMeshes(precinctLamp),
-          policeCard
+          ...this.collectMeshes(policeCard)
         ]);
         return group;
       }
@@ -2051,8 +2051,8 @@ export class GameRenderer {
       group.add(fireWalk);
       group.add(hydrant);
       group.add(fireLamp);
-      const fireCard = this.createFacadeCard(building.type, building.id, building.id);
-      fireCard.position.set(0, 0.27, 0.38);
+      const fireCard = this.createHybridAsset(building.type, building.id, building.id, 1.16);
+      fireCard.position.set(0.02, 0.27, 0.42);
       group.add(fireCard);
       this.selectableMeshes.set(building.id, [
         lot,
@@ -2065,7 +2065,7 @@ export class GameRenderer {
         fireWalk,
         hydrant,
         ...this.collectMeshes(fireLamp),
-        fireCard
+        ...this.collectMeshes(fireCard)
       ]);
       return group;
     }
@@ -2185,8 +2185,8 @@ export class GameRenderer {
     group.add(serviceWalk);
     group.add(yardLamp);
     group.add(shrubBed);
-    const powerCard = this.createFacadeCard(building.type, building.id, building.id);
-    powerCard.position.set(-0.28, 0.34, 0.62);
+    const powerCard = this.createHybridAsset(building.type, building.id, building.id, 1.36);
+    powerCard.position.set(-0.24, 0.34, 0.7);
     group.add(powerCard);
     this.selectableMeshes.set(building.id, [
       pad,
@@ -2204,7 +2204,7 @@ export class GameRenderer {
       serviceWalk,
       ...this.collectMeshes(yardLamp),
       ...this.collectMeshes(shrubBed),
-      powerCard
+      ...this.collectMeshes(powerCard)
     ]);
     return group;
   }
@@ -2257,6 +2257,73 @@ export class GameRenderer {
     return meshes;
   }
 
+  private createHybridAsset(
+    type: BuildType,
+    buildingId: number,
+    variant = 0,
+    scale = 1
+  ): THREE.Group {
+    const options = getAssetCardOptions(type, variant);
+    const group = new THREE.Group();
+
+    const front = this.createFacadeCard(type, buildingId, variant);
+    front.scale.setScalar(scale);
+    front.renderOrder = 2;
+    group.add(front);
+
+    if (!options) return group;
+
+    const sideCanvas = document.createElement('canvas');
+    if (paintAssetSideCard(sideCanvas, options)) {
+      const texture = new THREE.CanvasTexture(sideCanvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.anisotropy = Math.min(this.renderer.capabilities.getMaxAnisotropy(), 8);
+      texture.needsUpdate = true;
+
+      const side = new THREE.Mesh(
+        new THREE.PlaneGeometry(options.width * 0.38 * scale, options.height * 0.96 * scale),
+        new THREE.MeshStandardMaterial({
+          map: texture,
+          transparent: true,
+          alphaTest: 0.08,
+          roughness: 0.78,
+          metalness: 0.02,
+          side: THREE.DoubleSide
+        })
+      );
+      side.position.set(options.width * 0.26 * scale, 0, -0.12 * scale);
+      side.rotation.y = -Math.PI / 2;
+      side.renderOrder = 1;
+      side.userData.buildingId = buildingId;
+      group.add(side);
+    }
+
+    const roofLip = new THREE.Mesh(
+      new THREE.BoxGeometry(options.width * 0.78 * scale, 0.03 * scale, 0.18 * scale),
+      new THREE.MeshStandardMaterial({
+        color: options.palette.roof,
+        roughness: 0.78,
+        metalness: 0.03
+      })
+    );
+    roofLip.position.set(0.02 * scale, options.height * 0.5 * scale, 0.02 * scale);
+    roofLip.castShadow = true;
+    roofLip.receiveShadow = true;
+    roofLip.userData.buildingId = buildingId;
+    group.add(roofLip);
+
+    const cardShadow = new THREE.Mesh(
+      new THREE.PlaneGeometry(options.width * 0.92 * scale, options.height * 0.24 * scale),
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.08, depthWrite: false })
+    );
+    cardShadow.rotation.x = -Math.PI / 2;
+    cardShadow.position.set(0.04 * scale, -options.height * 0.44 * scale, 0.02 * scale);
+    cardShadow.userData.buildingId = buildingId;
+    group.add(cardShadow);
+
+    return group;
+  }
+
   private createFacadeCard(type: BuildType, buildingId: number, variant = 0): THREE.Mesh {
     const options = getAssetCardOptions(type, variant);
     if (!options) {
@@ -2287,7 +2354,8 @@ export class GameRenderer {
       transparent: true,
       alphaTest: 0.08,
       roughness: 0.74,
-      metalness: 0.02
+      metalness: 0.02,
+      side: THREE.DoubleSide
     });
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(options.width, options.height), material);
     mesh.userData.buildingId = buildingId;

@@ -501,3 +501,129 @@ export function paintAssetCard(canvas: HTMLCanvasElement, options: AssetCardOpti
 
   return true;
 }
+
+export function paintAssetSideCard(canvas: HTMLCanvasElement, options: AssetCardOptions): boolean {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return false;
+
+  canvas.width = 192;
+  canvas.height = 256;
+
+  const body = palette(options.palette.body);
+  const roof = palette(options.palette.roof);
+  const trim = palette(options.palette.trim);
+  const accent = palette(options.palette.accent);
+  const variant = ((options.variant % 3) + 3) % 3;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const shadow = ctx.createRadialGradient(96, 226, 14, 96, 226, 66);
+  shadow.addColorStop(0, 'rgba(15,23,42,0.22)');
+  shadow.addColorStop(1, 'rgba(15,23,42,0)');
+  ctx.fillStyle = shadow;
+  ctx.beginPath();
+  ctx.ellipse(96, 224, 62, 16, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  const wallGrad = ctx.createLinearGradient(0, 70, 0, 228);
+  wallGrad.addColorStop(0, trim);
+  wallGrad.addColorStop(1, body);
+  ctx.fillStyle = wallGrad;
+  ctx.fillRect(34, 78, 124, 142);
+
+  const roofGrad = ctx.createLinearGradient(0, 24, 0, 92);
+  roofGrad.addColorStop(0, roof);
+  roofGrad.addColorStop(1, trim);
+  ctx.fillStyle = roofGrad;
+  ctx.fillRect(24, 28, 144, 62);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.1)';
+  for (let i = 0; i < 5; i += 1) {
+    ctx.fillRect(40 + i * 24, 34, 12, 48);
+  }
+
+  const drawWindow = (x: number, y: number, w: number, h: number) => {
+    const glass = ctx.createLinearGradient(0, y, 0, y + h);
+    glass.addColorStop(0, '#fff4c8');
+    glass.addColorStop(1, '#db9d31');
+    ctx.fillStyle = glass;
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = 'rgba(76,53,18,0.24)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, w, h);
+  };
+
+  const drawServiceStripe = () => {
+    ctx.fillStyle = accent;
+    ctx.fillRect(48, 102, 96, 10);
+    ctx.fillStyle = 'rgba(15,23,42,0.12)';
+    ctx.fillRect(48, 118, 96, 6);
+  };
+
+  if (options.style === 'house') {
+    drawWindow(52, 126, 28, 44);
+    drawWindow(98, 142, 22, 34);
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.fillRect(44, 186, 92, 8);
+  } else if (options.style === 'shop' || options.style === 'grocery' || options.style === 'corner' || options.style === 'restaurant') {
+    drawServiceStripe();
+    drawWindow(48, 132, 38, 64);
+    drawWindow(98, 132, 42, variant === 1 ? 48 : 64);
+    ctx.fillStyle = accent;
+    ctx.fillRect(44, 206, 102, 8);
+  } else if (options.style === 'bank') {
+    drawServiceStripe();
+    for (const x of [56, 82, 108, 134]) {
+      ctx.fillStyle = trim;
+      ctx.fillRect(x, 114, 10, 94);
+    }
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(62, 142, 72, 12);
+  } else if (options.style === 'hospital') {
+    drawServiceStripe();
+    for (const y of [126, 170]) {
+      drawWindow(48, y, 28, 28);
+      drawWindow(84, y, 28, 28);
+      drawWindow(120, y, 28, 28);
+    }
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(88, 122, 20, 86);
+  } else if (options.style === 'police') {
+    drawServiceStripe();
+    drawWindow(50, 134, 38, 56);
+    drawWindow(102, 134, 38, 56);
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.moveTo(96, 112);
+    ctx.lineTo(118, 124);
+    ctx.lineTo(112, 148);
+    ctx.lineTo(96, 156);
+    ctx.lineTo(80, 148);
+    ctx.lineTo(74, 124);
+    ctx.closePath();
+    ctx.fill();
+  } else if (options.style === 'fire') {
+    drawServiceStripe();
+    ctx.fillStyle = '#922525';
+    ctx.fillRect(52, 130, 32, 84);
+    ctx.fillRect(92, 144, 24, 70);
+    ctx.fillRect(124, 130, 22, 84);
+    ctx.fillStyle = '#fef2f2';
+    ctx.fillRect(58, 138, 20, 8);
+    ctx.fillRect(128, 138, 14, 8);
+  } else if (options.style === 'power') {
+    ctx.fillStyle = '#cfd7dd';
+    ctx.fillRect(44, 140, 56, 70);
+    ctx.fillRect(106, 150, 26, 60);
+    ctx.fillStyle = '#8b98a6';
+    ctx.fillRect(136, 104, 18, 106);
+    ctx.fillStyle = accent;
+    ctx.fillRect(56, 156, 28, 22);
+  }
+
+  ctx.strokeStyle = 'rgba(15,23,42,0.12)';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(36, 80, 120, 138);
+
+  return true;
+}
