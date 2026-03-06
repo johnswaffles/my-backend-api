@@ -18,6 +18,7 @@ export interface AssetCardOptions {
   palette: { body: number; roof: number; trim: number; accent: number };
   label: string;
   style: AssetCardStyle;
+  variant: number;
 }
 
 function palette(value: number): string {
@@ -41,96 +42,147 @@ export function getAssetCardOptions(type: BuildType, variant = 0): AssetCardOpti
         accent: 0xfff3c4
       },
       label: '',
-      style: 'house'
+      style: 'house',
+      variant
     };
   }
 
   if (type === 'shop') {
+    const variants = [
+      { body: 0xd7d6ca, roof: 0x4a74a0, trim: 0x93c5fd, accent: 0xe0f2fe, label: 'SHOPS' },
+      { body: 0xe2d7c7, roof: 0x8c5a42, trim: 0xf5c98f, accent: 0xfef3c7, label: 'BOUTIQUE' },
+      { body: 0xd1dce5, roof: 0x40647f, trim: 0xb6d7ea, accent: 0xdbeafe, label: 'MERCANTILE' }
+    ][variant % 3];
     return {
       width: 0.82,
       height: 0.72,
-      palette: { body: 0xd7d6ca, roof: 0x4a74a0, trim: 0x93c5fd, accent: 0xe0f2fe },
-      label: 'SHOPS',
-      style: 'shop'
+      palette: { body: variants.body, roof: variants.roof, trim: variants.trim, accent: variants.accent },
+      label: variants.label,
+      style: 'shop',
+      variant
     };
   }
 
   if (type === 'groceryStore') {
+    const variants = [
+      { body: 0xd5ead3, roof: 0x55754f, trim: 0x93c98a, accent: 0xbbf7d0, label: 'MARKET' },
+      { body: 0xe2e7cc, roof: 0x6e7b46, trim: 0xc7d98a, accent: 0xecfccb, label: 'GROCER' },
+      { body: 0xd9e4d6, roof: 0x3f6c5b, trim: 0xa7d8c8, accent: 0xccfbf1, label: 'FRESH' }
+    ][variant % 3];
     return {
       width: 0.72,
       height: 0.6,
-      palette: { body: 0xd5ead3, roof: 0x55754f, trim: 0x93c98a, accent: 0xbbf7d0 },
-      label: 'MARKET',
-      style: 'grocery'
+      palette: { body: variants.body, roof: variants.roof, trim: variants.trim, accent: variants.accent },
+      label: variants.label,
+      style: 'grocery',
+      variant
     };
   }
 
   if (type === 'cornerStore') {
+    const variants = [
+      { body: 0xe7d9bc, roof: 0x8b6945, trim: 0xf3bf7f, accent: 0xfde68a, label: 'CORNER' },
+      { body: 0xe6d0c3, roof: 0x6a5c54, trim: 0xf5d0b5, accent: 0xffedd5, label: 'MART' },
+      { body: 0xdad6c8, roof: 0x57707f, trim: 0xbad5e6, accent: 0xe0f2fe, label: 'STOP' }
+    ][variant % 3];
     return {
       width: 0.56,
       height: 0.52,
-      palette: { body: 0xe7d9bc, roof: 0x8b6945, trim: 0xf3bf7f, accent: 0xfde68a },
-      label: 'CORNER',
-      style: 'corner'
+      palette: { body: variants.body, roof: variants.roof, trim: variants.trim, accent: variants.accent },
+      label: variants.label,
+      style: 'corner',
+      variant
     };
   }
 
   if (type === 'restaurant') {
+    const variants = [
+      { body: 0xe8cfad, roof: 0x9b5a43, trim: 0xf0bb78, accent: 0xfcd34d, label: 'DINER' },
+      { body: 0xe1c8b7, roof: 0x7d3f37, trim: 0xf6ad7b, accent: 0xfdba74, label: 'CAFE' },
+      { body: 0xe9d3b0, roof: 0x8d6040, trim: 0xf3d08c, accent: 0xfef08a, label: 'GRILL' }
+    ][variant % 3];
     return {
       width: 0.72,
       height: 0.6,
-      palette: { body: 0xe8cfad, roof: 0x9b5a43, trim: 0xf0bb78, accent: 0xfcd34d },
-      label: 'DINER',
-      style: 'restaurant'
+      palette: { body: variants.body, roof: variants.roof, trim: variants.trim, accent: variants.accent },
+      label: variants.label,
+      style: 'restaurant',
+      variant
     };
   }
 
   if (type === 'bank') {
+    const variants = [
+      { body: 0xd7dfe8, roof: 0x556782, trim: 0xcfe2ff, accent: 0xe0f2fe, label: 'BANK' },
+      { body: 0xe0ddd4, roof: 0x5f5f73, trim: 0xe4e7eb, accent: 0xf8fafc, label: 'TRUST' },
+      { body: 0xd4e1df, roof: 0x48666d, trim: 0xc4e4e0, accent: 0xd1fae5, label: 'UNION' }
+    ][variant % 3];
     return {
       width: 0.72,
       height: 0.6,
-      palette: { body: 0xd7dfe8, roof: 0x556782, trim: 0xcfe2ff, accent: 0xe0f2fe },
-      label: 'BANK',
-      style: 'bank'
+      palette: { body: variants.body, roof: variants.roof, trim: variants.trim, accent: variants.accent },
+      label: variants.label,
+      style: 'bank',
+      variant
     };
   }
 
   if (type === 'hospital') {
+    const variants = [
+      { body: 0xeaf1f7, roof: 0x9db4c8, trim: 0xdbeafe, accent: 0xfca5a5, label: 'HOSPITAL' },
+      { body: 0xe6eff0, roof: 0x7ea1b0, trim: 0xcfe8ef, accent: 0xfecaca, label: 'CLINIC' }
+    ][variant % 2];
     return {
       width: 0.9,
       height: 0.58,
-      palette: { body: 0xeaf1f7, roof: 0x9db4c8, trim: 0xdbeafe, accent: 0xfca5a5 },
-      label: 'HOSPITAL',
-      style: 'hospital'
+      palette: { body: variants.body, roof: variants.roof, trim: variants.trim, accent: variants.accent },
+      label: variants.label,
+      style: 'hospital',
+      variant
     };
   }
 
   if (type === 'policeStation') {
+    const variants = [
+      { body: 0xdfe7f0, roof: 0x4b5f79, trim: 0xdbeafe, accent: 0x93c5fd, label: 'POLICE' },
+      { body: 0xe4e8ed, roof: 0x5d6475, trim: 0xe2e8f0, accent: 0xbfdbfe, label: 'PRECINCT' }
+    ][variant % 2];
     return {
       width: 0.62,
       height: 0.5,
-      palette: { body: 0xdfe7f0, roof: 0x4b5f79, trim: 0xdbeafe, accent: 0x93c5fd },
-      label: 'POLICE',
-      style: 'police'
+      palette: { body: variants.body, roof: variants.roof, trim: variants.trim, accent: variants.accent },
+      label: variants.label,
+      style: 'police',
+      variant
     };
   }
 
   if (type === 'fireStation') {
+    const variants = [
+      { body: 0xe6c8bf, roof: 0xb04a43, trim: 0xfecaca, accent: 0xfca5a5, label: 'FIRE' },
+      { body: 0xe7d2c3, roof: 0x9c5b3c, trim: 0xffd1b5, accent: 0xfdba74, label: 'LADDER' }
+    ][variant % 2];
     return {
       width: 0.66,
       height: 0.48,
-      palette: { body: 0xe6c8bf, roof: 0xb04a43, trim: 0xfecaca, accent: 0xfca5a5 },
-      label: 'FIRE',
-      style: 'fire'
+      palette: { body: variants.body, roof: variants.roof, trim: variants.trim, accent: variants.accent },
+      label: variants.label,
+      style: 'fire',
+      variant
     };
   }
 
+  const powerVariants = [
+    { body: 0xa6b4c3, roof: 0x697788, trim: 0xd8e0e6, accent: 0xfde68a, label: 'POWER' },
+    { body: 0xb2b7c0, roof: 0x656e7b, trim: 0xe5e7eb, accent: 0xfcd34d, label: 'GRID' }
+  ][variant % 2];
   return {
     width: 0.94,
     height: 0.56,
-    palette: { body: 0xa6b4c3, roof: 0x697788, trim: 0xd8e0e6, accent: 0xfde68a },
-    label: 'POWER',
-    style: 'power'
+    palette: { body: powerVariants.body, roof: powerVariants.roof, trim: powerVariants.trim, accent: powerVariants.accent },
+    label: powerVariants.label,
+    style: 'power',
+    variant
   };
 }
 
@@ -145,6 +197,8 @@ export function paintAssetCard(canvas: HTMLCanvasElement, options: AssetCardOpti
   const roof = palette(options.palette.roof);
   const trim = palette(options.palette.trim);
   const accent = palette(options.palette.accent);
+  const variant3 = ((options.variant % 3) + 3) % 3;
+  const variant2 = ((options.variant % 2) + 2) % 2;
 
   ctx.clearRect(0, 0, 256, 256);
 
@@ -161,6 +215,13 @@ export function paintAssetCard(canvas: HTMLCanvasElement, options: AssetCardOpti
   background.addColorStop(1, 'rgba(255,255,255,0)');
   ctx.fillStyle = background;
   ctx.fillRect(28, 18, 200, 200);
+
+  const windowFill = (y: number, h: number) => {
+    const glass = ctx.createLinearGradient(0, y, 0, y + h);
+    glass.addColorStop(0, '#fff6c7');
+    glass.addColorStop(1, '#d8952a');
+    return glass;
+  };
 
   const roofGrad = ctx.createLinearGradient(0, 18, 0, 92);
   roofGrad.addColorStop(0, roof);
@@ -180,23 +241,58 @@ export function paintAssetCard(canvas: HTMLCanvasElement, options: AssetCardOpti
   ctx.fillRect(40, 100, 176, 124);
 
   const drawWindow = (x: number, y: number, w: number, h: number) => {
-    const glass = ctx.createLinearGradient(0, y, 0, y + h);
-    glass.addColorStop(0, '#fff3b0');
-    glass.addColorStop(1, '#d7a73a');
-    ctx.fillStyle = glass;
+    ctx.fillStyle = windowFill(y, h);
     ctx.fillRect(x, y, w, h);
     ctx.strokeStyle = 'rgba(76,53,18,0.3)';
     ctx.lineWidth = 3;
     ctx.strokeRect(x, y, w, h);
   };
 
+  const drawDoor = (x: number, y: number, w: number, h: number, color: string) => {
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.fillRect(x + 4, y + 4, w - 8, 8);
+    ctx.fillStyle = '#f3d38a';
+    ctx.beginPath();
+    ctx.arc(x + w - 10, y + h / 2, 3, 0, Math.PI * 2);
+    ctx.fill();
+  };
+
+  const drawAwning = (x: number, y: number, w: number, h: number, stripeColor: string) => {
+    ctx.fillStyle = accent;
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = stripeColor;
+    for (let sx = x + 4; sx < x + w - 6; sx += 16) {
+      ctx.fillRect(sx, y, 7, h);
+    }
+  };
+
+  const drawBush = (x: number, y: number, radius: number, color: string) => {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  };
+
+  const drawSignBand = (y: number, h: number, textColor: string, font: string) => {
+    if (!options.label) return;
+    ctx.fillStyle = accent;
+    ctx.fillRect(28, y, 200, h);
+    ctx.fillStyle = textColor;
+    ctx.font = font;
+    ctx.textAlign = 'center';
+    ctx.fillText(options.label, 128, y + h - 8);
+  };
+
   ctx.fillStyle = accent;
   if (options.label) {
-    ctx.fillRect(28, options.style === 'shop' ? 66 : 72, 200, options.style === 'shop' ? 34 : 28);
-    ctx.fillStyle = options.style === 'grocery' ? '#164e2c' : options.style === 'power' ? '#6b4f00' : '#10233b';
-    ctx.font = options.style === 'shop' ? '700 28px Manrope' : '700 22px Manrope';
-    ctx.textAlign = 'center';
-    ctx.fillText(options.label, 128, options.style === 'shop' ? 92 : 91);
+    drawSignBand(
+      options.style === 'shop' ? 64 : 72,
+      options.style === 'shop' ? 34 : 28,
+      options.style === 'grocery' ? '#164e2c' : options.style === 'power' ? '#6b4f00' : '#10233b',
+      options.style === 'shop' ? '700 28px Manrope' : '700 22px Manrope'
+    );
   }
 
   if (options.style === 'bank') {
@@ -210,69 +306,194 @@ export function paintAssetCard(canvas: HTMLCanvasElement, options: AssetCardOpti
   }
 
   if (options.style === 'house') {
-    drawWindow(54, 128, 46, 42);
-    drawWindow(156, 128, 46, 42);
-    ctx.fillStyle = '#7b5636';
-    ctx.fillRect(110, 154, 36, 72);
     ctx.fillStyle = accent;
-    ctx.fillRect(92, 116, 72, 18);
+    ctx.fillRect(86, 112, 84, 18);
+    if (variant3 === 0) {
+      drawWindow(54, 128, 46, 42);
+      drawWindow(156, 128, 46, 42);
+      drawDoor(110, 154, 36, 72, '#7b5636');
+    } else if (variant3 === 1) {
+      drawWindow(52, 130, 36, 38);
+      drawWindow(100, 130, 56, 44);
+      drawWindow(168, 130, 32, 38);
+      drawDoor(114, 176, 28, 50, '#6f4d30');
+      ctx.fillStyle = 'rgba(93,59,25,0.18)';
+      ctx.fillRect(42, 180, 172, 8);
+    } else {
+      drawWindow(58, 132, 54, 50);
+      drawWindow(144, 132, 48, 34);
+      drawDoor(118, 168, 30, 58, '#845c37');
+      ctx.fillStyle = accent;
+      ctx.fillRect(148, 116, 42, 12);
+    }
+    drawBush(48, 214, 10, '#6f9b58');
+    drawBush(208, 214, 9, '#7bab63');
   } else if (options.style === 'shop') {
-    drawWindow(44, 126, 168, 36);
-    drawWindow(44, 172, 48, 36);
-    drawWindow(104, 172, 48, 36);
-    drawWindow(164, 172, 48, 36);
+    if (variant3 === 0) {
+      drawWindow(46, 124, 164, 38);
+      drawWindow(46, 172, 48, 36);
+      drawWindow(104, 172, 48, 36);
+      drawWindow(162, 172, 48, 36);
+      drawDoor(112, 166, 32, 58, '#5a6574');
+    } else if (variant3 === 1) {
+      drawAwning(42, 118, 172, 18, 'rgba(255,255,255,0.32)');
+      drawWindow(48, 140, 60, 62);
+      drawWindow(148, 140, 60, 62);
+      drawDoor(114, 150, 28, 74, '#82563d');
+      drawWindow(66, 100, 28, 24);
+      drawWindow(162, 100, 28, 24);
+    } else {
+      drawWindow(46, 132, 54, 76);
+      drawWindow(156, 132, 54, 76);
+      drawDoor(106, 144, 44, 80, '#46607b');
+      ctx.fillStyle = accent;
+      ctx.fillRect(86, 108, 84, 12);
+      ctx.fillStyle = '#10233b';
+      ctx.fillRect(124, 112, 8, 100);
+    }
   } else if (options.style === 'grocery' || options.style === 'corner') {
-    drawWindow(46, 128, 72, 76);
-    drawWindow(138, 128, 72, 76);
+    const isCorner = options.style === 'corner';
+    if (variant3 === 0) {
+      drawWindow(46, 128, 72, 76);
+      drawWindow(138, 128, 72, 76);
+      drawDoor(112, 154, 32, 70, isCorner ? '#6b5846' : '#4b6a4d');
+    } else if (variant3 === 1) {
+      drawAwning(40, 116, 176, 16, 'rgba(255,255,255,0.28)');
+      drawWindow(48, 136, 54, 68);
+      drawDoor(110, 144, 36, 80, isCorner ? '#7b5a49' : '#52734d');
+      drawWindow(154, 136, 54, 52);
+      ctx.fillStyle = 'rgba(86,52,22,0.2)';
+      ctx.fillRect(154, 194, 54, 10);
+    } else {
+      drawWindow(44, 136, 84, 68);
+      drawWindow(144, 136, 66, 68);
+      drawDoor(116, 162, 26, 62, isCorner ? '#556470' : '#45625b');
+      ctx.fillStyle = accent;
+      ctx.fillRect(52, 108, 152, 10);
+    }
     ctx.fillStyle = accent;
     for (let i = 0; i < 6; i += 1) {
       ctx.fillRect(40 + i * 28, 108, 14, 12);
     }
   } else if (options.style === 'restaurant') {
-    drawWindow(38, 136, 180, 64);
-    ctx.fillStyle = '#9f4b24';
-    ctx.beginPath();
-    ctx.arc(128, 108, 28, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#f6c453';
-    ctx.beginPath();
-    ctx.arc(128, 102, 30, Math.PI, Math.PI * 2);
-    ctx.fill();
+    if (variant3 === 0) {
+      drawWindow(38, 136, 180, 64);
+      ctx.fillStyle = '#9f4b24';
+      ctx.beginPath();
+      ctx.arc(128, 108, 28, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#f6c453';
+      ctx.beginPath();
+      ctx.arc(128, 102, 30, Math.PI, Math.PI * 2);
+      ctx.fill();
+    } else if (variant3 === 1) {
+      drawAwning(44, 126, 168, 16, 'rgba(255,255,255,0.28)');
+      drawWindow(48, 146, 60, 56);
+      drawDoor(114, 142, 28, 82, '#764636');
+      drawWindow(148, 146, 60, 56);
+      ctx.fillStyle = accent;
+      ctx.fillRect(92, 96, 72, 12);
+    } else {
+      drawWindow(46, 142, 164, 56);
+      drawDoor(112, 156, 32, 68, '#7b5330');
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = 8;
+      ctx.beginPath();
+      ctx.arc(128, 114, 34, Math.PI, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = '#8b3b1f';
+      ctx.fillRect(102, 114, 52, 10);
+    }
   } else if (options.style === 'hospital') {
-    drawWindow(52, 124, 44, 34);
-    drawWindow(106, 124, 44, 34);
-    drawWindow(160, 124, 44, 34);
-    drawWindow(52, 168, 44, 34);
-    drawWindow(106, 168, 44, 34);
-    drawWindow(160, 168, 44, 34);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(116, 110, 24, 84);
-    ctx.fillRect(86, 140, 84, 24);
+    for (const x of [52, 106, 160]) {
+      drawWindow(x, 124, 44, 34);
+      drawWindow(x, 168, 44, 34);
+    }
+    if (variant2 === 0) {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(116, 110, 24, 84);
+      ctx.fillRect(86, 140, 84, 24);
+    } else {
+      drawAwning(86, 144, 84, 16, 'rgba(255,255,255,0.22)');
+      drawDoor(112, 160, 32, 64, '#7a8d9d');
+      ctx.fillStyle = accent;
+      ctx.fillRect(100, 112, 56, 20);
+      ctx.fillStyle = '#a61b1b';
+      ctx.fillRect(122, 114, 12, 16);
+      ctx.fillRect(114, 122, 28, 8);
+    }
   } else if (options.style === 'police') {
-    drawWindow(52, 136, 56, 50);
-    drawWindow(148, 136, 56, 50);
-    ctx.fillStyle = '#0f3b72';
-    ctx.fillRect(114, 120, 28, 86);
+    if (variant2 === 0) {
+      drawWindow(52, 136, 56, 50);
+      drawWindow(148, 136, 56, 50);
+      ctx.fillStyle = '#0f3b72';
+      ctx.fillRect(114, 120, 28, 86);
+    } else {
+      drawWindow(46, 130, 72, 58);
+      drawDoor(118, 150, 20, 74, '#405369');
+      drawWindow(142, 130, 68, 58);
+      ctx.fillStyle = accent;
+      ctx.beginPath();
+      ctx.moveTo(128, 104);
+      ctx.lineTo(154, 116);
+      ctx.lineTo(148, 146);
+      ctx.lineTo(128, 156);
+      ctx.lineTo(108, 146);
+      ctx.lineTo(102, 116);
+      ctx.closePath();
+      ctx.fill();
+    }
   } else if (options.style === 'fire') {
-    ctx.fillStyle = '#8b1e1e';
-    ctx.fillRect(44, 130, 72, 92);
-    ctx.fillRect(140, 130, 72, 92);
-    ctx.fillStyle = '#fef2f2';
-    ctx.fillRect(52, 140, 56, 10);
-    ctx.fillRect(148, 140, 56, 10);
+    if (variant2 === 0) {
+      ctx.fillStyle = '#8b1e1e';
+      ctx.fillRect(44, 130, 72, 92);
+      ctx.fillRect(140, 130, 72, 92);
+      ctx.fillStyle = '#fef2f2';
+      ctx.fillRect(52, 140, 56, 10);
+      ctx.fillRect(148, 140, 56, 10);
+    } else {
+      ctx.fillStyle = '#8b1e1e';
+      ctx.fillRect(52, 132, 56, 90);
+      ctx.fillRect(120, 150, 30, 72);
+      ctx.fillRect(162, 132, 42, 90);
+      ctx.fillStyle = '#fef2f2';
+      ctx.fillRect(60, 140, 40, 10);
+      ctx.fillRect(167, 140, 32, 10);
+      ctx.fillRect(126, 158, 18, 48);
+    }
   } else if (options.style === 'power') {
-    ctx.fillStyle = '#d0d8e0';
-    ctx.fillRect(42, 132, 96, 78);
-    ctx.fillStyle = '#9caab9';
-    ctx.fillRect(150, 120, 58, 90);
-    ctx.fillStyle = '#ffefb3';
-    ctx.fillRect(86, 154, 26, 32);
-    ctx.fillStyle = '#7f8a93';
-    ctx.fillRect(178, 70, 18, 100);
+    if (variant2 === 0) {
+      ctx.fillStyle = '#d0d8e0';
+      ctx.fillRect(42, 132, 96, 78);
+      ctx.fillStyle = '#9caab9';
+      ctx.fillRect(150, 120, 58, 90);
+      ctx.fillStyle = '#ffefb3';
+      ctx.fillRect(86, 154, 26, 32);
+      ctx.fillStyle = '#7f8a93';
+      ctx.fillRect(178, 70, 18, 100);
+    } else {
+      ctx.fillStyle = '#c9d1d9';
+      ctx.fillRect(38, 140, 84, 70);
+      ctx.fillRect(134, 148, 40, 62);
+      ctx.fillStyle = '#8794a0';
+      ctx.fillRect(178, 96, 26, 114);
+      ctx.fillRect(146, 118, 18, 92);
+      ctx.fillStyle = '#ffe68a';
+      ctx.fillRect(58, 154, 42, 28);
+      ctx.fillStyle = '#dde5ec';
+      ctx.fillRect(114, 162, 18, 14);
+    }
   }
 
+  ctx.fillStyle = 'rgba(140,108,72,0.18)';
+  ctx.fillRect(44, 212, 168, 6);
   ctx.fillStyle = 'rgba(255,255,255,0.08)';
   ctx.fillRect(40, 100, 176, 8);
+
+  if (options.style !== 'power' && options.style !== 'hospital') {
+    drawBush(64, 220, 7, 'rgba(96,146,86,0.85)');
+    drawBush(190, 220, 6, 'rgba(110,155,96,0.8)');
+  }
 
   ctx.strokeStyle = 'rgba(15,23,42,0.14)';
   ctx.lineWidth = 4;

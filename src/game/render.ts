@@ -1412,7 +1412,7 @@ export class GameRenderer {
       if (parkedCar) group.add(parkedCar);
       group.add(marketCanopy);
       group.add(sandwichBoard);
-      const facadeCard = this.createFacadeCard(building.type, building.id);
+      const facadeCard = this.createFacadeCard(building.type, building.id, building.id);
       facadeCard.position.set(0, isShop ? 0.34 : isCornerStore ? 0.24 : 0.3, 0.42);
       group.add(facadeCard);
       this.selectableMeshes.set(building.id, [
@@ -1679,7 +1679,7 @@ export class GameRenderer {
         group.add(redCross);
         group.add(ambulanceCanopy);
         group.add(ambulance);
-        const hospitalCard = this.createFacadeCard(building.type, building.id);
+        const hospitalCard = this.createFacadeCard(building.type, building.id, building.id);
         hospitalCard.position.set(0, 0.34, 0.84);
         group.add(hospitalCard);
         this.selectableMeshes.set(building.id, [
@@ -1765,7 +1765,7 @@ export class GameRenderer {
         group.add(steps);
         group.add(badge);
         group.add(lightBar);
-        const policeCard = this.createFacadeCard(building.type, building.id);
+        const policeCard = this.createFacadeCard(building.type, building.id, building.id);
         policeCard.position.set(0, 0.29, 0.38);
         group.add(policeCard);
         this.selectableMeshes.set(building.id, [lot, body, roof, portico, steps, badge, lightBar, policeCard]);
@@ -1822,7 +1822,7 @@ export class GameRenderer {
       group.add(bayRight);
       group.add(tower);
       group.add(siren);
-      const fireCard = this.createFacadeCard(building.type, building.id);
+      const fireCard = this.createFacadeCard(building.type, building.id, building.id);
       fireCard.position.set(0, 0.27, 0.38);
       group.add(fireCard);
       this.selectableMeshes.set(building.id, [lot, body, roof, bayLeft, bayRight, tower, siren, fireCard]);
@@ -1931,7 +1931,7 @@ export class GameRenderer {
     group.add(fence);
     group.add(utilityTruck);
     group.add(yardContainer);
-    const powerCard = this.createFacadeCard(building.type, building.id);
+    const powerCard = this.createFacadeCard(building.type, building.id, building.id);
     powerCard.position.set(-0.28, 0.34, 0.62);
     group.add(powerCard);
     this.selectableMeshes.set(building.id, [
