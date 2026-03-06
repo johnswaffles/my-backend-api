@@ -12,8 +12,9 @@ import {
 interface RoadVisualData {
   connectors: Record<'n' | 'e' | 's' | 'w', THREE.Mesh>;
   stripes: Record<'ns' | 'ew', THREE.Mesh>;
-  corners: Record<'ne' | 'se' | 'sw' | 'nw', THREE.Mesh>;
+  edgeCaps: Record<'n' | 'e' | 's' | 'w', THREE.Mesh>;
   intersection: THREE.Mesh;
+  crosswalks: Record<'n' | 'e' | 's' | 'w', THREE.Mesh>;
 }
 
 interface BuildingPlacement {
@@ -453,14 +454,18 @@ export class GameRenderer {
       roadData.connectors.e.visible = east;
       roadData.connectors.s.visible = south;
       roadData.connectors.w.visible = west;
-      roadData.stripes.ns.visible = north || south || (!east && !west);
-      roadData.stripes.ew.visible = east || west;
-      roadData.corners.ne.visible = north && east && !south && !west;
-      roadData.corners.se.visible = south && east && !north && !west;
-      roadData.corners.sw.visible = south && west && !north && !east;
-      roadData.corners.nw.visible = north && west && !south && !east;
       const roadCount = Number(north) + Number(east) + Number(south) + Number(west);
+      roadData.stripes.ns.visible = north || south || roadCount <= 1;
+      roadData.stripes.ew.visible = east || west;
+      roadData.edgeCaps.n.visible = !north;
+      roadData.edgeCaps.e.visible = !east;
+      roadData.edgeCaps.s.visible = !south;
+      roadData.edgeCaps.w.visible = !west;
       roadData.intersection.visible = roadCount >= 3;
+      roadData.crosswalks.n.visible = roadCount >= 3 && north;
+      roadData.crosswalks.e.visible = roadCount >= 3 && east;
+      roadData.crosswalks.s.visible = roadCount >= 3 && south;
+      roadData.crosswalks.w.visible = roadCount >= 3 && west;
     }
   }
 
@@ -603,30 +608,23 @@ export class GameRenderer {
   private createBuildingObject(building: Building): THREE.Object3D {
     if (building.type === 'road') {
       const group = new THREE.Group();
-      const asphaltMaterial = new THREE.MeshStandardMaterial({ color: 0x4b5662, roughness: 0.88, metalness: 0.04 });
-      const sidewalkMaterial = new THREE.MeshStandardMaterial({ color: 0x8da1b3, roughness: 0.92, metalness: 0.01 });
-      const streetFurnitureMat = new THREE.MeshStandardMaterial({ color: 0x647562, roughness: 0.9, metalness: 0.02 });
+      const asphaltMaterial = new THREE.MeshStandardMaterial({ color: 0x404a55, roughness: 0.9, metalness: 0.03 });
+      const shoulderMaterial = new THREE.MeshStandardMaterial({ color: 0x697987, roughness: 0.95, metalness: 0.01 });
+      const curbMaterial = new THREE.MeshStandardMaterial({ color: 0xcbd3d9, roughness: 0.94, metalness: 0.01 });
 
-      const sidewalk = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.06, 0.92), sidewalkMaterial);
-      sidewalk.position.y = 0.03;
-      sidewalk.receiveShadow = true;
-      sidewalk.castShadow = false;
-      sidewalk.userData.buildingId = building.id;
-      group.add(sidewalk);
+      const asphaltBase = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.045, 0.98), asphaltMaterial);
+      asphaltBase.position.y = 0.028;
+      asphaltBase.receiveShadow = true;
+      asphaltBase.castShadow = false;
+      asphaltBase.userData.buildingId = building.id;
+      group.add(asphaltBase);
 
-      const curbInset = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.01, 0.76), new THREE.MeshStandardMaterial({ color: 0x6d7b87, roughness: 0.95, metalness: 0.01 }));
-      curbInset.position.y = 0.051;
-      curbInset.receiveShadow = true;
-      curbInset.castShadow = false;
-      curbInset.userData.buildingId = building.id;
-      group.add(curbInset);
-
-      const base = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.04, 0.66), asphaltMaterial);
-      base.position.y = 0.055;
-      base.receiveShadow = true;
-      base.castShadow = false;
-      base.userData.buildingId = building.id;
-      group.add(base);
+      const carriageway = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.02, 0.78), shoulderMaterial);
+      carriageway.position.y = 0.053;
+      carriageway.receiveShadow = true;
+      carriageway.castShadow = false;
+      carriageway.userData.buildingId = building.id;
+      group.add(carriageway);
 
       const laneStripeMat = new THREE.MeshStandardMaterial({
         color: 0xe8ecef,
@@ -635,39 +633,18 @@ export class GameRenderer {
         emissive: 0x111111,
         emissiveIntensity: 0.15
       });
-      const stripeNS = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.005, 0.42), laneStripeMat);
+      const stripeNS = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.005, 0.62), laneStripeMat);
       stripeNS.position.set(0, 0.08, 0);
       stripeNS.userData.buildingId = building.id;
       group.add(stripeNS);
 
-      const stripeEW = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.005, 0.06), laneStripeMat.clone());
+      const stripeEW = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.005, 0.045), laneStripeMat.clone());
       stripeEW.position.set(0, 0.08, 0);
       stripeEW.userData.buildingId = building.id;
       group.add(stripeEW);
 
-      const cornerMat = asphaltMaterial.clone();
-      const cornerGeom = new THREE.CylinderGeometry(0.23, 0.23, 0.043, 22, 1, false, 0, Math.PI / 2);
-      const cornerSE = new THREE.Mesh(cornerGeom, cornerMat);
-      const cornerSW = new THREE.Mesh(cornerGeom, cornerMat.clone());
-      const cornerNW = new THREE.Mesh(cornerGeom, cornerMat.clone());
-      const cornerNE = new THREE.Mesh(cornerGeom, cornerMat.clone());
-      cornerSE.position.y = 0.055;
-      cornerSW.position.y = 0.055;
-      cornerNW.position.y = 0.055;
-      cornerNE.position.y = 0.055;
-      cornerSW.rotation.y = Math.PI / 2;
-      cornerNW.rotation.y = Math.PI;
-      cornerNE.rotation.y = Math.PI * 1.5;
-      [cornerNE, cornerSE, cornerSW, cornerNW].forEach((part) => {
-        part.receiveShadow = true;
-        part.castShadow = false;
-        part.userData.buildingId = building.id;
-        part.visible = false;
-        group.add(part);
-      });
-
       const intersectionMark = new THREE.Mesh(
-        new THREE.CircleGeometry(0.1, 20),
+        new THREE.CircleGeometry(0.14, 20),
         new THREE.MeshStandardMaterial({
           color: 0xeef2f6,
           roughness: 0.6,
@@ -682,17 +659,17 @@ export class GameRenderer {
       intersectionMark.visible = false;
       group.add(intersectionMark);
 
-      const connectorGeom = new THREE.BoxGeometry(0.18, 0.042, 0.42);
+      const connectorGeom = new THREE.BoxGeometry(0.3, 0.044, 0.56);
       const connectorMat = asphaltMaterial;
       const n = new THREE.Mesh(connectorGeom, connectorMat.clone());
       const e = new THREE.Mesh(connectorGeom, connectorMat.clone());
       const s = new THREE.Mesh(connectorGeom, connectorMat.clone());
       const w = new THREE.Mesh(connectorGeom, connectorMat.clone());
 
-      n.position.set(0, 0.055, -0.245);
-      s.position.set(0, 0.055, 0.245);
-      e.position.set(0.245, 0.055, 0);
-      w.position.set(-0.245, 0.055, 0);
+      n.position.set(0, 0.028, -0.39);
+      s.position.set(0, 0.028, 0.39);
+      e.position.set(0.39, 0.028, 0);
+      w.position.set(-0.39, 0.028, 0);
       e.rotation.y = Math.PI / 2;
       w.rotation.y = Math.PI / 2;
       [n, e, s, w].forEach((part) => {
@@ -702,69 +679,69 @@ export class GameRenderer {
         group.add(part);
       });
 
-      const treeBase = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.12, 8), streetFurnitureMat);
-      treeBase.position.set(-0.34, 0.1, -0.32);
-      treeBase.castShadow = true;
-      treeBase.receiveShadow = true;
-      treeBase.userData.buildingId = building.id;
+      const capGeomH = new THREE.BoxGeometry(0.9, 0.04, 0.12);
+      const capGeomV = new THREE.BoxGeometry(0.12, 0.04, 0.9);
+      const capN = new THREE.Mesh(capGeomH, curbMaterial.clone());
+      const capS = new THREE.Mesh(capGeomH, curbMaterial.clone());
+      const capE = new THREE.Mesh(capGeomV, curbMaterial.clone());
+      const capW = new THREE.Mesh(capGeomV, curbMaterial.clone());
+      capN.position.set(0, 0.034, -0.43);
+      capS.position.set(0, 0.034, 0.43);
+      capE.position.set(0.43, 0.034, 0);
+      capW.position.set(-0.43, 0.034, 0);
+      [capN, capS, capE, capW].forEach((part) => {
+        part.receiveShadow = true;
+        part.castShadow = false;
+        part.userData.buildingId = building.id;
+        group.add(part);
+      });
 
-      const treeCanopy = new THREE.Mesh(
-        new THREE.ConeGeometry(0.09, 0.22, 9),
-        new THREE.MeshStandardMaterial({ color: 0x5f8d5d, roughness: 0.88, metalness: 0.01 })
-      );
-      treeCanopy.position.set(-0.34, 0.27, -0.32);
-      treeCanopy.castShadow = true;
-      treeCanopy.receiveShadow = true;
-      treeCanopy.userData.buildingId = building.id;
-
-      const lampPost = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.014, 0.34, 8), streetFurnitureMat.clone());
-      lampPost.position.set(0.34, 0.2, 0.3);
-      lampPost.castShadow = true;
-      lampPost.receiveShadow = true;
-      lampPost.userData.buildingId = building.id;
-
-      const lampHead = new THREE.Mesh(
-        new THREE.BoxGeometry(0.06, 0.04, 0.06),
-        new THREE.MeshStandardMaterial({
-          color: 0xf6e8ba,
-          roughness: 0.4,
-          metalness: 0.08,
-          emissive: 0xf59e0b,
-          emissiveIntensity: 0.16
-        })
-      );
-      lampHead.position.set(0.34, 0.39, 0.3);
-      lampHead.userData.buildingId = building.id;
-      group.add(treeBase);
-      group.add(treeCanopy);
-      group.add(lampPost);
-      group.add(lampHead);
+      const crosswalkMat = new THREE.MeshStandardMaterial({
+        color: 0xf8fafc,
+        roughness: 0.55,
+        metalness: 0.01,
+        emissive: 0x111111,
+        emissiveIntensity: 0.06
+      });
+      const cwN = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.004, 0.08), crosswalkMat);
+      const cwS = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.004, 0.08), crosswalkMat.clone());
+      const cwE = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.004, 0.44), crosswalkMat.clone());
+      const cwW = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.004, 0.44), crosswalkMat.clone());
+      cwN.position.set(0, 0.081, -0.27);
+      cwS.position.set(0, 0.081, 0.27);
+      cwE.position.set(0.27, 0.081, 0);
+      cwW.position.set(-0.27, 0.081, 0);
+      [cwN, cwS, cwE, cwW].forEach((part) => {
+        part.userData.buildingId = building.id;
+        part.visible = false;
+        group.add(part);
+      });
 
       this.selectableMeshes.set(building.id, [
-        sidewalk,
-        curbInset,
-        base,
+        asphaltBase,
+        carriageway,
         n,
         e,
         s,
         w,
         stripeNS,
         stripeEW,
-        cornerNE,
-        cornerSE,
-        cornerSW,
-        cornerNW,
+        capN,
+        capE,
+        capS,
+        capW,
         intersectionMark,
-        treeBase,
-        treeCanopy,
-        lampPost,
-        lampHead
+        cwN,
+        cwE,
+        cwS,
+        cwW
       ]);
       this.roadVisuals.set(building.id, {
         connectors: { n, e, s, w },
         stripes: { ns: stripeNS, ew: stripeEW },
-        corners: { ne: cornerNE, se: cornerSE, sw: cornerSW, nw: cornerNW },
-        intersection: intersectionMark
+        edgeCaps: { n: capN, e: capE, s: capS, w: capW },
+        intersection: intersectionMark,
+        crosswalks: { n: cwN, e: cwE, s: cwS, w: cwW }
       });
       return group;
     }
@@ -1084,10 +1061,18 @@ export class GameRenderer {
       building.type === 'bank'
     ) {
       const group = new THREE.Group();
+      const isShop = building.type === 'shop';
       const isRestaurant = building.type === 'restaurant';
       const isGrocery = building.type === 'groceryStore';
       const isCornerStore = building.type === 'cornerStore';
       const isBank = building.type === 'bank';
+      const paintMat = new THREE.MeshStandardMaterial({
+        color: 0xf4f7fa,
+        roughness: 0.55,
+        metalness: 0.01,
+        emissive: 0x111111,
+        emissiveIntensity: 0.04
+      });
       const wallMat = new THREE.MeshStandardMaterial({
         color: isRestaurant ? 0xe6ccb0 : isGrocery ? 0xdbe4cc : isCornerStore ? 0xe1d5be : isBank ? 0xd8dbe2 : 0xd6d5c8,
         roughness: 0.78,
@@ -1119,26 +1104,46 @@ export class GameRenderer {
       frontage.position.set(0, 0.055, 0.36);
       frontage.userData.buildingId = building.id;
 
-      const body = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.78), wallMat);
-      body.position.y = 0.25;
+      const body = new THREE.Mesh(
+        new THREE.BoxGeometry(
+          isBank ? 0.88 : isCornerStore ? 0.72 : 0.9,
+          isShop ? 0.62 : isRestaurant ? 0.46 : isCornerStore ? 0.42 : isBank ? 0.5 : 0.48,
+          isCornerStore ? 0.68 : 0.78
+        ),
+        wallMat
+      );
+      body.position.y = isShop ? 0.31 : isCornerStore ? 0.21 : 0.24;
       body.castShadow = true;
       body.receiveShadow = true;
       body.userData.buildingId = building.id;
 
-      const roof = new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.08, 0.84), roofMat);
-      roof.position.y = 0.56;
+      const roof =
+        isRestaurant
+          ? new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.08, 0.86), roofMat)
+          : isBank
+            ? new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.08, 0.84), roofMat)
+            : isCornerStore
+              ? new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.08, 0.74), roofMat)
+              : isShop
+                ? new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.08, 0.86), roofMat)
+                : new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.08, 0.84), roofMat);
+      roof.position.y = isShop ? 0.67 : isCornerStore ? 0.47 : 0.56;
       roof.castShadow = true;
       roof.receiveShadow = true;
       roof.userData.buildingId = building.id;
 
-      const awning = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.04, 0.18), accentMat);
-      awning.position.set(0, 0.38, 0.44);
+      const awning = new THREE.Mesh(
+        new THREE.BoxGeometry(isCornerStore ? 0.62 : isBank ? 0.46 : 0.74, 0.04, 0.18),
+        accentMat
+      );
+      awning.position.set(0, isShop ? 0.3 : isCornerStore ? 0.28 : 0.38, 0.44);
       awning.castShadow = true;
       awning.receiveShadow = true;
       awning.userData.buildingId = building.id;
+      awning.visible = !isBank;
 
       const sign = new THREE.Mesh(
-        new THREE.BoxGeometry(isBank ? 0.56 : isGrocery ? 0.5 : 0.44, 0.12, 0.04),
+        new THREE.BoxGeometry(isBank ? 0.44 : isGrocery ? 0.58 : isCornerStore ? 0.36 : isRestaurant ? 0.5 : 0.62, 0.12, 0.04),
         new THREE.MeshStandardMaterial({
           color: isRestaurant ? 0xfbbf24 : isGrocery ? 0x9ae6b4 : isCornerStore ? 0xfbbf24 : isBank ? 0xd8ecff : 0x7dd3fc,
           roughness: 0.5,
@@ -1147,11 +1152,11 @@ export class GameRenderer {
           emissiveIntensity: 0.2
         })
       );
-      sign.position.set(0, 0.54, 0.42);
+      sign.position.set(0, isShop ? 0.6 : isCornerStore ? 0.42 : 0.54, 0.42);
       sign.userData.buildingId = building.id;
 
       const windowL = new THREE.Mesh(
-        new THREE.BoxGeometry(0.24, 0.18, 0.02),
+        new THREE.BoxGeometry(isBank ? 0.16 : isCornerStore ? 0.14 : 0.24, isShop ? 0.14 : 0.18, 0.02),
         new THREE.MeshStandardMaterial({
           color: 0xfff4c4,
           roughness: 0.35,
@@ -1160,11 +1165,85 @@ export class GameRenderer {
           emissiveIntensity: 0.18
         })
       );
-      windowL.position.set(-0.22, 0.28, 0.4);
+      windowL.position.set(isCornerStore ? -0.14 : -0.22, isShop ? 0.27 : 0.28, 0.4);
       windowL.userData.buildingId = building.id;
       const windowR = windowL.clone();
-      windowR.position.set(0.22, 0.28, 0.4);
+      windowR.position.set(isCornerStore ? 0.14 : 0.22, isShop ? 0.27 : 0.28, 0.4);
       windowR.userData.buildingId = building.id;
+
+      const upperWindows = new THREE.Mesh(
+        new THREE.BoxGeometry(0.56, 0.12, 0.02),
+        new THREE.MeshStandardMaterial({
+          color: 0xfff4c4,
+          roughness: 0.35,
+          metalness: 0.08,
+          emissive: 0xf59e0b,
+          emissiveIntensity: 0.12
+        })
+      );
+      upperWindows.position.set(0, 0.47, 0.4);
+      upperWindows.userData.buildingId = building.id;
+      upperWindows.visible = isShop;
+
+      const pediment = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.28, 0.28, 0.08, 3),
+        roofMat.clone()
+      );
+      pediment.position.set(0, 0.68, 0.02);
+      pediment.rotation.z = Math.PI;
+      pediment.userData.buildingId = building.id;
+      pediment.visible = isBank;
+
+      const columnLeft = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.04, 0.04, 0.34, 10),
+        new THREE.MeshStandardMaterial({ color: 0xf3f4f6, roughness: 0.7, metalness: 0.02 })
+      );
+      columnLeft.position.set(-0.18, 0.18, 0.35);
+      columnLeft.userData.buildingId = building.id;
+      columnLeft.visible = isBank;
+
+      const columnRight = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.04, 0.04, 0.34, 10),
+        new THREE.MeshStandardMaterial({ color: 0xf3f4f6, roughness: 0.7, metalness: 0.02 })
+      );
+      columnRight.position.set(0.18, 0.18, 0.35);
+      columnRight.userData.buildingId = building.id;
+      columnRight.visible = isBank;
+
+      const sideAnnex = new THREE.Mesh(
+        new THREE.BoxGeometry(0.22, 0.24, 0.22),
+        wallMat.clone()
+      );
+      sideAnnex.position.set(0.3, 0.12, -0.12);
+      sideAnnex.castShadow = true;
+      sideAnnex.receiveShadow = true;
+      sideAnnex.userData.buildingId = building.id;
+      sideAnnex.visible = isGrocery || isRestaurant;
+
+      const roofUnit = new THREE.Mesh(
+        new THREE.BoxGeometry(0.2, 0.08, 0.14),
+        new THREE.MeshStandardMaterial({ color: 0x8a97a4, roughness: 0.68, metalness: 0.12 })
+      );
+      roofUnit.position.set(0.18, isShop ? 0.75 : 0.62, -0.08);
+      roofUnit.userData.buildingId = building.id;
+      roofUnit.visible = !isCornerStore;
+
+      const burgerIcon = new THREE.Mesh(
+        new THREE.SphereGeometry(0.14, 14, 10),
+        new THREE.MeshStandardMaterial({ color: 0xf6c453, roughness: 0.72, metalness: 0.01 })
+      );
+      burgerIcon.position.set(0, 0.74, 0.04);
+      burgerIcon.scale.set(1.3, 0.55, 1.1);
+      burgerIcon.userData.buildingId = building.id;
+      burgerIcon.visible = isRestaurant;
+
+      const burgerPatty = new THREE.Mesh(
+        new THREE.BoxGeometry(0.26, 0.05, 0.18),
+        new THREE.MeshStandardMaterial({ color: 0x7a3f21, roughness: 0.84, metalness: 0.01 })
+      );
+      burgerPatty.position.set(0, 0.7, 0.04);
+      burgerPatty.userData.buildingId = building.id;
+      burgerPatty.visible = isRestaurant;
 
       const cafeTable = new THREE.Mesh(
         new THREE.CylinderGeometry(0.05, 0.05, 0.08, 10),
@@ -1233,7 +1312,31 @@ export class GameRenderer {
       );
       bladeSign.position.set(0.39, 0.42, 0.18);
       bladeSign.userData.buildingId = building.id;
-      bladeSign.visible = !isBank;
+      bladeSign.visible = isCornerStore || isGrocery;
+
+      const parkingPad = new THREE.Mesh(
+        new THREE.BoxGeometry(0.48, 0.01, 0.26),
+        new THREE.MeshStandardMaterial({ color: 0xcfc5b5, roughness: 0.92, metalness: 0.01 })
+      );
+      parkingPad.position.set(0, 0.055, -0.28);
+      parkingPad.userData.buildingId = building.id;
+      parkingPad.visible = isShop || isBank;
+
+      const parkingStripeA = new THREE.Mesh(
+        new THREE.BoxGeometry(0.01, 0.004, 0.18),
+        paintMat.clone()
+      );
+      parkingStripeA.position.set(-0.12, 0.062, -0.28);
+      parkingStripeA.userData.buildingId = building.id;
+      parkingStripeA.visible = isShop || isBank;
+
+      const parkingStripeB = new THREE.Mesh(
+        new THREE.BoxGeometry(0.01, 0.004, 0.18),
+        paintMat.clone()
+      );
+      parkingStripeB.position.set(0.12, 0.062, -0.28);
+      parkingStripeB.userData.buildingId = building.id;
+      parkingStripeB.visible = isShop || isBank;
 
       group.add(lot);
       group.add(frontage);
@@ -1252,6 +1355,17 @@ export class GameRenderer {
       group.add(planter);
       group.add(planterTop);
       group.add(bladeSign);
+      group.add(upperWindows);
+      group.add(pediment);
+      group.add(columnLeft);
+      group.add(columnRight);
+      group.add(sideAnnex);
+      group.add(roofUnit);
+      group.add(burgerIcon);
+      group.add(burgerPatty);
+      group.add(parkingPad);
+      group.add(parkingStripeA);
+      group.add(parkingStripeB);
       this.selectableMeshes.set(building.id, [
         lot,
         frontage,
@@ -1269,7 +1383,18 @@ export class GameRenderer {
         door,
         planter,
         planterTop,
-        bladeSign
+        bladeSign,
+        upperWindows,
+        pediment,
+        columnLeft,
+        columnRight,
+        sideAnnex,
+        roofUnit,
+        burgerIcon,
+        burgerPatty,
+        parkingPad,
+        parkingStripeA,
+        parkingStripeB
       ]);
       return group;
     }
