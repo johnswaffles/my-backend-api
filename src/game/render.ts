@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
-import { getAssetCardOptions, paintAssetCard, paintAssetSideCard } from './assets';
+import { getAssetCardOptions, paintAssetCard, paintAssetSideCard, paintHeroAsset } from './assets';
 import type { BuildType, Building, GameState } from './state';
 import {
   footprintForType,
@@ -445,7 +445,7 @@ export class GameRenderer {
       const world = this.buildingOriginWorld(b, state.gridSize);
       const placement = this.computeBuildingPlacement(b);
       object.position.set(world.x + placement.offsetX, 0, world.z + placement.offsetZ);
-      object.rotation.y = placement.rotationY;
+      object.rotation.y = this.shouldUseIllustratedAsset(b.type) ? 0 : placement.rotationY;
 
       const ageMs = performance.now() - b.createdAt;
       const t = THREE.MathUtils.clamp(ageMs / 220, 0, 1);
@@ -779,6 +779,10 @@ export class GameRenderer {
         crosswalks: { n: cwN, e: cwE, s: cwS, w: cwW }
       });
       return group;
+    }
+
+    if (this.shouldUseIllustratedAsset(building.type)) {
+      return this.createIllustratedBuilding(building);
     }
 
     if (building.type === 'house') {
@@ -2320,6 +2324,196 @@ export class GameRenderer {
     cardShadow.position.set(0.04 * scale, -options.height * 0.44 * scale, 0.02 * scale);
     cardShadow.userData.buildingId = buildingId;
     group.add(cardShadow);
+
+    return group;
+  }
+
+  private shouldUseIllustratedAsset(type: BuildType): boolean {
+    return type !== 'road' && type !== 'park' && type !== 'workshop';
+  }
+
+  private createHeroAsset(
+    type: BuildType,
+    buildingId: number,
+    variant = 0,
+    scale = 1
+  ): THREE.Group {
+    const options = getAssetCardOptions(type, variant);
+    const group = new THREE.Group();
+    if (!options) return group;
+
+    const canvas = document.createElement('canvas');
+    if (!paintHeroAsset(canvas, options)) {
+      return this.createHybridAsset(type, buildingId, variant, scale);
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = Math.min(this.renderer.capabilities.getMaxAnisotropy(), 8);
+    texture.needsUpdate = true;
+
+    const width =
+      type === 'hospital' || type === 'powerPlant'
+        ? 3.35 * scale
+        : type === 'house'
+          ? 1.72 * scale
+          : 1.98 * scale;
+    const height =
+      type === 'hospital' || type === 'powerPlant'
+        ? 2.78 * scale
+        : type === 'house'
+          ? 1.9 * scale
+          : 2.15 * scale;
+
+    const plane = new THREE.Mesh(
+      new THREE.PlaneGeometry(width, height),
+      new THREE.MeshStandardMaterial({
+        map: texture,
+        transparent: true,
+        alphaTest: 0.06,
+        roughness: 0.78,
+        metalness: 0.02,
+        side: THREE.DoubleSide
+      })
+    );
+    plane.rotation.y = Math.PI / 4;
+    plane.castShadow = true;
+    plane.receiveShadow = true;
+    plane.userData.buildingId = buildingId;
+    group.add(plane);
+
+    const softShadow = new THREE.Mesh(
+      new THREE.PlaneGeometry(width * 0.72, height * 0.18),
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.12, depthWrite: false })
+    );
+    softShadow.rotation.x = -Math.PI / 2;
+    softShadow.position.set(0, -height * 0.48, 0.06);
+    softShadow.userData.buildingId = buildingId;
+    group.add(softShadow);
+
+    return group;
+  }
+
+  private createIllustratedBuilding(building: Building): THREE.Object3D {
+    const group = new THREE.Group();
+    const footprint = footprintForType(building.type);
+    const isHouse = building.type === 'house';
+    const isUtility = building.type === 'powerPlant';
+    const isCivic =
+      building.type === 'hospital' || building.type === 'policeStation' || building.type === 'fireStation';
+    const isCommercial =
+      building.type === 'shop' ||
+      building.type === 'restaurant' ||
+      building.type === 'groceryStore' ||
+      building.type === 'cornerStore' ||
+      building.type === 'bank';
+
+    const lot = new THREE.Mesh(
+      new THREE.BoxGeometry(footprint.width * 0.98, 0.04, footprint.depth * 0.98),
+      new THREE.MeshStandardMaterial({
+        color: isHouse ? 0x93be83 : isUtility ? 0xcad1d6 : isCivic ? 0xded9d1 : 0xe5ddcf,
+        roughness: 0.95,
+        metalness: 0.01
+      })
+    );
+    lot.position.y = 0.02;
+    lot.receiveShadow = true;
+    lot.userData.buildingId = building.id;
+
+    const apron = new THREE.Mesh(
+      new THREE.BoxGeometry(footprint.width * (isHouse ? 0.64 : 0.82), 0.016, footprint.depth > 1 ? 0.26 : 0.18),
+      new THREE.MeshStandardMaterial({
+        color: isHouse ? 0xd8cab0 : 0xe4e6e7,
+        roughness: 0.95,
+        metalness: 0.01
+      })
+    );
+    apron.position.set(0, 0.046, footprint.depth * 0.34);
+    apron.userData.buildingId = building.id;
+
+    const curb = new THREE.Mesh(
+      new THREE.BoxGeometry(footprint.width * 0.96, 0.025, 0.04),
+      new THREE.MeshStandardMaterial({ color: 0xc7cfd5, roughness: 0.92, metalness: 0.01 })
+    );
+    curb.position.set(0, 0.055, footprint.depth * 0.46);
+    curb.userData.buildingId = building.id;
+    curb.visible = !isHouse;
+
+    const hero = this.createHeroAsset(
+      building.type,
+      building.id,
+      building.id,
+      footprint.width > 1 || footprint.depth > 1 ? 1.04 : 1
+    );
+    hero.position.set(0, footprint.width > 1 ? 1.0 : 0.74, footprint.depth > 1 ? 0.08 : 0.06);
+
+    const planterA = this.createPlanterBox(
+      0x977352,
+      isUtility ? 0x86a56a : isCivic ? 0x76a27a : 0x7cab72,
+      -footprint.width * 0.3,
+      0.05,
+      footprint.depth * 0.28,
+      building.id,
+      footprint.width > 1 ? 0.18 : 0.12,
+      footprint.width > 1 ? 0.14 : 0.12
+    );
+    planterA.visible = !isUtility;
+
+    const planterB = this.createPlanterBox(
+      0x977352,
+      isCommercial ? 0x8eb664 : 0x7ca07a,
+      footprint.width * 0.3,
+      0.05,
+      footprint.depth * 0.24,
+      building.id,
+      footprint.width > 1 ? 0.18 : 0.12,
+      footprint.width > 1 ? 0.14 : 0.12
+    );
+    planterB.visible = isCommercial || isCivic;
+
+    const lamp = this.createStreetLamp(
+      footprint.width * 0.34,
+      0.055,
+      footprint.depth * 0.16,
+      building.id,
+      isUtility ? 0xffd45f : isCivic ? 0xd9ecff : 0xffe3a8
+    );
+    lamp.visible = !isHouse;
+
+    const bench = this.createBench(-footprint.width * 0.22, 0.05, footprint.depth * 0.18, 0, building.id);
+    bench.visible = isCommercial || isCivic;
+
+    const bike = this.createBike(
+      isHouse ? -0.22 : 0.22,
+      0.03,
+      footprint.depth * 0.18,
+      isHouse ? 0.45 : -0.1,
+      building.id,
+      isHouse ? 0xc76b42 : 0x597596
+    );
+    bike.visible = isHouse || building.type === 'cornerStore' || building.type === 'groceryStore';
+
+    group.add(lot);
+    group.add(apron);
+    group.add(curb);
+    group.add(hero);
+    group.add(planterA);
+    group.add(planterB);
+    group.add(lamp);
+    group.add(bench);
+    group.add(bike);
+
+    this.selectableMeshes.set(building.id, [
+      lot,
+      apron,
+      curb,
+      ...this.collectMeshes(hero),
+      ...this.collectMeshes(planterA),
+      ...this.collectMeshes(planterB),
+      ...this.collectMeshes(lamp),
+      ...this.collectMeshes(bench),
+      ...this.collectMeshes(bike)
+    ]);
 
     return group;
   }

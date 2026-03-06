@@ -627,3 +627,161 @@ export function paintAssetSideCard(canvas: HTMLCanvasElement, options: AssetCard
 
   return true;
 }
+
+export function paintHeroAsset(canvas: HTMLCanvasElement, options: AssetCardOptions): boolean {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return false;
+
+  const frontCanvas = document.createElement('canvas');
+  const sideCanvas = document.createElement('canvas');
+  if (!paintAssetCard(frontCanvas, options) || !paintAssetSideCard(sideCanvas, options)) {
+    return false;
+  }
+
+  canvas.width = 512;
+  canvas.height = 512;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const accent = palette(options.palette.accent);
+  const roof = palette(options.palette.roof);
+  const trim = palette(options.palette.trim);
+  const style = options.style;
+
+  const drawDiamond = (cx: number, cy: number, w: number, h: number, fill: string, stroke?: string) => {
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - h);
+    ctx.lineTo(cx + w, cy);
+    ctx.lineTo(cx, cy + h);
+    ctx.lineTo(cx - w, cy);
+    ctx.closePath();
+    ctx.fillStyle = fill;
+    ctx.fill();
+    if (stroke) {
+      ctx.strokeStyle = stroke;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+  };
+
+  const shadow = ctx.createRadialGradient(256, 420, 30, 256, 420, 170);
+  shadow.addColorStop(0, 'rgba(15,23,42,0.2)');
+  shadow.addColorStop(1, 'rgba(15,23,42,0)');
+  ctx.fillStyle = shadow;
+  ctx.beginPath();
+  ctx.ellipse(256, 420, 168, 42, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  const lotFill =
+    style === 'house'
+      ? '#9fcb8e'
+      : style === 'power'
+        ? '#c6cfd5'
+        : style === 'hospital' || style === 'police' || style === 'fire'
+          ? '#dbd8d2'
+          : '#e3d9c9';
+  drawDiamond(256, 382, style === 'hospital' || style === 'power' ? 154 : 118, style === 'hospital' || style === 'power' ? 74 : 58, lotFill, 'rgba(15,23,42,0.08)');
+
+  if (style !== 'house') {
+    drawDiamond(256, 398, style === 'hospital' || style === 'power' ? 122 : 94, style === 'hospital' || style === 'power' ? 38 : 30, '#dfe4e7');
+  } else {
+    drawDiamond(256, 398, 92, 26, '#d4c4a3');
+  }
+
+  ctx.save();
+  ctx.translate(166, 116);
+  ctx.transform(0.92, 0.18, 0, 0.82, 0, 0);
+  ctx.drawImage(frontCanvas, 0, 0, 210, 246);
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(280, 128);
+  ctx.transform(0.62, -0.18, 0, 0.82, 0, 0);
+  ctx.drawImage(sideCanvas, 0, 0, 154, 246);
+  ctx.restore();
+
+  ctx.fillStyle = roof;
+  ctx.beginPath();
+  ctx.moveTo(212, 166);
+  ctx.lineTo(304, 148);
+  ctx.lineTo(364, 182);
+  ctx.lineTo(274, 202);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.beginPath();
+  ctx.moveTo(216, 168);
+  ctx.lineTo(300, 152);
+  ctx.lineTo(348, 180);
+  ctx.lineTo(274, 196);
+  ctx.closePath();
+  ctx.fill();
+
+  if (style === 'restaurant') {
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.arc(276, 156, 24, Math.PI, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#8b3b1f';
+    ctx.fillRect(256, 156, 42, 8);
+  }
+
+  if (style === 'bank') {
+    ctx.fillStyle = trim;
+    ctx.fillRect(236, 182, 60, 10);
+    ctx.fillRect(246, 194, 8, 54);
+    ctx.fillRect(278, 194, 8, 54);
+  }
+
+  if (style === 'hospital') {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(250, 188, 24, 54);
+    ctx.fillRect(236, 202, 52, 24);
+  }
+
+  if (style === 'police') {
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.moveTo(262, 188);
+    ctx.lineTo(282, 198);
+    ctx.lineTo(278, 220);
+    ctx.lineTo(262, 228);
+    ctx.lineTo(246, 220);
+    ctx.lineTo(242, 198);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  if (style === 'fire') {
+    ctx.fillStyle = '#fef2f2';
+    ctx.fillRect(232, 194, 42, 10);
+    ctx.fillRect(284, 194, 26, 10);
+  }
+
+  if (style === 'power') {
+    ctx.fillStyle = '#8493a2';
+    ctx.fillRect(330, 140, 20, 138);
+    ctx.fillRect(356, 154, 16, 124);
+    ctx.fillStyle = accent;
+    ctx.fillRect(228, 252, 32, 20);
+  }
+
+  if (style === 'house') {
+    ctx.fillStyle = '#7bab63';
+    ctx.beginPath();
+    ctx.arc(188, 404, 18, 0, Math.PI * 2);
+    ctx.arc(328, 400, 16, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.fillStyle = '#a17c55';
+    ctx.fillRect(202, 372, 18, 18);
+    ctx.fillRect(312, 368, 18, 18);
+    ctx.fillStyle = '#7aa468';
+    ctx.beginPath();
+    ctx.arc(211, 368, 14, 0, Math.PI * 2);
+    ctx.arc(321, 364, 14, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  return true;
+}
