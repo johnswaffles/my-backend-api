@@ -761,6 +761,20 @@ export function removeAssetVariation(type: BuildType, variationId: string): void
   });
 }
 
+export function applyAssetVariationToBuilding(buildingId: number, variationId: string | null): void {
+  gameStore.update((state) => ({
+    ...state,
+    buildings: state.buildings.map((building) =>
+      building.id === buildingId
+        ? {
+            ...building,
+            assetVariationId: variationId
+          }
+        : building
+    )
+  }));
+}
+
 export function bulldozeAt(x: number, z: number): Building | null {
   let removed: Building | null = null;
   gameStore.update((state) => {

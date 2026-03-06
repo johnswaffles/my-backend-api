@@ -33,6 +33,7 @@ export interface AssetVariation {
   name: string;
   prompt: string;
   imageUrl: string;
+  artStyle: string;
   createdAt: number;
   cost: number;
 }

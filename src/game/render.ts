@@ -12,7 +12,7 @@ import {
 
 interface RoadVisualData {
   connectors: Record<'n' | 'e' | 's' | 'w', THREE.Mesh>;
-  stripes: Record<'ns' | 'ew', THREE.Mesh>;
+  laneSegments: Record<'n' | 'e' | 's' | 'w', THREE.Mesh>;
   edgeCaps: Record<'n' | 'e' | 's' | 'w', THREE.Mesh>;
   intersection: THREE.Mesh;
   crosswalks: Record<'n' | 'e' | 's' | 'w', THREE.Mesh>;
@@ -479,13 +479,15 @@ export class GameRenderer {
       roadData.connectors.s.visible = south;
       roadData.connectors.w.visible = west;
       const roadCount = Number(north) + Number(east) + Number(south) + Number(west);
-      roadData.stripes.ns.visible = north || south || roadCount <= 1;
-      roadData.stripes.ew.visible = east || west;
+      roadData.laneSegments.n.visible = north || roadCount <= 1;
+      roadData.laneSegments.e.visible = east || roadCount <= 1;
+      roadData.laneSegments.s.visible = south || roadCount <= 1;
+      roadData.laneSegments.w.visible = west || roadCount <= 1;
       roadData.edgeCaps.n.visible = !north;
       roadData.edgeCaps.e.visible = !east;
       roadData.edgeCaps.s.visible = !south;
       roadData.edgeCaps.w.visible = !west;
-      roadData.intersection.visible = roadCount >= 3;
+      roadData.intersection.visible = roadCount >= 3 || (roadCount === 2 && ((north && east) || (east && south) || (south && west) || (west && north)));
       roadData.crosswalks.n.visible = roadCount >= 3 && north;
       roadData.crosswalks.e.visible = roadCount >= 3 && east;
       roadData.crosswalks.s.visible = roadCount >= 3 && south;
@@ -680,15 +682,18 @@ export class GameRenderer {
         emissive: 0x111111,
         emissiveIntensity: 0.15
       });
-      const stripeNS = new THREE.Mesh(new THREE.BoxGeometry(0.038, 0.005, 0.76), laneStripeMat);
-      stripeNS.position.set(0, 0.08, 0);
-      stripeNS.userData.buildingId = building.id;
-      group.add(stripeNS);
-
-      const stripeEW = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.005, 0.038), laneStripeMat.clone());
-      stripeEW.position.set(0, 0.08, 0);
-      stripeEW.userData.buildingId = building.id;
-      group.add(stripeEW);
+      const stripeN = new THREE.Mesh(new THREE.BoxGeometry(0.038, 0.005, 0.26), laneStripeMat);
+      const stripeS = new THREE.Mesh(new THREE.BoxGeometry(0.038, 0.005, 0.26), laneStripeMat.clone());
+      const stripeE = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.005, 0.038), laneStripeMat.clone());
+      const stripeW = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.005, 0.038), laneStripeMat.clone());
+      stripeN.position.set(0, 0.08, -0.2);
+      stripeS.position.set(0, 0.08, 0.2);
+      stripeE.position.set(0.2, 0.08, 0);
+      stripeW.position.set(-0.2, 0.08, 0);
+      [stripeN, stripeS, stripeE, stripeW].forEach((stripe) => {
+        stripe.userData.buildingId = building.id;
+        group.add(stripe);
+      });
 
       const intersectionMark = new THREE.Mesh(
         new THREE.CircleGeometry(0.14, 20),
@@ -772,8 +777,10 @@ export class GameRenderer {
         e,
         s,
         w,
-        stripeNS,
-        stripeEW,
+        stripeN,
+        stripeE,
+        stripeS,
+        stripeW,
         capN,
         capE,
         capS,
@@ -786,7 +793,7 @@ export class GameRenderer {
       ]);
       this.roadVisuals.set(building.id, {
         connectors: { n, e, s, w },
-        stripes: { ns: stripeNS, ew: stripeEW },
+        laneSegments: { n: stripeN, e: stripeE, s: stripeS, w: stripeW },
         edgeCaps: { n: capN, e: capE, s: capS, w: capW },
         intersection: intersectionMark,
         crosswalks: { n: cwN, e: cwE, s: cwS, w: cwW }
