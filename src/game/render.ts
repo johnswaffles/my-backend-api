@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { getAssetCardOptions, paintAssetCard } from './assets';
 import type { BuildType, Building, GameState } from './state';
 import {
   footprintForType,
@@ -1023,19 +1024,7 @@ export class GameRenderer {
       group.add(bikeShed);
       smokePuffs.forEach((puff) => group.add(puff));
 
-      const houseCard = this.createFacadeCard({
-        width: 0.62,
-        height: 0.56,
-        buildingId: building.id,
-        palette: {
-          body: wallPalette[variant],
-          roof: roofPalette[variant],
-          trim: trimPalette[variant],
-          accent: 0xfef3c7
-        },
-        label: '',
-        style: 'house'
-      });
+      const houseCard = this.createFacadeCard(building.type, building.id, variant);
       houseCard.position.set(0, 0.29, 0.38);
       group.add(houseCard);
 
@@ -1423,19 +1412,7 @@ export class GameRenderer {
       if (parkedCar) group.add(parkedCar);
       group.add(marketCanopy);
       group.add(sandwichBoard);
-      const facadeCard = this.createFacadeCard({
-        width: isBank ? 0.72 : isCornerStore ? 0.56 : isShop ? 0.82 : 0.72,
-        height: isShop ? 0.72 : isCornerStore ? 0.52 : 0.6,
-        buildingId: building.id,
-        palette: {
-          body: isRestaurant ? 0xe8cfad : isGrocery ? 0xd5ead3 : isCornerStore ? 0xe7d9bc : isBank ? 0xd7dfe8 : 0xd7d6ca,
-          roof: isRestaurant ? 0x9b5a43 : isGrocery ? 0x55754f : isCornerStore ? 0x8b6945 : isBank ? 0x556782 : 0x4a74a0,
-          trim: isRestaurant ? 0xf0bb78 : isGrocery ? 0x93c98a : isCornerStore ? 0xf3bf7f : isBank ? 0xcfe2ff : 0x93c5fd,
-          accent: isRestaurant ? 0xfcd34d : isGrocery ? 0xbbf7d0 : isCornerStore ? 0xfde68a : isBank ? 0xe0f2fe : 0xe0f2fe
-        },
-        label: isBank ? 'BANK' : isGrocery ? 'MARKET' : isCornerStore ? 'CORNER' : isRestaurant ? 'DINER' : 'SHOPS',
-        style: isBank ? 'bank' : isGrocery ? 'grocery' : isCornerStore ? 'corner' : isRestaurant ? 'restaurant' : 'shop'
-      });
+      const facadeCard = this.createFacadeCard(building.type, building.id);
       facadeCard.position.set(0, isShop ? 0.34 : isCornerStore ? 0.24 : 0.3, 0.42);
       group.add(facadeCard);
       this.selectableMeshes.set(building.id, [
@@ -1702,19 +1679,7 @@ export class GameRenderer {
         group.add(redCross);
         group.add(ambulanceCanopy);
         group.add(ambulance);
-        const hospitalCard = this.createFacadeCard({
-          width: 0.9,
-          height: 0.58,
-          buildingId: building.id,
-          palette: {
-            body: 0xeaf1f7,
-            roof: 0x9db4c8,
-            trim: 0xdbeafe,
-            accent: 0xfca5a5
-          },
-          label: 'HOSPITAL',
-          style: 'hospital'
-        });
+        const hospitalCard = this.createFacadeCard(building.type, building.id);
         hospitalCard.position.set(0, 0.34, 0.84);
         group.add(hospitalCard);
         this.selectableMeshes.set(building.id, [
@@ -1800,19 +1765,7 @@ export class GameRenderer {
         group.add(steps);
         group.add(badge);
         group.add(lightBar);
-        const policeCard = this.createFacadeCard({
-          width: 0.62,
-          height: 0.5,
-          buildingId: building.id,
-          palette: {
-            body: 0xdfe7f0,
-            roof: 0x4b5f79,
-            trim: 0xdbeafe,
-            accent: 0x93c5fd
-          },
-          label: 'POLICE',
-          style: 'police'
-        });
+        const policeCard = this.createFacadeCard(building.type, building.id);
         policeCard.position.set(0, 0.29, 0.38);
         group.add(policeCard);
         this.selectableMeshes.set(building.id, [lot, body, roof, portico, steps, badge, lightBar, policeCard]);
@@ -1869,19 +1822,7 @@ export class GameRenderer {
       group.add(bayRight);
       group.add(tower);
       group.add(siren);
-      const fireCard = this.createFacadeCard({
-        width: 0.66,
-        height: 0.48,
-        buildingId: building.id,
-        palette: {
-          body: 0xe6c8bf,
-          roof: 0xb04a43,
-          trim: 0xfecaca,
-          accent: 0xfca5a5
-        },
-        label: 'FIRE',
-        style: 'fire'
-      });
+      const fireCard = this.createFacadeCard(building.type, building.id);
       fireCard.position.set(0, 0.27, 0.38);
       group.add(fireCard);
       this.selectableMeshes.set(building.id, [lot, body, roof, bayLeft, bayRight, tower, siren, fireCard]);
@@ -1990,19 +1931,7 @@ export class GameRenderer {
     group.add(fence);
     group.add(utilityTruck);
     group.add(yardContainer);
-    const powerCard = this.createFacadeCard({
-      width: 0.94,
-      height: 0.56,
-      buildingId: building.id,
-      palette: {
-        body: 0xa6b4c3,
-        roof: 0x697788,
-        trim: 0xd8e0e6,
-        accent: 0xfde68a
-      },
-      label: 'POWER',
-      style: 'power'
-    });
+    const powerCard = this.createFacadeCard(building.type, building.id);
     powerCard.position.set(-0.28, 0.34, 0.62);
     group.add(powerCard);
     this.selectableMeshes.set(building.id, [
@@ -2071,140 +2000,26 @@ export class GameRenderer {
     return meshes;
   }
 
-  private createFacadeCard(options: {
-    width: number;
-    height: number;
-    buildingId: number;
-    palette: { body: number; roof: number; trim: number; accent: number };
-    label: string;
-    style: 'house' | 'shop' | 'grocery' | 'corner' | 'restaurant' | 'bank' | 'hospital' | 'police' | 'fire' | 'power';
-  }): THREE.Mesh {
+  private createFacadeCard(type: BuildType, buildingId: number, variant = 0): THREE.Mesh {
+    const options = getAssetCardOptions(type, variant);
+    if (!options) {
+      const fallback = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.6, 0.4),
+        new THREE.MeshStandardMaterial({ color: 0xd1d5db, roughness: 0.78, metalness: 0.02 })
+      );
+      fallback.userData.buildingId = buildingId;
+      return fallback;
+    }
+
     const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 256;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
+    if (!paintAssetCard(canvas, options)) {
       const fallback = new THREE.Mesh(
         new THREE.PlaneGeometry(options.width, options.height),
         new THREE.MeshStandardMaterial({ color: options.palette.body, roughness: 0.78, metalness: 0.02 })
       );
-      fallback.userData.buildingId = options.buildingId;
+      fallback.userData.buildingId = buildingId;
       return fallback;
     }
-
-    const toCss = (value: number) => `#${value.toString(16).padStart(6, '0')}`;
-    const body = toCss(options.palette.body);
-    const roof = toCss(options.palette.roof);
-    const trim = toCss(options.palette.trim);
-    const accent = toCss(options.palette.accent);
-
-    ctx.fillStyle = body;
-    ctx.fillRect(0, 0, 256, 256);
-
-    const roofGrad = ctx.createLinearGradient(0, 0, 0, 90);
-    roofGrad.addColorStop(0, roof);
-    roofGrad.addColorStop(1, trim);
-    ctx.fillStyle = roofGrad;
-    ctx.fillRect(0, 0, 256, 68);
-
-    ctx.fillStyle = 'rgba(255,255,255,0.18)';
-    for (let i = -20; i < 280; i += 24) {
-      ctx.fillRect(i, 12, 14, 56);
-    }
-
-    if (options.style === 'bank') {
-      ctx.fillStyle = trim;
-      for (const x of [60, 98, 136, 174]) ctx.fillRect(x, 100, 18, 110);
-      ctx.fillStyle = accent;
-      ctx.fillRect(66, 74, 124, 18);
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '700 24px Manrope';
-      ctx.textAlign = 'center';
-      ctx.fillText(options.label, 128, 88);
-    } else {
-      ctx.fillStyle = accent;
-      ctx.fillRect(28, 72, 200, options.style === 'shop' ? 34 : 28);
-      if (options.label) {
-        ctx.fillStyle = options.style === 'grocery' ? '#164e2c' : options.style === 'power' ? '#6b4f00' : '#112233';
-        ctx.font = options.style === 'shop' ? '700 28px Manrope' : '700 22px Manrope';
-        ctx.textAlign = 'center';
-        ctx.fillText(options.label, 128, options.style === 'shop' ? 98 : 92);
-      }
-    }
-
-    ctx.fillStyle = trim;
-    ctx.fillRect(44, 116, 168, 118);
-
-    const drawWindow = (x: number, y: number, w: number, h: number) => {
-      ctx.fillStyle = '#ffefb3';
-      ctx.fillRect(x, y, w, h);
-      ctx.strokeStyle = 'rgba(83,62,32,0.28)';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(x, y, w, h);
-    };
-
-    if (options.style === 'house') {
-      drawWindow(54, 128, 46, 42);
-      drawWindow(156, 128, 46, 42);
-      ctx.fillStyle = '#7b5636';
-      ctx.fillRect(110, 154, 36, 80);
-      ctx.fillStyle = accent;
-      ctx.fillRect(96, 116, 64, 18);
-    } else if (options.style === 'shop') {
-      drawWindow(46, 132, 164, 36);
-      drawWindow(46, 178, 46, 32);
-      drawWindow(104, 178, 46, 32);
-      drawWindow(162, 178, 46, 32);
-    } else if (options.style === 'grocery' || options.style === 'corner') {
-      drawWindow(48, 132, 70, 70);
-      drawWindow(138, 132, 70, 70);
-      ctx.fillStyle = accent;
-      for (let i = 0; i < 6; i += 1) {
-        ctx.fillRect(42 + i * 28, 110, 14, 12);
-      }
-    } else if (options.style === 'restaurant') {
-      drawWindow(38, 136, 180, 64);
-      ctx.fillStyle = '#9f4b24';
-      ctx.beginPath();
-      ctx.arc(128, 108, 28, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#f6c453';
-      ctx.beginPath();
-      ctx.arc(128, 102, 30, Math.PI, Math.PI * 2);
-      ctx.fill();
-    } else if (options.style === 'hospital') {
-      drawWindow(52, 124, 44, 34);
-      drawWindow(106, 124, 44, 34);
-      drawWindow(160, 124, 44, 34);
-      drawWindow(52, 168, 44, 34);
-      drawWindow(106, 168, 44, 34);
-      drawWindow(160, 168, 44, 34);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(116, 110, 24, 84);
-      ctx.fillRect(86, 140, 84, 24);
-    } else if (options.style === 'police') {
-      drawWindow(52, 136, 56, 50);
-      drawWindow(148, 136, 56, 50);
-      ctx.fillStyle = '#0f3b72';
-      ctx.fillRect(114, 120, 28, 86);
-    } else if (options.style === 'fire') {
-      ctx.fillStyle = '#8b1e1e';
-      ctx.fillRect(44, 130, 72, 92);
-      ctx.fillRect(140, 130, 72, 92);
-      ctx.fillStyle = '#fef2f2';
-      ctx.fillRect(52, 140, 56, 10);
-      ctx.fillRect(148, 140, 56, 10);
-    } else if (options.style === 'power') {
-      ctx.fillStyle = '#d0d8e0';
-      ctx.fillRect(42, 132, 96, 78);
-      ctx.fillStyle = '#9caab9';
-      ctx.fillRect(150, 120, 58, 90);
-      ctx.fillStyle = '#ffefb3';
-      ctx.fillRect(86, 154, 26, 32);
-      ctx.fillStyle = '#7f8a93';
-      ctx.fillRect(178, 70, 18, 100);
-    }
-
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = Math.min(this.renderer.capabilities.getMaxAnisotropy(), 8);
@@ -2218,7 +2033,7 @@ export class GameRenderer {
       metalness: 0.02
     });
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(options.width, options.height), material);
-    mesh.userData.buildingId = options.buildingId;
+    mesh.userData.buildingId = buildingId;
     return mesh;
   }
 
