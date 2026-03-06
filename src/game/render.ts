@@ -2456,8 +2456,8 @@ export class GameRenderer {
     plane.userData.buildingId = buildingId;
 
     const softShadow = new THREE.Mesh(
-      new THREE.PlaneGeometry(width * 0.62, height * 0.14),
-      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.08, depthWrite: false })
+      new THREE.PlaneGeometry(width * 0.48, height * 0.1),
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.045, depthWrite: false })
     );
     softShadow.rotation.x = -Math.PI / 2;
     softShadow.position.set(0, -height * 0.495, 0.01);
@@ -2632,6 +2632,23 @@ export class GameRenderer {
     lot.userData.buildingId = building.id;
     lot.visible = !usesCustomImage;
 
+    const customParcelBase = new THREE.Mesh(
+      new THREE.BoxGeometry(
+        footprint.width * (isHouse ? 1.08 : footprint.width > 1 ? 1.02 : 1.04),
+        0.028,
+        footprint.depth * (isHouse ? 1.06 : footprint.depth > 1 ? 1.02 : 1.04)
+      ),
+      new THREE.MeshStandardMaterial({
+        color: isHouse ? 0x8caf7e : isUtility ? 0xcfd4d8 : isCivic ? 0xe2ddd5 : 0xe6dfd1,
+        roughness: 0.96,
+        metalness: 0.01
+      })
+    );
+    customParcelBase.position.y = 0.014;
+    customParcelBase.receiveShadow = true;
+    customParcelBase.userData.buildingId = building.id;
+    customParcelBase.visible = usesCustomImage;
+
     const apron = new THREE.Mesh(
       new THREE.BoxGeometry(footprint.width * (isHouse ? 0.64 : 0.82), 0.016, footprint.depth > 1 ? 0.26 : 0.18),
       new THREE.MeshStandardMaterial({
@@ -2644,6 +2661,22 @@ export class GameRenderer {
     apron.userData.buildingId = building.id;
     apron.visible = !usesCustomImage;
 
+    const customFrontPath = new THREE.Mesh(
+      new THREE.BoxGeometry(
+        footprint.width * (isHouse ? 0.42 : footprint.width > 1 ? 0.48 : 0.52),
+        0.012,
+        footprint.depth > 1 ? 0.22 : 0.18
+      ),
+      new THREE.MeshStandardMaterial({
+        color: isHouse ? 0xd8cab0 : 0xe3e5e7,
+        roughness: 0.95,
+        metalness: 0.01
+      })
+    );
+    customFrontPath.position.set(0, 0.038, footprint.depth * 0.34);
+    customFrontPath.userData.buildingId = building.id;
+    customFrontPath.visible = usesCustomImage && (isHouse || isCommercial || isCivic);
+
     const curb = new THREE.Mesh(
       new THREE.BoxGeometry(footprint.width * 0.96, 0.025, 0.04),
       new THREE.MeshStandardMaterial({ color: 0xc7cfd5, roughness: 0.92, metalness: 0.01 })
@@ -2651,6 +2684,14 @@ export class GameRenderer {
     curb.position.set(0, 0.055, footprint.depth * 0.46);
     curb.userData.buildingId = building.id;
     curb.visible = !isHouse && !usesCustomImage;
+
+    const customCurb = new THREE.Mesh(
+      new THREE.BoxGeometry(footprint.width * 0.96, 0.02, 0.04),
+      new THREE.MeshStandardMaterial({ color: 0xc7cfd5, roughness: 0.92, metalness: 0.01 })
+    );
+    customCurb.position.set(0, 0.046, footprint.depth * 0.45);
+    customCurb.userData.buildingId = building.id;
+    customCurb.visible = usesCustomImage && !isHouse;
 
     const hero =
       building.customImageUrl
@@ -2684,6 +2725,18 @@ export class GameRenderer {
     );
     planterA.visible = !isUtility && !usesCustomImage;
 
+    const customPlanterA = this.createPlanterBox(
+      isHouse ? 0x9a7a58 : 0x977352,
+      isHouse ? 0x769f66 : isUtility ? 0x86a56a : isCivic ? 0x76a27a : 0x7cab72,
+      -footprint.width * 0.28,
+      0.038,
+      footprint.depth * 0.2,
+      building.id,
+      footprint.width > 1 ? 0.16 : 0.1,
+      footprint.width > 1 ? 0.13 : 0.1
+    );
+    customPlanterA.visible = usesCustomImage && !isUtility;
+
     const planterB = this.createPlanterBox(
       0x977352,
       isCommercial ? 0x8eb664 : 0x7ca07a,
@@ -2696,6 +2749,18 @@ export class GameRenderer {
     );
     planterB.visible = (isCommercial || isCivic) && !usesCustomImage;
 
+    const customPlanterB = this.createPlanterBox(
+      0x977352,
+      isCommercial ? 0x8eb664 : 0x7ca07a,
+      footprint.width * 0.28,
+      0.038,
+      footprint.depth * 0.18,
+      building.id,
+      footprint.width > 1 ? 0.16 : 0.1,
+      footprint.width > 1 ? 0.13 : 0.1
+    );
+    customPlanterB.visible = usesCustomImage && (isCommercial || isCivic);
+
     const lamp = this.createStreetLamp(
       footprint.width * 0.34,
       0.055,
@@ -2705,8 +2770,20 @@ export class GameRenderer {
     );
     lamp.visible = !isHouse && !usesCustomImage;
 
+    const customLamp = this.createStreetLamp(
+      footprint.width * 0.34,
+      0.04,
+      footprint.depth * 0.12,
+      building.id,
+      isUtility ? 0xffd45f : isCivic ? 0xd9ecff : 0xffe3a8
+    );
+    customLamp.visible = usesCustomImage && !isHouse && !isUtility;
+
     const bench = this.createBench(-footprint.width * 0.22, 0.05, footprint.depth * 0.18, 0, building.id);
     bench.visible = (isCommercial || isCivic) && !usesCustomImage;
+
+    const customBench = this.createBench(-footprint.width * 0.2, 0.04, footprint.depth * 0.15, 0, building.id);
+    customBench.visible = usesCustomImage && (isCommercial || isCivic);
 
     const bike = this.createBike(
       isHouse ? -0.22 : 0.22,
@@ -2718,26 +2795,64 @@ export class GameRenderer {
     );
     bike.visible = (isHouse || building.type === 'cornerStore' || building.type === 'groceryStore') && !usesCustomImage;
 
+    const customBike = this.createBike(
+      isHouse ? -0.18 : 0.18,
+      0.028,
+      footprint.depth * 0.14,
+      isHouse ? 0.45 : -0.1,
+      building.id,
+      isHouse ? 0xc76b42 : 0x597596
+    );
+    customBike.visible = usesCustomImage && (isHouse || building.type === 'cornerStore' || building.type === 'groceryStore');
+
+    const customMailbox = this.createMailbox(
+      -footprint.width * 0.24,
+      0.03,
+      footprint.depth * 0.22,
+      building.id,
+      0xc85d4a
+    );
+    customMailbox.visible = usesCustomImage && isHouse;
+
+    group.add(customParcelBase);
     group.add(lot);
+    group.add(customFrontPath);
     group.add(apron);
+    group.add(customCurb);
     group.add(curb);
     group.add(hero);
+    group.add(customPlanterA);
     group.add(planterA);
+    group.add(customPlanterB);
     group.add(planterB);
+    group.add(customLamp);
     group.add(lamp);
+    group.add(customBench);
     group.add(bench);
+    group.add(customBike);
     group.add(bike);
+    group.add(customMailbox);
 
     this.selectableMeshes.set(building.id, [
+      customParcelBase,
       lot,
+      customFrontPath,
       apron,
+      customCurb,
       curb,
       ...this.collectMeshes(hero),
+      ...this.collectMeshes(customPlanterA),
       ...this.collectMeshes(planterA),
+      ...this.collectMeshes(customPlanterB),
       ...this.collectMeshes(planterB),
+      ...this.collectMeshes(customLamp),
       ...this.collectMeshes(lamp),
+      ...this.collectMeshes(customBench),
       ...this.collectMeshes(bench),
+      ...this.collectMeshes(customBike),
       ...this.collectMeshes(bike)
+      ,
+      ...this.collectMeshes(customMailbox)
     ]);
 
     return group;
