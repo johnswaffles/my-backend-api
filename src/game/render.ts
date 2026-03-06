@@ -12,6 +12,12 @@ interface RoadVisualData {
   intersection: THREE.Mesh;
 }
 
+interface BuildingPlacement {
+  offsetX: number;
+  offsetZ: number;
+  rotationY: number;
+}
+
 export class GameRenderer {
   private readonly container: HTMLElement;
 
@@ -404,7 +410,9 @@ export class GameRenderer {
 
       const object = this.buildingMeshes.get(b.id)!;
       const world = this.gridToWorld(b.x, b.z, state.gridSize);
-      object.position.set(world.x, 0, world.z);
+      const placement = this.computeBuildingPlacement(b);
+      object.position.set(world.x + placement.offsetX, 0, world.z + placement.offsetZ);
+      object.rotation.y = placement.rotationY;
 
       const ageMs = performance.now() - b.createdAt;
       const t = THREE.MathUtils.clamp(ageMs / 220, 0, 1);
@@ -452,6 +460,42 @@ export class GameRenderer {
     return gameStore.getState().buildings.find((b) => b.id === id);
   }
 
+  private roadPresence(x: number, z: number): { n: boolean; e: boolean; s: boolean; w: boolean } {
+    return {
+      n: this.buildingByCell.get(`${x}:${z - 1}`)?.type === 'road',
+      e: this.buildingByCell.get(`${x + 1}:${z}`)?.type === 'road',
+      s: this.buildingByCell.get(`${x}:${z + 1}`)?.type === 'road',
+      w: this.buildingByCell.get(`${x - 1}:${z}`)?.type === 'road'
+    };
+  }
+
+  private computeBuildingPlacement(building: Building): BuildingPlacement {
+    if (building.type === 'road' || building.type === 'park') {
+      return { offsetX: 0, offsetZ: 0, rotationY: 0 };
+    }
+
+    const roads = this.roadPresence(building.x, building.z);
+
+    if (roads.n) return this.placementForFacing('north', building.type);
+    if (roads.s) return this.placementForFacing('south', building.type);
+    if (roads.e) return this.placementForFacing('east', building.type);
+    if (roads.w) return this.placementForFacing('west', building.type);
+
+    return { offsetX: 0, offsetZ: 0, rotationY: 0 };
+  }
+
+  private placementForFacing(
+    facing: 'north' | 'south' | 'east' | 'west',
+    type: BuildType
+  ): BuildingPlacement {
+    const setback = type === 'house' ? 0.14 : type === 'shop' || type === 'restaurant' ? 0.08 : 0.05;
+
+    if (facing === 'north') return { offsetX: 0, offsetZ: setback, rotationY: 0 };
+    if (facing === 'south') return { offsetX: 0, offsetZ: -setback, rotationY: Math.PI };
+    if (facing === 'east') return { offsetX: -setback, offsetZ: 0, rotationY: -Math.PI / 2 };
+    return { offsetX: setback, offsetZ: 0, rotationY: Math.PI / 2 };
+  }
+
   private syncHoverAndGhost(state: GameState): void {
     if (state.hoverCell) {
       const world = this.gridToWorld(state.hoverCell.x, state.hoverCell.z, state.gridSize);
@@ -489,15 +533,23 @@ export class GameRenderer {
       const group = new THREE.Group();
       const asphaltMaterial = new THREE.MeshStandardMaterial({ color: 0x4b5662, roughness: 0.88, metalness: 0.04 });
       const sidewalkMaterial = new THREE.MeshStandardMaterial({ color: 0x8da1b3, roughness: 0.92, metalness: 0.01 });
+      const streetFurnitureMat = new THREE.MeshStandardMaterial({ color: 0x647562, roughness: 0.9, metalness: 0.02 });
 
-      const sidewalk = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.06, 0.98), sidewalkMaterial);
+      const sidewalk = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.06, 0.92), sidewalkMaterial);
       sidewalk.position.y = 0.03;
       sidewalk.receiveShadow = true;
       sidewalk.castShadow = false;
       sidewalk.userData.buildingId = building.id;
       group.add(sidewalk);
 
-      const base = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.04, 0.84), asphaltMaterial);
+      const curbInset = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.01, 0.76), new THREE.MeshStandardMaterial({ color: 0x6d7b87, roughness: 0.95, metalness: 0.01 }));
+      curbInset.position.y = 0.051;
+      curbInset.receiveShadow = true;
+      curbInset.castShadow = false;
+      curbInset.userData.buildingId = building.id;
+      group.add(curbInset);
+
+      const base = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.04, 0.66), asphaltMaterial);
       base.position.y = 0.055;
       base.receiveShadow = true;
       base.castShadow = false;
@@ -511,18 +563,18 @@ export class GameRenderer {
         emissive: 0x111111,
         emissiveIntensity: 0.15
       });
-      const stripeNS = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.005, 0.52), laneStripeMat);
+      const stripeNS = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.005, 0.42), laneStripeMat);
       stripeNS.position.set(0, 0.08, 0);
       stripeNS.userData.buildingId = building.id;
       group.add(stripeNS);
 
-      const stripeEW = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.005, 0.08), laneStripeMat.clone());
+      const stripeEW = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.005, 0.06), laneStripeMat.clone());
       stripeEW.position.set(0, 0.08, 0);
       stripeEW.userData.buildingId = building.id;
       group.add(stripeEW);
 
       const cornerMat = asphaltMaterial.clone();
-      const cornerGeom = new THREE.CylinderGeometry(0.31, 0.31, 0.043, 22, 1, false, 0, Math.PI / 2);
+      const cornerGeom = new THREE.CylinderGeometry(0.23, 0.23, 0.043, 22, 1, false, 0, Math.PI / 2);
       const cornerSE = new THREE.Mesh(cornerGeom, cornerMat);
       const cornerSW = new THREE.Mesh(cornerGeom, cornerMat.clone());
       const cornerNW = new THREE.Mesh(cornerGeom, cornerMat.clone());
@@ -558,17 +610,17 @@ export class GameRenderer {
       intersectionMark.visible = false;
       group.add(intersectionMark);
 
-      const connectorGeom = new THREE.BoxGeometry(0.26, 0.042, 0.48);
+      const connectorGeom = new THREE.BoxGeometry(0.18, 0.042, 0.42);
       const connectorMat = asphaltMaterial;
       const n = new THREE.Mesh(connectorGeom, connectorMat.clone());
       const e = new THREE.Mesh(connectorGeom, connectorMat.clone());
       const s = new THREE.Mesh(connectorGeom, connectorMat.clone());
       const w = new THREE.Mesh(connectorGeom, connectorMat.clone());
 
-      n.position.set(0, 0.055, -0.31);
-      s.position.set(0, 0.055, 0.31);
-      e.position.set(0.31, 0.055, 0);
-      w.position.set(-0.31, 0.055, 0);
+      n.position.set(0, 0.055, -0.245);
+      s.position.set(0, 0.055, 0.245);
+      e.position.set(0.245, 0.055, 0);
+      w.position.set(-0.245, 0.055, 0);
       e.rotation.y = Math.PI / 2;
       w.rotation.y = Math.PI / 2;
       [n, e, s, w].forEach((part) => {
@@ -578,7 +630,47 @@ export class GameRenderer {
         group.add(part);
       });
 
+      const treeBase = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.12, 8), streetFurnitureMat);
+      treeBase.position.set(-0.34, 0.1, -0.32);
+      treeBase.castShadow = true;
+      treeBase.receiveShadow = true;
+      treeBase.userData.buildingId = building.id;
+
+      const treeCanopy = new THREE.Mesh(
+        new THREE.ConeGeometry(0.09, 0.22, 9),
+        new THREE.MeshStandardMaterial({ color: 0x5f8d5d, roughness: 0.88, metalness: 0.01 })
+      );
+      treeCanopy.position.set(-0.34, 0.27, -0.32);
+      treeCanopy.castShadow = true;
+      treeCanopy.receiveShadow = true;
+      treeCanopy.userData.buildingId = building.id;
+
+      const lampPost = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.014, 0.34, 8), streetFurnitureMat.clone());
+      lampPost.position.set(0.34, 0.2, 0.3);
+      lampPost.castShadow = true;
+      lampPost.receiveShadow = true;
+      lampPost.userData.buildingId = building.id;
+
+      const lampHead = new THREE.Mesh(
+        new THREE.BoxGeometry(0.06, 0.04, 0.06),
+        new THREE.MeshStandardMaterial({
+          color: 0xf6e8ba,
+          roughness: 0.4,
+          metalness: 0.08,
+          emissive: 0xf59e0b,
+          emissiveIntensity: 0.16
+        })
+      );
+      lampHead.position.set(0.34, 0.39, 0.3);
+      lampHead.userData.buildingId = building.id;
+      group.add(treeBase);
+      group.add(treeCanopy);
+      group.add(lampPost);
+      group.add(lampHead);
+
       this.selectableMeshes.set(building.id, [
+        sidewalk,
+        curbInset,
         base,
         n,
         e,
@@ -590,7 +682,11 @@ export class GameRenderer {
         cornerSE,
         cornerSW,
         cornerNW,
-        intersectionMark
+        intersectionMark,
+        treeBase,
+        treeCanopy,
+        lampPost,
+        lampHead
       ]);
       this.roadVisuals.set(building.id, {
         connectors: { n, e, s, w },
@@ -891,6 +987,21 @@ export class GameRenderer {
         metalness: 0.03
       });
 
+      const lot = new THREE.Mesh(
+        new THREE.BoxGeometry(0.94, 0.05, 0.92),
+        new THREE.MeshStandardMaterial({ color: 0xd9d1bc, roughness: 0.94, metalness: 0.01 })
+      );
+      lot.position.y = 0.025;
+      lot.receiveShadow = true;
+      lot.userData.buildingId = building.id;
+
+      const frontage = new THREE.Mesh(
+        new THREE.BoxGeometry(0.78, 0.015, 0.18),
+        new THREE.MeshStandardMaterial({ color: 0xc8b694, roughness: 0.9, metalness: 0.01 })
+      );
+      frontage.position.set(0, 0.055, 0.36);
+      frontage.userData.buildingId = building.id;
+
       const body = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.78), wallMat);
       body.position.y = 0.25;
       body.castShadow = true;
@@ -938,13 +1049,54 @@ export class GameRenderer {
       windowR.position.set(0.22, 0.28, 0.4);
       windowR.userData.buildingId = building.id;
 
+      const cafeTable = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.05, 0.05, 0.08, 10),
+        new THREE.MeshStandardMaterial({ color: isRestaurant ? 0x835d3d : 0x8b8f95, roughness: 0.78, metalness: 0.08 })
+      );
+      cafeTable.position.set(-0.2, 0.095, 0.24);
+      cafeTable.userData.buildingId = building.id;
+      cafeTable.visible = isRestaurant;
+
+      const cafeStool = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.035, 0.035, 0.06, 10),
+        new THREE.MeshStandardMaterial({ color: 0x78563a, roughness: 0.8, metalness: 0.04 })
+      );
+      cafeStool.position.set(-0.1, 0.07, 0.22);
+      cafeStool.userData.buildingId = building.id;
+      cafeStool.visible = isRestaurant;
+
+      const displayRack = new THREE.Mesh(
+        new THREE.BoxGeometry(0.12, 0.16, 0.08),
+        new THREE.MeshStandardMaterial({ color: 0xa57046, roughness: 0.84, metalness: 0.02 })
+      );
+      displayRack.position.set(0.22, 0.09, 0.24);
+      displayRack.userData.buildingId = building.id;
+      displayRack.visible = !isRestaurant;
+
+      group.add(lot);
+      group.add(frontage);
       group.add(body);
       group.add(roof);
       group.add(awning);
       group.add(sign);
       group.add(windowL);
       group.add(windowR);
-      this.selectableMeshes.set(building.id, [body, roof, awning, sign, windowL, windowR]);
+      group.add(cafeTable);
+      group.add(cafeStool);
+      group.add(displayRack);
+      this.selectableMeshes.set(building.id, [
+        lot,
+        frontage,
+        body,
+        roof,
+        awning,
+        sign,
+        windowL,
+        windowR,
+        cafeTable,
+        cafeStool,
+        displayRack
+      ]);
       return group;
     }
 
