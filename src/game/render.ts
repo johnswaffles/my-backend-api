@@ -2861,6 +2861,101 @@ export class GameRenderer {
     }
     customMailbox.visible = usesCustomImage && isHouse;
 
+    const customHouseFenceBack = new THREE.Mesh(
+      new THREE.BoxGeometry(footprint.width * 0.72, 0.09, 0.028),
+      new THREE.MeshStandardMaterial({ color: 0xa37a56, roughness: 0.9, metalness: 0.01 })
+    );
+    {
+      const pos = orientPoint(-frontEdge - 0.13, 0);
+      customHouseFenceBack.position.set(pos.x, 0.06, pos.z);
+      customHouseFenceBack.rotation.y = frontageSide === 'e' || frontageSide === 'w' ? Math.PI / 2 : 0;
+    }
+    customHouseFenceBack.userData.buildingId = building.id;
+    customHouseFenceBack.visible = usesCustomImage && isHouse;
+
+    const customHouseFenceSide = new THREE.Mesh(
+      new THREE.BoxGeometry(0.028, 0.09, footprint.depth * 0.52),
+      new THREE.MeshStandardMaterial({ color: 0xa37a56, roughness: 0.9, metalness: 0.01 })
+    );
+    {
+      const pos = orientPoint(-0.04, footprint.width * 0.38);
+      customHouseFenceSide.position.set(pos.x, 0.06, pos.z);
+      customHouseFenceSide.rotation.y = frontageSide === 'n' || frontageSide === 's' ? 0 : Math.PI / 2;
+    }
+    customHouseFenceSide.userData.buildingId = building.id;
+    customHouseFenceSide.visible = usesCustomImage && isHouse;
+
+    const customParkingPad = new THREE.Mesh(
+      new THREE.BoxGeometry(
+        footprint.width > 1 ? 0.58 : 0.42,
+        0.014,
+        footprint.depth > 1 ? 0.42 : 0.3
+      ),
+      new THREE.MeshStandardMaterial({ color: 0xc9ccd0, roughness: 0.9, metalness: 0.02 })
+    );
+    {
+      const pos = orientPoint(-0.06, footprint.width * 0.34);
+      customParkingPad.position.set(pos.x, 0.034, pos.z);
+    }
+    customParkingPad.userData.buildingId = building.id;
+    customParkingPad.visible = usesCustomImage && (isCommercial || isCivic || isUtility);
+
+    const customParkingStripeA = new THREE.Mesh(
+      new THREE.BoxGeometry(0.012, 0.003, footprint.depth > 1 ? 0.2 : 0.14),
+      new THREE.MeshStandardMaterial({ color: 0xf5f3ed, roughness: 0.88, metalness: 0.01 })
+    );
+    {
+      const pos = orientPoint(-0.08, footprint.width * 0.26);
+      customParkingStripeA.position.set(pos.x, 0.043, pos.z);
+      customParkingStripeA.rotation.y = frontageSide === 'n' || frontageSide === 's' ? 0 : Math.PI / 2;
+    }
+    customParkingStripeA.userData.buildingId = building.id;
+    customParkingStripeA.visible = usesCustomImage && (isCommercial || isCivic);
+
+    const customParkingStripeB = new THREE.Mesh(
+      new THREE.BoxGeometry(0.012, 0.003, footprint.depth > 1 ? 0.2 : 0.14),
+      new THREE.MeshStandardMaterial({ color: 0xf5f3ed, roughness: 0.88, metalness: 0.01 })
+    );
+    {
+      const pos = orientPoint(-0.08, footprint.width * 0.42);
+      customParkingStripeB.position.set(pos.x, 0.043, pos.z);
+      customParkingStripeB.rotation.y = frontageSide === 'n' || frontageSide === 's' ? 0 : Math.PI / 2;
+    }
+    customParkingStripeB.userData.buildingId = building.id;
+    customParkingStripeB.visible = usesCustomImage && (isCommercial || isCivic);
+
+    const customBackGreenery = this.createPlanterBox(
+      0x8c6e50,
+      isHouse ? 0x709861 : 0x7aa36d,
+      0,
+      0.035,
+      0,
+      building.id,
+      footprint.width > 1 ? 0.18 : 0.12,
+      footprint.width > 1 ? 0.14 : 0.12
+    );
+    {
+      const pos = orientPoint(-frontEdge - 0.08, -footprint.width * 0.22);
+      customBackGreenery.position.set(pos.x, 0.035, pos.z);
+    }
+    customBackGreenery.visible = usesCustomImage && !isUtility;
+
+    const customSideGreenery = this.createPlanterBox(
+      0x8c6e50,
+      isCommercial ? 0x85ad72 : 0x739d66,
+      0,
+      0.035,
+      0,
+      building.id,
+      footprint.width > 1 ? 0.18 : 0.12,
+      footprint.width > 1 ? 0.14 : 0.12
+    );
+    {
+      const pos = orientPoint(-0.02, -footprint.width * 0.36);
+      customSideGreenery.position.set(pos.x, 0.035, pos.z);
+    }
+    customSideGreenery.visible = usesCustomImage && !isUtility;
+
     group.add(customParcelBase);
     group.add(lot);
     group.add(customFrontPath);
@@ -2879,6 +2974,13 @@ export class GameRenderer {
     group.add(customBike);
     group.add(bike);
     group.add(customMailbox);
+    group.add(customHouseFenceBack);
+    group.add(customHouseFenceSide);
+    group.add(customParkingPad);
+    group.add(customParkingStripeA);
+    group.add(customParkingStripeB);
+    group.add(customBackGreenery);
+    group.add(customSideGreenery);
 
     this.selectableMeshes.set(building.id, [
       customParcelBase,
@@ -2899,7 +3001,14 @@ export class GameRenderer {
       ...this.collectMeshes(customBike),
       ...this.collectMeshes(bike)
       ,
-      ...this.collectMeshes(customMailbox)
+      ...this.collectMeshes(customMailbox),
+      ...this.collectMeshes(customHouseFenceBack),
+      ...this.collectMeshes(customHouseFenceSide),
+      ...this.collectMeshes(customParkingPad),
+      ...this.collectMeshes(customParkingStripeA),
+      ...this.collectMeshes(customParkingStripeB),
+      ...this.collectMeshes(customBackGreenery),
+      ...this.collectMeshes(customSideGreenery)
     ]);
 
     return group;
