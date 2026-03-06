@@ -26,6 +26,11 @@ export interface Building {
   createdAt: number;
 }
 
+export interface BuildingFootprint {
+  width: number;
+  depth: number;
+}
+
 export interface Resources {
   money: number;
   population: number;
@@ -72,7 +77,48 @@ export interface GameState {
   nextBuildingId: number;
 }
 
-const GRID_SIZE = 40;
+const GRID_SIZE = 28;
+
+export const BUILDING_FOOTPRINTS: Record<BuildType, BuildingFootprint> = {
+  road: { width: 1, depth: 1 },
+  house: { width: 1, depth: 1 },
+  restaurant: { width: 1, depth: 1 },
+  shop: { width: 1, depth: 1 },
+  park: { width: 1, depth: 1 },
+  workshop: { width: 1, depth: 1 },
+  powerPlant: { width: 2, depth: 2 },
+  groceryStore: { width: 1, depth: 1 },
+  cornerStore: { width: 1, depth: 1 },
+  bank: { width: 1, depth: 1 },
+  policeStation: { width: 1, depth: 1 },
+  fireStation: { width: 1, depth: 1 },
+  hospital: { width: 2, depth: 2 }
+};
+
+export function footprintForType(type: BuildType): BuildingFootprint {
+  return BUILDING_FOOTPRINTS[type];
+}
+
+export function occupiedCellsForPlacement(
+  type: BuildType,
+  x: number,
+  z: number
+): Array<{ x: number; z: number }> {
+  const { width, depth } = footprintForType(type);
+  const cells: Array<{ x: number; z: number }> = [];
+
+  for (let dz = 0; dz < depth; dz += 1) {
+    for (let dx = 0; dx < width; dx += 1) {
+      cells.push({ x: x + dx, z: z + dz });
+    }
+  }
+
+  return cells;
+}
+
+export function occupiedCellsForBuilding(building: Building): Array<{ x: number; z: number }> {
+  return occupiedCellsForPlacement(building.type, building.x, building.z);
+}
 
 function seededNoise(x: number, z: number): number {
   const s = Math.sin((x * 12.9898 + z * 78.233) * 0.42) * 43758.5453;

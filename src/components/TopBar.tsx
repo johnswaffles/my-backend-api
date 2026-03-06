@@ -24,6 +24,8 @@ interface TopBarProps {
   };
   aiAutoplayEnabled: boolean;
   aiLastAction: string;
+  isFullscreen: boolean;
+  onToggleFullscreen: () => void;
 }
 
 function Stat({
@@ -63,7 +65,9 @@ export function TopBar({
   redoCount,
   demand,
   aiAutoplayEnabled,
-  aiLastAction
+  aiLastAction,
+  isFullscreen,
+  onToggleFullscreen
 }: TopBarProps): JSX.Element {
   const net = powerProduced - powerUsed;
   return (
@@ -109,6 +113,13 @@ export function TopBar({
             }`}
           >
             {aiAutoplayEnabled ? 'AI Auto: ON' : 'AI Auto: OFF'}
+          </button>
+          <button
+            type="button"
+            onClick={onToggleFullscreen}
+            className="rounded-xl border border-cyan-300/50 bg-cyan-400/12 px-3 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-400/22"
+          >
+            {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
           </button>
         </div>
       </div>

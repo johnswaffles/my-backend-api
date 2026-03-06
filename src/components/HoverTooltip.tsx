@@ -1,4 +1,5 @@
 import { BUILDING_ECONOMY } from '../game/actions';
+import { occupiedCellsForBuilding } from '../game/state';
 import type { GameState } from '../game/state';
 
 interface HoverTooltipProps {
@@ -20,7 +21,10 @@ export function HoverTooltip({ state }: HoverTooltipProps): JSX.Element | null {
   const cell = state.hoverCell;
   if (!cell) return null;
 
-  const building = state.buildings.find((b) => b.x === cell.x && b.z === cell.z) ?? null;
+  const building =
+    state.buildings.find((b) =>
+      occupiedCellsForBuilding(b).some((occupied) => occupied.x === cell.x && occupied.z === cell.z)
+    ) ?? null;
 
   return (
     <div className="pointer-events-none absolute bottom-4 left-1/2 z-30 w-[20rem] -translate-x-1/2 rounded-xl border border-cyan-200/35 bg-slate-900/75 px-4 py-3 text-sm text-slate-100 backdrop-blur">

@@ -130,8 +130,8 @@ export class InputController {
     if (decision.action === 'bulldoze') {
       const removed = bulldozeAt(decision.x, decision.z);
       if (removed) {
-        this.renderer.playRemovalPulse(decision.x, decision.z);
-        this.renderer.focusOnCell(decision.x, decision.z, 0.36);
+        this.renderer.playRemovalPulse(decision.x, decision.z, removed.type);
+        this.renderer.focusOnCell(decision.x, decision.z, 0.36, removed.type);
         this.sfx.beep(190, 0.08, 'sawtooth', 0.025);
         setAiLastAction(`Bulldozed ${removed.type} at (${decision.x}, ${decision.z})`);
       } else {
@@ -143,8 +143,8 @@ export class InputController {
 
     const placed = placeBuildingAt(decision.type, decision.x, decision.z);
     if (placed) {
-      this.renderer.playPlacementPulse(placed.x, placed.z);
-      this.renderer.focusOnCell(placed.x, placed.z, 0.32);
+      this.renderer.playPlacementPulse(placed.x, placed.z, placed.type);
+      this.renderer.focusOnCell(placed.x, placed.z, 0.32, placed.type);
       this.sfx.beep(420, 0.07, 'triangle', 0.026);
       setAiLastAction(`Placed ${decision.type} at (${decision.x}, ${decision.z})`);
     } else {
@@ -600,7 +600,7 @@ export class InputController {
     if (state.placementMode) {
       const created = placeBuildingAt(state.placementMode, grid.x, grid.z);
       if (created) {
-        this.renderer.playPlacementPulse(created.x, created.z);
+        this.renderer.playPlacementPulse(created.x, created.z, created.type);
         this.sfx.beep(520, 0.075, 'triangle', 0.03);
       } else {
         this.sfx.beep(150, 0.05, 'square', 0.022);
@@ -696,7 +696,7 @@ export class InputController {
         if (building) {
           const removed = bulldozeAt(building.x, building.z);
           if (removed) {
-            this.renderer.playRemovalPulse(building.x, building.z);
+            this.renderer.playRemovalPulse(building.x, building.z, building.type);
             this.sfx.beep(180, 0.08, 'sawtooth', 0.03);
           }
         }

@@ -1,5 +1,5 @@
 import type { BuildType, Building, GameState } from './state';
-import { gameStore } from './state';
+import { gameStore, occupiedCellsForBuilding, occupiedCellsForPlacement } from './state';
 
 interface BuildingEconomy {
   name: string;
@@ -248,21 +248,54 @@ function applySnapshot(state: GameState, snapshot: StateSnapshot): GameState {
   };
 }
 
-function buildingAt(state: GameState, x: number, z: number): Building | undefined {
-  return state.buildings.find((b) => b.x === x && b.z === z);
+function placementTouchesCell(type: BuildType, x: number, z: number, targetX: number, targetZ: number): boolean {
+  return occupiedCellsForPlacement(type, x, z).some((cell) => cell.x === targetX && cell.z === targetZ);
 }
 
-function hasRoadNeighbor(state: GameState, x: number, z: number): boolean {
-  return (
-    buildingAt(state, x + 1, z)?.type === 'road' ||
-    buildingAt(state, x - 1, z)?.type === 'road' ||
-    buildingAt(state, x, z + 1)?.type === 'road' ||
-    buildingAt(state, x, z - 1)?.type === 'road'
-  );
+function buildingAt(state: GameState, x: number, z: number): Building | undefined {
+  return state.buildings.find((b) => placementTouchesCell(b.type, b.x, b.z, x, z));
+}
+
+function minDistanceToBuildingCells(
+  cells: Array<{ x: number; z: number }>,
+  building: Building
+): number {
+  const occupied = occupiedCellsForBuilding(building);
+  let min = Number.POSITIVE_INFINITY;
+
+  for (const cell of cells) {
+    for (const target of occupied) {
+      min = Math.min(min, Math.abs(cell.x - target.x) + Math.abs(cell.z - target.z));
+    }
+  }
+
+  return min;
+}
+
+function hasRoadAccess(state: GameState, type: BuildType, x: number, z: number): boolean {
+  const occupied = occupiedCellsForPlacement(type, x, z);
+  const occupiedKeys = new Set(occupied.map((cell) => `${cell.x}:${cell.z}`));
+
+  return occupied.some((cell) => {
+    const neighbors = [
+      { x: cell.x + 1, z: cell.z },
+      { x: cell.x - 1, z: cell.z },
+      { x: cell.x, z: cell.z + 1 },
+      { x: cell.x, z: cell.z - 1 }
+    ];
+
+    return neighbors.some((neighbor) => {
+      if (occupiedKeys.has(`${neighbor.x}:${neighbor.z}`)) return false;
+      return buildingAt(state, neighbor.x, neighbor.z)?.type === 'road';
+    });
+  });
 }
 
 function hasPowerCoverage(state: GameState, x: number, z: number): boolean {
-  return state.buildings.some((b) => b.type === 'powerPlant' && Math.abs(b.x - x) + Math.abs(b.z - z) <= 10);
+  return state.buildings.some((b) => {
+    if (b.type !== 'powerPlant') return false;
+    return minDistanceToBuildingCells([{ x, z }], b) <= 10;
+  });
 }
 
 function clampPercent(value: number): number {
@@ -319,7 +352,7 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
     banks * BUILDING_ECONOMY.bank.safety;
 
   const servicedHomes = houses.filter(
-    (h) => hasRoadNeighbor(state, h.x, h.z) && hasPowerCoverage(state, h.x, h.z)
+    (h) => hasRoadAccess(state, h.type, h.x, h.z) && hasPowerCoverage(state, h.x, h.z)
   ).length;
 
   const serviceRatio = houses.length > 0 ? servicedHomes / houses.length : 1;
@@ -437,18 +470,20 @@ export function isInBounds(state: GameState, x: number, z: number): boolean {
 }
 
 export function canPlaceBuilding(state: GameState, type: BuildType, x: number, z: number): boolean {
-  if (!isInBounds(state, x, z)) return false;
-  if (buildingAt(state, x, z)) return false;
+  const occupied = occupiedCellsForPlacement(type, x, z);
+  if (!occupied.length) return false;
+  if (occupied.some((cell) => !isInBounds(state, cell.x, cell.z))) return false;
+  if (occupied.some((cell) => buildingAt(state, cell.x, cell.z))) return false;
 
   if (type !== 'road') {
     const roadsExist = state.buildings.some((b) => b.type === 'road');
-    if (roadsExist && type !== 'powerPlant' && !hasRoadNeighbor(state, x, z)) return false;
+    if (roadsExist && type !== 'powerPlant' && !hasRoadAccess(state, type, x, z)) return false;
     if (!roadsExist && type !== 'powerPlant') return false;
   }
 
   if (type === 'house') {
     const nearWorkshop = state.buildings.some(
-      (b) => b.type === 'workshop' && Math.abs(b.x - x) + Math.abs(b.z - z) <= 2
+      (b) => b.type === 'workshop' && minDistanceToBuildingCells(occupied, b) <= 2
     );
     if (nearWorkshop) return false;
   }
@@ -461,7 +496,7 @@ export function canPlaceBuilding(state: GameState, type: BuildType, x: number, z
           b.type === 'park' ||
           b.type === 'hospital' ||
           b.type === 'groceryStore') &&
-        Math.abs(b.x - x) + Math.abs(b.z - z) <= 2
+        minDistanceToBuildingCells(occupied, b) <= 2
     );
     if (nearSensitive) return false;
   }
@@ -470,7 +505,7 @@ export function canPlaceBuilding(state: GameState, type: BuildType, x: number, z
     const nearSensitive = state.buildings.some(
       (b) =>
         (b.type === 'house' || b.type === 'hospital' || b.type === 'park') &&
-        Math.abs(b.x - x) + Math.abs(b.z - z) <= 2
+        minDistanceToBuildingCells(occupied, b) <= 2
     );
     if (nearSensitive) return false;
   }

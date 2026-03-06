@@ -1,4 +1,5 @@
 import { BUILDING_ECONOMY, bulldozeAt } from '../game/actions';
+import { footprintForType } from '../game/state';
 import type { Building } from '../game/state';
 
 interface InfoPanelProps {
@@ -58,6 +59,7 @@ export function InfoPanel({ building }: InfoPanelProps): JSX.Element {
             <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Stats</div>
             <ul className="list-disc space-y-1 pl-5 text-sm text-slate-200">
               <li>Build Cost: ${BUILDING_ECONOMY[building.type].cost}</li>
+              <li>Footprint: {footprintForType(building.type).width}x{footprintForType(building.type).depth}</li>
               <li>Jobs: {BUILDING_ECONOMY[building.type].jobs}</li>
               <li>Housing: {BUILDING_ECONOMY[building.type].housing}</li>
               <li>Power: -{BUILDING_ECONOMY[building.type].powerUse} / +{BUILDING_ECONOMY[building.type].powerProduce}</li>

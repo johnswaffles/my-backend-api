@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { BuildMenu } from './components/BuildMenu';
 import { InfoPanel } from './components/InfoPanel';
 import { TopBar } from './components/TopBar';
@@ -21,6 +21,8 @@ export default function App(): JSX.Element {
   const state = useGameState();
   const selected = useMemo(() => selectedBuilding(state), [state]);
   const mountRef = useRef<HTMLDivElement | null>(null);
+  const appRef = useRef<HTMLDivElement | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -35,8 +37,29 @@ export default function App(): JSX.Element {
     };
   }, []);
 
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsFullscreen(document.fullscreenElement === appRef.current);
+    };
+
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = async (): Promise<void> => {
+    const host = appRef.current;
+    if (!host) return;
+
+    if (document.fullscreenElement === host) {
+      await document.exitFullscreen();
+      return;
+    }
+
+    await host.requestFullscreen();
+  };
+
   return (
-    <div className="relative h-full w-full overflow-hidden">
+    <div ref={appRef} className="relative h-full w-full overflow-hidden">
       <div ref={mountRef} className="absolute inset-0" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(75%_55%_at_50%_0%,rgba(255,255,255,0.35),rgba(255,255,255,0)_65%)]" />
 
@@ -54,6 +77,10 @@ export default function App(): JSX.Element {
         demand={state.demand}
         aiAutoplayEnabled={state.aiAutoplayEnabled}
         aiLastAction={state.aiLastAction}
+        isFullscreen={isFullscreen}
+        onToggleFullscreen={() => {
+          void toggleFullscreen();
+        }}
       />
 
       <div className="pointer-events-none absolute inset-0 z-20 px-4 pb-4 pt-36">
