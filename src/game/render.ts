@@ -622,9 +622,22 @@ export class GameRenderer {
     for (const [id, meshes] of this.selectableMeshes.entries()) {
       const selected = id === state.selectedBuildingId;
       for (const mesh of meshes) {
-        const material = mesh.material as THREE.MeshStandardMaterial;
-        material.emissive.setHex(selected ? 0x1e293b : 0x000000);
-        material.emissiveIntensity = selected ? 0.34 : 0;
+        const applyHighlight = (material: THREE.Material): void => {
+          const candidate = material as THREE.Material & {
+            emissive?: THREE.Color;
+            emissiveIntensity?: number;
+          };
+          if (candidate.emissive && typeof candidate.emissiveIntensity === 'number') {
+            candidate.emissive.setHex(selected ? 0x1e293b : 0x000000);
+            candidate.emissiveIntensity = selected ? 0.34 : 0;
+          }
+        };
+
+        if (Array.isArray(mesh.material)) {
+          mesh.material.forEach((material) => applyHighlight(material));
+        } else if (mesh.material) {
+          applyHighlight(mesh.material);
+        }
       }
     }
   }
