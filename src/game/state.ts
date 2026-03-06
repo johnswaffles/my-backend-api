@@ -1,4 +1,17 @@
-export type BuildType = 'road' | 'house' | 'restaurant' | 'shop' | 'park' | 'workshop' | 'powerPlant';
+export type BuildType =
+  | 'road'
+  | 'house'
+  | 'restaurant'
+  | 'shop'
+  | 'park'
+  | 'workshop'
+  | 'powerPlant'
+  | 'groceryStore'
+  | 'cornerStore'
+  | 'bank'
+  | 'policeStation'
+  | 'fireStation'
+  | 'hospital';
 
 export interface TileData {
   elevation: number;
@@ -28,6 +41,9 @@ export interface Demand {
   commerce: number;
   recreation: number;
   jobs: number;
+  essentials: number;
+  health: number;
+  safety: number;
 }
 
 export interface HoverCell {
@@ -101,7 +117,10 @@ export const initialGameState: GameState = {
     power: 18,
     commerce: 42,
     recreation: 38,
-    jobs: 44
+    jobs: 44,
+    essentials: 40,
+    health: 28,
+    safety: 26
   },
   gameSpeed: 1,
   simSeconds: 0,

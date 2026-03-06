@@ -8,6 +8,10 @@ interface InfoPanelProps {
 function prettyType(type: Building['type']): string {
   if (type === 'powerPlant') return 'Power Plant';
   if (type === 'workshop') return 'Workshop';
+  if (type === 'groceryStore') return 'Grocery Store';
+  if (type === 'cornerStore') return 'Corner Store';
+  if (type === 'policeStation') return 'Police Station';
+  if (type === 'fireStation') return 'Fire Station';
   return type.charAt(0).toUpperCase() + type.slice(1);
 }
 
@@ -16,6 +20,12 @@ function iconForType(type: Building['type']): string {
   if (type === 'workshop') return 'WK';
   if (type === 'restaurant') return 'RT';
   if (type === 'shop') return 'SH';
+  if (type === 'groceryStore') return 'GR';
+  if (type === 'cornerStore') return 'CS';
+  if (type === 'bank') return 'BK';
+  if (type === 'policeStation') return 'PL';
+  if (type === 'fireStation') return 'FR';
+  if (type === 'hospital') return 'HP';
   if (type === 'park') return 'PK';
   if (type === 'house') return 'HS';
   return 'RD';
@@ -23,7 +33,7 @@ function iconForType(type: Building['type']): string {
 
 export function InfoPanel({ building }: InfoPanelProps): JSX.Element {
   return (
-    <aside className="pointer-events-auto panel-glass absolute right-4 top-40 z-20 w-80 rounded-2xl p-4 text-slate-100">
+    <aside className="pointer-events-auto panel-glass rounded-2xl p-4 text-slate-100 shadow-glow">
       <div className="mb-3 text-xs uppercase tracking-[0.18em] text-emerald-300">Selection</div>
       {!building ? (
         <div className="rounded-xl border border-slate-500/30 bg-slate-900/40 p-4 text-sm text-slate-300">
@@ -51,6 +61,8 @@ export function InfoPanel({ building }: InfoPanelProps): JSX.Element {
               <li>Jobs: {BUILDING_ECONOMY[building.type].jobs}</li>
               <li>Housing: {BUILDING_ECONOMY[building.type].housing}</li>
               <li>Power: -{BUILDING_ECONOMY[building.type].powerUse} / +{BUILDING_ECONOMY[building.type].powerProduce}</li>
+              <li>Essentials: {BUILDING_ECONOMY[building.type].essentials}</li>
+              <li>Health / Safety: {BUILDING_ECONOMY[building.type].health} / {BUILDING_ECONOMY[building.type].safety}</li>
             </ul>
           </div>
           <button

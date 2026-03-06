@@ -7,6 +7,12 @@ interface HoverTooltipProps {
 
 function typeLabel(type: string): string {
   if (type === 'powerPlant') return 'Power Plant';
+  if (type === 'bank') return 'Bank';
+  if (type === 'hospital') return 'Hospital';
+  if (type === 'groceryStore') return 'Grocery Store';
+  if (type === 'cornerStore') return 'Corner Store';
+  if (type === 'policeStation') return 'Police Station';
+  if (type === 'fireStation') return 'Fire Station';
   return type.charAt(0).toUpperCase() + type.slice(1);
 }
 

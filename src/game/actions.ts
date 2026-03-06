@@ -10,6 +10,9 @@ interface BuildingEconomy {
   jobs: number;
   commerce: number;
   recreation: number;
+  essentials: number;
+  health: number;
+  safety: number;
   maintenance: number;
 }
 
@@ -23,6 +26,9 @@ export const BUILDING_ECONOMY: Record<BuildType, BuildingEconomy> = {
     jobs: 0,
     commerce: 0,
     recreation: 0,
+    essentials: 0,
+    health: 0,
+    safety: 0,
     maintenance: 0.02
   },
   house: {
@@ -34,6 +40,9 @@ export const BUILDING_ECONOMY: Record<BuildType, BuildingEconomy> = {
     jobs: 0,
     commerce: 0,
     recreation: 0,
+    essentials: 0,
+    health: 0,
+    safety: 0,
     maintenance: 0.13
   },
   restaurant: {
@@ -45,6 +54,9 @@ export const BUILDING_ECONOMY: Record<BuildType, BuildingEconomy> = {
     jobs: 8,
     commerce: 14,
     recreation: 3,
+    essentials: 4,
+    health: 0,
+    safety: 0,
     maintenance: 0.34
   },
   shop: {
@@ -56,6 +68,9 @@ export const BUILDING_ECONOMY: Record<BuildType, BuildingEconomy> = {
     jobs: 10,
     commerce: 20,
     recreation: 1,
+    essentials: 6,
+    health: 0,
+    safety: 0,
     maintenance: 0.3
   },
   park: {
@@ -67,6 +82,9 @@ export const BUILDING_ECONOMY: Record<BuildType, BuildingEconomy> = {
     jobs: 2,
     commerce: 0,
     recreation: 24,
+    essentials: 0,
+    health: 4,
+    safety: 0,
     maintenance: 0.1
   },
   workshop: {
@@ -78,18 +96,108 @@ export const BUILDING_ECONOMY: Record<BuildType, BuildingEconomy> = {
     jobs: 24,
     commerce: 5,
     recreation: -3,
+    essentials: 0,
+    health: 0,
+    safety: -2,
     maintenance: 0.58
   },
   powerPlant: {
     name: 'Power Plant',
     cost: 1200,
     powerUse: 0,
-    powerProduce: 20,
+    powerProduce: 32,
     housing: 0,
     jobs: 6,
     commerce: 0,
     recreation: -4,
-    maintenance: 0.48
+    essentials: 0,
+    health: -2,
+    safety: -3,
+    maintenance: 0.42
+  },
+  groceryStore: {
+    name: 'Grocery Store',
+    cost: 680,
+    powerUse: 4,
+    powerProduce: 0,
+    housing: 0,
+    jobs: 12,
+    commerce: 18,
+    recreation: 1,
+    essentials: 34,
+    health: 4,
+    safety: 0,
+    maintenance: 0.4
+  },
+  cornerStore: {
+    name: 'Corner Store',
+    cost: 320,
+    powerUse: 2,
+    powerProduce: 0,
+    housing: 0,
+    jobs: 5,
+    commerce: 10,
+    recreation: 1,
+    essentials: 16,
+    health: 0,
+    safety: 0,
+    maintenance: 0.2
+  },
+  bank: {
+    name: 'Bank',
+    cost: 940,
+    powerUse: 5,
+    powerProduce: 0,
+    housing: 0,
+    jobs: 18,
+    commerce: 22,
+    recreation: 0,
+    essentials: 0,
+    health: 0,
+    safety: 8,
+    maintenance: 0.56
+  },
+  policeStation: {
+    name: 'Police Station',
+    cost: 1150,
+    powerUse: 6,
+    powerProduce: 0,
+    housing: 0,
+    jobs: 16,
+    commerce: 0,
+    recreation: 0,
+    essentials: 0,
+    health: 0,
+    safety: 40,
+    maintenance: 0.62
+  },
+  fireStation: {
+    name: 'Fire Station',
+    cost: 1080,
+    powerUse: 6,
+    powerProduce: 0,
+    housing: 0,
+    jobs: 14,
+    commerce: 0,
+    recreation: 0,
+    essentials: 0,
+    health: 0,
+    safety: 34,
+    maintenance: 0.58
+  },
+  hospital: {
+    name: 'Hospital',
+    cost: 1550,
+    powerUse: 10,
+    powerProduce: 0,
+    housing: 0,
+    jobs: 26,
+    commerce: 0,
+    recreation: 0,
+    essentials: 0,
+    health: 52,
+    safety: 6,
+    maintenance: 0.82
   }
 };
 
@@ -173,16 +281,42 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
   const parks = countType(state, 'park');
   const workshops = countType(state, 'workshop');
   const plants = countType(state, 'powerPlant');
+  const groceries = countType(state, 'groceryStore');
+  const cornerStores = countType(state, 'cornerStore');
+  const banks = countType(state, 'bank');
+  const policeStations = countType(state, 'policeStation');
+  const fireStations = countType(state, 'fireStation');
+  const hospitals = countType(state, 'hospital');
 
   const housingCapacity = houses.length * BUILDING_ECONOMY.house.housing;
   const jobCapacity =
     workshops * BUILDING_ECONOMY.workshop.jobs +
     restaurants * BUILDING_ECONOMY.restaurant.jobs +
     shops * BUILDING_ECONOMY.shop.jobs +
-    plants * BUILDING_ECONOMY.powerPlant.jobs;
+    plants * BUILDING_ECONOMY.powerPlant.jobs +
+    groceries * BUILDING_ECONOMY.groceryStore.jobs +
+    cornerStores * BUILDING_ECONOMY.cornerStore.jobs +
+    banks * BUILDING_ECONOMY.bank.jobs +
+    policeStations * BUILDING_ECONOMY.policeStation.jobs +
+    fireStations * BUILDING_ECONOMY.fireStation.jobs +
+    hospitals * BUILDING_ECONOMY.hospital.jobs;
   const commercialCapacity =
-    restaurants * BUILDING_ECONOMY.restaurant.commerce + shops * BUILDING_ECONOMY.shop.commerce;
+    restaurants * BUILDING_ECONOMY.restaurant.commerce +
+    shops * BUILDING_ECONOMY.shop.commerce +
+    groceries * BUILDING_ECONOMY.groceryStore.commerce +
+    cornerStores * BUILDING_ECONOMY.cornerStore.commerce +
+    banks * BUILDING_ECONOMY.bank.commerce;
   const recreationCapacity = parks * BUILDING_ECONOMY.park.recreation;
+  const essentialsCapacity =
+    groceries * BUILDING_ECONOMY.groceryStore.essentials +
+    cornerStores * BUILDING_ECONOMY.cornerStore.essentials +
+    restaurants * BUILDING_ECONOMY.restaurant.essentials +
+    shops * BUILDING_ECONOMY.shop.essentials;
+  const healthCapacity = hospitals * BUILDING_ECONOMY.hospital.health + parks * BUILDING_ECONOMY.park.health;
+  const safetyCapacity =
+    policeStations * BUILDING_ECONOMY.policeStation.safety +
+    fireStations * BUILDING_ECONOMY.fireStation.safety +
+    banks * BUILDING_ECONOMY.bank.safety;
 
   const servicedHomes = houses.filter(
     (h) => hasRoadNeighbor(state, h.x, h.z) && hasPowerCoverage(state, h.x, h.z)
@@ -212,17 +346,46 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
   const employmentRatio = blendedPopulation > 0 ? Math.min(1, jobCapacity / blendedPopulation) : 1;
   const commercialPressure = blendedPopulation > 0 ? Math.max(0, (blendedPopulation - commercialCapacity) / blendedPopulation) : 0;
   const recreationPressure = blendedPopulation > 0 ? Math.max(0, (blendedPopulation - recreationCapacity) / blendedPopulation) : 0;
+  const essentialsPressure = blendedPopulation > 0 ? Math.max(0, (blendedPopulation - essentialsCapacity) / blendedPopulation) : 0;
+  const healthPressure = blendedPopulation > 0 ? Math.max(0, (blendedPopulation - healthCapacity) / blendedPopulation) : 0;
+  const safetyPressure = blendedPopulation > 0 ? Math.max(0, (blendedPopulation - safetyCapacity) / blendedPopulation) : 0;
   const powerPressure = powerUsed > 0 ? Math.max(0, (powerUsed - powerProduced) / powerUsed) : 0;
 
   const happiness = clampPercent(
-    44 + serviceRatio * 23 + employmentRatio * 20 - powerPressure * 32 - commercialPressure * 12 - recreationPressure * 8 + Math.min(parks, 8) * 1.5
+    42 +
+      serviceRatio * 21 +
+      employmentRatio * 18 -
+      powerPressure * 30 -
+      commercialPressure * 9 -
+      recreationPressure * 8 -
+      essentialsPressure * 14 -
+      healthPressure * 12 -
+      safetyPressure * 10 +
+      Math.min(parks, 8) * 1.4
   );
 
   const demandHousing = clampPercent(
     62 + Math.max(0, blendedPopulation - housingCapacity) * 3 - houses.length * 1.6 + Math.max(0, 65 - happiness) * 0.35
   );
   const demandRoads = clampPercent(
-    18 + Math.max(0, (houses.length + restaurants + shops + workshops + parks) * 0.55 - roads) * 7
+    18 +
+      Math.max(
+        0,
+        (houses.length +
+          restaurants +
+          shops +
+          groceries +
+          cornerStores +
+          banks +
+          workshops +
+          parks +
+          policeStations +
+          fireStations +
+          hospitals) *
+          0.55 -
+          roads
+      ) *
+        7
   );
   const demandPower = clampPercent(
     14 + Math.max(0, powerUsed - powerProduced) * 6 + Math.max(0, houses.length - plants * 4)
@@ -235,6 +398,15 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
   );
   const demandJobs = clampPercent(
     30 + Math.max(0, blendedPopulation - jobCapacity) * 2.2 - workshops * 2.4 - (restaurants + shops) * 0.8
+  );
+  const demandEssentials = clampPercent(
+    24 + Math.max(0, blendedPopulation - essentialsCapacity) * 2.1 - groceries * 1.8 - cornerStores * 1.1
+  );
+  const demandHealth = clampPercent(
+    18 + Math.max(0, blendedPopulation - healthCapacity) * 1.6 - hospitals * 2.4 + Math.max(0, 52 - happiness) * 0.5
+  );
+  const demandSafety = clampPercent(
+    18 + Math.max(0, blendedPopulation - safetyCapacity) * 1.7 - policeStations * 1.8 - fireStations * 1.7 + Math.max(0, 54 - happiness) * 0.45
   );
 
   return {
@@ -252,7 +424,10 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
       power: demandPower,
       commerce: demandCommerce,
       recreation: demandRecreation,
-      jobs: demandJobs
+      jobs: demandJobs,
+      essentials: demandEssentials,
+      health: demandHealth,
+      safety: demandSafety
     }
   };
 }
@@ -280,7 +455,22 @@ export function canPlaceBuilding(state: GameState, type: BuildType, x: number, z
 
   if (type === 'powerPlant') {
     const nearSensitive = state.buildings.some(
-      (b) => (b.type === 'house' || b.type === 'restaurant' || b.type === 'park') && Math.abs(b.x - x) + Math.abs(b.z - z) <= 3
+      (b) =>
+        (b.type === 'house' ||
+          b.type === 'restaurant' ||
+          b.type === 'park' ||
+          b.type === 'hospital' ||
+          b.type === 'groceryStore') &&
+        Math.abs(b.x - x) + Math.abs(b.z - z) <= 2
+    );
+    if (nearSensitive) return false;
+  }
+
+  if (type === 'workshop') {
+    const nearSensitive = state.buildings.some(
+      (b) =>
+        (b.type === 'house' || b.type === 'hospital' || b.type === 'park') &&
+        Math.abs(b.x - x) + Math.abs(b.z - z) <= 2
     );
     if (nearSensitive) return false;
   }
@@ -544,7 +734,12 @@ export function tickSimulation(dtSeconds: number): void {
     const residentTax = derived.resources.population * 0.044;
     const employmentTax = Math.min(derived.resources.population, derived.resources.jobs) * 0.031;
     const commercialTax =
-      countType(state, 'shop') * 0.16 + countType(state, 'restaurant') * 0.14 + countType(state, 'workshop') * 0.12;
+      countType(state, 'shop') * 0.16 +
+      countType(state, 'restaurant') * 0.14 +
+      countType(state, 'workshop') * 0.12 +
+      countType(state, 'groceryStore') * 0.19 +
+      countType(state, 'cornerStore') * 0.11 +
+      countType(state, 'bank') * 0.18;
     const powerPenalty = Math.max(0, derived.resources.powerUsed - derived.resources.powerProduced) * 0.2;
     const happinessBonus = (derived.happiness - 50) * 0.008;
 

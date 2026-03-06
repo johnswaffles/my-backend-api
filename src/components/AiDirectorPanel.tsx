@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { executeAiCommands, setAiLastAction } from '../game/actions';
-import type { GameState } from '../game/state';
+import type { BuildType, GameState } from '../game/state';
 
 interface AiDirectorPanelProps {
   state: GameState;
@@ -15,7 +15,20 @@ interface CommandResponse {
   commands: Array<
     | {
         action: 'place';
-        type: 'road' | 'house' | 'restaurant' | 'shop' | 'park' | 'workshop' | 'powerPlant';
+        type:
+          | 'road'
+          | 'house'
+          | 'restaurant'
+          | 'shop'
+          | 'park'
+          | 'workshop'
+          | 'powerPlant'
+          | 'groceryStore'
+          | 'cornerStore'
+          | 'bank'
+          | 'policeStation'
+          | 'fireStation'
+          | 'hospital';
         x: number;
         z: number;
       }
@@ -30,11 +43,106 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
     body: JSON.stringify(body)
   });
 
-  const data = (await response.json()) as T & { error?: string; details?: unknown };
+  const raw = await response.text();
+  let data: (T & { error?: string; details?: unknown }) | null = null;
+  try {
+    data = JSON.parse(raw) as T & { error?: string; details?: unknown };
+  } catch {
+    throw new Error(raw.slice(0, 180) || `Request failed (${response.status})`);
+  }
+
   if (!response.ok) {
     throw new Error(data.error || `Request failed (${response.status})`);
   }
   return data;
+}
+
+function localPlan(state: GameState, prompt: string): CommandResponse {
+  const text = prompt.toLowerCase();
+  const center = Math.floor(state.gridSize / 2);
+  const occupied = new Set(state.buildings.map((b) => `${b.x}:${b.z}`));
+  const hasRoads = state.buildings.some((b) => b.type === 'road');
+  const roads = state.buildings.filter((b) => b.type === 'road');
+  const around = (radius: number, offsetX = 0, offsetZ = 0) => {
+    for (let z = -radius; z <= radius; z += 1) {
+      for (let x = -radius; x <= radius; x += 1) {
+        const tx = center + x + offsetX;
+        const tz = center + z + offsetZ;
+        if (tx < 0 || tz < 0 || tx >= state.gridSize || tz >= state.gridSize) continue;
+        if (!occupied.has(`${tx}:${tz}`)) return { x: tx, z: tz };
+      }
+    }
+    return { x: center, z: center };
+  };
+  const nearRoad = () => {
+    const roadLike = [
+      ...roads,
+      ...(commands
+        .filter((command) => command.action === 'place' && 'type' in command && command.type === 'road')
+        .map((command) => ({ x: command.x, z: command.z })) as Array<{ x: number; z: number }>)
+    ];
+
+    for (const road of roadLike) {
+      const options = [
+        { x: road.x + 1, z: road.z },
+        { x: road.x - 1, z: road.z },
+        { x: road.x, z: road.z + 1 },
+        { x: road.x, z: road.z - 1 }
+      ];
+      for (const option of options) {
+        if (
+          option.x >= 0 &&
+          option.z >= 0 &&
+          option.x < state.gridSize &&
+          option.z < state.gridSize &&
+          !occupied.has(`${option.x}:${option.z}`)
+        ) {
+          return option;
+        }
+      }
+    }
+    return around(3);
+  };
+
+  const pickType = (): BuildType => {
+    if (text.includes('hospital')) return 'hospital';
+    if (text.includes('police')) return 'policeStation';
+    if (text.includes('fire')) return 'fireStation';
+    if (text.includes('bank')) return 'bank';
+    if (text.includes('grocery')) return 'groceryStore';
+    if (text.includes('corner')) return 'cornerStore';
+    if (text.includes('park')) return 'park';
+    if (text.includes('restaurant')) return 'restaurant';
+    if (text.includes('shop')) return 'shop';
+    if (text.includes('power')) return 'powerPlant';
+    if (text.includes('road') || text.includes('street') || text.includes('block')) return 'road';
+    if (text.includes('work')) return 'workshop';
+    return state.demand.housing >= state.demand.commerce ? 'house' : 'shop';
+  };
+
+  const type = pickType();
+  const commands: CommandResponse['commands'] = [];
+  const count = text.includes('4') ? 4 : text.includes('3') ? 3 : text.includes('2') ? 2 : 1;
+
+  if (!hasRoads && type !== 'road' && type !== 'powerPlant') {
+    commands.push({ action: 'place', type: 'road', x: center, z: center });
+  }
+
+  for (let i = 0; i < count; i += 1) {
+    const cell =
+      type === 'road'
+        ? around(3 + i, i, 0)
+        : hasRoads || commands.some((c) => c.action === 'place' && c.type === 'road')
+          ? nearRoad()
+          : around(3 + i, 0, i);
+    commands.push({ action: 'place', type, x: cell.x, z: cell.z });
+    occupied.add(`${cell.x}:${cell.z}`);
+  }
+
+  return {
+    message: 'Local planner fallback generated a build plan.',
+    commands
+  };
 }
 
 export function AiDirectorPanel({ state }: AiDirectorPanelProps): JSX.Element {
@@ -80,16 +188,28 @@ export function AiDirectorPanel({ state }: AiDirectorPanelProps): JSX.Element {
     if (!text.trim() || busy) return;
     setLoadingCommand(true);
     try {
-      const data = await postJson<CommandResponse>('/api/ai/game-command', {
+      const remote = await postJson<CommandResponse>('/api/ai/game-command', {
         prompt: text.trim(),
         snapshot
       });
+      const data = remote.commands?.length ? remote : localPlan(state, text.trim());
       const outcome = executeAiCommands(data.commands || []);
+      if (outcome.placed === 0 && outcome.removed === 0) {
+        const fallback = localPlan(state, text.trim());
+        const fallbackOutcome = executeAiCommands(fallback.commands);
+        const fallbackMessage = `${fallback.message} Applied ${fallbackOutcome.placed} placement(s), bulldozed ${fallbackOutcome.removed}, skipped ${fallbackOutcome.failed}.`;
+        setAiLastAction(fallbackMessage);
+        setResult(fallbackMessage);
+        return;
+      }
+
       const actionMessage = `${data.message} Applied ${outcome.placed} placement(s), bulldozed ${outcome.removed}, skipped ${outcome.failed}.`;
       setAiLastAction(actionMessage);
       setResult(actionMessage);
-    } catch (error) {
-      const message = `Command error: ${String((error as Error).message || error)}`;
+    } catch (_error) {
+      const fallback = localPlan(state, text.trim());
+      const outcome = executeAiCommands(fallback.commands);
+      const message = `${fallback.message} Applied ${outcome.placed} placement(s), bulldozed ${outcome.removed}, skipped ${outcome.failed}.`;
       setAiLastAction(message);
       setResult(message);
     } finally {
@@ -98,7 +218,7 @@ export function AiDirectorPanel({ state }: AiDirectorPanelProps): JSX.Element {
   };
 
   return (
-    <aside className="pointer-events-auto panel-glass absolute bottom-4 right-4 z-20 w-[26rem] rounded-2xl p-4 text-slate-100">
+    <aside className="pointer-events-auto panel-glass rounded-2xl p-4 text-slate-100 shadow-glow">
       <div className="mb-3 text-xs uppercase tracking-[0.18em] text-fuchsia-200">AI Director (GPT)</div>
       <textarea
         value={text}

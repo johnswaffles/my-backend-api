@@ -169,14 +169,22 @@ export class InputController {
     const d = state.demand;
 
     if (d.power >= 60) types.push('powerPlant', 'powerPlant');
-    if (d.roads >= 40 || roads < 6) types.push('road', 'road', 'road');
+    if (d.roads >= 36 || roads < 10) types.push('road', 'road', 'road');
     if (d.housing >= 45) types.push('house', 'house');
-    if (d.commerce >= 45) types.push('shop', 'restaurant');
+    if (d.commerce >= 45) types.push('shop', 'restaurant', 'bank');
     if (d.recreation >= 45) types.push('park');
     if (d.jobs >= 45) types.push('workshop', 'shop');
+    if (d.essentials >= 42) types.push('groceryStore', 'cornerStore', 'cornerStore');
+    if (d.health >= 42) types.push('hospital');
+    if (d.safety >= 40) types.push('policeStation', 'fireStation');
 
     if (!types.length) {
-      types.push('house', 'shop', 'park', 'road', 'road');
+      types.push('house', 'shop', 'cornerStore', 'park', 'road', 'road');
+    }
+
+    if (d.roads >= 36 || roads < 10) {
+      const roadAction = this.planRoadExpansion();
+      if (roadAction) return roadAction;
     }
 
     const sorted = [...types].sort((a, b) => this.typePriorityScore(b) - this.typePriorityScore(a));
@@ -194,66 +202,100 @@ export class InputController {
     if (type === 'powerPlant') return d.power * 1.3;
     if (type === 'road') return d.roads * 1.1;
     if (type === 'house') return d.housing;
-    if (type === 'shop' || type === 'restaurant') return d.commerce * 1.05;
+    if (type === 'shop' || type === 'restaurant' || type === 'bank') return d.commerce * 1.05;
+    if (type === 'groceryStore' || type === 'cornerStore') return d.essentials * 1.08;
     if (type === 'park') return d.recreation;
+    if (type === 'hospital') return d.health * 1.12;
+    if (type === 'policeStation' || type === 'fireStation') return d.safety * 1.1;
     if (type === 'workshop') return d.jobs * 1.1;
     return 10;
   }
 
   private bestPlacementForType(type: BuildType): AiAction | null {
+    if (type === 'road') {
+      return this.planRoadExpansion();
+    }
+
     const state = gameStore.getState();
     const center = Math.floor(state.gridSize / 2);
 
     const roads = state.buildings.filter((b) => b.type === 'road');
     const houses = state.buildings.filter((b) => b.type === 'house');
-    const commerce = state.buildings.filter((b) => b.type === 'shop' || b.type === 'restaurant');
+    const commerce = state.buildings.filter(
+      (b) =>
+        b.type === 'shop' ||
+        b.type === 'restaurant' ||
+        b.type === 'groceryStore' ||
+        b.type === 'cornerStore' ||
+        b.type === 'bank'
+    );
     const parks = state.buildings.filter((b) => b.type === 'park');
     const industry = state.buildings.filter((b) => b.type === 'workshop' || b.type === 'powerPlant');
+    const civic = state.buildings.filter(
+      (b) =>
+        b.type === 'hospital' ||
+        b.type === 'policeStation' ||
+        b.type === 'fireStation' ||
+        b.type === 'bank' ||
+        b.type === 'groceryStore' ||
+        b.type === 'cornerStore'
+    );
     const occupied = new Set(state.buildings.map((b) => `${b.x}:${b.z}`));
 
     let best: { x: number; z: number; score: number } | null = null;
 
-    for (let i = 0; i < 320; i += 1) {
-      const radius = Math.min(19, 3 + Math.floor(i / 8));
-      const x = center + Math.floor((Math.random() * 2 - 1) * radius);
-      const z = center + Math.floor((Math.random() * 2 - 1) * radius);
-      if (x < 0 || z < 0 || x >= state.gridSize || z >= state.gridSize) continue;
+    for (const { x, z } of this.collectCandidateCells(type)) {
       if (occupied.has(`${x}:${z}`)) continue;
-      if (!canPlaceBuilding(state, type, x, z)) continue;
 
       const nearRoadCells = roads.filter((b) => Math.abs(b.x - x) + Math.abs(b.z - z) <= 1);
       const nearRoad = nearRoadCells.length;
+      const roadDirections = this.roadNeighborFlags(x, z);
+      const roadFrontageCount =
+        Number(roadDirections.n) + Number(roadDirections.e) + Number(roadDirections.s) + Number(roadDirections.w);
       const nearHouses = houses.filter((b) => Math.abs(b.x - x) + Math.abs(b.z - z) <= 3).length;
       const nearCommerce = commerce.filter((b) => Math.abs(b.x - x) + Math.abs(b.z - z) <= 3).length;
       const nearParks = parks.filter((b) => Math.abs(b.x - x) + Math.abs(b.z - z) <= 3).length;
       const nearIndustry = industry.filter((b) => Math.abs(b.x - x) + Math.abs(b.z - z) <= 4).length;
+      const nearCivic = civic.filter((b) => Math.abs(b.x - x) + Math.abs(b.z - z) <= 4).length;
       const distCenter = Math.abs(x - center) + Math.abs(z - center);
       const tile = state.tiles[z * state.gridSize + x];
+      const nearbyIntersections = roads.filter((b) => {
+        if (Math.abs(b.x - x) + Math.abs(b.z - z) > 2) return false;
+        const flags = this.roadNeighborFlags(b.x, b.z);
+        return Number(flags.n) + Number(flags.e) + Number(flags.s) + Number(flags.w) >= 3;
+      }).length;
 
-      let score = Math.random() * 0.12;
-      if (type === 'road') {
-        const roadGraph = this.roadPlacementScore(x, z);
+      let score = ((x * 17 + z * 31) % 11) * 0.01;
+      if (type === 'house') {
         score +=
-          nearHouses * 2.4 +
-          nearCommerce * 2.0 +
-          roadGraph.connectivity +
-          roadGraph.straightness +
-          roadGraph.frontier +
-          roadGraph.lotPotential -
-          roadGraph.junkPenalty -
-          distCenter * 0.032;
-      } else if (type === 'house') {
-        score += nearRoad * 5.2 + nearParks * 1.4 + nearCommerce * 0.9 - nearIndustry * 2.6 - distCenter * 0.028;
+          nearRoad * 5.8 +
+          nearParks * 1.8 +
+          nearCommerce * 0.8 -
+          nearIndustry * 2.8 -
+          nearbyIntersections * 0.5 -
+          distCenter * 0.024;
+        if (roadFrontageCount === 1) score += 1.2;
+        if (roadFrontageCount >= 3) score -= 0.8;
       } else if (type === 'shop') {
-        score += nearRoad * 3.6 + nearHouses * 1.9 + nearCommerce * 0.7 - nearIndustry * 0.8;
+        score += nearRoad * 3.8 + nearHouses * 2.1 + nearCommerce * 0.8 + nearbyIntersections * 1.1 - nearIndustry * 0.8;
       } else if (type === 'restaurant') {
-        score += nearRoad * 3.2 + nearHouses * 1.6 + nearParks * 1.2 - nearIndustry * 1.2;
+        score += nearRoad * 3.4 + nearHouses * 1.7 + nearParks * 1.5 + nearbyIntersections * 0.8 - nearIndustry * 1.2;
+      } else if (type === 'groceryStore') {
+        score += nearRoad * 4.2 + nearHouses * 2.4 + nearCommerce * 0.7 + nearbyIntersections * 0.9 - nearIndustry * 1.1 - distCenter * 0.018;
+      } else if (type === 'cornerStore') {
+        score += nearRoad * 4.4 + nearHouses * 1.8 + nearCommerce * 0.5 + nearbyIntersections * 1.4 - nearIndustry * 0.8;
+      } else if (type === 'bank') {
+        score += nearRoad * 3.6 + nearCommerce * 1.7 + nearCivic * 0.7 + nearbyIntersections * 1.2 - nearIndustry * 0.8 - distCenter * 0.008;
       } else if (type === 'park') {
-        score += nearHouses * 2.4 + nearRoad * 1.4 + tile.tint * 1.2 - nearIndustry * 1.8;
+        score += nearHouses * 2.5 + nearRoad * 1.4 + tile.tint * 1.2 - nearIndustry * 1.8 - nearbyIntersections * 0.4;
+      } else if (type === 'hospital') {
+        score += nearRoad * 4 + nearHouses * 1.8 + nearParks * 0.8 + nearCivic * 0.5 + nearbyIntersections * 0.7 - nearIndustry * 1.6 - distCenter * 0.01;
+      } else if (type === 'policeStation' || type === 'fireStation') {
+        score += nearRoad * 3.8 + nearHouses * 1.2 + nearCivic * 0.5 + nearbyIntersections * 1 - nearIndustry * 0.4 - distCenter * 0.01;
       } else if (type === 'workshop') {
         score += nearRoad * 2.3 + distCenter * 0.04 - nearHouses * 2.4;
       } else if (type === 'powerPlant') {
-        score += nearRoad * 1.5 + distCenter * 0.07 - nearHouses * 3.3;
+        score += nearRoad * 1.9 + distCenter * 0.075 - nearHouses * 3.5 - nearCommerce * 2.2 - nearCivic * 2.4;
       }
 
       if (!best || score > best.score) {
@@ -263,6 +305,159 @@ export class InputController {
 
     if (!best) return null;
     return { action: 'place', type, x: best.x, z: best.z };
+  }
+
+  private collectCandidateCells(type: BuildType): Array<{ x: number; z: number }> {
+    const state = gameStore.getState();
+    const center = Math.floor(state.gridSize / 2);
+    const cells: Array<{ x: number; z: number; dist: number; tie: number }> = [];
+
+    for (let z = 0; z < state.gridSize; z += 1) {
+      for (let x = 0; x < state.gridSize; x += 1) {
+        if (!canPlaceBuilding(state, type, x, z)) continue;
+        const dist = Math.abs(x - center) + Math.abs(z - center);
+        const tie = ((x * 13 + z * 29) % 7) * 0.01;
+        cells.push({ x, z, dist, tie });
+      }
+    }
+
+    cells.sort((a, b) => a.dist + a.tie - (b.dist + b.tie));
+    return cells.map(({ x, z }) => ({ x, z }));
+  }
+
+  private planRoadExpansion(): AiAction | null {
+    const starter = this.pickStarterRoad();
+    if (starter) return starter;
+
+    const state = gameStore.getState();
+    const center = Math.floor(state.gridSize / 2);
+    const roads = state.buildings.filter((b) => b.type === 'road');
+    let best: { x: number; z: number; score: number } | null = null;
+
+    const addCandidate = (x: number, z: number, scoreBias = 0): void => {
+      if (!canPlaceBuilding(state, 'road', x, z)) return;
+      const graph = this.roadPlacementScore(x, z);
+      const nearbyBuildings = state.buildings.filter(
+        (b) => b.type !== 'road' && Math.abs(b.x - x) + Math.abs(b.z - z) <= 3
+      );
+      const nearbyHomes = nearbyBuildings.filter((b) => b.type === 'house').length;
+      const nearbyCommerce = nearbyBuildings.filter(
+        (b) =>
+          b.type === 'shop' ||
+          b.type === 'restaurant' ||
+          b.type === 'groceryStore' ||
+          b.type === 'cornerStore' ||
+          b.type === 'bank'
+      ).length;
+      const nearbyCivic = nearbyBuildings.filter(
+        (b) => b.type === 'hospital' || b.type === 'policeStation' || b.type === 'fireStation'
+      ).length;
+      const distCenter = Math.abs(x - center) + Math.abs(z - center);
+
+      let score =
+        graph.connectivity * 1.4 +
+        graph.straightness * 1.35 +
+        graph.lotPotential * 1.5 +
+        graph.frontier -
+        graph.junkPenalty * 1.55 +
+        nearbyHomes * 1.7 +
+        nearbyCommerce * 1.4 +
+        nearbyCivic * 0.9 +
+        scoreBias -
+        distCenter * 0.012;
+
+      if (nearbyBuildings.length === 0 && roads.length > 6) score -= 1.8;
+
+      if (!best || score > best.score) {
+        best = { x, z, score };
+      }
+    };
+
+    for (const road of roads) {
+      const flags = this.roadNeighborFlags(road.x, road.z);
+      const neighborCount = Number(flags.n) + Number(flags.e) + Number(flags.s) + Number(flags.w);
+
+      if (neighborCount === 1) {
+        if (flags.n) addCandidate(road.x, road.z + 1, 3.2);
+        if (flags.s) addCandidate(road.x, road.z - 1, 3.2);
+        if (flags.e) addCandidate(road.x - 1, road.z, 3.2);
+        if (flags.w) addCandidate(road.x + 1, road.z, 3.2);
+      }
+
+      if (flags.n && flags.s) {
+        addCandidate(road.x, road.z - 1, 1.4);
+        addCandidate(road.x, road.z + 1, 1.4);
+        if (Math.abs(road.x - center) % 4 === 0) {
+          addCandidate(road.x + 1, road.z, 2.4);
+          addCandidate(road.x - 1, road.z, 2.4);
+        }
+      }
+
+      if (flags.e && flags.w) {
+        addCandidate(road.x - 1, road.z, 1.4);
+        addCandidate(road.x + 1, road.z, 1.4);
+        if (Math.abs(road.z - center) % 4 === 0) {
+          addCandidate(road.x, road.z + 1, 2.4);
+          addCandidate(road.x, road.z - 1, 2.4);
+        }
+      }
+
+      if (neighborCount >= 2) {
+        addCandidate(road.x + 1, road.z, 0.5);
+        addCandidate(road.x - 1, road.z, 0.5);
+        addCandidate(road.x, road.z + 1, 0.5);
+        addCandidate(road.x, road.z - 1, 0.5);
+      }
+    }
+
+    const chosen = best as { x: number; z: number; score: number } | null;
+    if (!chosen) return null;
+    return { action: 'place', type: 'road', x: chosen.x, z: chosen.z };
+  }
+
+  private pickStarterRoad(): AiAction | null {
+    const state = gameStore.getState();
+    const center = Math.floor(state.gridSize / 2);
+    const blueprint: Array<[number, number]> = [
+      [center, center],
+      [center + 1, center],
+      [center - 1, center],
+      [center, center + 1],
+      [center, center - 1],
+      [center + 2, center],
+      [center - 2, center],
+      [center, center + 2],
+      [center, center - 2],
+      [center + 2, center + 1],
+      [center + 2, center - 1],
+      [center - 2, center + 1],
+      [center - 2, center - 1],
+      [center + 1, center + 2],
+      [center - 1, center + 2],
+      [center + 1, center - 2],
+      [center - 1, center - 2]
+    ];
+
+    for (const [x, z] of blueprint) {
+      if (canPlaceBuilding(state, 'road', x, z)) {
+        return { action: 'place', type: 'road', x, z };
+      }
+    }
+
+    return null;
+  }
+
+  private roadNeighborFlags(x: number, z: number): { n: boolean; e: boolean; s: boolean; w: boolean } {
+    const state = gameStore.getState();
+    const isRoad = (tx: number, tz: number) =>
+      state.buildings.some((b) => b.type === 'road' && b.x === tx && b.z === tz);
+
+    return {
+      n: isRoad(x, z - 1),
+      e: isRoad(x + 1, z),
+      s: isRoad(x, z + 1),
+      w: isRoad(x - 1, z)
+    };
   }
 
   private pickBulldozeTarget(): AiAction | null {
@@ -334,6 +529,17 @@ export class InputController {
     let straightness = 0;
     if ((n && s) || (e && w)) straightness += 2.2; // prefer straight street segments
     if ((n && e) || (e && s) || (s && w) || (w && n)) straightness += 0.7;
+
+    // Encourage block spacing: roads 3 tiles away create frontage blocks.
+    const blockParallel =
+      Number(isRoadAt(x + 3, z)) + Number(isRoadAt(x - 3, z)) + Number(isRoadAt(x, z + 3)) + Number(isRoadAt(x, z - 3));
+    if (blockParallel > 0) {
+      straightness += blockParallel * 0.8;
+    }
+
+    // Favor intersections every few tiles instead of chaotic turns.
+    const blockInterval = ((x + z) % 4 === 0) ? 0.7 : 0;
+    straightness += neighbors >= 1 ? blockInterval : 0;
 
     // Reward roads that create buildable frontage.
     let lotPotential = 0;

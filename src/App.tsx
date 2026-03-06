@@ -56,11 +56,22 @@ export default function App(): JSX.Element {
         aiLastAction={state.aiLastAction}
       />
 
-      <BuildMenu placementMode={state.placementMode} />
-      <InfoPanel building={selected} />
-      <TownProgressPanel state={state} />
-      <AiDirectorPanel state={state} />
-      <HoverTooltip state={state} />
+      <div className="pointer-events-none absolute inset-0 z-20 px-4 pb-4 pt-36">
+        <div className="grid h-full grid-cols-[30rem_minmax(0,1fr)_32rem] gap-4 xl:grid-cols-[32rem_minmax(0,1fr)_34rem]">
+          <div className="flex min-h-0 flex-col gap-4">
+            <BuildMenu placementMode={state.placementMode} />
+            <TownProgressPanel state={state} />
+          </div>
+          <div />
+          <div className="flex min-h-0 flex-col gap-4">
+            <InfoPanel building={selected} />
+            <div className="mt-auto">
+              <AiDirectorPanel state={state} />
+            </div>
+          </div>
+        </div>
+        <HoverTooltip state={state} />
+      </div>
     </div>
   );
 }

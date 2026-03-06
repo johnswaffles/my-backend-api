@@ -9,7 +9,14 @@ function countByType(state: GameState, type: 'road' | 'house' | 'powerPlant'): n
 }
 
 function countBusinesses(state: GameState): number {
-  return state.buildings.filter((b) => b.type === 'shop' || b.type === 'restaurant').length;
+  return state.buildings.filter(
+    (b) =>
+      b.type === 'shop' ||
+      b.type === 'restaurant' ||
+      b.type === 'groceryStore' ||
+      b.type === 'cornerStore' ||
+      b.type === 'bank'
+  ).length;
 }
 
 export function TownProgressPanel({ state }: TownProgressPanelProps): JSX.Element {
@@ -30,11 +37,14 @@ export function TownProgressPanel({ state }: TownProgressPanelProps): JSX.Elemen
   if (state.resources.powerUsed > state.resources.powerProduced) warnings.push('Power deficit: build more plants.');
   if (state.resources.money < 0) warnings.push('Budget is negative. Slow expansion.');
   if (state.demand.jobs > 60) warnings.push('Job demand is high. Add workshops or commercial buildings.');
-  if (state.demand.commerce > 60) warnings.push('Commerce demand is high. Add shops and restaurants.');
+  if (state.demand.commerce > 60) warnings.push('Commerce demand is high. Add shops, restaurants, or a bank.');
+  if (state.demand.essentials > 55) warnings.push('Residents need essentials. Add grocery or corner stores.');
+  if (state.demand.health > 55) warnings.push('Health coverage is thin. Add a hospital.');
+  if (state.demand.safety > 55) warnings.push('Safety coverage is low. Add police or fire services.');
   if (state.happiness < 45) warnings.push('Happiness is low. Improve roads and power coverage.');
 
   return (
-    <aside className="pointer-events-auto panel-glass absolute bottom-4 left-4 z-20 w-80 rounded-2xl p-4 text-slate-100">
+    <aside className="pointer-events-auto panel-glass rounded-2xl p-4 text-slate-100 shadow-glow">
       <div className="mb-3 text-xs uppercase tracking-[0.18em] text-amber-200">Town Progress</div>
       <div className="space-y-2 rounded-xl border border-slate-500/30 bg-slate-900/45 p-3">
         {milestones.map((item) => (

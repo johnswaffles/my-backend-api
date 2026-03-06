@@ -18,6 +18,9 @@ interface TopBarProps {
     commerce: number;
     recreation: number;
     jobs: number;
+    essentials: number;
+    health: number;
+    safety: number;
   };
   aiAutoplayEnabled: boolean;
   aiLastAction: string;
@@ -65,14 +68,14 @@ export function TopBar({
   const net = powerProduced - powerUsed;
   return (
     <div className="pointer-events-auto absolute left-4 right-4 top-4 z-30 flex flex-col gap-2">
-      <div className="flex items-start justify-between gap-2">
-        <div className="panel-glass rounded-2xl px-4 py-3 md:px-5">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+        <div className="panel-glass rounded-2xl px-5 py-4">
           <div className="text-2xl font-semibold leading-tight text-white">Cozy Town Builder</div>
-          <div className="text-xs text-slate-300">Vertical Slice: Isometric 2.5D Prototype</div>
+          <div className="text-xs text-slate-300">Cozy block builder: storefronts, services, and neighborhood growth</div>
           <div className="mt-1 text-xs text-slate-100">Day {day} | Happiness {happiness}%</div>
-          <div className="mt-1 max-w-[24rem] truncate text-xs text-cyan-100">AI: {aiLastAction}</div>
+          <div className="mt-1 max-w-[42rem] truncate text-xs text-cyan-100">AI: {aiLastAction}</div>
         </div>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex shrink-0 flex-wrap justify-end gap-2">
           <button
             type="button"
             onClick={() => undoAction()}
@@ -109,7 +112,7 @@ export function TopBar({
           </button>
         </div>
       </div>
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-7">
         <Stat
           label="Money"
           value={formatMoney(money)}
@@ -119,8 +122,18 @@ export function TopBar({
         <Stat label="Jobs" value={jobs.toLocaleString()} />
         <Stat label="Power" value={`${powerUsed}/${powerProduced} (${net >= 0 ? '+' : ''}${net})`} />
         <Stat
-          label="Demand"
-          value={`H ${demand.housing} C ${demand.commerce} J ${demand.jobs} P ${demand.power}`}
+          label="Growth"
+          value={`H ${demand.housing} C ${demand.commerce} J ${demand.jobs}`}
+          valueClassName="text-base"
+        />
+        <Stat
+          label="Services"
+          value={`E ${demand.essentials} H ${demand.health} S ${demand.safety}`}
+          valueClassName="text-base"
+        />
+        <Stat
+          label="Leisure"
+          value={`R ${demand.recreation} Rd ${demand.roads} P ${demand.power}`}
           valueClassName="text-base"
         />
       </div>
