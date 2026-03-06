@@ -2485,7 +2485,8 @@ export class GameRenderer {
   }
 
   private shouldUseIllustratedAsset(type: BuildType): boolean {
-    return type !== 'road' && type !== 'park' && type !== 'workshop' && type !== 'house';
+    void type;
+    return false;
   }
 
   private createHeroAsset(
