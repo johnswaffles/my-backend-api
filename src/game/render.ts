@@ -2394,9 +2394,70 @@ export class GameRenderer {
     return group;
   }
 
+  private createCustomImageAsset(
+    imageUrl: string,
+    type: BuildType,
+    buildingId: number,
+    scale = 1
+  ): THREE.Group {
+    const group = new THREE.Group();
+    const footprint = footprintForType(type);
+    const width =
+      footprint.width > 1 || footprint.depth > 1
+        ? 3.35 * scale
+        : type === 'house'
+          ? 1.72 * scale
+          : 1.98 * scale;
+    const height =
+      footprint.width > 1 || footprint.depth > 1
+        ? 2.78 * scale
+        : type === 'house'
+          ? 1.9 * scale
+          : 2.15 * scale;
+
+    const texture = new THREE.TextureLoader().load(imageUrl);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = Math.min(this.renderer.capabilities.getMaxAnisotropy(), 8);
+
+    const plane = new THREE.Mesh(
+      new THREE.PlaneGeometry(width, height),
+      new THREE.MeshStandardMaterial({
+        map: texture,
+        transparent: true,
+        alphaTest: 0.06,
+        roughness: 0.8,
+        metalness: 0.02,
+        side: THREE.DoubleSide
+      })
+    );
+    plane.rotation.y = Math.PI / 4;
+    plane.castShadow = true;
+    plane.receiveShadow = true;
+    plane.userData.buildingId = buildingId;
+
+    const softShadow = new THREE.Mesh(
+      new THREE.PlaneGeometry(width * 0.72, height * 0.18),
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.12, depthWrite: false })
+    );
+    softShadow.rotation.x = -Math.PI / 2;
+    softShadow.position.set(0, -height * 0.48, 0.06);
+    softShadow.userData.buildingId = buildingId;
+
+    group.add(plane);
+    group.add(softShadow);
+    return group;
+  }
+
   private createIllustratedBuilding(building: Building): THREE.Object3D {
     const group = new THREE.Group();
     const footprint = footprintForType(building.type);
+    const assetVariation =
+      building.assetVariationId == null
+        ? null
+        : (gameStore
+            .getState()
+            .assetLibrary[building.type]
+            ?.find((item) => item.id === building.assetVariationId) ?? null);
     const isHouse = building.type === 'house';
     const isUtility = building.type === 'powerPlant';
     const isCivic =
@@ -2439,12 +2500,20 @@ export class GameRenderer {
     curb.userData.buildingId = building.id;
     curb.visible = !isHouse;
 
-    const hero = this.createHeroAsset(
-      building.type,
-      building.id,
-      building.id,
-      footprint.width > 1 || footprint.depth > 1 ? 1.04 : 1
-    );
+    const hero =
+      assetVariation?.imageUrl
+        ? this.createCustomImageAsset(
+            assetVariation.imageUrl,
+            building.type,
+            building.id,
+            footprint.width > 1 || footprint.depth > 1 ? 1.04 : 1
+          )
+        : this.createHeroAsset(
+            building.type,
+            building.id,
+            building.id,
+            footprint.width > 1 || footprint.depth > 1 ? 1.04 : 1
+          );
     hero.position.set(0, footprint.width > 1 ? 1.0 : 0.74, footprint.depth > 1 ? 0.08 : 0.06);
 
     const planterA = this.createPlanterBox(

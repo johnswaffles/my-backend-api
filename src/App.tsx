@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import { BuildMenu } from './components/BuildMenu';
 import { InfoPanel } from './components/InfoPanel';
 import { TopBar } from './components/TopBar';
-import { AiDirectorPanel } from './components/AiDirectorPanel';
+import { AssetMakerPanel } from './components/AssetMakerPanel';
 import { TownProgressPanel } from './components/TownProgressPanel';
 import { HoverTooltip } from './components/HoverTooltip';
 import { selectedBuilding } from './game/actions';
@@ -93,7 +93,7 @@ export default function App(): JSX.Element {
           <div className="flex min-h-0 flex-col gap-4">
             <InfoPanel building={selected} />
             <div className="mt-auto">
-              <AiDirectorPanel state={state} />
+              <AssetMakerPanel state={state} />
             </div>
           </div>
         </div>

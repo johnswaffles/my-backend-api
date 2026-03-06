@@ -1,4 +1,4 @@
-import type { BuildType, Building, GameState } from './state';
+import type { AssetVariation, BuildType, Building, GameState } from './state';
 import { gameStore, occupiedCellsForBuilding, occupiedCellsForPlacement } from './state';
 
 interface BuildingEconomy {
@@ -15,6 +15,22 @@ interface BuildingEconomy {
   safety: number;
   maintenance: number;
 }
+
+export const ASSET_GENERATION_COST: Record<BuildType, number> = {
+  road: 0,
+  house: 80,
+  restaurant: 130,
+  shop: 120,
+  park: 65,
+  workshop: 110,
+  powerPlant: 220,
+  groceryStore: 140,
+  cornerStore: 90,
+  bank: 170,
+  policeStation: 160,
+  fireStation: 155,
+  hospital: 210
+};
 
 export const BUILDING_ECONOMY: Record<BuildType, BuildingEconomy> = {
   road: {
@@ -631,7 +647,8 @@ export function placeBuildingAt(type: BuildType, x: number, z: number): Building
       type,
       x,
       z,
-      createdAt: performance.now()
+      createdAt: performance.now(),
+      assetVariationId: state.activeAssetVariation[type] ?? null
     };
     created = newBuilding;
 
@@ -678,6 +695,70 @@ export function placeBuildingAt(type: BuildType, x: number, z: number): Building
   });
 
   return created;
+}
+
+export function setActiveAssetVariation(type: BuildType, variationId: string | null): void {
+  gameStore.update((state) => ({
+    ...state,
+    activeAssetVariation: {
+      ...state.activeAssetVariation,
+      [type]: variationId
+    }
+  }));
+}
+
+export function saveAssetVariation(type: BuildType, variation: AssetVariation): { ok: boolean; error?: string } {
+  let result: { ok: boolean; error?: string } = { ok: false, error: 'Unknown error' };
+
+  gameStore.update((state) => {
+    const cost = ASSET_GENERATION_COST[type] ?? 0;
+    if (state.resources.money < cost) {
+      result = { ok: false, error: 'Not enough money to generate this asset.' };
+      return state;
+    }
+
+    const existing = state.assetLibrary[type] ?? [];
+    const nextList = [variation, ...existing.filter((item) => item.id !== variation.id)].slice(0, 4);
+    result = { ok: true };
+    return {
+      ...state,
+      assetLibrary: {
+        ...state.assetLibrary,
+        [type]: nextList
+      },
+      activeAssetVariation: {
+        ...state.activeAssetVariation,
+        [type]: variation.id
+      },
+      resources: {
+        ...state.resources,
+        money: Math.round((state.resources.money - cost) * 100) / 100
+      }
+    };
+  });
+
+  return result;
+}
+
+export function removeAssetVariation(type: BuildType, variationId: string): void {
+  gameStore.update((state) => {
+    const current = state.assetLibrary[type] ?? [];
+    const nextList = current.filter((item) => item.id !== variationId);
+    const nextActive =
+      state.activeAssetVariation[type] === variationId ? nextList[0]?.id ?? null : state.activeAssetVariation[type] ?? null;
+
+    return {
+      ...state,
+      assetLibrary: {
+        ...state.assetLibrary,
+        [type]: nextList
+      },
+      activeAssetVariation: {
+        ...state.activeAssetVariation,
+        [type]: nextActive
+      }
+    };
+  });
 }
 
 export function bulldozeAt(x: number, z: number): Building | null {

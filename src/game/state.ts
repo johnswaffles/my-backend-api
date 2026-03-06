@@ -24,6 +24,17 @@ export interface Building {
   x: number;
   z: number;
   createdAt: number;
+  assetVariationId?: string | null;
+}
+
+export interface AssetVariation {
+  id: string;
+  type: BuildType;
+  name: string;
+  prompt: string;
+  imageUrl: string;
+  createdAt: number;
+  cost: number;
 }
 
 export interface BuildingFootprint {
@@ -75,9 +86,12 @@ export interface GameState {
   undoCount: number;
   redoCount: number;
   nextBuildingId: number;
+  assetLibrary: Partial<Record<BuildType, AssetVariation[]>>;
+  activeAssetVariation: Partial<Record<BuildType, string | null>>;
 }
 
 const GRID_SIZE = 28;
+const ASSET_STORAGE_KEY = 'cozy-town-builder-asset-library-v1';
 
 export const BUILDING_FOOTPRINTS: Record<BuildType, BuildingFootprint> = {
   road: { width: 1, depth: 1 },
@@ -139,6 +153,29 @@ function createTiles(size: number): TileData[] {
   return out;
 }
 
+function loadStoredAssetState(): Pick<GameState, 'assetLibrary' | 'activeAssetVariation'> {
+  if (typeof window === 'undefined') {
+    return { assetLibrary: {}, activeAssetVariation: {} };
+  }
+
+  try {
+    const raw = window.localStorage.getItem(ASSET_STORAGE_KEY);
+    if (!raw) return { assetLibrary: {}, activeAssetVariation: {} };
+    const parsed = JSON.parse(raw) as {
+      assetLibrary?: Partial<Record<BuildType, AssetVariation[]>>;
+      activeAssetVariation?: Partial<Record<BuildType, string | null>>;
+    };
+    return {
+      assetLibrary: parsed.assetLibrary ?? {},
+      activeAssetVariation: parsed.activeAssetVariation ?? {}
+    };
+  } catch {
+    return { assetLibrary: {}, activeAssetVariation: {} };
+  }
+}
+
+const storedAssetState = loadStoredAssetState();
+
 export const initialGameState: GameState = {
   gridSize: GRID_SIZE,
   tiles: createTiles(GRID_SIZE),
@@ -172,7 +209,9 @@ export const initialGameState: GameState = {
   simSeconds: 0,
   undoCount: 0,
   redoCount: 0,
-  nextBuildingId: 1
+  nextBuildingId: 1,
+  assetLibrary: storedAssetState.assetLibrary,
+  activeAssetVariation: storedAssetState.activeAssetVariation
 };
 
 type Listener = () => void;
@@ -192,6 +231,19 @@ class GameStore {
 
   setState(next: GameState): void {
     this.state = next;
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(
+          ASSET_STORAGE_KEY,
+          JSON.stringify({
+            assetLibrary: next.assetLibrary,
+            activeAssetVariation: next.activeAssetVariation
+          })
+        );
+      } catch {
+        // Ignore storage failures.
+      }
+    }
     this.listeners.forEach((listener) => listener());
   }
 
