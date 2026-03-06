@@ -10,7 +10,33 @@ const __dirname = path.dirname(__filename);
 
 app.use(express.json({ limit: '1mb' }));
 app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
-app.use(express.static(path.join(__dirname, 'dist')));
+app.use((req, res, next) => {
+  if (req.path === '/' || req.path.endsWith('.html')) {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Surrogate-Control', 'no-store');
+  }
+  next();
+});
+
+app.use(
+  express.static(path.join(__dirname, 'dist'), {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.setHeader('Surrogate-Control', 'no-store');
+        return;
+      }
+
+      if (filePath.includes('/assets/')) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      }
+    }
+  })
+);
 
 function extractResponseText(data) {
   if (typeof data?.output_text === 'string' && data.output_text.trim()) {
@@ -259,6 +285,10 @@ app.get('/health', (_req, res) => {
 });
 
 app.get('*', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Surrogate-Control', 'no-store');
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
