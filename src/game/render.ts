@@ -66,6 +66,8 @@ export class GameRenderer {
 
   private readonly roadVisuals = new Map<number, RoadVisualData>();
 
+  private readonly customAssetTextureCache = new Map<string, THREE.Texture>();
+
   private readonly houseAnimations = new Map<
     number,
     {
@@ -2435,38 +2437,171 @@ export class GameRenderer {
           ? 1.72 * scale
           : 1.92 * scale;
 
-    const texture = new THREE.TextureLoader().load(imageUrl);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.anisotropy = Math.min(this.renderer.capabilities.getMaxAnisotropy(), 8);
-
     const plane = new THREE.Mesh(
       new THREE.PlaneGeometry(width, height),
       new THREE.MeshStandardMaterial({
-        map: texture,
         transparent: true,
-        alphaTest: 0.06,
+        alphaTest: 0.08,
         roughness: 0.8,
         metalness: 0.02,
         side: THREE.DoubleSide
       })
     );
+    this.loadNormalizedCustomAssetTexture(imageUrl, plane.material as THREE.MeshStandardMaterial);
     plane.rotation.y = Math.PI / 4;
     plane.position.y = 0.04;
+    plane.renderOrder = 3;
     plane.castShadow = true;
     plane.receiveShadow = true;
     plane.userData.buildingId = buildingId;
 
     const softShadow = new THREE.Mesh(
-      new THREE.PlaneGeometry(width * 0.72, height * 0.18),
-      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.12, depthWrite: false })
+      new THREE.PlaneGeometry(width * 0.62, height * 0.14),
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.08, depthWrite: false })
     );
     softShadow.rotation.x = -Math.PI / 2;
-    softShadow.position.set(0, -height * 0.49, 0.02);
+    softShadow.position.set(0, -height * 0.495, 0.01);
     softShadow.userData.buildingId = buildingId;
 
     group.add(plane);
     group.add(softShadow);
     return group;
+  }
+
+  private loadNormalizedCustomAssetTexture(imageUrl: string, material: THREE.MeshStandardMaterial): void {
+    const cached = this.customAssetTextureCache.get(imageUrl);
+    if (cached) {
+      material.map = cached;
+      material.needsUpdate = true;
+      return;
+    }
+
+    const image = new Image();
+    image.onload = () => {
+      const texture = this.normalizeCustomAssetTexture(image);
+      this.customAssetTextureCache.set(imageUrl, texture);
+      material.map = texture;
+      material.needsUpdate = true;
+    };
+    image.src = imageUrl;
+  }
+
+  private normalizeCustomAssetTexture(image: HTMLImageElement): THREE.Texture {
+    const width = image.naturalWidth || image.width || 1024;
+    const height = image.naturalHeight || image.height || 1024;
+    const sourceCanvas = document.createElement('canvas');
+    sourceCanvas.width = width;
+    sourceCanvas.height = height;
+    const sourceCtx = sourceCanvas.getContext('2d');
+    if (!sourceCtx) {
+      const fallback = new THREE.TextureLoader().load(image.src);
+      fallback.colorSpace = THREE.SRGBColorSpace;
+      fallback.anisotropy = Math.min(this.renderer.capabilities.getMaxAnisotropy(), 8);
+      return fallback;
+    }
+
+    sourceCtx.clearRect(0, 0, width, height);
+    sourceCtx.drawImage(image, 0, 0, width, height);
+    const imageData = sourceCtx.getImageData(0, 0, width, height);
+    const { data } = imageData;
+    const visited = new Uint8Array(width * height);
+    const queue: number[] = [];
+
+    const isBackgroundPixel = (index: number): boolean => {
+      const alpha = data[index + 3];
+      if (alpha < 16) return true;
+      const r = data[index];
+      const g = data[index + 1];
+      const b = data[index + 2];
+      return r < 28 && g < 28 && b < 28;
+    };
+
+    const enqueue = (x: number, y: number): void => {
+      const cell = y * width + x;
+      if (visited[cell]) return;
+      visited[cell] = 1;
+      const index = cell * 4;
+      if (!isBackgroundPixel(index)) return;
+      queue.push(cell);
+    };
+
+    for (let x = 0; x < width; x += 1) {
+      enqueue(x, 0);
+      enqueue(x, height - 1);
+    }
+    for (let y = 0; y < height; y += 1) {
+      enqueue(0, y);
+      enqueue(width - 1, y);
+    }
+
+    while (queue.length > 0) {
+      const cell = queue.pop();
+      if (cell == null) continue;
+      const x = cell % width;
+      const y = Math.floor(cell / width);
+      const index = cell * 4;
+      data[index + 3] = 0;
+
+      if (x > 0) enqueue(x - 1, y);
+      if (x + 1 < width) enqueue(x + 1, y);
+      if (y > 0) enqueue(x, y - 1);
+      if (y + 1 < height) enqueue(x, y + 1);
+    }
+
+    sourceCtx.putImageData(imageData, 0, 0);
+
+    let minX = width;
+    let minY = height;
+    let maxX = -1;
+    let maxY = -1;
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const alpha = data[(y * width + x) * 4 + 3];
+        if (alpha > 20) {
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, y);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, y);
+        }
+      }
+    }
+
+    if (maxX < minX || maxY < minY) {
+      const fallback = new THREE.CanvasTexture(sourceCanvas);
+      fallback.colorSpace = THREE.SRGBColorSpace;
+      fallback.anisotropy = Math.min(this.renderer.capabilities.getMaxAnisotropy(), 8);
+      return fallback;
+    }
+
+    const cropWidth = maxX - minX + 1;
+    const cropHeight = maxY - minY + 1;
+    const outputSize = Math.max(width, height);
+    const padding = Math.round(outputSize * 0.14);
+    const drawScale = Math.min((outputSize - padding * 2) / cropWidth, (outputSize - padding * 2) / cropHeight);
+    const drawWidth = cropWidth * drawScale;
+    const drawHeight = cropHeight * drawScale;
+    const offsetX = (outputSize - drawWidth) * 0.5;
+    const offsetY = (outputSize - drawHeight) * 0.52;
+
+    const outputCanvas = document.createElement('canvas');
+    outputCanvas.width = outputSize;
+    outputCanvas.height = outputSize;
+    const outputCtx = outputCanvas.getContext('2d');
+    if (!outputCtx) {
+      const fallback = new THREE.CanvasTexture(sourceCanvas);
+      fallback.colorSpace = THREE.SRGBColorSpace;
+      fallback.anisotropy = Math.min(this.renderer.capabilities.getMaxAnisotropy(), 8);
+      return fallback;
+    }
+
+    outputCtx.clearRect(0, 0, outputSize, outputSize);
+    outputCtx.drawImage(sourceCanvas, minX, minY, cropWidth, cropHeight, offsetX, offsetY, drawWidth, drawHeight);
+
+    const texture = new THREE.CanvasTexture(outputCanvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = Math.min(this.renderer.capabilities.getMaxAnisotropy(), 8);
+    texture.needsUpdate = true;
+    return texture;
   }
 
   private createIllustratedBuilding(building: Building): THREE.Object3D {
