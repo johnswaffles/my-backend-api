@@ -1,5 +1,5 @@
 import type { AssetVariation, BuildType, Building, GameState } from './state';
-import { gameStore, occupiedCellsForBuilding, occupiedCellsForPlacement } from './state';
+import { DISPLAY_MONEY_AMOUNT, gameStore, INFINITE_MONEY, occupiedCellsForBuilding, occupiedCellsForPlacement } from './state';
 
 interface BuildingEconomy {
   name: string;
@@ -526,7 +526,7 @@ export function canPlaceBuilding(state: GameState, type: BuildType, x: number, z
     if (nearSensitive) return false;
   }
 
-  return state.resources.money >= BUILDING_ECONOMY[type].cost;
+  return INFINITE_MONEY || state.resources.money >= BUILDING_ECONOMY[type].cost;
 }
 
 export function setPlacementMode(type: BuildType | null): void {
@@ -660,7 +660,7 @@ export function placeBuildingAt(type: BuildType, x: number, z: number): Building
       buildings: [...state.buildings, newBuilding],
       resources: {
         ...state.resources,
-        money: state.resources.money - economy.cost
+        money: INFINITE_MONEY ? DISPLAY_MONEY_AMOUNT : state.resources.money - economy.cost
       },
       hoverCell: state.hoverCell
         ? {
@@ -671,7 +671,7 @@ export function placeBuildingAt(type: BuildType, x: number, z: number): Building
                 buildings: [...state.buildings, newBuilding],
                 resources: {
                   ...state.resources,
-                  money: state.resources.money - economy.cost
+                  money: INFINITE_MONEY ? DISPLAY_MONEY_AMOUNT : state.resources.money - economy.cost
                 }
               },
               type,
@@ -712,7 +712,7 @@ export function saveAssetVariation(type: BuildType, variation: AssetVariation): 
 
   gameStore.update((state) => {
     const cost = ASSET_GENERATION_COST[type] ?? 0;
-    if (state.resources.money < cost) {
+    if (!INFINITE_MONEY && state.resources.money < cost) {
       result = { ok: false, error: 'Not enough money to generate this asset.' };
       return state;
     }
@@ -732,7 +732,7 @@ export function saveAssetVariation(type: BuildType, variation: AssetVariation): 
       },
       resources: {
         ...state.resources,
-        money: Math.round((state.resources.money - cost) * 100) / 100
+        money: INFINITE_MONEY ? DISPLAY_MONEY_AMOUNT : Math.round((state.resources.money - cost) * 100) / 100
       }
     };
   });
@@ -791,7 +791,7 @@ export function bulldozeAt(x: number, z: number): Building | null {
       selectedBuildingId: state.selectedBuildingId === target.id ? null : state.selectedBuildingId,
       resources: {
         ...state.resources,
-        money: state.resources.money + refund
+        money: INFINITE_MONEY ? DISPLAY_MONEY_AMOUNT : state.resources.money + refund
       }
     };
     const derived = deriveSimulation(nextState);
@@ -799,7 +799,7 @@ export function bulldozeAt(x: number, z: number): Building | null {
       ...nextState,
       resources: {
         ...derived.resources,
-        money: Math.round(nextState.resources.money * 100) / 100
+        money: INFINITE_MONEY ? DISPLAY_MONEY_AMOUNT : Math.round(nextState.resources.money * 100) / 100
       },
       happiness: derived.happiness,
       demand: derived.demand,
@@ -885,7 +885,9 @@ export function tickSimulation(dtSeconds: number): void {
       day,
       resources: {
         ...derived.resources,
-        money: Math.max(-6000, Math.round((state.resources.money + deltaMoney) * 100) / 100)
+        money: INFINITE_MONEY
+          ? DISPLAY_MONEY_AMOUNT
+          : Math.max(-6000, Math.round((state.resources.money + deltaMoney) * 100) / 100)
       },
       happiness: derived.happiness,
       demand: derived.demand

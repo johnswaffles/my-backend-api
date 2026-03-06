@@ -11,7 +11,7 @@ import {
   tickSimulation,
   undoAction
 } from './actions';
-import { gameStore } from './state';
+import { gameStore, INFINITE_MONEY } from './state';
 import type { BuildType } from './state';
 import { GameRenderer } from './render';
 
@@ -160,7 +160,7 @@ export class InputController {
     const roads = state.buildings.filter((b) => b.type === 'road').length;
     const money = state.resources.money;
 
-    if (money < 300) {
+    if (!INFINITE_MONEY && money < 300) {
       const bulldoze = this.pickBulldozeTarget();
       if (bulldoze) return bulldoze;
     }

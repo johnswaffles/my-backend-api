@@ -90,9 +90,9 @@ export default function App(): JSX.Element {
             <TownProgressPanel state={state} />
           </div>
           <div />
-          <div className="flex min-h-0 flex-col gap-4">
+          <div className="flex min-h-0 flex-col gap-4 overflow-hidden">
             <InfoPanel building={selected} />
-            <div className="mt-auto">
+            <div className="mt-auto min-h-0">
               <AssetMakerPanel state={state} />
             </div>
           </div>

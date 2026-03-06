@@ -2424,16 +2424,16 @@ export class GameRenderer {
     const footprint = footprintForType(type);
     const width =
       footprint.width > 1 || footprint.depth > 1
-        ? 3.35 * scale
+        ? 3.02 * scale
         : type === 'house'
-          ? 1.72 * scale
-          : 1.98 * scale;
+          ? 1.56 * scale
+          : 1.82 * scale;
     const height =
       footprint.width > 1 || footprint.depth > 1
-        ? 2.78 * scale
+        ? 2.48 * scale
         : type === 'house'
-          ? 1.9 * scale
-          : 2.15 * scale;
+          ? 1.72 * scale
+          : 1.92 * scale;
 
     const texture = new THREE.TextureLoader().load(imageUrl);
     texture.colorSpace = THREE.SRGBColorSpace;
@@ -2451,6 +2451,7 @@ export class GameRenderer {
       })
     );
     plane.rotation.y = Math.PI / 4;
+    plane.position.y = 0.04;
     plane.castShadow = true;
     plane.receiveShadow = true;
     plane.userData.buildingId = buildingId;
@@ -2460,7 +2461,7 @@ export class GameRenderer {
       new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.12, depthWrite: false })
     );
     softShadow.rotation.x = -Math.PI / 2;
-    softShadow.position.set(0, -height * 0.48, 0.06);
+    softShadow.position.set(0, -height * 0.49, 0.02);
     softShadow.userData.buildingId = buildingId;
 
     group.add(plane);
@@ -2539,8 +2540,8 @@ export class GameRenderer {
           );
     hero.position.set(
       0,
-      usesCustomImage ? (footprint.width > 1 ? 0.84 : 0.62) : footprint.width > 1 ? 1.0 : 0.74,
-      usesCustomImage ? 0.02 : footprint.depth > 1 ? 0.08 : 0.06
+      usesCustomImage ? (footprint.width > 1 ? 0.8 : 0.56) : footprint.width > 1 ? 1.0 : 0.74,
+      usesCustomImage ? -0.02 : footprint.depth > 1 ? 0.08 : 0.06
     );
 
     const planterA = this.createPlanterBox(

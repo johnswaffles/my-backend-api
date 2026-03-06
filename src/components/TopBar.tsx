@@ -1,4 +1,5 @@
 import { cycleGameSpeed, redoAction, toggleAiAutoplay, undoAction } from '../game/actions';
+import { INFINITE_MONEY } from '../game/state';
 
 interface TopBarProps {
   money: number;
@@ -46,6 +47,9 @@ function Stat({
 }
 
 function formatMoney(value: number): string {
+  if (INFINITE_MONEY) {
+    return 'Infinite';
+  }
   return `$${value.toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2

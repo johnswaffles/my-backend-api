@@ -93,6 +93,8 @@ export interface GameState {
 
 const GRID_SIZE = 28;
 const ASSET_STORAGE_KEY = 'cozy-town-builder-asset-library-v1';
+export const INFINITE_MONEY = true;
+export const DISPLAY_MONEY_AMOUNT = 999999999.99;
 
 export const BUILDING_FOOTPRINTS: Record<BuildType, BuildingFootprint> = {
   road: { width: 1, depth: 1 },
@@ -187,7 +189,7 @@ export const initialGameState: GameState = {
   aiAutoplayEnabled: false,
   aiLastAction: 'Idle',
   resources: {
-    money: 12500,
+    money: DISPLAY_MONEY_AMOUNT,
     population: 16,
     jobs: 12,
     powerUsed: 4,
