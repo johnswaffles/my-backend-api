@@ -159,7 +159,13 @@ export class GameRenderer {
         );
         this.tileMesh.setMatrixAt(idx, matrix);
 
-        color.setRGB(0.52 * tile.tint, (0.78 + tile.elevation * 0.12) * tile.tint, 0.54 * tile.tint);
+        const warmPatch = ((x + z) % 3 === 0 ? 0.03 : 0) + Math.max(0, tile.elevation) * 0.08;
+        const coolPatch = ((x * 7 + z * 3) % 5 === 0 ? 0.025 : 0);
+        color.setRGB(
+          (0.5 + warmPatch * 0.4) * tile.tint,
+          (0.76 + tile.elevation * 0.16 + warmPatch) * tile.tint,
+          (0.52 + coolPatch * 0.2) * tile.tint
+        );
         this.tileMesh.setColorAt(idx, color);
 
         idx += 1;
@@ -1338,6 +1344,37 @@ export class GameRenderer {
       parkingStripeB.userData.buildingId = building.id;
       parkingStripeB.visible = isShop || isBank;
 
+      const parkedCar =
+        isShop || isBank
+          ? this.createParkedCar(
+              isBank ? 0x3f5f8d : 0x7d6a52,
+              0,
+              0.07,
+              -0.29,
+              0,
+              building.id,
+              isBank ? 1.02 : 0.94
+            )
+          : null;
+
+      const marketCanopy = this.createAwningStall(
+        isGrocery ? 0x7eb06f : 0xd79a54,
+        -0.26,
+        0.07,
+        -0.2,
+        building.id
+      );
+      marketCanopy.visible = isGrocery || isCornerStore;
+
+      const sandwichBoard = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08, 0.12, 0.03),
+        new THREE.MeshStandardMaterial({ color: 0xf1e1bd, roughness: 0.72, metalness: 0.01 })
+      );
+      sandwichBoard.position.set(0.18, 0.08, 0.22);
+      sandwichBoard.rotation.x = -0.18;
+      sandwichBoard.userData.buildingId = building.id;
+      sandwichBoard.visible = isRestaurant;
+
       group.add(lot);
       group.add(frontage);
       group.add(body);
@@ -1366,6 +1403,9 @@ export class GameRenderer {
       group.add(parkingPad);
       group.add(parkingStripeA);
       group.add(parkingStripeB);
+      if (parkedCar) group.add(parkedCar);
+      group.add(marketCanopy);
+      group.add(sandwichBoard);
       this.selectableMeshes.set(building.id, [
         lot,
         frontage,
@@ -1394,7 +1434,10 @@ export class GameRenderer {
         burgerPatty,
         parkingPad,
         parkingStripeA,
-        parkingStripeB
+        parkingStripeB,
+        ...(parkedCar ? this.collectMeshes(parkedCar) : []),
+        ...this.collectMeshes(marketCanopy),
+        sandwichBoard
       ]);
       return group;
     }
@@ -1604,6 +1647,15 @@ export class GameRenderer {
         ambulanceCanopy.receiveShadow = true;
         ambulanceCanopy.userData.buildingId = building.id;
 
+        const ambulance = this.createParkedCar(0xf3f4f6, -0.52, 0.08, 0.84, Math.PI / 2, building.id, 1.08);
+        const medStripe = new THREE.Mesh(
+          new THREE.BoxGeometry(0.22, 0.02, 0.06),
+          new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.66, metalness: 0.02 })
+        );
+        medStripe.position.set(0, 0.14, 0.06);
+        medStripe.userData.buildingId = building.id;
+        ambulance.add(medStripe);
+
         group.add(lot);
         group.add(driveway);
         group.add(mainWing);
@@ -1616,6 +1668,7 @@ export class GameRenderer {
         group.add(helipadMarkB);
         group.add(redCross);
         group.add(ambulanceCanopy);
+        group.add(ambulance);
         this.selectableMeshes.set(building.id, [
           lot,
           driveway,
@@ -1628,7 +1681,8 @@ export class GameRenderer {
           helipadMarkA,
           helipadMarkB,
           redCross,
-          ambulanceCanopy
+          ambulanceCanopy,
+          ...this.collectMeshes(ambulance)
         ]);
         return group;
       }
@@ -1835,6 +1889,16 @@ export class GameRenderer {
     fence.position.set(0, 0.1, 0.94);
     fence.userData.buildingId = building.id;
 
+    const utilityTruck = this.createParkedCar(0xd99b43, -0.66, 0.08, 0.72, Math.PI / 2, building.id, 1.1);
+    const yardContainer = new THREE.Mesh(
+      new THREE.BoxGeometry(0.32, 0.18, 0.2),
+      new THREE.MeshStandardMaterial({ color: 0x7b8792, roughness: 0.8, metalness: 0.14 })
+    );
+    yardContainer.position.set(-0.7, 0.12, -0.68);
+    yardContainer.castShadow = true;
+    yardContainer.receiveShadow = true;
+    yardContainer.userData.buildingId = building.id;
+
     group.add(pad);
     group.add(hall);
     group.add(hallRoof);
@@ -1845,6 +1909,8 @@ export class GameRenderer {
     group.add(substation);
     group.add(powerCore);
     group.add(fence);
+    group.add(utilityTruck);
+    group.add(yardContainer);
     this.selectableMeshes.set(building.id, [
       pad,
       hall,
@@ -1855,7 +1921,9 @@ export class GameRenderer {
       stack,
       substation,
       powerCore,
-      fence
+      fence,
+      ...this.collectMeshes(utilityTruck),
+      yardContainer
     ]);
     return group;
   }
@@ -1896,6 +1964,121 @@ export class GameRenderer {
     if (type === 'hospital') return 0.48;
     if (type === 'policeStation' || type === 'fireStation') return 0.44;
     return 0.76;
+  }
+
+  private collectMeshes(object: THREE.Object3D): THREE.Mesh[] {
+    const meshes: THREE.Mesh[] = [];
+    object.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        meshes.push(child);
+      }
+    });
+    return meshes;
+  }
+
+  private createParkedCar(
+    color: number,
+    x: number,
+    y: number,
+    z: number,
+    rotationY: number,
+    buildingId: number,
+    scale = 1
+  ): THREE.Group {
+    const group = new THREE.Group();
+    group.position.set(x, y, z);
+    group.rotation.y = rotationY;
+    group.scale.setScalar(scale);
+
+    const bodyMat = new THREE.MeshStandardMaterial({ color, roughness: 0.72, metalness: 0.08 });
+    const glassMat = new THREE.MeshStandardMaterial({
+      color: 0xbdd9ea,
+      roughness: 0.3,
+      metalness: 0.08,
+      emissive: 0x0f172a,
+      emissiveIntensity: 0.04
+    });
+    const wheelMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.86, metalness: 0.08 });
+
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.08, 0.14), bodyMat);
+    base.position.y = 0.05;
+    base.castShadow = true;
+    base.receiveShadow = true;
+    base.userData.buildingId = buildingId;
+
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.08, 0.12), glassMat);
+    cabin.position.set(0.01, 0.11, 0);
+    cabin.castShadow = true;
+    cabin.receiveShadow = true;
+    cabin.userData.buildingId = buildingId;
+
+    const wheelOffsets: Array<[number, number]> = [
+      [-0.08, -0.07],
+      [0.08, -0.07],
+      [-0.08, 0.07],
+      [0.08, 0.07]
+    ];
+    const wheels = wheelOffsets.map(([wx, wz]) => {
+      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.02, 10), wheelMat);
+      wheel.rotation.z = Math.PI / 2;
+      wheel.position.set(wx, 0.03, wz);
+      wheel.castShadow = true;
+      wheel.receiveShadow = true;
+      wheel.userData.buildingId = buildingId;
+      return wheel;
+    });
+
+    group.add(base);
+    group.add(cabin);
+    wheels.forEach((wheel) => group.add(wheel));
+    return group;
+  }
+
+  private createAwningStall(
+    color: number,
+    x: number,
+    y: number,
+    z: number,
+    buildingId: number
+  ): THREE.Group {
+    const group = new THREE.Group();
+    group.position.set(x, y, z);
+
+    const postMat = new THREE.MeshStandardMaterial({ color: 0x896746, roughness: 0.84, metalness: 0.02 });
+    const canopyMat = new THREE.MeshStandardMaterial({ color, roughness: 0.72, metalness: 0.02 });
+    const crateMat = new THREE.MeshStandardMaterial({ color: 0x9f7448, roughness: 0.84, metalness: 0.01 });
+
+    const top = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.03, 0.16), canopyMat);
+    top.position.y = 0.18;
+    top.castShadow = true;
+    top.receiveShadow = true;
+    top.userData.buildingId = buildingId;
+
+    const crate = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.08, 0.12), crateMat);
+    crate.position.y = 0.04;
+    crate.castShadow = true;
+    crate.receiveShadow = true;
+    crate.userData.buildingId = buildingId;
+
+    const postOffsets: Array<[number, number]> = [
+      [-0.08, -0.05],
+      [0.08, -0.05],
+      [-0.08, 0.05],
+      [0.08, 0.05]
+    ];
+    const posts = postOffsets.map(([px, pz]) => {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.16, 0.02), postMat);
+      post.position.set(px, 0.09, pz);
+      post.castShadow = true;
+      post.receiveShadow = true;
+      post.userData.buildingId = buildingId;
+      return post;
+    });
+
+    group.add(crate);
+    posts.forEach((post) => group.add(post));
+    group.add(top);
+    return group;
   }
 
   private gridToWorld(x: number, z: number, gridSize: number): { x: number; z: number } {
