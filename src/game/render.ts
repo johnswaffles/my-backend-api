@@ -772,15 +772,53 @@ export class GameRenderer {
     return sides;
   }
 
+  private connectedCountInDirection(
+    building: Building,
+    stepX: number,
+    stepZ: number,
+    predicate: (candidate: Building) => boolean
+  ): number {
+    const footprint = footprintForType(building.type);
+    let count = 0;
+    let cursorX = building.x;
+    let cursorZ = building.z;
+
+    while (true) {
+      cursorX += stepX * footprint.width;
+      cursorZ += stepZ * footprint.depth;
+      const candidate = this.buildingByCell.get(`${cursorX}:${cursorZ}`);
+      if (!candidate || candidate.id === building.id || !predicate(candidate)) break;
+      count += 1;
+    }
+
+    return count;
+  }
+
   private renderSignatureForBuilding(building: Building): string {
     const sameTypeSides = this.connectedSides(building, (candidate) => candidate.type === building.type);
     const commercialSides = this.connectedSides(building, (candidate) =>
       this.isCommercialBuilding(candidate.type) && this.isCommercialBuilding(building.type)
     );
+    const commercialRowLength = this.isCommercialBuilding(building.type)
+      ? 1 +
+        this.connectedCountInDirection(
+          building,
+          -1,
+          0,
+          (candidate) => this.isCommercialBuilding(candidate.type) && candidate.type === building.type
+        ) +
+        this.connectedCountInDirection(
+          building,
+          1,
+          0,
+          (candidate) => this.isCommercialBuilding(candidate.type) && candidate.type === building.type
+        )
+      : 1;
     const frontage = this.roadFrontage(building);
     return [
       building.type,
       building.level,
+      commercialRowLength,
       Number(sameTypeSides.n),
       Number(sameTypeSides.e),
       Number(sameTypeSides.s),
@@ -1585,6 +1623,12 @@ export class GameRenderer {
       const isGrocery = building.type === 'groceryStore';
       const isCornerStore = building.type === 'cornerStore';
       const isBank = building.type === 'bank';
+      const sameTypeRowLeft = this.connectedCountInDirection(building, -1, 0, (candidate) => candidate.type === building.type);
+      const sameTypeRowRight = this.connectedCountInDirection(building, 1, 0, (candidate) => candidate.type === building.type);
+      const sameTypeRowLength = 1 + sameTypeRowLeft + sameTypeRowRight;
+      const stripMallMode = isShop && sameTypeRowLength >= 3;
+      const leftEdgeUnit = sameTypeRowLeft === 0;
+      const rightEdgeUnit = sameTypeRowRight === 0;
       const paintMat = new THREE.MeshStandardMaterial({
         color: 0xf4f7fa,
         roughness: 0.55,
@@ -1695,19 +1739,21 @@ export class GameRenderer {
 
       const body = new THREE.Mesh(
         new THREE.BoxGeometry(
-          isBank ? 0.88 : isCornerStore ? 0.72 : stripMode ? 0.94 : 0.9,
-          isShop ? 0.62 : isRestaurant ? 0.46 : isCornerStore ? 0.42 : isBank ? 0.5 : 0.48,
-          isCornerStore ? 0.68 : 0.78
+          stripMallMode ? 0.96 : isBank ? 0.88 : isCornerStore ? 0.72 : stripMode ? 0.94 : 0.9,
+          stripMallMode ? 0.46 : isShop ? 0.62 : isRestaurant ? 0.46 : isCornerStore ? 0.42 : isBank ? 0.5 : 0.48,
+          stripMallMode ? 0.74 : isCornerStore ? 0.68 : 0.78
         ),
         wallMat
       );
-      body.position.y = isShop ? 0.31 : isCornerStore ? 0.21 : 0.24;
+      body.position.y = stripMallMode ? 0.23 : isShop ? 0.31 : isCornerStore ? 0.21 : 0.24;
       body.castShadow = true;
       body.receiveShadow = true;
       body.userData.buildingId = building.id;
 
       const roof =
-        isRestaurant
+        stripMallMode
+          ? new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.08, 0.78), roofMat)
+          : isRestaurant
           ? new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.08, 0.86), roofMat)
           : isBank
             ? new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.08, 0.84), roofMat)
@@ -1716,7 +1762,7 @@ export class GameRenderer {
               : isShop
                 ? new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.08, 0.86), roofMat)
                 : new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.08, 0.84), roofMat);
-      roof.position.y = isShop ? 0.67 : isCornerStore ? 0.47 : 0.56;
+      roof.position.y = stripMallMode ? 0.51 : isShop ? 0.67 : isCornerStore ? 0.47 : 0.56;
       roof.castShadow = true;
       roof.receiveShadow = true;
       roof.userData.buildingId = building.id;
@@ -1729,7 +1775,7 @@ export class GameRenderer {
       upperFloor.castShadow = true;
       upperFloor.receiveShadow = true;
       upperFloor.userData.buildingId = building.id;
-      upperFloor.visible = level >= 2 && !isCornerStore;
+      upperFloor.visible = level >= 2 && !isCornerStore && !stripMallMode;
 
       const parapet = new THREE.Mesh(
         new THREE.BoxGeometry(isCornerStore ? 0.74 : isBank ? 0.84 : 0.9, 0.12, 0.08),
@@ -1763,6 +1809,10 @@ export class GameRenderer {
       );
       sign.position.set(0, isShop ? 0.6 : isCornerStore ? 0.42 : 0.54, 0.42);
       sign.userData.buildingId = building.id;
+      if (stripMallMode) {
+        sign.scale.set(1.08, 1.1, 1);
+        sign.position.y = 0.39;
+      }
 
       const windowL = new THREE.Mesh(
         new THREE.BoxGeometry(isBank ? 0.16 : isCornerStore ? 0.14 : 0.24, isShop ? 0.14 : 0.18, 0.02),
@@ -1809,6 +1859,23 @@ export class GameRenderer {
       storefrontGlass.position.set(0, isCornerStore ? 0.18 : 0.19, 0.41);
       storefrontGlass.userData.buildingId = building.id;
       storefrontGlass.visible = !isBank;
+      if (stripMallMode) {
+        storefrontGlass.scale.set(1.12, 0.95, 1);
+        storefrontGlass.position.set(0, 0.16, 0.39);
+      }
+
+      const rearStorefrontGlass = storefrontGlass.clone();
+      rearStorefrontGlass.position.set(0, stripMallMode ? 0.16 : isCornerStore ? 0.18 : 0.19, -0.41);
+      rearStorefrontGlass.userData.buildingId = building.id;
+
+      const rearAwning = awning.clone();
+      rearAwning.position.set(0, stripMallMode ? 0.24 : isShop ? 0.3 : isCornerStore ? 0.28 : 0.38, -0.44);
+      rearAwning.userData.buildingId = building.id;
+      rearAwning.visible = awning.visible;
+
+      const rearSign = sign.clone();
+      rearSign.position.set(0, stripMallMode ? 0.39 : isShop ? 0.6 : isCornerStore ? 0.42 : 0.54, -0.42);
+      rearSign.userData.buildingId = building.id;
 
       const sideGlassEast = new THREE.Mesh(
         new THREE.BoxGeometry(0.03, isCornerStore ? 0.18 : 0.2, 0.34),
@@ -2203,6 +2270,29 @@ export class GameRenderer {
       stripPartyWest.userData.buildingId = building.id;
       stripPartyWest.visible = commercialCluster.w && stripRowMode;
 
+      const stripEndCapLeft = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08, 0.3, 0.12),
+        accentMat.clone()
+      );
+      stripEndCapLeft.position.set(-0.4, 0.36, 0.36);
+      stripEndCapLeft.castShadow = true;
+      stripEndCapLeft.receiveShadow = true;
+      stripEndCapLeft.userData.buildingId = building.id;
+      stripEndCapLeft.visible = stripMallMode && leftEdgeUnit;
+
+      const stripEndCapRight = stripEndCapLeft.clone();
+      stripEndCapRight.position.set(0.4, 0.36, 0.36);
+      stripEndCapRight.userData.buildingId = building.id;
+      stripEndCapRight.visible = stripMallMode && rightEdgeUnit;
+
+      const rearEntry = new THREE.Mesh(
+        new THREE.BoxGeometry(0.14, 0.18, 0.03),
+        new THREE.MeshStandardMaterial({ color: 0x7b6248, roughness: 0.78, metalness: 0.04 })
+      );
+      rearEntry.position.set(0, 0.13, -0.39);
+      rearEntry.userData.buildingId = building.id;
+      rearEntry.visible = stripMallMode;
+
       group.add(perimeterWalk);
       group.add(lot);
       group.add(sidewalkApron);
@@ -2216,10 +2306,13 @@ export class GameRenderer {
       group.add(roof);
       group.add(parapet);
       group.add(awning);
+      group.add(rearAwning);
       group.add(sign);
+      group.add(rearSign);
       group.add(windowL);
       group.add(windowR);
       group.add(storefrontGlass);
+      group.add(rearStorefrontGlass);
       group.add(sideGlassEast);
       group.add(sideGlassWest);
       group.add(stripConnector);
@@ -2266,6 +2359,9 @@ export class GameRenderer {
       group.add(stripParapet);
       group.add(stripPartyEast);
       group.add(stripPartyWest);
+      group.add(stripEndCapLeft);
+      group.add(stripEndCapRight);
+      group.add(rearEntry);
       this.selectableMeshes.set(building.id, [
         perimeterWalk,
         lot,
@@ -2280,10 +2376,13 @@ export class GameRenderer {
         roof,
         parapet,
         awning,
+        rearAwning,
         sign,
+        rearSign,
         windowL,
         windowR,
         storefrontGlass,
+        rearStorefrontGlass,
         sideGlassEast,
         sideGlassWest,
         stripConnector,
@@ -2329,7 +2428,10 @@ export class GameRenderer {
         sideConnectorWest,
         stripParapet,
         stripPartyEast,
-        stripPartyWest
+        stripPartyWest,
+        stripEndCapLeft,
+        stripEndCapRight,
+        rearEntry
       ]);
       return group;
     }
