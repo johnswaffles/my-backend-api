@@ -1,5 +1,5 @@
-import { BUILDING_ECONOMY, bulldozeAt } from '../game/actions';
-import { footprintForType } from '../game/state';
+import { BUILDING_ECONOMY, bulldozeAt, buildingContextSummary } from '../game/actions';
+import { footprintForType, gameStore } from '../game/state';
 import type { Building } from '../game/state';
 
 interface InfoPanelProps {
@@ -33,6 +33,8 @@ function iconForType(type: Building['type']): string {
 }
 
 export function InfoPanel({ building }: InfoPanelProps): JSX.Element {
+  const context = building ? buildingContextSummary(gameStore.getState(), building) : null;
+
   return (
     <aside className="pointer-events-auto panel-glass rounded-2xl p-4 text-slate-100 shadow-glow">
       <div className="mb-3 text-xs uppercase tracking-[0.18em] text-emerald-300">Selection</div>
@@ -65,6 +67,30 @@ export function InfoPanel({ building }: InfoPanelProps): JSX.Element {
               <div className="text-sm text-slate-200">{Math.round(building.upgradeProgress)} pts</div>
             </div>
           </div>
+          {context ? (
+            <div className="grid grid-cols-2 gap-3 rounded-xl border border-slate-500/25 bg-slate-950/30 p-3">
+              <div>
+                <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Appeal</div>
+                <div className="text-sm font-medium text-emerald-100">{context.appeal}%</div>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Block Match</div>
+                <div className="text-sm text-slate-100">{context.adjacentMatches}</div>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Road / Power</div>
+                <div className="text-sm text-slate-100">
+                  {context.roadAccess ? 'Road' : 'No road'} • {context.powerAccess ? 'Powered' : 'No power'}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Support</div>
+                <div className="text-sm text-slate-100">
+                  P{context.parkSupport} C{context.commerceSupport} S{context.civicSupport}
+                </div>
+              </div>
+            </div>
+          ) : null}
           <div>
             <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Style</div>
             <div className="text-sm text-slate-200">{building.customStyleName ?? 'Default look'}</div>

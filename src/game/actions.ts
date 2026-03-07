@@ -389,6 +389,33 @@ function upgradeThresholdFor(building: Building): number {
   return base + (building.level - 1) * 18;
 }
 
+function buildingAppealScore(state: GameState, building: Building): number {
+  const roadAccess = buildingHasRoadAccess(state, building) || building.type === 'powerPlant';
+  const powerAccess = buildingHasPowerCoverage(state, building) || building.type === 'powerPlant';
+  const parkSupport = nearbyTypeCount(state, building, ['park'], 3);
+  const commerceSupport = nearbyTypeCount(state, building, ['shop', 'restaurant', 'groceryStore', 'cornerStore', 'bank'], 3);
+  const civicSupport = nearbyTypeCount(state, building, ['hospital', 'policeStation', 'fireStation'], 4);
+  const directAdjacency = adjacentBuildings(state, building).filter(
+    (other) => comboFamilyForType(other.type) === comboFamilyForType(building.type)
+  ).length;
+  const industrialPressure = nearbyTypeCount(state, building, ['workshop', 'powerPlant'], building.type === 'house' ? 3 : 2);
+  const utilityPressure = building.type === 'park' ? nearbyTypeCount(state, building, ['powerPlant'], 4) : 0;
+
+  return clampPercent(
+    34 +
+      (roadAccess ? 20 : 0) +
+      (powerAccess ? 16 : 0) +
+      parkSupport * 6 +
+      commerceSupport * 3 +
+      civicSupport * 4 +
+      directAdjacency * 7 +
+      (building.level - 1) * 10 +
+      Math.max(0, state.happiness - 50) * 0.35 -
+      (building.type === 'house' ? industrialPressure * 9 : industrialPressure * 3) -
+      utilityPressure * 7
+  );
+}
+
 function evolveBuildings(state: GameState, dtSeconds: number): GameState {
   if (dtSeconds <= 0) return state;
   const nextBuildings = state.buildings.map((building) => ({ ...building }));
@@ -399,21 +426,21 @@ function evolveBuildings(state: GameState, dtSeconds: number): GameState {
     if (building.type === 'road') continue;
     const roadAccess = buildingHasRoadAccess(state, building) || building.type === 'powerPlant';
     const powerAccess = buildingHasPowerCoverage(state, building) || building.type === 'powerPlant';
+    const serviceFactor = (roadAccess ? 1 : 0.32) * (powerAccess ? 1 : 0.45);
     const parkSupport = nearbyTypeCount(state, building, ['park'], 3);
     const commerceSupport = nearbyTypeCount(state, building, ['shop', 'restaurant', 'groceryStore', 'cornerStore', 'bank'], 3);
     const civicSupport = nearbyTypeCount(state, building, ['hospital', 'policeStation', 'fireStation'], 4);
     const directAdjacency = adjacentBuildings(state, building).filter(
       (other) => comboFamilyForType(other.type) === comboFamilyForType(building.type)
     ).length;
-
-    const serviceFactor = (roadAccess ? 1 : 0.32) * (powerAccess ? 1 : 0.45);
+    const appeal = buildingAppealScore(state, building);
     const appealFactor =
-      0.75 +
-      parkSupport * 0.08 +
-      commerceSupport * 0.04 +
-      civicSupport * 0.03 +
-      directAdjacency * 0.11 +
-      Math.max(0, state.happiness - 50) * 0.01;
+      0.45 +
+      (appeal / 100) * 0.9 +
+      parkSupport * 0.04 +
+      commerceSupport * 0.025 +
+      civicSupport * 0.02 +
+      directAdjacency * 0.08;
     const typeFactor =
       building.type === 'house'
         ? 1.16
@@ -555,6 +582,21 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
   ).length;
 
   const serviceRatio = houses.length > 0 ? servicedHomes / houses.length : 1;
+  const activeBuildings = state.buildings.filter((building) => building.type !== 'road');
+  const averageAppeal =
+    activeBuildings.length > 0
+      ? activeBuildings.reduce((sum, building) => sum + buildingAppealScore(state, building), 0) / activeBuildings.length
+      : 58;
+  const residentialAppeal =
+    houses.length > 0
+      ? houses.reduce((sum, building) => sum + buildingAppealScore(state, building), 0) / houses.length
+      : averageAppeal;
+  const commercialBuildings = state.buildings.filter((building) => isCommercialType(building.type));
+  const commercialAppeal =
+    commercialBuildings.length > 0
+      ? commercialBuildings.reduce((sum, building) => sum + buildingAppealScore(state, building), 0) /
+        commercialBuildings.length
+      : averageAppeal;
 
   let powerUsed = roads * 0.2;
   let powerProduced = 0;
@@ -569,7 +611,12 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
     houses.length > 0 ? 4 : 0,
     Math.min(
       housingCapacity,
-      Math.round(jobCapacity * 1.05 + commercialCapacity * 0.12 + recreationCapacity * 0.08)
+      Math.round(
+        jobCapacity * 1.05 +
+          commercialCapacity * 0.12 +
+          recreationCapacity * 0.08 +
+          Math.max(0, residentialAppeal - 55) * 0.22
+      )
     )
   );
   const blendedPopulation = Math.round(
@@ -595,13 +642,19 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
       healthPressure * 12 -
       safetyPressure * 10 +
       Math.min(parks, 8) * 1.4 +
+      Math.max(0, averageAppeal - 55) * 0.42 +
+      Math.max(0, residentialAppeal - 58) * 0.16 +
       state.buildings.reduce((sum, building) => sum + (building.level - 1) * 0.75, 0) +
       commercialComboBonus(state) * 0.15 +
       residentialComboBonus(state) * 0.2
   );
 
   const demandHousing = clampPercent(
-    62 + Math.max(0, blendedPopulation - housingCapacity) * 3 - houses.length * 1.6 + Math.max(0, 65 - happiness) * 0.35
+    62 +
+      Math.max(0, blendedPopulation - housingCapacity) * 3 -
+      houses.length * 1.6 +
+      Math.max(0, 65 - happiness) * 0.35 -
+      Math.max(0, residentialAppeal - 60) * 0.2
   );
   const demandRoads = clampPercent(
     18 +
@@ -627,10 +680,17 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
     14 + Math.max(0, powerUsed - powerProduced) * 6 + Math.max(0, houses.length - plants * 4)
   );
   const demandCommerce = clampPercent(
-    28 + Math.max(0, blendedPopulation - commercialCapacity) * 2.8 - (restaurants + shops) * 1.2
+    28 +
+      Math.max(0, blendedPopulation - commercialCapacity) * 2.8 -
+      (restaurants + shops) * 1.2 -
+      Math.max(0, commercialAppeal - 58) * 0.22
   );
   const demandRecreation = clampPercent(
-    24 + Math.max(0, blendedPopulation - recreationCapacity) * 1.4 - parks * 2.8 + Math.max(0, 55 - happiness) * 0.5
+    24 +
+      Math.max(0, blendedPopulation - recreationCapacity) * 1.4 -
+      parks * 2.8 +
+      Math.max(0, 55 - happiness) * 0.5 -
+      Math.max(0, averageAppeal - 62) * 0.1
   );
   const demandJobs = clampPercent(
     30 + Math.max(0, blendedPopulation - jobCapacity) * 2.2 - workshops * 2.4 - (restaurants + shops) * 0.8
@@ -977,6 +1037,35 @@ export function bulldozeAt(x: number, z: number): Building | null {
 export function selectedBuilding(state: GameState): Building | null {
   if (state.selectedBuildingId == null) return null;
   return state.buildings.find((b) => b.id === state.selectedBuildingId) ?? null;
+}
+
+export function buildingContextSummary(state: GameState, building: Building): {
+  appeal: number;
+  roadAccess: boolean;
+  powerAccess: boolean;
+  adjacentMatches: number;
+  parkSupport: number;
+  civicSupport: number;
+  commerceSupport: number;
+} {
+  const roadAccess = buildingHasRoadAccess(state, building) || building.type === 'powerPlant';
+  const powerAccess = buildingHasPowerCoverage(state, building) || building.type === 'powerPlant';
+  const parkSupport = nearbyTypeCount(state, building, ['park'], 3);
+  const commerceSupport = nearbyTypeCount(state, building, ['shop', 'restaurant', 'groceryStore', 'cornerStore', 'bank'], 3);
+  const civicSupport = nearbyTypeCount(state, building, ['hospital', 'policeStation', 'fireStation'], 4);
+  const adjacentMatches = adjacentBuildings(state, building).filter(
+    (other) => comboFamilyForType(other.type) === comboFamilyForType(building.type)
+  ).length;
+
+  return {
+    appeal: buildingAppealScore(state, building),
+    roadAccess,
+    powerAccess,
+    adjacentMatches,
+    parkSupport,
+    civicSupport,
+    commerceSupport
+  };
 }
 
 export type AiGameCommand =
