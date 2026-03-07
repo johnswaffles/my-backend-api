@@ -84,7 +84,7 @@ export interface GameState {
   day: number;
   happiness: number;
   demand: Demand;
-  gameSpeed: 0 | 1 | 2;
+  gameSpeed: GameSpeed;
   simSeconds: number;
   undoCount: number;
   redoCount: number;
@@ -93,8 +93,11 @@ export interface GameState {
 }
 
 const GRID_SIZE = 28;
-export const INFINITE_MONEY = true;
-export const DISPLAY_MONEY_AMOUNT = 999999999.99;
+export type GameSpeed = 0 | 1 | 2 | 10;
+export const INFINITE_MONEY = false;
+export const STARTING_MONEY = 100000;
+export const STARTING_HAPPINESS = 62;
+export const DAY_LENGTH_SECONDS = 36;
 export const CUSTOMIZABLE_BUILD_TYPES: BuildType[] = [
   'house',
   'shop',
@@ -182,24 +185,24 @@ export const initialGameState: GameState = {
   aiAutoplayEnabled: false,
   aiLastAction: 'Idle',
   resources: {
-    money: DISPLAY_MONEY_AMOUNT,
-    population: 16,
-    jobs: 12,
-    powerUsed: 4,
-    powerProduced: 16
+    money: STARTING_MONEY,
+    population: 0,
+    jobs: 0,
+    powerUsed: 0,
+    powerProduced: 0
   },
   day: 1,
-  happiness: 65,
+  happiness: STARTING_HAPPINESS,
   demand: {
-    housing: 55,
-    roads: 35,
-    power: 18,
-    commerce: 42,
-    recreation: 38,
-    jobs: 44,
-    essentials: 40,
-    health: 28,
-    safety: 26
+    housing: 64,
+    roads: 30,
+    power: 12,
+    commerce: 36,
+    recreation: 30,
+    jobs: 38,
+    essentials: 34,
+    health: 22,
+    safety: 20
   },
   gameSpeed: 1,
   simSeconds: 0,

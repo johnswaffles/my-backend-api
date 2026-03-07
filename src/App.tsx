@@ -82,8 +82,8 @@ export default function App(): JSX.Element {
         }}
       />
 
-      <div className="pointer-events-none absolute inset-0 z-20 px-4 pb-4 pt-36">
-        <div className="grid h-full grid-cols-[30rem_minmax(0,1fr)_24rem] gap-4 xl:grid-cols-[32rem_minmax(0,1fr)_26rem]">
+      <div className="pointer-events-none absolute inset-0 z-20 px-4 pb-4 pt-44">
+        <div className="grid h-full grid-cols-[17rem_minmax(0,1fr)_22rem] gap-4 xl:grid-cols-[18rem_minmax(0,1fr)_23rem]">
           <div className="flex min-h-0 flex-col gap-4">
             <BuildMenu placementMode={state.placementMode} />
             <TownProgressPanel state={state} />

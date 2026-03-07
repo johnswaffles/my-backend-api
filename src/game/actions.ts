@@ -1,11 +1,12 @@
 import type { AssetVariation, BuildType, Building, GameState } from './state';
 import {
-  DISPLAY_MONEY_AMOUNT,
+  DAY_LENGTH_SECONDS,
   gameStore,
   INFINITE_MONEY,
   occupiedCellsForBuilding,
   occupiedCellsForPlacement
 } from './state';
+import type { GameSpeed } from './state';
 
 interface BuildingEconomy {
   name: string;
@@ -223,6 +224,20 @@ export const BUILDING_ECONOMY: Record<BuildType, BuildingEconomy> = {
   }
 };
 
+export const ECONOMY_TUNING = {
+  residentTaxPerCitizen: 0.03,
+  employmentTaxPerWorker: 0.024,
+  shopRevenue: 0.13,
+  restaurantRevenue: 0.16,
+  workshopRevenue: 0.1,
+  groceryRevenue: 0.18,
+  cornerStoreRevenue: 0.1,
+  bankRevenue: 0.2,
+  powerDeficitPenalty: 0.22,
+  happinessIncomeFactor: 0.012,
+  minimumMoney: -20000
+} as const;
+
 type StateSnapshot = Pick<
   GameState,
   'buildings' | 'selectedBuildingId' | 'resources' | 'happiness' | 'demand' | 'day' | 'simSeconds' | 'nextBuildingId'
@@ -388,9 +403,9 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
   }
 
   const targetPopulation = Math.max(
-    8,
+    houses.length > 0 ? 4 : 0,
     Math.min(
-      housingCapacity + 8,
+      housingCapacity,
       Math.round(jobCapacity * 1.05 + commercialCapacity * 0.12 + recreationCapacity * 0.08)
     )
   );
@@ -596,7 +611,8 @@ export function setAiLastAction(message: string): void {
 
 export function cycleGameSpeed(): void {
   gameStore.update((state) => {
-    const next: 0 | 1 | 2 = state.gameSpeed === 0 ? 1 : state.gameSpeed === 1 ? 2 : 0;
+    const next: GameSpeed =
+      state.gameSpeed === 0 ? 1 : state.gameSpeed === 1 ? 2 : state.gameSpeed === 2 ? 10 : 0;
     return {
       ...state,
       gameSpeed: next
@@ -668,7 +684,7 @@ export function placeBuildingAt(type: BuildType, x: number, z: number): Building
       buildings: [...state.buildings, newBuilding],
       resources: {
         ...state.resources,
-        money: INFINITE_MONEY ? DISPLAY_MONEY_AMOUNT : state.resources.money - economy.cost
+        money: state.resources.money - economy.cost
       },
       hoverCell: state.hoverCell
         ? {
@@ -679,7 +695,7 @@ export function placeBuildingAt(type: BuildType, x: number, z: number): Building
                 buildings: [...state.buildings, newBuilding],
                 resources: {
                   ...state.resources,
-                  money: INFINITE_MONEY ? DISPLAY_MONEY_AMOUNT : state.resources.money - economy.cost
+                  money: state.resources.money - economy.cost
                 }
               },
               type,
@@ -721,7 +737,7 @@ export function queueGeneratedAsset(type: BuildType, variation: AssetVariation):
       pendingBuildAsset: variation,
       resources: {
         ...state.resources,
-        money: INFINITE_MONEY ? DISPLAY_MONEY_AMOUNT : Math.round((state.resources.money - cost) * 100) / 100
+        money: Math.round((state.resources.money - cost) * 100) / 100
       }
     };
   });
@@ -770,7 +786,7 @@ export function bulldozeAt(x: number, z: number): Building | null {
       selectedBuildingId: state.selectedBuildingId === target.id ? null : state.selectedBuildingId,
       resources: {
         ...state.resources,
-        money: INFINITE_MONEY ? DISPLAY_MONEY_AMOUNT : state.resources.money + refund
+        money: state.resources.money + refund
       }
     };
     const derived = deriveSimulation(nextState);
@@ -778,7 +794,7 @@ export function bulldozeAt(x: number, z: number): Building | null {
       ...nextState,
       resources: {
         ...derived.resources,
-        money: INFINITE_MONEY ? DISPLAY_MONEY_AMOUNT : Math.round(nextState.resources.money * 100) / 100
+        money: Math.round(nextState.resources.money * 100) / 100
       },
       happiness: derived.happiness,
       demand: derived.demand,
@@ -840,23 +856,25 @@ export function tickSimulation(dtSeconds: number): void {
       maintenancePerSecond += BUILDING_ECONOMY[b.type].maintenance;
     }
 
-    const residentTax = derived.resources.population * 0.044;
-    const employmentTax = Math.min(derived.resources.population, derived.resources.jobs) * 0.031;
+    const residentTax = derived.resources.population * ECONOMY_TUNING.residentTaxPerCitizen;
+    const employmentTax =
+      Math.min(derived.resources.population, derived.resources.jobs) * ECONOMY_TUNING.employmentTaxPerWorker;
     const commercialTax =
-      countType(state, 'shop') * 0.16 +
-      countType(state, 'restaurant') * 0.14 +
-      countType(state, 'workshop') * 0.12 +
-      countType(state, 'groceryStore') * 0.19 +
-      countType(state, 'cornerStore') * 0.11 +
-      countType(state, 'bank') * 0.18;
-    const powerPenalty = Math.max(0, derived.resources.powerUsed - derived.resources.powerProduced) * 0.2;
-    const happinessBonus = (derived.happiness - 50) * 0.008;
+      countType(state, 'shop') * ECONOMY_TUNING.shopRevenue +
+      countType(state, 'restaurant') * ECONOMY_TUNING.restaurantRevenue +
+      countType(state, 'workshop') * ECONOMY_TUNING.workshopRevenue +
+      countType(state, 'groceryStore') * ECONOMY_TUNING.groceryRevenue +
+      countType(state, 'cornerStore') * ECONOMY_TUNING.cornerStoreRevenue +
+      countType(state, 'bank') * ECONOMY_TUNING.bankRevenue;
+    const powerPenalty =
+      Math.max(0, derived.resources.powerUsed - derived.resources.powerProduced) * ECONOMY_TUNING.powerDeficitPenalty;
+    const happinessBonus = (derived.happiness - 50) * ECONOMY_TUNING.happinessIncomeFactor;
 
     const deltaMoney =
       (residentTax + employmentTax + commercialTax - maintenancePerSecond - powerPenalty + happinessBonus) * dtSeconds;
 
     const simSeconds = state.simSeconds + dtSeconds;
-    const day = Math.floor(simSeconds / 30) + 1;
+    const day = Math.floor(simSeconds / DAY_LENGTH_SECONDS) + 1;
 
     return {
       ...state,
@@ -864,9 +882,10 @@ export function tickSimulation(dtSeconds: number): void {
       day,
       resources: {
         ...derived.resources,
-        money: INFINITE_MONEY
-          ? DISPLAY_MONEY_AMOUNT
-          : Math.max(-6000, Math.round((state.resources.money + deltaMoney) * 100) / 100)
+        money: Math.max(
+          ECONOMY_TUNING.minimumMoney,
+          Math.round((state.resources.money + deltaMoney) * 100) / 100
+        )
       },
       happiness: derived.happiness,
       demand: derived.demand
