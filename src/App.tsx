@@ -69,6 +69,7 @@ export default function App(): JSX.Element {
         powerUsed={state.resources.powerUsed}
         powerProduced={state.resources.powerProduced}
         day={state.day}
+        timeOfDay={state.timeOfDay}
         happiness={state.happiness}
         gameSpeed={state.gameSpeed}
         undoCount={state.undoCount}

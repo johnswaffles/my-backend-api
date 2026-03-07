@@ -55,6 +55,16 @@ export function InfoPanel({ building }: InfoPanelProps): JSX.Element {
             <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Grid Position</div>
             <div className="text-sm">X: {building.x} | Z: {building.z}</div>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Level</div>
+              <div className="text-sm text-slate-100">Tier {building.level}</div>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Upgrade</div>
+              <div className="text-sm text-slate-200">{Math.round(building.upgradeProgress)} pts</div>
+            </div>
+          </div>
           <div>
             <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Style</div>
             <div className="text-sm text-slate-200">{building.customStyleName ?? 'Default look'}</div>

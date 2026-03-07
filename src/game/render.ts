@@ -24,6 +24,13 @@ interface BuildingPlacement {
   rotationY: number;
 }
 
+interface RoadRun {
+  axis: 'x' | 'z';
+  fixed: number;
+  start: number;
+  end: number;
+}
+
 export class GameRenderer {
   private readonly container: HTMLElement;
 
@@ -62,6 +69,7 @@ export class GameRenderer {
   private readonly ambientRoot = new THREE.Group();
 
   private readonly buildingMeshes = new Map<number, THREE.Object3D>();
+  private readonly buildingRenderSignatures = new Map<number, string>();
 
   private readonly selectableMeshes = new Map<number, THREE.Mesh[]>();
 
@@ -73,6 +81,7 @@ export class GameRenderer {
 
   private readonly ambientCars = Array.from({ length: 4 }, () => new THREE.Group());
   private readonly ambientPedestrians = Array.from({ length: 6 }, () => new THREE.Group());
+  private roadRuns: RoadRun[] = [];
 
   private readonly houseAnimations = new Map<
     number,
@@ -485,33 +494,28 @@ export class GameRenderer {
 
   private animateAmbientAgents(timeSeconds: number): void {
     const state = gameStore.getState();
-    const roads = state.buildings.filter((building) => building.type === 'road');
-    const horizontalRoads = roads.filter(
-      (road) =>
-        this.buildingByCell.get(`${road.x - 1}:${road.z}`)?.type === 'road' ||
-        this.buildingByCell.get(`${road.x + 1}:${road.z}`)?.type === 'road'
-    );
-    const verticalRoads = roads.filter(
-      (road) =>
-        this.buildingByCell.get(`${road.x}:${road.z - 1}`)?.type === 'road' ||
-        this.buildingByCell.get(`${road.x}:${road.z + 1}`)?.type === 'road'
-    );
-
     this.ambientCars.forEach((group, index) => {
-      const road = (index % 2 === 0 ? horizontalRoads : verticalRoads)[index % Math.max(1, index % 2 === 0 ? horizontalRoads.length : verticalRoads.length)];
-      if (!road) {
+      const preferredAxis: 'x' | 'z' = index % 2 === 0 ? 'x' : 'z';
+      const runs = this.roadRuns.filter((run) => run.axis === preferredAxis);
+      const run = runs[index % Math.max(1, runs.length)];
+      if (!run) {
         group.visible = false;
         return;
       }
 
-      const world = this.buildingOriginWorld(road, state.gridSize);
-      const phase = (timeSeconds * 0.28 + index * 0.23) % 1;
-      const swing = (phase - 0.5) * 0.88;
-      if (index % 2 === 0) {
-        group.position.set(world.x + swing, 0.02, world.z + (index % 3 === 0 ? -0.12 : 0.12));
+      const startWorld =
+        run.axis === 'x'
+          ? this.gridToWorld(run.start, run.fixed, state.gridSize)
+          : this.gridToWorld(run.fixed, run.start, state.gridSize);
+      const laneOffset = index % 2 === 0 ? -0.12 : 0.12;
+      const span = run.end - run.start + 1;
+      const offset = (timeSeconds * (0.55 + index * 0.04) + index * 0.7) % span;
+
+      if (run.axis === 'x') {
+        group.position.set(startWorld.x + offset, 0.02, startWorld.z + laneOffset);
         group.rotation.y = Math.PI / 2;
       } else {
-        group.position.set(world.x + (index % 3 === 0 ? -0.12 : 0.12), 0.02, world.z + swing);
+        group.position.set(startWorld.x + laneOffset, 0.02, startWorld.z + offset);
         group.rotation.y = 0;
       }
       group.visible = true;
@@ -571,9 +575,21 @@ export class GameRenderer {
     const seen = new Set<number>();
     for (const b of state.buildings) {
       seen.add(b.id);
+      const nextSignature = this.renderSignatureForBuilding(b);
+      const currentObject = this.buildingMeshes.get(b.id);
+      if (currentObject && this.buildingRenderSignatures.get(b.id) !== nextSignature) {
+        this.buildingRoot.remove(currentObject);
+        this.disposeObject(currentObject);
+        this.buildingMeshes.delete(b.id);
+        this.selectableMeshes.delete(b.id);
+        this.roadVisuals.delete(b.id);
+        this.houseAnimations.delete(b.id);
+      }
+
       if (!this.buildingMeshes.has(b.id)) {
         const mesh = this.createBuildingObject(b);
         this.buildingMeshes.set(b.id, mesh);
+        this.buildingRenderSignatures.set(b.id, nextSignature);
         this.buildingRoot.add(mesh);
       }
 
@@ -584,7 +600,8 @@ export class GameRenderer {
       object.rotation.y = this.shouldUseIllustratedAsset(b.type) ? 0 : placement.rotationY;
 
       const ageMs = performance.now() - b.createdAt;
-      const t = THREE.MathUtils.clamp(ageMs / 220, 0, 1);
+      const evolveMs = performance.now() - b.lastUpgradeAt;
+      const t = THREE.MathUtils.clamp(Math.max(ageMs, evolveMs) / 220, 0, 1);
       const s = 0.82 + 0.18 * (1 - Math.pow(1 - t, 2));
       object.scale.setScalar(s);
     }
@@ -594,6 +611,7 @@ export class GameRenderer {
       this.buildingRoot.remove(obj);
       this.disposeObject(obj);
       this.buildingMeshes.delete(id);
+      this.buildingRenderSignatures.delete(id);
       this.selectableMeshes.delete(id);
       this.roadVisuals.delete(id);
       this.houseAnimations.delete(id);
@@ -629,6 +647,36 @@ export class GameRenderer {
       roadData.crosswalks.s.visible = roadCount >= 3 && south;
       roadData.crosswalks.w.visible = roadCount >= 3 && west;
     }
+
+    this.roadRuns = this.buildRoadRuns();
+  }
+
+  private buildRoadRuns(): RoadRun[] {
+    const roads = gameStore.getState().buildings.filter((building) => building.type === 'road');
+    const roadSet = new Set(roads.map((road) => `${road.x}:${road.z}`));
+    const runs: RoadRun[] = [];
+
+    for (const road of roads) {
+      const westKey = `${road.x - 1}:${road.z}`;
+      if (!roadSet.has(westKey) && roadSet.has(`${road.x + 1}:${road.z}`)) {
+        let end = road.x;
+        while (roadSet.has(`${end + 1}:${road.z}`)) end += 1;
+        if (end > road.x) {
+          runs.push({ axis: 'x', fixed: road.z, start: road.x, end });
+        }
+      }
+
+      const northKey = `${road.x}:${road.z - 1}`;
+      if (!roadSet.has(northKey) && roadSet.has(`${road.x}:${road.z + 1}`)) {
+        let end = road.z;
+        while (roadSet.has(`${road.x}:${end + 1}`)) end += 1;
+        if (end > road.z) {
+          runs.push({ axis: 'z', fixed: road.x, start: road.z, end });
+        }
+      }
+    }
+
+    return runs;
   }
 
   private findBuilding(id: number): Building | undefined {
@@ -675,6 +723,51 @@ export class GameRenderer {
     return sides;
   }
 
+  private connectedSides(
+    building: Building,
+    predicate: (candidate: Building) => boolean
+  ): { n: boolean; e: boolean; s: boolean; w: boolean } {
+    const cells = occupiedCellsForBuilding(building);
+    const sides = { n: false, e: false, s: false, w: false };
+
+    for (const cell of cells) {
+      const north = this.buildingByCell.get(`${cell.x}:${cell.z - 1}`);
+      const east = this.buildingByCell.get(`${cell.x + 1}:${cell.z}`);
+      const south = this.buildingByCell.get(`${cell.x}:${cell.z + 1}`);
+      const west = this.buildingByCell.get(`${cell.x - 1}:${cell.z}`);
+      if (north && north.id !== building.id && predicate(north)) sides.n = true;
+      if (east && east.id !== building.id && predicate(east)) sides.e = true;
+      if (south && south.id !== building.id && predicate(south)) sides.s = true;
+      if (west && west.id !== building.id && predicate(west)) sides.w = true;
+    }
+
+    return sides;
+  }
+
+  private renderSignatureForBuilding(building: Building): string {
+    const sameTypeSides = this.connectedSides(building, (candidate) => candidate.type === building.type);
+    const commercialSides = this.connectedSides(building, (candidate) =>
+      this.isCommercialBuilding(candidate.type) && this.isCommercialBuilding(building.type)
+    );
+    const frontage = this.roadFrontage(building);
+    return [
+      building.type,
+      building.level,
+      Number(sameTypeSides.n),
+      Number(sameTypeSides.e),
+      Number(sameTypeSides.s),
+      Number(sameTypeSides.w),
+      Number(commercialSides.n),
+      Number(commercialSides.e),
+      Number(commercialSides.s),
+      Number(commercialSides.w),
+      frontage.n,
+      frontage.e,
+      frontage.s,
+      frontage.w
+    ].join(':');
+  }
+
   private computeBuildingPlacement(building: Building): BuildingPlacement {
     if (building.type === 'road' || building.type === 'park') {
       return { offsetX: 0, offsetZ: 0, rotationY: 0 };
@@ -698,6 +791,16 @@ export class GameRenderer {
     }
 
     return { offsetX: 0, offsetZ: 0, rotationY: 0 };
+  }
+
+  private isCommercialBuilding(type: BuildType): boolean {
+    return (
+      type === 'shop' ||
+      type === 'restaurant' ||
+      type === 'groceryStore' ||
+      type === 'cornerStore' ||
+      type === 'bank'
+    );
   }
 
   private placementForFacing(
@@ -944,6 +1047,9 @@ export class GameRenderer {
     if (building.type === 'house') {
       const group = new THREE.Group();
       const variant = building.id % 5;
+      const level = building.level;
+      const houseCluster = this.connectedSides(building, (candidate) => candidate.type === 'house');
+      const townhouseMode = houseCluster.n || houseCluster.e || houseCluster.s || houseCluster.w;
       const wallPalette = [0xcaa17b, 0xe1c9a9, 0xb78f63, 0xd7b58c, 0xcfa7a1];
       const roofPalette = [0x6d5140, 0x9b5b3e, 0x6f6f72, 0x845742, 0x4d5b71];
       const trimPalette = [0xaf7d52, 0xd9bc93, 0x9b7a57, 0xc69f74, 0xb48c84];
@@ -1223,6 +1329,52 @@ export class GameRenderer {
       const porchBike = this.createBike(-0.24, 0.03, 0.28, 0.45, building.id, variant === 2 ? 0xc85f4d : 0x587094);
       porchBike.visible = variant === 2 || variant === 4;
 
+      const upperAddition = new THREE.Mesh(
+        new THREE.BoxGeometry(townhouseMode ? 0.54 : 0.36, 0.18, 0.26),
+        wallMat.clone()
+      );
+      upperAddition.position.set(0, 0.46, -0.08);
+      upperAddition.castShadow = true;
+      upperAddition.receiveShadow = true;
+      upperAddition.userData.buildingId = building.id;
+      upperAddition.visible = level >= 2;
+
+      const cornice = new THREE.Mesh(
+        new THREE.BoxGeometry(townhouseMode ? 0.82 : 0.74, 0.04, townhouseMode ? 0.72 : 0.66),
+        trimMat.clone()
+      );
+      cornice.position.set(0, 0.44, 0);
+      cornice.castShadow = true;
+      cornice.receiveShadow = true;
+      cornice.userData.buildingId = building.id;
+      cornice.visible = townhouseMode || level >= 2;
+
+      const sunroom = new THREE.Mesh(
+        new THREE.BoxGeometry(0.26, 0.18, 0.18),
+        new THREE.MeshStandardMaterial({
+          color: 0xd8ecf3,
+          roughness: 0.24,
+          metalness: 0.08,
+          transparent: true,
+          opacity: 0.82,
+          emissive: 0x0f172a,
+          emissiveIntensity: 0.06
+        })
+      );
+      sunroom.position.set(0.26, 0.18, -0.18);
+      sunroom.castShadow = true;
+      sunroom.receiveShadow = true;
+      sunroom.userData.buildingId = building.id;
+      sunroom.visible = level >= 3 && !townhouseMode;
+
+      const trellis = new THREE.Mesh(
+        new THREE.BoxGeometry(0.18, 0.24, 0.03),
+        new THREE.MeshStandardMaterial({ color: 0x9b7656, roughness: 0.86, metalness: 0.01 })
+      );
+      trellis.position.set(-0.3, 0.18, -0.24);
+      trellis.userData.buildingId = building.id;
+      trellis.visible = level >= 3;
+
       const smokePuffs = Array.from({ length: 3 }, (_, index) => {
         const puff = new THREE.Mesh(
           new THREE.SphereGeometry(0.07, 10, 10),
@@ -1247,6 +1399,10 @@ export class GameRenderer {
       group.add(planterRight);
       group.add(foundation);
       group.add(base);
+      group.add(upperAddition);
+      group.add(cornice);
+      group.add(sunroom);
+      group.add(trellis);
       group.add(roof);
       group.add(roofStrip);
       group.add(sideWing);
@@ -1282,6 +1438,10 @@ export class GameRenderer {
         frontWalk,
         foundation,
         base,
+        upperAddition,
+        cornice,
+        sunroom,
+        trellis,
         roof,
         roofStrip,
         sideWing,
@@ -1329,6 +1489,9 @@ export class GameRenderer {
     ) {
       const group = new THREE.Group();
       const variant = building.id % 4;
+      const level = building.level;
+      const commercialCluster = this.connectedSides(building, (candidate) => this.isCommercialBuilding(candidate.type));
+      const stripMode = commercialCluster.n || commercialCluster.e || commercialCluster.s || commercialCluster.w;
       const isShop = building.type === 'shop';
       const isRestaurant = building.type === 'restaurant';
       const isGrocery = building.type === 'groceryStore';
@@ -1388,7 +1551,7 @@ export class GameRenderer {
 
       const body = new THREE.Mesh(
         new THREE.BoxGeometry(
-          isBank ? 0.88 : isCornerStore ? 0.72 : 0.9,
+          isBank ? 0.88 : isCornerStore ? 0.72 : stripMode ? 0.94 : 0.9,
           isShop ? 0.62 : isRestaurant ? 0.46 : isCornerStore ? 0.42 : isBank ? 0.5 : 0.48,
           isCornerStore ? 0.68 : 0.78
         ),
@@ -1413,6 +1576,16 @@ export class GameRenderer {
       roof.castShadow = true;
       roof.receiveShadow = true;
       roof.userData.buildingId = building.id;
+
+      const upperFloor = new THREE.Mesh(
+        new THREE.BoxGeometry(isCornerStore ? 0.58 : isBank ? 0.68 : 0.74, 0.22, 0.46),
+        wallMat.clone()
+      );
+      upperFloor.position.set(0, isShop ? 0.58 : 0.46, -0.06);
+      upperFloor.castShadow = true;
+      upperFloor.receiveShadow = true;
+      upperFloor.userData.buildingId = building.id;
+      upperFloor.visible = level >= 2 && !isCornerStore;
 
       const parapet = new THREE.Mesh(
         new THREE.BoxGeometry(isCornerStore ? 0.74 : isBank ? 0.84 : 0.9, 0.12, 0.08),
@@ -1492,6 +1665,14 @@ export class GameRenderer {
       storefrontGlass.position.set(0, isCornerStore ? 0.18 : 0.19, 0.41);
       storefrontGlass.userData.buildingId = building.id;
       storefrontGlass.visible = !isBank;
+
+      const stripConnector = new THREE.Mesh(
+        new THREE.BoxGeometry(0.94, 0.05, 0.14),
+        new THREE.MeshStandardMaterial({ color: 0xe8dfd0, roughness: 0.9, metalness: 0.01 })
+      );
+      stripConnector.position.set(0, 0.12, 0.34);
+      stripConnector.userData.buildingId = building.id;
+      stripConnector.visible = stripMode;
 
       const pediment = new THREE.Mesh(
         new THREE.CylinderGeometry(0.28, 0.28, 0.08, 3),
@@ -1713,6 +1894,16 @@ export class GameRenderer {
       umbrellaTop.userData.buildingId = building.id;
       umbrellaTop.visible = isRestaurant && variant >= 2;
 
+      const roofSignTower = new THREE.Mesh(
+        new THREE.BoxGeometry(0.14, 0.34, 0.14),
+        new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.74, metalness: 0.18 })
+      );
+      roofSignTower.position.set(0.28, isShop ? 0.9 : 0.76, -0.14);
+      roofSignTower.castShadow = true;
+      roofSignTower.receiveShadow = true;
+      roofSignTower.userData.buildingId = building.id;
+      roofSignTower.visible = level >= 3 && (isShop || isRestaurant || isGrocery);
+
       const lampPost = this.createStreetLamp(
         isBank ? 0.33 : -0.34,
         0.055,
@@ -1783,6 +1974,7 @@ export class GameRenderer {
       group.add(curbLip);
       group.add(frontage);
       group.add(body);
+      group.add(upperFloor);
       group.add(roof);
       group.add(parapet);
       group.add(awning);
@@ -1790,6 +1982,7 @@ export class GameRenderer {
       group.add(windowL);
       group.add(windowR);
       group.add(storefrontGlass);
+      group.add(stripConnector);
       group.add(cafeTable);
       group.add(cafeStool);
       group.add(displayRack);
@@ -1818,6 +2011,7 @@ export class GameRenderer {
       group.add(sandwichBoard);
       group.add(umbrellaPole);
       group.add(umbrellaTop);
+      group.add(roofSignTower);
       group.add(lampPost);
       group.add(parcelBench);
       group.add(planterAccentA);
@@ -1830,6 +2024,7 @@ export class GameRenderer {
         curbLip,
         frontage,
         body,
+        upperFloor,
         roof,
         parapet,
         awning,
@@ -1837,6 +2032,7 @@ export class GameRenderer {
         windowL,
         windowR,
         storefrontGlass,
+        stripConnector,
         cafeTable,
         cafeStool,
         displayRack,
@@ -1864,6 +2060,7 @@ export class GameRenderer {
         ...this.collectMeshes(marketCanopy),
         umbrellaPole,
         umbrellaTop,
+        roofSignTower,
         ...this.collectMeshes(lampPost),
         ...this.collectMeshes(parcelBench),
         ...this.collectMeshes(planterAccentA),
@@ -1932,6 +2129,7 @@ export class GameRenderer {
     if (building.type === 'workshop') {
       const group = new THREE.Group();
       const variant = building.id % 3;
+      const level = building.level;
       const wallMat = new THREE.MeshStandardMaterial({ color: 0x9d947f, roughness: 0.82, metalness: 0.04 });
       const roofMat = new THREE.MeshStandardMaterial({ color: 0x6a727e, roughness: 0.76, metalness: 0.12 });
       const pipeMat = new THREE.MeshStandardMaterial({ color: 0x6c7782, roughness: 0.72, metalness: 0.16 });
@@ -2011,6 +2209,24 @@ export class GameRenderer {
       skylightB.rotation.x = -0.28;
       skylightB.userData.buildingId = building.id;
 
+      const annex = new THREE.Mesh(
+        new THREE.BoxGeometry(0.28, 0.24, 0.24),
+        wallMat.clone()
+      );
+      annex.position.set(0.32, 0.13, 0.26);
+      annex.castShadow = true;
+      annex.receiveShadow = true;
+      annex.userData.buildingId = building.id;
+      annex.visible = level >= 2;
+
+      const gantry = new THREE.Mesh(
+        new THREE.BoxGeometry(0.34, 0.04, 0.18),
+        pipeMat.clone()
+      );
+      gantry.position.set(0.2, 0.84, 0.14);
+      gantry.userData.buildingId = building.id;
+      gantry.visible = level >= 3;
+
       group.add(body);
       group.add(roof);
       group.add(vent);
@@ -2021,6 +2237,8 @@ export class GameRenderer {
       group.add(sideTank);
       group.add(skylightA);
       group.add(skylightB);
+      group.add(annex);
+      group.add(gantry);
       group.add(workLamp);
       this.selectableMeshes.set(building.id, [
         body,
@@ -2033,6 +2251,8 @@ export class GameRenderer {
         sideTank,
         skylightA,
         skylightB,
+        annex,
+        gantry,
         ...this.collectMeshes(workLamp)
       ]);
       return group;
@@ -2055,6 +2275,7 @@ export class GameRenderer {
       lot.userData.buildingId = building.id;
 
       if (isHospital) {
+        const level = building.level;
         const wallMat = new THREE.MeshStandardMaterial({ color: 0xecf1f5, roughness: 0.72, metalness: 0.03 });
         const wingMat = new THREE.MeshStandardMaterial({ color: 0xd9e3ec, roughness: 0.74, metalness: 0.03 });
         const roofMat = new THREE.MeshStandardMaterial({ color: 0x9ab0c4, roughness: 0.8, metalness: 0.04 });
@@ -2200,6 +2421,18 @@ export class GameRenderer {
         emergencySign.position.set(-0.72, 0.55, 0.11);
         emergencySign.userData.buildingId = building.id;
 
+        const rehabWing = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.28, 0.54), wingMat.clone());
+        rehabWing.position.set(0.74, 0.15, -0.46);
+        rehabWing.castShadow = true;
+        rehabWing.receiveShadow = true;
+        rehabWing.userData.buildingId = building.id;
+        rehabWing.visible = level >= 2;
+
+        const skyBridge = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.1, 0.18), glassMat.clone());
+        skyBridge.position.set(0.42, 0.44, 0.12);
+        skyBridge.userData.buildingId = building.id;
+        skyBridge.visible = level >= 3;
+
         this.selectableMeshes.set(building.id, [
           lot,
           driveway,
@@ -2224,10 +2457,13 @@ export class GameRenderer {
         ]);
         group.add(clinicTower);
         group.add(emergencySign);
+        group.add(rehabWing);
+        group.add(skyBridge);
         return group;
       }
 
       if (isPolice) {
+        const level = building.level;
         const wallMat = new THREE.MeshStandardMaterial({ color: 0xdfe7f0, roughness: 0.74, metalness: 0.03 });
         const roofMat = new THREE.MeshStandardMaterial({ color: 0x4b5f79, roughness: 0.8, metalness: 0.05 });
         const trimMat = new THREE.MeshStandardMaterial({ color: 0xa8b9cb, roughness: 0.82, metalness: 0.02 });
@@ -2319,9 +2555,27 @@ export class GameRenderer {
         flag.position.set(0.39, 0.46, 0.12);
         flag.userData.buildingId = building.id;
 
+        const commandWing = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.18, 0.26), trimMat.clone());
+        commandWing.position.set(-0.28, 0.12, -0.16);
+        commandWing.castShadow = true;
+        commandWing.receiveShadow = true;
+        commandWing.userData.buildingId = building.id;
+        commandWing.visible = level >= 2;
+
+        const radarDish = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.08, 0.08, 0.02, 16),
+          new THREE.MeshStandardMaterial({ color: 0xd6dee6, roughness: 0.62, metalness: 0.16 })
+        );
+        radarDish.position.set(-0.24, 0.64, -0.1);
+        radarDish.rotation.z = -0.35;
+        radarDish.userData.buildingId = building.id;
+        radarDish.visible = level >= 3;
+
         group.add(cruiser);
         group.add(flagPole);
         group.add(flag);
+        group.add(commandWing);
+        group.add(radarDish);
         this.selectableMeshes.set(building.id, [
           lot,
           body,
@@ -2334,12 +2588,15 @@ export class GameRenderer {
           ...this.collectMeshes(cruiser),
           flagPole,
           flag,
+          commandWing,
+          radarDish,
           ...this.collectMeshes(precinctBench),
           ...this.collectMeshes(precinctLamp)
         ]);
         return group;
       }
 
+      const level = building.level;
       const wallMat = new THREE.MeshStandardMaterial({ color: 0xe4c5bb, roughness: 0.75, metalness: 0.03 });
       const roofMat = new THREE.MeshStandardMaterial({ color: 0xaf473f, roughness: 0.78, metalness: 0.04 });
       const doorMat = new THREE.MeshStandardMaterial({ color: 0x7d2020, roughness: 0.74, metalness: 0.05 });
@@ -2409,6 +2666,21 @@ export class GameRenderer {
       ladderRack.userData.buildingId = building.id;
       fireTruck.add(ladderRack);
 
+      const annexBay = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.2, 0.22), wallMat.clone());
+      annexBay.position.set(-0.3, 0.12, -0.1);
+      annexBay.castShadow = true;
+      annexBay.receiveShadow = true;
+      annexBay.userData.buildingId = building.id;
+      annexBay.visible = level >= 2;
+
+      const hoseRack = new THREE.Mesh(
+        new THREE.BoxGeometry(0.18, 0.14, 0.06),
+        new THREE.MeshStandardMaterial({ color: 0xf9d2b2, roughness: 0.66, metalness: 0.06 })
+      );
+      hoseRack.position.set(0.34, 0.18, -0.22);
+      hoseRack.userData.buildingId = building.id;
+      hoseRack.visible = level >= 3;
+
       group.add(lot);
       group.add(body);
       group.add(roof);
@@ -2419,6 +2691,8 @@ export class GameRenderer {
       group.add(fireWalk);
       group.add(hydrant);
       group.add(fireTruck);
+      group.add(annexBay);
+      group.add(hoseRack);
       group.add(fireLamp);
       this.selectableMeshes.set(building.id, [
         lot,
@@ -2431,12 +2705,15 @@ export class GameRenderer {
         fireWalk,
         hydrant,
         ...this.collectMeshes(fireTruck),
+        annexBay,
+        hoseRack,
         ...this.collectMeshes(fireLamp)
       ]);
       return group;
     }
 
     const group = new THREE.Group();
+    const level = building.level;
     const bodyMat = new THREE.MeshStandardMaterial({ color: 0x95a7b8, roughness: 0.72, metalness: 0.08 });
     const pipeMat = new THREE.MeshStandardMaterial({ color: 0x7f8a93, roughness: 0.74, metalness: 0.18 });
     const accentMat = new THREE.MeshStandardMaterial({ color: 0xd8e0e6, roughness: 0.62, metalness: 0.18 });
@@ -2567,8 +2844,25 @@ export class GameRenderer {
     pipeRack.position.set(0.24, 0.34, 0.28);
     pipeRack.userData.buildingId = building.id;
 
+    const coolingTowerC = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.2, 0.82, 16), pipeMat.clone());
+    coolingTowerC.position.set(0.42, 0.44, 0.5);
+    coolingTowerC.castShadow = true;
+    coolingTowerC.receiveShadow = true;
+    coolingTowerC.userData.buildingId = building.id;
+    coolingTowerC.visible = level >= 2;
+
+    const cableBridge = new THREE.Mesh(
+      new THREE.BoxGeometry(0.6, 0.06, 0.12),
+      pipeMat.clone()
+    );
+    cableBridge.position.set(-0.12, 0.46, 0.36);
+    cableBridge.userData.buildingId = building.id;
+    cableBridge.visible = level >= 3;
+
     group.add(turbineHall);
     group.add(pipeRack);
+    group.add(coolingTowerC);
+    group.add(cableBridge);
     this.selectableMeshes.set(building.id, [
       pad,
       hall,
@@ -2586,7 +2880,9 @@ export class GameRenderer {
       ...this.collectMeshes(yardLamp),
       ...this.collectMeshes(shrubBed),
       turbineHall,
-      pipeRack
+      pipeRack,
+      coolingTowerC,
+      cableBridge
     ]);
     return group;
   }

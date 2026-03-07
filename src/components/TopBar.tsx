@@ -8,6 +8,7 @@ interface TopBarProps {
   powerUsed: number;
   powerProduced: number;
   day: number;
+  timeOfDay: number;
   happiness: number;
   gameSpeed: GameSpeed;
   undoCount: number;
@@ -53,6 +54,14 @@ function formatMoney(value: number): string {
   })}`;
 }
 
+function formatClock(timeOfDay: number): string {
+  const hours24 = Math.floor(timeOfDay) % 24;
+  const minutes = Math.floor((timeOfDay % 1) * 60);
+  const period = hours24 >= 12 ? 'PM' : 'AM';
+  const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
+  return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`;
+}
+
 export function TopBar({
   money,
   population,
@@ -60,6 +69,7 @@ export function TopBar({
   powerUsed,
   powerProduced,
   day,
+  timeOfDay,
   happiness,
   gameSpeed,
   undoCount,
@@ -79,7 +89,7 @@ export function TopBar({
         <div className="panel-glass rounded-2xl px-5 py-4">
           <div className="text-2xl font-semibold leading-tight text-white">Cozy Town Builder</div>
           <div className="text-xs text-slate-300">Cozy block builder: storefronts, services, and neighborhood growth</div>
-          <div className="mt-1 text-xs text-slate-100">Day {day} | Happiness {happiness}%</div>
+          <div className="mt-1 text-xs text-slate-100">Day {day} | {formatClock(timeOfDay)} | Happiness {happiness}%</div>
           <div className="mt-1 max-w-[42rem] truncate text-xs text-cyan-100">AI: {aiLastAction}</div>
         </div>
         <div className="grid shrink-0 grid-cols-[auto_auto] items-start gap-2">

@@ -240,7 +240,15 @@ export const ECONOMY_TUNING = {
 
 type StateSnapshot = Pick<
   GameState,
-  'buildings' | 'selectedBuildingId' | 'resources' | 'happiness' | 'demand' | 'day' | 'simSeconds' | 'nextBuildingId'
+  | 'buildings'
+  | 'selectedBuildingId'
+  | 'resources'
+  | 'happiness'
+  | 'demand'
+  | 'day'
+  | 'timeOfDay'
+  | 'simSeconds'
+  | 'nextBuildingId'
 >;
 
 const MAX_HISTORY = 10;
@@ -255,6 +263,7 @@ function cloneSnapshot(state: GameState): StateSnapshot {
     happiness: state.happiness,
     demand: { ...state.demand },
     day: state.day,
+    timeOfDay: state.timeOfDay,
     simSeconds: state.simSeconds,
     nextBuildingId: state.nextBuildingId
   };
@@ -279,9 +288,169 @@ function applySnapshot(state: GameState, snapshot: StateSnapshot): GameState {
     happiness: snapshot.happiness,
     demand: { ...snapshot.demand },
     day: snapshot.day,
+    timeOfDay: snapshot.timeOfDay,
     simSeconds: snapshot.simSeconds,
     nextBuildingId: snapshot.nextBuildingId,
     ...stackCounts()
+  };
+}
+
+function isCommercialType(type: BuildType): boolean {
+  return (
+    type === 'shop' ||
+    type === 'restaurant' ||
+    type === 'groceryStore' ||
+    type === 'cornerStore' ||
+    type === 'bank'
+  );
+}
+
+function comboFamilyForType(type: BuildType): 'residential' | 'commercial' | 'civic' | 'industrial' | 'utility' | 'park' | 'street' {
+  if (type === 'road') return 'street';
+  if (type === 'house') return 'residential';
+  if (isCommercialType(type)) return 'commercial';
+  if (type === 'policeStation' || type === 'fireStation' || type === 'hospital') return 'civic';
+  if (type === 'workshop') return 'industrial';
+  if (type === 'powerPlant') return 'utility';
+  return 'park';
+}
+
+function buildingHasPowerCoverage(state: GameState, building: Building): boolean {
+  return occupiedCellsForBuilding(building).some((cell) => hasPowerCoverage(state, cell.x, cell.z));
+}
+
+function buildingHasRoadAccess(state: GameState, building: Building): boolean {
+  return hasRoadAccess(state, building.type, building.x, building.z);
+}
+
+function adjacentBuildings(state: GameState, building: Building): Building[] {
+  const cells = occupiedCellsForBuilding(building);
+  return state.buildings.filter(
+    (other) => other.id !== building.id && minDistanceToBuildingCells(cells, other) === 1
+  );
+}
+
+function nearbyTypeCount(state: GameState, building: Building, types: BuildType[], range: number): number {
+  const cells = occupiedCellsForBuilding(building);
+  return state.buildings.filter(
+    (other) => other.id !== building.id && types.includes(other.type) && minDistanceToBuildingCells(cells, other) <= range
+  ).length;
+}
+
+function commercialComboBonus(state: GameState): number {
+  const seen = new Set<string>();
+  let bonus = 0;
+  for (const building of state.buildings) {
+    if (!isCommercialType(building.type)) continue;
+    for (const other of adjacentBuildings(state, building)) {
+      if (!isCommercialType(other.type)) continue;
+      const key = building.id < other.id ? `${building.id}:${other.id}` : `${other.id}:${building.id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      bonus += 4;
+    }
+  }
+  return bonus;
+}
+
+function residentialComboBonus(state: GameState): number {
+  const seen = new Set<string>();
+  let bonus = 0;
+  for (const building of state.buildings) {
+    if (building.type !== 'house') continue;
+    for (const other of adjacentBuildings(state, building)) {
+      if (other.type !== 'house') continue;
+      const key = building.id < other.id ? `${building.id}:${other.id}` : `${other.id}:${building.id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      bonus += 2;
+    }
+  }
+  return bonus;
+}
+
+function buildingLevelFactor(building: Building): number {
+  return 1 + (building.level - 1) * 0.28;
+}
+
+function upgradeThresholdFor(building: Building): number {
+  const base =
+    building.type === 'house'
+      ? 20
+      : isCommercialType(building.type)
+        ? 24
+        : building.type === 'park'
+          ? 18
+          : building.type === 'workshop'
+            ? 28
+            : building.type === 'powerPlant'
+              ? 34
+              : 30;
+  return base + (building.level - 1) * 18;
+}
+
+function evolveBuildings(state: GameState, dtSeconds: number): GameState {
+  if (dtSeconds <= 0) return state;
+  const nextBuildings = state.buildings.map((building) => ({ ...building }));
+  let availableMoney = state.resources.money;
+  let upgradedAny = false;
+
+  for (const building of nextBuildings) {
+    if (building.type === 'road') continue;
+    const roadAccess = buildingHasRoadAccess(state, building) || building.type === 'powerPlant';
+    const powerAccess = buildingHasPowerCoverage(state, building) || building.type === 'powerPlant';
+    const parkSupport = nearbyTypeCount(state, building, ['park'], 3);
+    const commerceSupport = nearbyTypeCount(state, building, ['shop', 'restaurant', 'groceryStore', 'cornerStore', 'bank'], 3);
+    const civicSupport = nearbyTypeCount(state, building, ['hospital', 'policeStation', 'fireStation'], 4);
+    const directAdjacency = adjacentBuildings(state, building).filter(
+      (other) => comboFamilyForType(other.type) === comboFamilyForType(building.type)
+    ).length;
+
+    const serviceFactor = (roadAccess ? 1 : 0.32) * (powerAccess ? 1 : 0.45);
+    const appealFactor =
+      0.75 +
+      parkSupport * 0.08 +
+      commerceSupport * 0.04 +
+      civicSupport * 0.03 +
+      directAdjacency * 0.11 +
+      Math.max(0, state.happiness - 50) * 0.01;
+    const typeFactor =
+      building.type === 'house'
+        ? 1.16
+        : isCommercialType(building.type)
+          ? 1.05
+          : building.type === 'park'
+            ? 1.22
+            : building.type === 'workshop'
+              ? 0.86
+              : building.type === 'powerPlant'
+                ? 0.78
+                : 0.92;
+
+    building.upgradeProgress += dtSeconds * serviceFactor * appealFactor * typeFactor;
+    if (building.level >= 3) continue;
+
+    const threshold = upgradeThresholdFor(building);
+    const upgradeCost = Math.round(BUILDING_ECONOMY[building.type].cost * (0.14 + building.level * 0.08));
+    if (building.upgradeProgress < threshold) continue;
+    if (!roadAccess || !powerAccess) continue;
+    if (!INFINITE_MONEY && availableMoney < upgradeCost) continue;
+
+    availableMoney -= upgradeCost;
+    building.upgradeProgress = 0;
+    building.level = (building.level + 1) as 1 | 2 | 3;
+    building.lastUpgradeAt = performance.now();
+    upgradedAny = true;
+  }
+
+  if (!upgradedAny && availableMoney === state.resources.money) return state;
+  return {
+    ...state,
+    buildings: nextBuildings,
+    resources: {
+      ...state.resources,
+      money: availableMoney
+    }
   };
 }
 
@@ -358,38 +527,31 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
   const fireStations = countType(state, 'fireStation');
   const hospitals = countType(state, 'hospital');
 
-  const housingCapacity = houses.length * BUILDING_ECONOMY.house.housing;
-  const jobCapacity =
-    workshops * BUILDING_ECONOMY.workshop.jobs +
-    restaurants * BUILDING_ECONOMY.restaurant.jobs +
-    shops * BUILDING_ECONOMY.shop.jobs +
-    plants * BUILDING_ECONOMY.powerPlant.jobs +
-    groceries * BUILDING_ECONOMY.groceryStore.jobs +
-    cornerStores * BUILDING_ECONOMY.cornerStore.jobs +
-    banks * BUILDING_ECONOMY.bank.jobs +
-    policeStations * BUILDING_ECONOMY.policeStation.jobs +
-    fireStations * BUILDING_ECONOMY.fireStation.jobs +
-    hospitals * BUILDING_ECONOMY.hospital.jobs;
-  const commercialCapacity =
-    restaurants * BUILDING_ECONOMY.restaurant.commerce +
-    shops * BUILDING_ECONOMY.shop.commerce +
-    groceries * BUILDING_ECONOMY.groceryStore.commerce +
-    cornerStores * BUILDING_ECONOMY.cornerStore.commerce +
-    banks * BUILDING_ECONOMY.bank.commerce;
-  const recreationCapacity = parks * BUILDING_ECONOMY.park.recreation;
-  const essentialsCapacity =
-    groceries * BUILDING_ECONOMY.groceryStore.essentials +
-    cornerStores * BUILDING_ECONOMY.cornerStore.essentials +
-    restaurants * BUILDING_ECONOMY.restaurant.essentials +
-    shops * BUILDING_ECONOMY.shop.essentials;
-  const healthCapacity = hospitals * BUILDING_ECONOMY.hospital.health + parks * BUILDING_ECONOMY.park.health;
-  const safetyCapacity =
-    policeStations * BUILDING_ECONOMY.policeStation.safety +
-    fireStations * BUILDING_ECONOMY.fireStation.safety +
-    banks * BUILDING_ECONOMY.bank.safety;
+  let housingCapacity = 0;
+  let jobCapacity = 0;
+  let commercialCapacity = 0;
+  let recreationCapacity = 0;
+  let essentialsCapacity = 0;
+  let healthCapacity = 0;
+  let safetyCapacity = 0;
+
+  for (const building of state.buildings) {
+    const econ = BUILDING_ECONOMY[building.type];
+    const factor = buildingLevelFactor(building);
+    housingCapacity += econ.housing * factor;
+    jobCapacity += econ.jobs * factor;
+    commercialCapacity += econ.commerce * factor;
+    recreationCapacity += econ.recreation * factor;
+    essentialsCapacity += econ.essentials * factor;
+    healthCapacity += econ.health * factor;
+    safetyCapacity += econ.safety * factor;
+  }
+
+  housingCapacity += residentialComboBonus(state);
+  commercialCapacity += commercialComboBonus(state);
 
   const servicedHomes = houses.filter(
-    (h) => hasRoadAccess(state, h.type, h.x, h.z) && hasPowerCoverage(state, h.x, h.z)
+    (h) => buildingHasRoadAccess(state, h) && buildingHasPowerCoverage(state, h)
   ).length;
 
   const serviceRatio = houses.length > 0 ? servicedHomes / houses.length : 1;
@@ -398,8 +560,9 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
   let powerProduced = 0;
   for (const building of state.buildings) {
     const econ = BUILDING_ECONOMY[building.type];
-    powerUsed += econ.powerUse;
-    powerProduced += econ.powerProduce;
+    const factor = buildingLevelFactor(building);
+    powerUsed += econ.powerUse * (building.type === 'house' ? factor : 1 + (building.level - 1) * 0.14);
+    powerProduced += econ.powerProduce * (building.type === 'powerPlant' ? 1 + (building.level - 1) * 0.18 : factor);
   }
 
   const targetPopulation = Math.max(
@@ -431,7 +594,10 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
       essentialsPressure * 14 -
       healthPressure * 12 -
       safetyPressure * 10 +
-      Math.min(parks, 8) * 1.4
+      Math.min(parks, 8) * 1.4 +
+      state.buildings.reduce((sum, building) => sum + (building.level - 1) * 0.75, 0) +
+      commercialComboBonus(state) * 0.15 +
+      residentialComboBonus(state) * 0.2
   );
 
   const demandHousing = clampPercent(
@@ -483,7 +649,7 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
     resources: {
       ...state.resources,
       population: blendedPopulation,
-      jobs: jobCapacity,
+      jobs: Math.round(jobCapacity),
       powerUsed: Math.round(powerUsed),
       powerProduced: Math.round(powerProduced)
     },
@@ -652,7 +818,7 @@ export function selectBuildingById(buildingId: number | null): void {
 
 export function selectBuildingAt(x: number, z: number): number | null {
   const state = gameStore.getState();
-  const hit = state.buildings.find((b) => b.x === x && b.z === z);
+  const hit = buildingAt(state, x, z);
   selectBuildingById(hit?.id ?? null);
   return hit?.id ?? null;
 }
@@ -670,6 +836,9 @@ export function placeBuildingAt(type: BuildType, x: number, z: number): Building
       x,
       z,
       createdAt: performance.now(),
+      level: 1,
+      upgradeProgress: 0,
+      lastUpgradeAt: performance.now(),
       customImageUrl: null,
       customStyleName: null,
       customArtStyle: null
@@ -849,10 +1018,11 @@ export function executeAiCommands(commands: AiGameCommand[]): { placed: number; 
 export function tickSimulation(dtSeconds: number): void {
   if (dtSeconds <= 0) return;
   gameStore.update((state) => {
-    const derived = deriveSimulation(state);
+    const evolvedState = evolveBuildings(state, dtSeconds);
+    const derived = deriveSimulation(evolvedState);
 
     let maintenancePerSecond = 0;
-    for (const b of state.buildings) {
+    for (const b of evolvedState.buildings) {
       maintenancePerSecond += BUILDING_ECONOMY[b.type].maintenance;
     }
 
@@ -860,12 +1030,12 @@ export function tickSimulation(dtSeconds: number): void {
     const employmentTax =
       Math.min(derived.resources.population, derived.resources.jobs) * ECONOMY_TUNING.employmentTaxPerWorker;
     const commercialTax =
-      countType(state, 'shop') * ECONOMY_TUNING.shopRevenue +
-      countType(state, 'restaurant') * ECONOMY_TUNING.restaurantRevenue +
-      countType(state, 'workshop') * ECONOMY_TUNING.workshopRevenue +
-      countType(state, 'groceryStore') * ECONOMY_TUNING.groceryRevenue +
-      countType(state, 'cornerStore') * ECONOMY_TUNING.cornerStoreRevenue +
-      countType(state, 'bank') * ECONOMY_TUNING.bankRevenue;
+      countType(evolvedState, 'shop') * ECONOMY_TUNING.shopRevenue +
+      countType(evolvedState, 'restaurant') * ECONOMY_TUNING.restaurantRevenue +
+      countType(evolvedState, 'workshop') * ECONOMY_TUNING.workshopRevenue +
+      countType(evolvedState, 'groceryStore') * ECONOMY_TUNING.groceryRevenue +
+      countType(evolvedState, 'cornerStore') * ECONOMY_TUNING.cornerStoreRevenue +
+      countType(evolvedState, 'bank') * ECONOMY_TUNING.bankRevenue;
     const powerPenalty =
       Math.max(0, derived.resources.powerUsed - derived.resources.powerProduced) * ECONOMY_TUNING.powerDeficitPenalty;
     const happinessBonus = (derived.happiness - 50) * ECONOMY_TUNING.happinessIncomeFactor;
@@ -873,18 +1043,20 @@ export function tickSimulation(dtSeconds: number): void {
     const deltaMoney =
       (residentTax + employmentTax + commercialTax - maintenancePerSecond - powerPenalty + happinessBonus) * dtSeconds;
 
-    const simSeconds = state.simSeconds + dtSeconds;
+    const simSeconds = evolvedState.simSeconds + dtSeconds;
     const day = Math.floor(simSeconds / DAY_LENGTH_SECONDS) + 1;
+    const timeOfDay = ((simSeconds / DAY_LENGTH_SECONDS) * 24 + 8) % 24;
 
     return {
-      ...state,
+      ...evolvedState,
       simSeconds,
       day,
+      timeOfDay,
       resources: {
         ...derived.resources,
         money: Math.max(
           ECONOMY_TUNING.minimumMoney,
-          Math.round((state.resources.money + deltaMoney) * 100) / 100
+          Math.round((evolvedState.resources.money + deltaMoney) * 100) / 100
         )
       },
       happiness: derived.happiness,

@@ -24,6 +24,9 @@ export interface Building {
   x: number;
   z: number;
   createdAt: number;
+  level: 1 | 2 | 3;
+  upgradeProgress: number;
+  lastUpgradeAt: number;
   customImageUrl?: string | null;
   customStyleName?: string | null;
   customArtStyle?: string | null;
@@ -82,6 +85,7 @@ export interface GameState {
   aiLastAction: string;
   resources: Resources;
   day: number;
+  timeOfDay: number;
   happiness: number;
   demand: Demand;
   gameSpeed: GameSpeed;
@@ -192,6 +196,7 @@ export const initialGameState: GameState = {
     powerProduced: 0
   },
   day: 1,
+  timeOfDay: 8,
   happiness: STARTING_HAPPINESS,
   demand: {
     housing: 64,
