@@ -799,6 +799,9 @@ export class GameRenderer {
     const commercialSides = this.connectedSides(building, (candidate) =>
       this.isCommercialBuilding(candidate.type) && this.isCommercialBuilding(building.type)
     );
+    const civicSides = this.connectedSides(building, (candidate) =>
+      this.isCivicBuilding(candidate.type) && this.isCivicBuilding(building.type)
+    );
     const commercialRowLength = this.isCommercialBuilding(building.type)
       ? 1 +
         this.connectedCountInDirection(
@@ -814,10 +817,17 @@ export class GameRenderer {
           (candidate) => this.isCommercialBuilding(candidate.type) && candidate.type === building.type
         )
       : 1;
+    const houseRowLength =
+      building.type === 'house'
+        ? 1 +
+          this.connectedCountInDirection(building, -1, 0, (candidate) => candidate.type === 'house') +
+          this.connectedCountInDirection(building, 1, 0, (candidate) => candidate.type === 'house')
+        : 1;
     const frontage = this.roadFrontage(building);
     return [
       building.type,
       building.level,
+      houseRowLength,
       commercialRowLength,
       Number(sameTypeSides.n),
       Number(sameTypeSides.e),
@@ -827,6 +837,10 @@ export class GameRenderer {
       Number(commercialSides.e),
       Number(commercialSides.s),
       Number(commercialSides.w),
+      Number(civicSides.n),
+      Number(civicSides.e),
+      Number(civicSides.s),
+      Number(civicSides.w),
       frontage.n,
       frontage.e,
       frontage.s,
@@ -867,6 +881,10 @@ export class GameRenderer {
       type === 'cornerStore' ||
       type === 'bank'
     );
+  }
+
+  private isCivicBuilding(type: BuildType): boolean {
+    return type === 'hospital' || type === 'policeStation' || type === 'fireStation';
   }
 
   private placementForFacing(
@@ -1139,6 +1157,10 @@ export class GameRenderer {
       const level = building.level;
       const houseCluster = this.connectedSides(building, (candidate) => candidate.type === 'house');
       const townhouseMode = houseCluster.n || houseCluster.e || houseCluster.s || houseCluster.w;
+      const houseRowLeft = this.connectedCountInDirection(building, -1, 0, (candidate) => candidate.type === 'house');
+      const houseRowRight = this.connectedCountInDirection(building, 1, 0, (candidate) => candidate.type === 'house');
+      const houseRowLength = 1 + houseRowLeft + houseRowRight;
+      const rowhouseMode = houseRowLength >= 3;
       const wallPalette = [0xcaa17b, 0xe1c9a9, 0xb78f63, 0xd7b58c, 0xcfa7a1];
       const roofPalette = [0x6d5140, 0x9b5b3e, 0x6f6f72, 0x845742, 0x4d5b71];
       const trimPalette = [0xaf7d52, 0xd9bc93, 0x9b7a57, 0xc69f74, 0xb48c84];
@@ -1419,7 +1441,7 @@ export class GameRenderer {
       porchBike.visible = variant === 2 || variant === 4;
 
       const upperAddition = new THREE.Mesh(
-        new THREE.BoxGeometry(townhouseMode ? 0.54 : 0.36, 0.18, 0.26),
+        new THREE.BoxGeometry(rowhouseMode ? 0.68 : townhouseMode ? 0.54 : 0.36, 0.18, 0.26),
         wallMat.clone()
       );
       upperAddition.position.set(0, 0.46, -0.08);
@@ -1429,7 +1451,7 @@ export class GameRenderer {
       upperAddition.visible = level >= 2;
 
       const cornice = new THREE.Mesh(
-        new THREE.BoxGeometry(townhouseMode ? 0.82 : 0.74, 0.04, townhouseMode ? 0.72 : 0.66),
+        new THREE.BoxGeometry(rowhouseMode ? 0.9 : townhouseMode ? 0.82 : 0.74, 0.04, rowhouseMode ? 0.78 : townhouseMode ? 0.72 : 0.66),
         trimMat.clone()
       );
       cornice.position.set(0, 0.44, 0);
@@ -1455,6 +1477,32 @@ export class GameRenderer {
       sunroom.receiveShadow = true;
       sunroom.userData.buildingId = building.id;
       sunroom.visible = level >= 3 && !townhouseMode;
+
+      const rowParapet = new THREE.Mesh(
+        new THREE.BoxGeometry(0.9, 0.06, 0.12),
+        trimMat.clone()
+      );
+      rowParapet.position.set(0, 0.64, 0.32);
+      rowParapet.castShadow = true;
+      rowParapet.receiveShadow = true;
+      rowParapet.userData.buildingId = building.id;
+      rowParapet.visible = rowhouseMode;
+
+      const sharedFrontWalk = new THREE.Mesh(
+        new THREE.BoxGeometry(0.9, 0.02, 0.12),
+        new THREE.MeshStandardMaterial({ color: 0xdfd7ca, roughness: 0.94, metalness: 0.01 })
+      );
+      sharedFrontWalk.position.set(0, 0.055, 0.41);
+      sharedFrontWalk.userData.buildingId = building.id;
+      sharedFrontWalk.visible = rowhouseMode;
+
+      const rowWindowBand = new THREE.Mesh(
+        new THREE.BoxGeometry(0.56, 0.12, 0.02),
+        windowMat.clone()
+      );
+      rowWindowBand.position.set(0, 0.32, 0.35);
+      rowWindowBand.userData.buildingId = building.id;
+      rowWindowBand.visible = rowhouseMode;
 
       const trellis = new THREE.Mesh(
         new THREE.BoxGeometry(0.18, 0.24, 0.03),
@@ -1521,6 +1569,9 @@ export class GameRenderer {
       group.add(upperAddition);
       group.add(cornice);
       group.add(sunroom);
+      group.add(rowParapet);
+      group.add(sharedFrontWalk);
+      group.add(rowWindowBand);
       group.add(trellis);
       group.add(partyWallEast);
       group.add(partyWallWest);
@@ -1563,6 +1614,9 @@ export class GameRenderer {
         upperAddition,
         cornice,
         sunroom,
+        rowParapet,
+        sharedFrontWalk,
+        rowWindowBand,
         trellis,
         partyWallEast,
         partyWallWest,
@@ -1627,6 +1681,7 @@ export class GameRenderer {
       const sameTypeRowRight = this.connectedCountInDirection(building, 1, 0, (candidate) => candidate.type === building.type);
       const sameTypeRowLength = 1 + sameTypeRowLeft + sameTypeRowRight;
       const stripMallMode = isShop && sameTypeRowLength >= 3;
+      const foodCourtMode = isRestaurant && sameTypeRowLength >= 2;
       const leftEdgeUnit = sameTypeRowLeft === 0;
       const rightEdgeUnit = sameTypeRowRight === 0;
       const paintMat = new THREE.MeshStandardMaterial({
@@ -1739,13 +1794,13 @@ export class GameRenderer {
 
       const body = new THREE.Mesh(
         new THREE.BoxGeometry(
-          stripMallMode ? 0.96 : isBank ? 0.88 : isCornerStore ? 0.72 : stripMode ? 0.94 : 0.9,
-          stripMallMode ? 0.46 : isShop ? 0.62 : isRestaurant ? 0.46 : isCornerStore ? 0.42 : isBank ? 0.5 : 0.48,
-          stripMallMode ? 0.74 : isCornerStore ? 0.68 : 0.78
+          stripMallMode || foodCourtMode ? 0.96 : isBank ? 0.88 : isCornerStore ? 0.72 : stripMode ? 0.94 : 0.9,
+          stripMallMode ? 0.46 : foodCourtMode ? 0.4 : isShop ? 0.62 : isRestaurant ? 0.46 : isCornerStore ? 0.42 : isBank ? 0.5 : 0.48,
+          stripMallMode ? 0.74 : foodCourtMode ? 0.82 : isCornerStore ? 0.68 : 0.78
         ),
         wallMat
       );
-      body.position.y = stripMallMode ? 0.23 : isShop ? 0.31 : isCornerStore ? 0.21 : 0.24;
+      body.position.y = stripMallMode ? 0.23 : foodCourtMode ? 0.2 : isShop ? 0.31 : isCornerStore ? 0.21 : 0.24;
       body.castShadow = true;
       body.receiveShadow = true;
       body.userData.buildingId = building.id;
@@ -1753,6 +1808,8 @@ export class GameRenderer {
       const roof =
         stripMallMode
           ? new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.08, 0.78), roofMat)
+          : foodCourtMode
+            ? new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.08, 0.86), roofMat)
           : isRestaurant
           ? new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.08, 0.86), roofMat)
           : isBank
@@ -1762,7 +1819,7 @@ export class GameRenderer {
               : isShop
                 ? new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.08, 0.86), roofMat)
                 : new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.08, 0.84), roofMat);
-      roof.position.y = stripMallMode ? 0.51 : isShop ? 0.67 : isCornerStore ? 0.47 : 0.56;
+      roof.position.y = stripMallMode ? 0.51 : foodCourtMode ? 0.47 : isShop ? 0.67 : isCornerStore ? 0.47 : 0.56;
       roof.castShadow = true;
       roof.receiveShadow = true;
       roof.userData.buildingId = building.id;
@@ -1812,6 +1869,10 @@ export class GameRenderer {
       if (stripMallMode) {
         sign.scale.set(1.08, 1.1, 1);
         sign.position.y = 0.39;
+      }
+      if (foodCourtMode) {
+        sign.scale.set(1.12, 1.08, 1);
+        sign.position.y = 0.34;
       }
 
       const windowL = new THREE.Mesh(
@@ -1863,18 +1924,22 @@ export class GameRenderer {
         storefrontGlass.scale.set(1.12, 0.95, 1);
         storefrontGlass.position.set(0, 0.16, 0.39);
       }
+      if (foodCourtMode) {
+        storefrontGlass.scale.set(1.16, 0.9, 1);
+        storefrontGlass.position.set(0, 0.14, 0.39);
+      }
 
       const rearStorefrontGlass = storefrontGlass.clone();
-      rearStorefrontGlass.position.set(0, stripMallMode ? 0.16 : isCornerStore ? 0.18 : 0.19, -0.41);
+      rearStorefrontGlass.position.set(0, stripMallMode ? 0.16 : foodCourtMode ? 0.14 : isCornerStore ? 0.18 : 0.19, -0.41);
       rearStorefrontGlass.userData.buildingId = building.id;
 
       const rearAwning = awning.clone();
-      rearAwning.position.set(0, stripMallMode ? 0.24 : isShop ? 0.3 : isCornerStore ? 0.28 : 0.38, -0.44);
+      rearAwning.position.set(0, stripMallMode ? 0.24 : foodCourtMode ? 0.22 : isShop ? 0.3 : isCornerStore ? 0.28 : 0.38, -0.44);
       rearAwning.userData.buildingId = building.id;
       rearAwning.visible = awning.visible;
 
       const rearSign = sign.clone();
-      rearSign.position.set(0, stripMallMode ? 0.39 : isShop ? 0.6 : isCornerStore ? 0.42 : 0.54, -0.42);
+      rearSign.position.set(0, stripMallMode ? 0.39 : foodCourtMode ? 0.34 : isShop ? 0.6 : isCornerStore ? 0.42 : 0.54, -0.42);
       rearSign.userData.buildingId = building.id;
 
       const sideGlassEast = new THREE.Mesh(
@@ -2285,6 +2350,37 @@ export class GameRenderer {
       stripEndCapRight.userData.buildingId = building.id;
       stripEndCapRight.visible = stripMallMode && rightEdgeUnit;
 
+      const patioDeck = new THREE.Mesh(
+        new THREE.BoxGeometry(0.88, 0.02, 0.24),
+        new THREE.MeshStandardMaterial({ color: 0xd9cfbc, roughness: 0.9, metalness: 0.01 })
+      );
+      patioDeck.position.set(0, 0.055, 0.28);
+      patioDeck.userData.buildingId = building.id;
+      patioDeck.visible = foodCourtMode;
+
+      const patioCanopy = new THREE.Mesh(
+        new THREE.BoxGeometry(0.94, 0.04, 0.2),
+        accentMat.clone()
+      );
+      patioCanopy.position.set(0, 0.22, 0.32);
+      patioCanopy.castShadow = true;
+      patioCanopy.receiveShadow = true;
+      patioCanopy.userData.buildingId = building.id;
+      patioCanopy.visible = foodCourtMode;
+
+      const menuMonolithLeft = new THREE.Mesh(
+        new THREE.BoxGeometry(0.06, 0.22, 0.06),
+        new THREE.MeshStandardMaterial({ color: 0xf2d5a4, roughness: 0.74, metalness: 0.02 })
+      );
+      menuMonolithLeft.position.set(-0.34, 0.16, 0.28);
+      menuMonolithLeft.userData.buildingId = building.id;
+      menuMonolithLeft.visible = foodCourtMode && leftEdgeUnit;
+
+      const menuMonolithRight = menuMonolithLeft.clone();
+      menuMonolithRight.position.set(0.34, 0.16, 0.28);
+      menuMonolithRight.userData.buildingId = building.id;
+      menuMonolithRight.visible = foodCourtMode && rightEdgeUnit;
+
       const rearEntry = new THREE.Mesh(
         new THREE.BoxGeometry(0.14, 0.18, 0.03),
         new THREE.MeshStandardMaterial({ color: 0x7b6248, roughness: 0.78, metalness: 0.04 })
@@ -2338,6 +2434,10 @@ export class GameRenderer {
       group.add(parkingPad);
       group.add(parkingStripeA);
       group.add(parkingStripeB);
+      group.add(patioDeck);
+      group.add(patioCanopy);
+      group.add(menuMonolithLeft);
+      group.add(menuMonolithRight);
       if (parkedCar) group.add(parkedCar);
       if (parkedCarB) group.add(parkedCarB);
       group.add(marketCanopy);
@@ -2408,6 +2508,10 @@ export class GameRenderer {
         parkingPad,
         parkingStripeA,
         parkingStripeB,
+        patioDeck,
+        patioCanopy,
+        menuMonolithLeft,
+        menuMonolithRight,
         ...(parkedCar ? this.collectMeshes(parkedCar) : []),
         ...(parkedCarB ? this.collectMeshes(parkedCarB) : []),
         ...this.collectMeshes(marketCanopy),
@@ -2730,6 +2834,8 @@ export class GameRenderer {
       const group = new THREE.Group();
       const isHospital = building.type === 'hospital';
       const isPolice = building.type === 'policeStation';
+      const civicCluster = this.connectedSides(building, (candidate) => this.isCivicBuilding(candidate.type));
+      const civicCampusMode = civicCluster.n || civicCluster.e || civicCluster.s || civicCluster.w;
       const perimeterWalk = new THREE.Mesh(
         new THREE.BoxGeometry(isHospital ? 2.04 : 1.08, 0.025, isHospital ? 2.04 : 1.08),
         new THREE.MeshStandardMaterial({ color: isHospital ? 0xe6e2db : isPolice ? 0xe1e6ec : 0xe7ddd6, roughness: 0.95, metalness: 0.01 })
@@ -2745,6 +2851,32 @@ export class GameRenderer {
       lot.position.y = 0.025;
       lot.receiveShadow = true;
       lot.userData.buildingId = building.id;
+
+      const plazaEast = new THREE.Mesh(
+        new THREE.BoxGeometry(isHospital ? 0.26 : 0.18, 0.018, isHospital ? 0.94 : 0.7),
+        new THREE.MeshStandardMaterial({ color: 0xe6e2db, roughness: 0.95, metalness: 0.01 })
+      );
+      plazaEast.position.set(isHospital ? 0.98 : 0.58, 0.05, 0);
+      plazaEast.userData.buildingId = building.id;
+      plazaEast.visible = civicCluster.e;
+
+      const plazaWest = plazaEast.clone();
+      plazaWest.position.set(isHospital ? -0.98 : -0.58, 0.05, 0);
+      plazaWest.userData.buildingId = building.id;
+      plazaWest.visible = civicCluster.w;
+
+      const plazaNorth = new THREE.Mesh(
+        new THREE.BoxGeometry(isHospital ? 1.2 : 0.74, 0.018, isHospital ? 0.24 : 0.18),
+        new THREE.MeshStandardMaterial({ color: 0xe6e2db, roughness: 0.95, metalness: 0.01 })
+      );
+      plazaNorth.position.set(0, 0.05, isHospital ? -0.98 : -0.58);
+      plazaNorth.userData.buildingId = building.id;
+      plazaNorth.visible = civicCluster.n;
+
+      const plazaSouth = plazaNorth.clone();
+      plazaSouth.position.set(0, 0.05, isHospital ? 0.98 : 0.58);
+      plazaSouth.userData.buildingId = building.id;
+      plazaSouth.visible = civicCluster.s;
 
       if (isHospital) {
         const level = building.level;
@@ -2863,6 +2995,10 @@ export class GameRenderer {
         const campusPlanterRight = this.createPlanterBox(0x9b7b58, 0x6e9f68, 0.76, 0.05, 0.58, building.id, 0.18, 0.18);
 
         group.add(perimeterWalk);
+        group.add(plazaEast);
+        group.add(plazaWest);
+        group.add(plazaNorth);
+        group.add(plazaSouth);
         group.add(lot);
         group.add(driveway);
         group.add(entryWalk);
@@ -2906,8 +3042,20 @@ export class GameRenderer {
         skyBridge.userData.buildingId = building.id;
         skyBridge.visible = level >= 3;
 
+        const campusArch = new THREE.Mesh(
+          new THREE.BoxGeometry(0.44, 0.12, 0.08),
+          new THREE.MeshStandardMaterial({ color: 0xd7dee6, roughness: 0.8, metalness: 0.04 })
+        );
+        campusArch.position.set(civicCluster.e ? 0.94 : -0.94, 0.26, 0);
+        campusArch.userData.buildingId = building.id;
+        campusArch.visible = civicCampusMode && (civicCluster.e || civicCluster.w);
+
         this.selectableMeshes.set(building.id, [
           perimeterWalk,
+          plazaEast,
+          plazaWest,
+          plazaNorth,
+          plazaSouth,
           lot,
           driveway,
           entryWalk,
@@ -2927,12 +3075,14 @@ export class GameRenderer {
           ...this.collectMeshes(campusPlanterLeft),
           ...this.collectMeshes(campusPlanterRight),
           clinicTower,
-          emergencySign
+          emergencySign,
+          campusArch
         ]);
         group.add(clinicTower);
         group.add(emergencySign);
         group.add(rehabWing);
         group.add(skyBridge);
+        group.add(campusArch);
         return group;
       }
 
@@ -3005,6 +3155,10 @@ export class GameRenderer {
         const precinctLamp = this.createStreetLamp(0.28, 0.055, 0.26, building.id, 0xb8d8ff);
 
         group.add(perimeterWalk);
+        group.add(plazaEast);
+        group.add(plazaWest);
+        group.add(plazaNorth);
+        group.add(plazaSouth);
         group.add(lot);
         group.add(body);
         group.add(roof);
@@ -3046,13 +3200,26 @@ export class GameRenderer {
         radarDish.userData.buildingId = building.id;
         radarDish.visible = level >= 3;
 
+        const campusKiosk = new THREE.Mesh(
+          new THREE.BoxGeometry(0.14, 0.22, 0.08),
+          new THREE.MeshStandardMaterial({ color: 0xa2b6c9, roughness: 0.72, metalness: 0.08 })
+        );
+        campusKiosk.position.set(civicCluster.e ? 0.46 : -0.46, 0.12, -0.2);
+        campusKiosk.userData.buildingId = building.id;
+        campusKiosk.visible = civicCampusMode;
+
         group.add(cruiser);
         group.add(flagPole);
         group.add(flag);
         group.add(commandWing);
         group.add(radarDish);
+        group.add(campusKiosk);
         this.selectableMeshes.set(building.id, [
           perimeterWalk,
+          plazaEast,
+          plazaWest,
+          plazaNorth,
+          plazaSouth,
           lot,
           body,
           roof,
@@ -3066,6 +3233,7 @@ export class GameRenderer {
           flag,
           commandWing,
           radarDish,
+          campusKiosk,
           ...this.collectMeshes(precinctBench),
           ...this.collectMeshes(precinctLamp)
         ]);
@@ -3157,7 +3325,21 @@ export class GameRenderer {
       hoseRack.userData.buildingId = building.id;
       hoseRack.visible = level >= 3;
 
+      const campusBay = new THREE.Mesh(
+        new THREE.BoxGeometry(0.16, 0.14, 0.18),
+        wallMat.clone()
+      );
+      campusBay.position.set(civicCluster.e ? 0.46 : -0.46, 0.12, -0.16);
+      campusBay.castShadow = true;
+      campusBay.receiveShadow = true;
+      campusBay.userData.buildingId = building.id;
+      campusBay.visible = civicCampusMode;
+
       group.add(perimeterWalk);
+      group.add(plazaEast);
+      group.add(plazaWest);
+      group.add(plazaNorth);
+      group.add(plazaSouth);
       group.add(lot);
       group.add(body);
       group.add(roof);
@@ -3170,9 +3352,14 @@ export class GameRenderer {
       group.add(fireTruck);
       group.add(annexBay);
       group.add(hoseRack);
+      group.add(campusBay);
       group.add(fireLamp);
       this.selectableMeshes.set(building.id, [
         perimeterWalk,
+        plazaEast,
+        plazaWest,
+        plazaNorth,
+        plazaSouth,
         lot,
         body,
         roof,
@@ -3185,6 +3372,7 @@ export class GameRenderer {
         ...this.collectMeshes(fireTruck),
         annexBay,
         hoseRack,
+        campusBay,
         ...this.collectMeshes(fireLamp)
       ]);
       return group;
