@@ -3206,11 +3206,14 @@ export class GameRenderer {
       }
 
       const group = new THREE.Group();
-      const variant = building.id % 3;
+      const variant = building.id % 5;
       const level = building.level;
-      const wallMat = new THREE.MeshStandardMaterial({ color: 0x9d947f, roughness: 0.82, metalness: 0.04 });
-      const roofMat = new THREE.MeshStandardMaterial({ color: 0x6a727e, roughness: 0.76, metalness: 0.12 });
-      const pipeMat = new THREE.MeshStandardMaterial({ color: 0x6c7782, roughness: 0.72, metalness: 0.16 });
+      const wallPalette = [0x9d947f, 0xa58a70, 0x8f9887, 0xa49683, 0x90827a];
+      const roofPalette = [0x6a727e, 0x7a6458, 0x5e6f68, 0x6c6d79, 0x5d6368];
+      const pipePalette = [0x6c7782, 0x7d6f68, 0x687a74, 0x707884, 0x626d78];
+      const wallMat = new THREE.MeshStandardMaterial({ color: wallPalette[variant], roughness: 0.82, metalness: 0.04 });
+      const roofMat = new THREE.MeshStandardMaterial({ color: roofPalette[variant], roughness: 0.76, metalness: 0.12 });
+      const pipeMat = new THREE.MeshStandardMaterial({ color: pipePalette[variant], roughness: 0.72, metalness: 0.16 });
 
       const perimeterWalk = new THREE.Mesh(
         new THREE.BoxGeometry(1.12, 0.025, 0.98),
@@ -3323,6 +3326,34 @@ export class GameRenderer {
       gantry.userData.buildingId = building.id;
       gantry.visible = level >= 3;
 
+      const officeBlock = new THREE.Mesh(
+        new THREE.BoxGeometry(0.44, 0.34, 0.28),
+        wallMat.clone()
+      );
+      officeBlock.position.set(variant % 2 === 0 ? -0.18 : 0.18, 0.82, 0.04);
+      officeBlock.castShadow = true;
+      officeBlock.receiveShadow = true;
+      officeBlock.userData.buildingId = building.id;
+      officeBlock.visible = level >= 2;
+
+      const stackTower = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.09, 0.1, 0.78, 12),
+        pipeMat.clone()
+      );
+      stackTower.position.set(variant % 2 === 0 ? 0.34 : -0.34, 1.02, -0.06);
+      stackTower.castShadow = true;
+      stackTower.receiveShadow = true;
+      stackTower.userData.buildingId = building.id;
+      stackTower.visible = level >= 3;
+
+      const craneArm = new THREE.Mesh(
+        new THREE.BoxGeometry(0.46, 0.05, 0.08),
+        pipeMat.clone()
+      );
+      craneArm.position.set(0.04, 1.06, 0.18);
+      craneArm.userData.buildingId = building.id;
+      craneArm.visible = level >= 3;
+
       group.add(perimeterWalk);
       group.add(body);
       group.add(roof);
@@ -3339,6 +3370,9 @@ export class GameRenderer {
       group.add(skylightB);
       group.add(annex);
       group.add(gantry);
+      group.add(officeBlock);
+      group.add(stackTower);
+      group.add(craneArm);
       group.add(workLamp);
       group.add(rearWorkLamp);
       this.selectableMeshes.set(building.id, [
@@ -3358,6 +3392,9 @@ export class GameRenderer {
         skylightB,
         annex,
         gantry,
+        officeBlock,
+        stackTower,
+        craneArm,
         ...this.collectMeshes(workLamp),
         ...this.collectMeshes(rearWorkLamp)
       ]);
@@ -3441,9 +3478,13 @@ export class GameRenderer {
 
       if (isHospital) {
         const level = building.level;
-        const wallMat = new THREE.MeshStandardMaterial({ color: 0xecf1f5, roughness: 0.72, metalness: 0.03 });
-        const wingMat = new THREE.MeshStandardMaterial({ color: 0xd9e3ec, roughness: 0.74, metalness: 0.03 });
-        const roofMat = new THREE.MeshStandardMaterial({ color: 0x9ab0c4, roughness: 0.8, metalness: 0.04 });
+        const variant = building.id % 5;
+        const wallPalette = [0xecf1f5, 0xe6edf3, 0xf1f3f7, 0xe7eef0, 0xeceff2];
+        const wingPalette = [0xd9e3ec, 0xd7dde9, 0xe1e8ee, 0xd6e1e6, 0xdfe5eb];
+        const roofPalette = [0x9ab0c4, 0x90a3b6, 0x8ea8bc, 0x839eb3, 0x98a8b7];
+        const wallMat = new THREE.MeshStandardMaterial({ color: wallPalette[variant], roughness: 0.72, metalness: 0.03 });
+        const wingMat = new THREE.MeshStandardMaterial({ color: wingPalette[variant], roughness: 0.74, metalness: 0.03 });
+        const roofMat = new THREE.MeshStandardMaterial({ color: roofPalette[variant], roughness: 0.8, metalness: 0.04 });
         const glassMat = new THREE.MeshStandardMaterial({
           color: 0xcbe8f8,
           roughness: 0.25,
@@ -3619,6 +3660,20 @@ export class GameRenderer {
         skyBridge.userData.buildingId = building.id;
         skyBridge.visible = level >= 3;
 
+        const clinicPod = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.3, 0.34), wingMat.clone());
+        clinicPod.position.set(-0.68, 0.16, -0.52);
+        clinicPod.castShadow = true;
+        clinicPod.receiveShadow = true;
+        clinicPod.userData.buildingId = building.id;
+        clinicPod.visible = level >= 2;
+
+        const researchTower = new THREE.Mesh(new THREE.BoxGeometry(0.24, 1, 0.24), wallMat.clone());
+        researchTower.position.set(variant % 2 === 0 ? 0.74 : -0.74, 0.86, -0.18);
+        researchTower.castShadow = true;
+        researchTower.receiveShadow = true;
+        researchTower.userData.buildingId = building.id;
+        researchTower.visible = level >= 3;
+
         const campusArch = new THREE.Mesh(
           new THREE.BoxGeometry(0.44, 0.12, 0.08),
           new THREE.MeshStandardMaterial({ color: 0xd7dee6, roughness: 0.8, metalness: 0.04 })
@@ -3658,21 +3713,29 @@ export class GameRenderer {
           ...this.collectMeshes(campusPlanterRight),
           clinicTower,
           emergencySign,
+          clinicPod,
+          researchTower,
           campusArch
         ]);
         group.add(clinicTower);
         group.add(emergencySign);
         group.add(rehabWing);
         group.add(skyBridge);
+        group.add(clinicPod);
+        group.add(researchTower);
         group.add(campusArch);
         return group;
       }
 
       if (isPolice) {
         const level = building.level;
-        const wallMat = new THREE.MeshStandardMaterial({ color: 0xdfe7f0, roughness: 0.74, metalness: 0.03 });
-        const roofMat = new THREE.MeshStandardMaterial({ color: 0x4b5f79, roughness: 0.8, metalness: 0.05 });
-        const trimMat = new THREE.MeshStandardMaterial({ color: 0xa8b9cb, roughness: 0.82, metalness: 0.02 });
+        const variant = building.id % 5;
+        const wallPalette = [0xdfe7f0, 0xd7e2ed, 0xe5ebf2, 0xd9e5e8, 0xdfe3ea];
+        const roofPalette = [0x4b5f79, 0x3f556f, 0x54677d, 0x455d72, 0x5b6078];
+        const trimPalette = [0xa8b9cb, 0xb4c4d5, 0x9cb2c5, 0xb7c8cf, 0xafbcc7];
+        const wallMat = new THREE.MeshStandardMaterial({ color: wallPalette[variant], roughness: 0.74, metalness: 0.03 });
+        const roofMat = new THREE.MeshStandardMaterial({ color: roofPalette[variant], roughness: 0.8, metalness: 0.05 });
+        const trimMat = new THREE.MeshStandardMaterial({ color: trimPalette[variant], roughness: 0.82, metalness: 0.02 });
 
         const body = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.5, 0.7), wallMat);
         body.position.y = 0.25;
@@ -3808,12 +3871,34 @@ export class GameRenderer {
         campusKiosk.userData.buildingId = building.id;
         campusKiosk.visible = civicCampusMode;
 
+        const operationsTower = new THREE.Mesh(
+          new THREE.BoxGeometry(0.22, 0.92, 0.22),
+          trimMat.clone()
+        );
+        operationsTower.position.set(variant % 2 === 0 ? -0.34 : 0.34, 0.98, -0.08);
+        operationsTower.castShadow = true;
+        operationsTower.receiveShadow = true;
+        operationsTower.userData.buildingId = building.id;
+        operationsTower.visible = level >= 3;
+
+        const recordsWing = new THREE.Mesh(
+          new THREE.BoxGeometry(0.34, 0.24, 0.28),
+          trimMat.clone()
+        );
+        recordsWing.position.set(0.28, 0.14, -0.2);
+        recordsWing.castShadow = true;
+        recordsWing.receiveShadow = true;
+        recordsWing.userData.buildingId = building.id;
+        recordsWing.visible = level >= 2;
+
         group.add(cruiser);
         group.add(flagPole);
         group.add(flag);
         group.add(commandWing);
         group.add(radarDish);
         group.add(campusKiosk);
+        group.add(operationsTower);
+        group.add(recordsWing);
         this.selectableMeshes.set(building.id, [
           perimeterWalk,
           plazaEast,
@@ -3838,6 +3923,8 @@ export class GameRenderer {
           commandWing,
           radarDish,
           campusKiosk,
+          operationsTower,
+          recordsWing,
           ...this.collectMeshes(precinctBench),
           ...this.collectMeshes(precinctLamp),
           ...this.collectMeshes(rearPrecinctLamp)
@@ -3846,8 +3933,11 @@ export class GameRenderer {
       }
 
       const level = building.level;
-      const wallMat = new THREE.MeshStandardMaterial({ color: 0xe4c5bb, roughness: 0.75, metalness: 0.03 });
-      const roofMat = new THREE.MeshStandardMaterial({ color: 0xaf473f, roughness: 0.78, metalness: 0.04 });
+      const variant = building.id % 5;
+      const wallPalette = [0xe4c5bb, 0xe0beb2, 0xe8cdc3, 0xdcbdb4, 0xe5c8b6];
+      const roofPalette = [0xaf473f, 0x9c3d36, 0xba584b, 0xa74f45, 0x8d4037];
+      const wallMat = new THREE.MeshStandardMaterial({ color: wallPalette[variant], roughness: 0.75, metalness: 0.03 });
+      const roofMat = new THREE.MeshStandardMaterial({ color: roofPalette[variant], roughness: 0.78, metalness: 0.04 });
       const doorMat = new THREE.MeshStandardMaterial({ color: 0x7d2020, roughness: 0.74, metalness: 0.05 });
 
       const body = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.42, 0.68), wallMat);
@@ -3950,6 +4040,26 @@ export class GameRenderer {
       campusBay.userData.buildingId = building.id;
       campusBay.visible = civicCampusMode;
 
+      const dormerWing = new THREE.Mesh(
+        new THREE.BoxGeometry(0.34, 0.26, 0.26),
+        wallMat.clone()
+      );
+      dormerWing.position.set(-0.28, 0.14, -0.18);
+      dormerWing.castShadow = true;
+      dormerWing.receiveShadow = true;
+      dormerWing.userData.buildingId = building.id;
+      dormerWing.visible = level >= 2;
+
+      const watchTower = new THREE.Mesh(
+        new THREE.BoxGeometry(0.2, 0.94, 0.2),
+        wallMat.clone()
+      );
+      watchTower.position.set(variant % 2 === 0 ? 0.38 : -0.38, 0.96, -0.06);
+      watchTower.castShadow = true;
+      watchTower.receiveShadow = true;
+      watchTower.userData.buildingId = building.id;
+      watchTower.visible = level >= 3;
+
       group.add(perimeterWalk);
       group.add(plazaEast);
       group.add(plazaWest);
@@ -3971,6 +4081,8 @@ export class GameRenderer {
       group.add(annexBay);
       group.add(hoseRack);
       group.add(campusBay);
+      group.add(dormerWing);
+      group.add(watchTower);
       group.add(fireLamp);
       group.add(rearFireLamp);
       this.selectableMeshes.set(building.id, [
@@ -3995,6 +4107,8 @@ export class GameRenderer {
         annexBay,
         hoseRack,
         campusBay,
+        dormerWing,
+        watchTower,
         ...this.collectMeshes(fireLamp),
         ...this.collectMeshes(rearFireLamp)
       ]);
@@ -4013,9 +4127,13 @@ export class GameRenderer {
     }
 
     const level = building.level;
-    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x95a7b8, roughness: 0.72, metalness: 0.08 });
-    const pipeMat = new THREE.MeshStandardMaterial({ color: 0x7f8a93, roughness: 0.74, metalness: 0.18 });
-    const accentMat = new THREE.MeshStandardMaterial({ color: 0xd8e0e6, roughness: 0.62, metalness: 0.18 });
+    const variant = building.id % 5;
+    const bodyPalette = [0x95a7b8, 0x8ba0ad, 0x9ea7b4, 0x8799a8, 0x97a2af];
+    const pipePalette = [0x7f8a93, 0x768089, 0x838b95, 0x6f7882, 0x80858e];
+    const accentPalette = [0xd8e0e6, 0xcfd8de, 0xdfe6ea, 0xd3dde2, 0xd6dde6];
+    const bodyMat = new THREE.MeshStandardMaterial({ color: bodyPalette[variant], roughness: 0.72, metalness: 0.08 });
+    const pipeMat = new THREE.MeshStandardMaterial({ color: pipePalette[variant], roughness: 0.74, metalness: 0.18 });
+    const accentMat = new THREE.MeshStandardMaterial({ color: accentPalette[variant], roughness: 0.62, metalness: 0.18 });
 
     const perimeterWalk = new THREE.Mesh(
       new THREE.BoxGeometry(2.04, 0.025, 2.04),
@@ -4184,13 +4302,38 @@ export class GameRenderer {
     cableBridge.userData.buildingId = building.id;
     cableBridge.visible = level >= 3;
 
+    const reactorBlock = new THREE.Mesh(
+      new THREE.BoxGeometry(0.42, 0.38, 0.32),
+      bodyMat.clone()
+    );
+    reactorBlock.position.set(0.48, level >= 3 ? 0.46 : 0.28, 0.52);
+    reactorBlock.castShadow = true;
+    reactorBlock.receiveShadow = true;
+    reactorBlock.userData.buildingId = building.id;
+    reactorBlock.visible = level >= 2;
+
+    const stackTower = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.08, 0.1, 0.94, 14),
+      pipeMat.clone()
+    );
+    stackTower.position.set(-0.48, 1.02, 0.42);
+    stackTower.castShadow = true;
+    stackTower.receiveShadow = true;
+    stackTower.userData.buildingId = building.id;
+    stackTower.visible = level >= 3;
+
+    const towerSmoke = this.createSmokePuffs(building.id, { x: stackTower.position.x, y: 1.56, z: stackTower.position.z }, 3, 0.82);
+
     group.add(turbineHall);
     group.add(pipeRack);
     group.add(coolingTowerC);
     group.add(cableBridge);
+    group.add(reactorBlock);
+    group.add(stackTower);
+    towerSmoke.forEach((puff) => group.add(puff.mesh));
 
     this.utilityAnimations.set(building.id, {
-      smoke: stackSmoke,
+      smoke: [...stackSmoke, ...towerSmoke],
       glow: [powerCore, rearPowerCore],
       phase: building.id * 0.11
     });
@@ -4219,7 +4362,10 @@ export class GameRenderer {
       pipeRack,
       coolingTowerC,
       cableBridge,
+      reactorBlock,
+      stackTower,
       ...stackSmoke.map((entry) => entry.mesh)
+        .concat(towerSmoke.map((entry) => entry.mesh))
     ]);
     return group;
   }
