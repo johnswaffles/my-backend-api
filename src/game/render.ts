@@ -1682,6 +1682,7 @@ export class GameRenderer {
       const sameTypeRowLength = 1 + sameTypeRowLeft + sameTypeRowRight;
       const stripMallMode = isShop && sameTypeRowLength >= 3;
       const foodCourtMode = isRestaurant && sameTypeRowLength >= 2;
+      const mainStreetMode = stripRowMode && !stripMallMode && !foodCourtMode;
       const leftEdgeUnit = sameTypeRowLeft === 0;
       const rightEdgeUnit = sameTypeRowRight === 0;
       const paintMat = new THREE.MeshStandardMaterial({
@@ -2350,6 +2351,31 @@ export class GameRenderer {
       stripEndCapRight.userData.buildingId = building.id;
       stripEndCapRight.visible = stripMallMode && rightEdgeUnit;
 
+      const mainStreetBand = new THREE.Mesh(
+        new THREE.BoxGeometry(0.9, 0.05, 0.06),
+        accentMat.clone()
+      );
+      mainStreetBand.position.set(0, 0.46, 0.41);
+      mainStreetBand.userData.buildingId = building.id;
+      mainStreetBand.visible = mainStreetMode;
+
+      const mainStreetBandRear = mainStreetBand.clone();
+      mainStreetBandRear.position.set(0, 0.46, -0.41);
+      mainStreetBandRear.userData.buildingId = building.id;
+
+      const endPilasterLeft = new THREE.Mesh(
+        new THREE.BoxGeometry(0.06, 0.32, 0.08),
+        wallMat.clone()
+      );
+      endPilasterLeft.position.set(-0.4, 0.22, 0.38);
+      endPilasterLeft.userData.buildingId = building.id;
+      endPilasterLeft.visible = mainStreetMode && leftEdgeUnit;
+
+      const endPilasterRight = endPilasterLeft.clone();
+      endPilasterRight.position.set(0.4, 0.22, 0.38);
+      endPilasterRight.userData.buildingId = building.id;
+      endPilasterRight.visible = mainStreetMode && rightEdgeUnit;
+
       const patioDeck = new THREE.Mesh(
         new THREE.BoxGeometry(0.88, 0.02, 0.24),
         new THREE.MeshStandardMaterial({ color: 0xd9cfbc, roughness: 0.9, metalness: 0.01 })
@@ -2461,6 +2487,10 @@ export class GameRenderer {
       group.add(stripPartyWest);
       group.add(stripEndCapLeft);
       group.add(stripEndCapRight);
+      group.add(mainStreetBand);
+      group.add(mainStreetBandRear);
+      group.add(endPilasterLeft);
+      group.add(endPilasterRight);
       group.add(rearEntry);
       this.selectableMeshes.set(building.id, [
         perimeterWalk,
@@ -2535,6 +2565,10 @@ export class GameRenderer {
         stripPartyWest,
         stripEndCapLeft,
         stripEndCapRight,
+        mainStreetBand,
+        mainStreetBandRear,
+        endPilasterLeft,
+        endPilasterRight,
         rearEntry
       ]);
       return group;
@@ -4579,6 +4613,9 @@ export class GameRenderer {
     const treeLeaf = new THREE.ConeGeometry(0.14, 0.32, 9);
     const shrubGeom = new THREE.SphereGeometry(0.075, 9, 9);
     const flowerGeom = new THREE.SphereGeometry(0.028, 8, 8);
+    const sidewalkMat = new THREE.MeshStandardMaterial({ color: 0xdfe0dc, roughness: 0.96, metalness: 0.01 });
+    const pavingMat = new THREE.MeshStandardMaterial({ color: 0xd0c3b0, roughness: 0.92, metalness: 0.01 });
+    const utilityMat = new THREE.MeshStandardMaterial({ color: 0x858f98, roughness: 0.82, metalness: 0.12 });
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x8a6645, roughness: 0.95, metalness: 0.01 });
     const leafMat = new THREE.MeshStandardMaterial({ color: 0x5f9566, roughness: 0.86, metalness: 0.01 });
     const shrubMat = new THREE.MeshStandardMaterial({ color: 0x6f9b61, roughness: 0.92, metalness: 0.01 });
@@ -4597,6 +4634,40 @@ export class GameRenderer {
       }
       return false;
     };
+    const adjacentBuildings = (x: number, z: number): Building[] => {
+      const found = new Map<number, Building>();
+      const coords = [
+        [x + 1, z],
+        [x - 1, z],
+        [x, z + 1],
+        [x, z - 1]
+      ] as const;
+      coords.forEach(([cx, cz]) => {
+        const building = this.buildingByCell.get(`${cx}:${cz}`);
+        if (building && building.type !== 'road') found.set(building.id, building);
+      });
+      return [...found.values()];
+    };
+    const roadSides = (x: number, z: number) => ({
+      n: this.buildingByCell.get(`${x}:${z - 1}`)?.type === 'road',
+      e: this.buildingByCell.get(`${x + 1}:${z}`)?.type === 'road',
+      s: this.buildingByCell.get(`${x}:${z + 1}`)?.type === 'road',
+      w: this.buildingByCell.get(`${x - 1}:${z}`)?.type === 'road'
+    });
+    const addStreetTree = (wx: number, wz: number, scale = 1) => {
+      const trunk = new THREE.Mesh(treeTrunk, trunkMat);
+      trunk.position.set(wx, 0.08, wz);
+      trunk.scale.setScalar(scale);
+      trunk.castShadow = true;
+      trunk.receiveShadow = true;
+      const leaf = new THREE.Mesh(treeLeaf, leafMat.clone());
+      leaf.position.set(wx, 0.28, wz);
+      leaf.scale.setScalar(scale);
+      leaf.castShadow = true;
+      leaf.receiveShadow = true;
+      this.decorRoot.add(trunk);
+      this.decorRoot.add(leaf);
+    };
 
     for (let z = 1; z < state.gridSize - 1; z += 1) {
       for (let x = 1; x < state.gridSize - 1; x += 1) {
@@ -4606,6 +4677,12 @@ export class GameRenderer {
         const tint = state.tiles[z * state.gridSize + x].tint;
         const border = x < 3 || z < 3 || x > state.gridSize - 4 || z > state.gridSize - 4;
         const adjacentRoad = roadDistance(x, z);
+        const adjacent = adjacentBuildings(x, z);
+        const nearCommercial = adjacent.some((building) => this.isCommercialBuilding(building.type));
+        const nearCivic = adjacent.some((building) => this.isCivicBuilding(building.type));
+        const nearResidential = adjacent.some((building) => building.type === 'house');
+        const nearUtility = adjacent.some((building) => building.type === 'workshop' || building.type === 'powerPlant');
+        const sides = roadSides(x, z);
         const noise = (x * 37 + z * 19) % 11;
 
         if (border && tint > 0.98 && noise < 5) {
@@ -4626,6 +4703,60 @@ export class GameRenderer {
         }
 
         if (adjacentRoad) {
+          if (nearCommercial || nearCivic || nearResidential || nearUtility) {
+            const sidewalk = new THREE.Mesh(
+              new THREE.BoxGeometry(0.88, 0.018, 0.88),
+              nearUtility ? pavingMat.clone() : sidewalkMat.clone()
+            );
+            sidewalk.position.set(world.x, 0.045, world.z);
+            sidewalk.receiveShadow = true;
+            this.decorRoot.add(sidewalk);
+
+            if (nearCommercial && (noise === 0 || noise === 1)) {
+              const shelter = new THREE.Group();
+              shelter.position.set(world.x, 0.05, world.z);
+              const pad = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.02, 0.16), sidewalkMat.clone());
+              pad.position.y = 0.01;
+              const roof = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.03, 0.16), new THREE.MeshStandardMaterial({ color: 0x6e7f90, roughness: 0.78, metalness: 0.08 }));
+              roof.position.y = 0.26;
+              const postA = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.24, 0.02), utilityMat.clone());
+              postA.position.set(-0.16, 0.13, 0);
+              const postB = postA.clone();
+              postB.position.x = 0.16;
+              const sign = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.18, 0.02), new THREE.MeshStandardMaterial({ color: 0x86b9da, roughness: 0.7, metalness: 0.04 }));
+              sign.position.set(0.22, 0.16, 0);
+              shelter.add(pad, roof, postA, postB, sign);
+              this.decorRoot.add(shelter);
+            } else if (nearCivic && (noise === 2 || noise === 3)) {
+              const monument = new THREE.Group();
+              monument.position.set(world.x, 0.045, world.z);
+              const base = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 0.05, 12), pavingMat.clone());
+              base.position.y = 0.025;
+              const obelisk = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.24, 0.08), new THREE.MeshStandardMaterial({ color: 0xc8cfd8, roughness: 0.82, metalness: 0.04 }));
+              obelisk.position.y = 0.17;
+              monument.add(base, obelisk);
+              this.decorRoot.add(monument);
+            } else if (nearResidential && (noise === 4 || noise === 5)) {
+              const driveway = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.014, 0.74), pavingMat.clone());
+              driveway.position.set(world.x, 0.045, world.z);
+              driveway.receiveShadow = true;
+              if (sides.e || sides.w) driveway.rotation.y = Math.PI / 2;
+              this.decorRoot.add(driveway);
+            } else if (nearUtility && (noise === 6 || noise === 7)) {
+              const yard = new THREE.Group();
+              yard.position.set(world.x, 0.045, world.z);
+              const crate = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.14), new THREE.MeshStandardMaterial({ color: 0x8a6a48, roughness: 0.82, metalness: 0.02 }));
+              crate.position.y = 0.06;
+              const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.12, 10), utilityMat.clone());
+              drum.position.set(0.14, 0.06, 0.04);
+              yard.add(crate, drum);
+              this.decorRoot.add(yard);
+            } else if (nearCommercial || nearCivic) {
+              addStreetTree(world.x + 0.18, world.z - 0.18, 0.92);
+            }
+            continue;
+          }
+
           if (noise === 0 || noise === 1) {
             const shrub = new THREE.Mesh(shrubGeom, shrubMat.clone());
             shrub.position.set(world.x + (noise === 0 ? -0.18 : 0.18), 0.06, world.z + 0.18);
