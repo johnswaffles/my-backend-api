@@ -906,7 +906,12 @@ export class GameRenderer {
     building: Building,
     cluster = this.connectedCluster(building, (candidate) => candidate.type === building.type)
   ): 'none' | 'shopStrip' | 'restaurantHall' | 'superStore' | 'megaHospital' | 'megaPlant' {
-    if (building.type === 'shop' && cluster.filled && cluster.originWidth >= 3) {
+    if (
+      building.type === 'shop' &&
+      cluster.filled &&
+      cluster.size >= 3 &&
+      (cluster.originWidth >= 3 || cluster.originDepth >= 3 || (cluster.originWidth >= 2 && cluster.originDepth >= 2))
+    ) {
       return 'shopStrip';
     }
     if (
@@ -1873,7 +1878,7 @@ export class GameRenderer {
             ? [0xe1d5be, 0xd9c7a8, 0xe8dcc7, 0xd8ccb7]
             : isBank
               ? [0xd8dbe2, 0xd6dde8, 0xe1e5ea, 0xd2d6dc]
-              : [0xd6d5c8, 0xd6cdbd, 0xe2dccd, 0xceccbf];
+              : [0xd6d5c8, 0xc6d2bc, 0xe0cfbf, 0xc9d7d8];
       const roofVariants = isRestaurant
         ? [0x93453b, 0x8a5443, 0x7e4a39, 0x9a5e4f]
         : isGrocery
@@ -1882,7 +1887,7 @@ export class GameRenderer {
             ? [0x7e5f43, 0x91684a, 0x6f5e48, 0x8d6f52]
             : isBank
               ? [0x546377, 0x465b75, 0x5d697d, 0x4f5d68]
-              : [0x5b636b, 0x4f5862, 0x656861, 0x55606d];
+              : [0x5b636b, 0x6d5a43, 0x556a48, 0x4d6572];
       const accentVariants = isRestaurant
         ? [0xf4b05f, 0xf6c16a, 0xe99a54, 0xf0b677]
         : isGrocery
@@ -1891,7 +1896,7 @@ export class GameRenderer {
             ? [0xf1b476, 0xe89b5f, 0xf5c18a, 0xecae63]
             : isBank
               ? [0xbfd6f7, 0xd3e2fb, 0xaec9ef, 0xc7daf0]
-              : [0x76a6cf, 0x5d95c6, 0x8cb6d6, 0x6ca1b7];
+              : [0x76a6cf, 0xd58b58, 0x83b879, 0x9c88cf];
       const wallMat = new THREE.MeshStandardMaterial({
         color: wallVariants[variant],
         roughness: 0.78,
@@ -4803,6 +4808,14 @@ export class GameRenderer {
     const offset = this.clusterCenterOffset(building, cluster);
     const width = cluster.tileWidth * 0.94;
     const depth = cluster.tileDepth * 0.94;
+    const longAxisX = cluster.originWidth >= cluster.originDepth;
+    const theme = building.id % 4;
+    const shopThemes = [
+      { body: 0xd9d7ca, roof: 0x59636f, accent: 0xbfd6f7, glow: 0x164e63 },
+      { body: 0xd8cfbf, roof: 0x6f5b43, accent: 0xe4a36b, glow: 0x7c2d12 },
+      { body: 0xd2dbcc, roof: 0x566c4f, accent: 0x95d49a, glow: 0x14532d },
+      { body: 0xd5d1df, roof: 0x5d5978, accent: 0xcab4ef, glow: 0x4c1d95 }
+    ][theme];
     const bodyHeight = mode === 'superStore' ? 0.56 : mode === 'restaurantHall' ? 0.5 : 0.58;
     const roofHeight = bodyHeight + 0.09;
 
@@ -4817,7 +4830,7 @@ export class GameRenderer {
     const lot = new THREE.Mesh(
       new THREE.BoxGeometry(width, 0.05, depth),
       new THREE.MeshStandardMaterial({
-        color: mode === 'superStore' ? 0xd7d4c8 : mode === 'restaurantHall' ? 0xdccab8 : 0xd8d6cb,
+        color: mode === 'superStore' ? 0xd7d4c8 : mode === 'restaurantHall' ? 0xdccab8 : shopThemes.body,
         roughness: 0.94,
         metalness: 0.01
       })
@@ -4829,7 +4842,7 @@ export class GameRenderer {
     const body = new THREE.Mesh(
       new THREE.BoxGeometry(width * 0.88, bodyHeight, depth * (mode === 'superStore' ? 0.72 : 0.62)),
       new THREE.MeshStandardMaterial({
-        color: mode === 'superStore' ? 0xd9debf : mode === 'restaurantHall' ? 0xe2ccb2 : 0xd9d7ca,
+        color: mode === 'superStore' ? 0xd9debf : mode === 'restaurantHall' ? 0xe2ccb2 : shopThemes.body,
         roughness: 0.76,
         metalness: 0.02
       })
@@ -4842,7 +4855,7 @@ export class GameRenderer {
     const roof = new THREE.Mesh(
       new THREE.BoxGeometry(width * 0.92, 0.08, depth * (mode === 'superStore' ? 0.76 : 0.66)),
       new THREE.MeshStandardMaterial({
-        color: mode === 'superStore' ? 0x59725a : mode === 'restaurantHall' ? 0xa85a43 : 0x59636f,
+        color: mode === 'superStore' ? 0x59725a : mode === 'restaurantHall' ? 0xa85a43 : shopThemes.roof,
         roughness: 0.8,
         metalness: 0.03
       })
@@ -4855,7 +4868,7 @@ export class GameRenderer {
     const canopy = new THREE.Mesh(
       new THREE.BoxGeometry(width * 0.88, 0.05, 0.16),
       new THREE.MeshStandardMaterial({
-        color: mode === 'superStore' ? 0x78be7d : mode === 'restaurantHall' ? 0xf0ab65 : 0x76a6cf,
+        color: mode === 'superStore' ? 0x78be7d : mode === 'restaurantHall' ? 0xf0ab65 : shopThemes.accent,
         roughness: 0.74,
         metalness: 0.04
       })
@@ -4872,10 +4885,10 @@ export class GameRenderer {
     const signBand = new THREE.Mesh(
       new THREE.BoxGeometry(width * 0.68, 0.12, 0.04),
       new THREE.MeshStandardMaterial({
-        color: mode === 'superStore' ? 0xa4dfb0 : mode === 'restaurantHall' ? 0xf6c878 : 0xbfd6f7,
+        color: mode === 'superStore' ? 0xa4dfb0 : mode === 'restaurantHall' ? 0xf6c878 : shopThemes.accent,
         roughness: 0.46,
         metalness: 0.08,
-        emissive: mode === 'restaurantHall' ? 0x7c2d12 : 0x164e63,
+        emissive: mode === 'restaurantHall' ? 0x7c2d12 : shopThemes.glow,
         emissiveIntensity: 0.16
       })
     );
@@ -4927,7 +4940,7 @@ export class GameRenderer {
     const leftCap = new THREE.Mesh(
       new THREE.BoxGeometry(0.1, 0.34, 0.16),
       new THREE.MeshStandardMaterial({
-        color: mode === 'restaurantHall' ? 0xe8b36c : 0x9fb7d2,
+        color: mode === 'restaurantHall' ? 0xe8b36c : shopThemes.accent,
         roughness: 0.72,
         metalness: 0.03
       })
@@ -4977,6 +4990,35 @@ export class GameRenderer {
     const lampRight = this.createStreetLamp(offset.x + width * 0.34, 0.055, offset.z + depth * 0.24, building.id, 0xffe7b0);
     const planterLeft = this.createPlanterBox(0x8d6846, 0x6ea066, offset.x - width * 0.26, 0.05, offset.z + depth * 0.22, building.id, 0.14, 0.14);
     const planterRight = this.createPlanterBox(0x8d6846, 0x6ea066, offset.x + width * 0.26, 0.05, offset.z + depth * 0.22, building.id, 0.14, 0.14);
+    const marqueeTower = new THREE.Mesh(
+      new THREE.BoxGeometry(longAxisX ? 0.18 : 0.14, 0.42, longAxisX ? 0.14 : 0.18),
+      new THREE.MeshStandardMaterial({ color: shopThemes.accent, roughness: 0.66, metalness: 0.05 })
+    );
+    marqueeTower.position.set(
+      offset.x + (longAxisX ? width * 0.36 : 0),
+      roofHeight + 0.18,
+      offset.z + (longAxisX ? 0 : depth * 0.36)
+    );
+    marqueeTower.castShadow = true;
+    marqueeTower.receiveShadow = true;
+    marqueeTower.userData.buildingId = building.id;
+    marqueeTower.visible = mode === 'shopStrip' && cluster.size >= 4;
+
+    const skylight = new THREE.Mesh(
+      new THREE.BoxGeometry(longAxisX ? width * 0.22 : width * 0.14, 0.05, longAxisX ? 0.16 : depth * 0.22),
+      new THREE.MeshStandardMaterial({
+        color: 0xd8efff,
+        roughness: 0.22,
+        metalness: 0.08,
+        transparent: true,
+        opacity: 0.82,
+        emissive: 0x38bdf8,
+        emissiveIntensity: 0.08
+      })
+    );
+    skylight.position.set(offset.x, roofHeight + 0.13, offset.z);
+    skylight.userData.buildingId = building.id;
+    skylight.visible = mode !== 'shopStrip' || cluster.size >= 5;
 
     group.add(walk);
     group.add(lot);
@@ -4999,6 +5041,8 @@ export class GameRenderer {
     group.add(lampRight);
     group.add(planterLeft);
     group.add(planterRight);
+    group.add(marqueeTower);
+    group.add(skylight);
 
     this.selectableMeshes.set(building.id, [
       walk,
@@ -5018,6 +5062,8 @@ export class GameRenderer {
       parkingPad,
       stripeA,
       stripeB,
+      marqueeTower,
+      skylight,
       ...roofUnits,
       ...this.collectMeshes(lampLeft),
       ...this.collectMeshes(lampRight),
