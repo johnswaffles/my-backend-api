@@ -6660,37 +6660,61 @@ export class GameRenderer {
     if (level >= 4) {
       const hotelMass = addMesh(
         new THREE.Mesh(
-          new THREE.BoxGeometry(width * (mode === 'superStore' ? 0.42 : 0.34), mode === 'restaurantHall' ? 1.18 : 1.36, depth * 0.24),
+          new THREE.BoxGeometry(width * (mode === 'superStore' ? 0.48 : 0.42), mode === 'restaurantHall' ? 1.38 : 1.64, depth * 0.28),
           new THREE.MeshStandardMaterial({ color: themes.body, roughness: 0.72, metalness: 0.03 })
         )
       );
-      hotelMass.position.set(offset.x - width * 0.24, mode === 'restaurantHall' ? 1.38 : 1.52, offset.z + depth * 0.02);
+      hotelMass.position.set(offset.x - width * 0.24, mode === 'restaurantHall' ? 1.56 : 1.82, offset.z + depth * 0.02);
 
       const hotelGlass = addMesh(
         new THREE.Mesh(
-          new THREE.BoxGeometry(width * 0.18, mode === 'restaurantHall' ? 0.74 : 0.92, 0.03),
+          new THREE.BoxGeometry(width * 0.22, mode === 'restaurantHall' ? 0.94 : 1.18, 0.03),
           new THREE.MeshStandardMaterial({ color: 0xffefc9, roughness: 0.2, metalness: 0.08, transparent: true, opacity: 0.84, emissive: 0xf59e0b, emissiveIntensity: 0.1 })
         )
       );
       hotelGlass.position.set(hotelMass.position.x, hotelMass.position.y, hotelMass.position.z + 0.14);
+
+      const skyLobby = addMesh(
+        new THREE.Mesh(
+          new THREE.BoxGeometry(width * 0.26, 0.22, depth * 0.16),
+          new THREE.MeshStandardMaterial({ color: themes.accent, roughness: 0.4, metalness: 0.08, transparent: true, opacity: 0.88, emissive: themes.sign, emissiveIntensity: 0.12 })
+        )
+      );
+      skyLobby.position.set(offset.x + width * 0.12, mode === 'restaurantHall' ? 1.72 : 1.94, offset.z - depth * 0.08);
     }
 
     if (level >= 5) {
       const skylineTower = addMesh(
         new THREE.Mesh(
-          new THREE.BoxGeometry(longAxisX ? 0.34 : 0.28, mode === 'superStore' ? 1.88 : 1.62, longAxisX ? 0.26 : 0.34),
+          new THREE.BoxGeometry(longAxisX ? 0.42 : 0.34, mode === 'superStore' ? 2.42 : 2.08, longAxisX ? 0.32 : 0.42),
           new THREE.MeshStandardMaterial({ color: themes.accent, roughness: 0.62, metalness: 0.06 })
         )
       );
-      skylineTower.position.set(offset.x + width * 0.12, mode === 'superStore' ? 2.04 : 1.82, offset.z - depth * 0.08);
+      skylineTower.position.set(offset.x + width * 0.12, mode === 'superStore' ? 2.42 : 2.14, offset.z - depth * 0.08);
 
       const skylineCrown = addMesh(
         new THREE.Mesh(
-          new THREE.BoxGeometry(longAxisX ? 0.4 : 0.34, 0.1, longAxisX ? 0.32 : 0.4),
+          new THREE.BoxGeometry(longAxisX ? 0.5 : 0.42, 0.12, longAxisX ? 0.38 : 0.48),
           new THREE.MeshStandardMaterial({ color: themes.roof, roughness: 0.72, metalness: 0.06 })
         )
       );
-      skylineCrown.position.set(skylineTower.position.x, skylineTower.position.y + (mode === 'superStore' ? 0.98 : 0.84), skylineTower.position.z);
+      skylineCrown.position.set(skylineTower.position.x, skylineTower.position.y + (mode === 'superStore' ? 1.24 : 1.08), skylineTower.position.z);
+
+      const marqueeTower = addMesh(
+        new THREE.Mesh(
+          new THREE.BoxGeometry(0.24, 0.44, 0.05),
+          new THREE.MeshStandardMaterial({ color: themes.accent, roughness: 0.3, metalness: 0.08, emissive: themes.sign, emissiveIntensity: 0.24 })
+        )
+      );
+      marqueeTower.position.set(skylineTower.position.x, skylineTower.position.y + 0.22, skylineTower.position.z + (longAxisX ? 0.22 : 0.26));
+
+      const rooftopBridge = addMesh(
+        new THREE.Mesh(
+          new THREE.BoxGeometry(width * 0.32, 0.08, 0.12),
+          new THREE.MeshStandardMaterial({ color: themes.roof, roughness: 0.72, metalness: 0.08 })
+        )
+      );
+      rooftopBridge.position.set(offset.x - width * 0.06, mode === 'superStore' ? 1.92 : 1.7, offset.z + depth * 0.02);
     }
 
     const parkingPad = addMesh(
@@ -6727,6 +6751,12 @@ export class GameRenderer {
     group.add(planterLeft);
     group.add(planterRight);
     group.add(parkedCar);
+
+    this.utilityAnimations.set(building.id, {
+      smoke: [],
+      glow: [signBand, signBandRear, storefrontFront, storefrontRear].filter((mesh) => mesh.visible),
+      phase: building.id * 0.12
+    });
 
     this.selectableMeshes.set(building.id, [
       ...meshes,
@@ -7707,6 +7737,7 @@ export class GameRenderer {
         const nearCivic = adjacent.some((building) => this.isCivicBuilding(building.type));
         const nearResidential = adjacent.some((building) => building.type === 'house');
         const nearUtility = adjacent.some((building) => building.type === 'workshop' || building.type === 'powerPlant');
+        const topTier = adjacent.reduce((max, building) => Math.max(max, building.level), 0);
         const sides = roadSides(x, z);
         const noise = (x * 37 + z * 19) % 11;
 
@@ -7752,6 +7783,16 @@ export class GameRenderer {
               sign.position.set(0.22, 0.16, 0);
               shelter.add(pad, roof, postA, postB, sign);
               this.decorRoot.add(shelter);
+              if (topTier >= 4) {
+                const neon = new THREE.Mesh(
+                  new THREE.BoxGeometry(0.32, 0.04, 0.04),
+                  new THREE.MeshStandardMaterial({ color: 0xaed4f6, roughness: 0.3, metalness: 0.08, emissive: 0x38bdf8, emissiveIntensity: 0.2 })
+                );
+                neon.position.set(world.x, 0.34, world.z);
+                neon.castShadow = true;
+                neon.receiveShadow = true;
+                this.decorRoot.add(neon);
+              }
             } else if (nearCivic && (noise === 2 || noise === 3)) {
               const monument = new THREE.Group();
               monument.position.set(world.x, 0.045, world.z);
@@ -7760,6 +7801,13 @@ export class GameRenderer {
               const obelisk = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.24, 0.08), new THREE.MeshStandardMaterial({ color: 0xc8cfd8, roughness: 0.82, metalness: 0.04 }));
               obelisk.position.y = 0.17;
               monument.add(base, obelisk);
+              if (topTier >= 4) {
+                const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.28, 8), utilityMat.clone());
+                lamp.position.set(0.18, 0.14, 0);
+                const glow = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), new THREE.MeshStandardMaterial({ color: 0xffefbf, roughness: 0.3, metalness: 0.04, emissive: 0xffefbf, emissiveIntensity: 0.18 }));
+                glow.position.set(0.18, 0.3, 0);
+                monument.add(lamp, glow);
+              }
               this.decorRoot.add(monument);
             } else if (nearResidential && (noise === 4 || noise === 5)) {
               const driveway = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.014, 0.74), pavingMat.clone());
@@ -7775,6 +7823,13 @@ export class GameRenderer {
               const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.12, 10), utilityMat.clone());
               drum.position.set(0.14, 0.06, 0.04);
               yard.add(crate, drum);
+              if (topTier >= 4) {
+                const mast = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.42, 0.04), utilityMat.clone());
+                mast.position.set(-0.14, 0.21, -0.04);
+                const beam = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.04, 0.04), new THREE.MeshStandardMaterial({ color: 0xd99b43, roughness: 0.72, metalness: 0.12 }));
+                beam.position.set(-0.04, 0.38, -0.04);
+                yard.add(mast, beam);
+              }
               this.decorRoot.add(yard);
             } else if (nearCommercial || nearCivic) {
               addStreetTree(world.x + 0.18, world.z - 0.18, 0.92);
