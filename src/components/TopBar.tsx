@@ -28,6 +28,7 @@ interface TopBarProps {
   aiLastAction: string;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
+  mobile?: boolean;
 }
 
 function Stat({
@@ -78,10 +79,80 @@ export function TopBar({
   aiAutoplayEnabled,
   aiLastAction,
   isFullscreen,
-  onToggleFullscreen
+  onToggleFullscreen,
+  mobile = false
 }: TopBarProps): JSX.Element {
   const net = powerProduced - powerUsed;
   const speedLabel = gameSpeed === 0 ? 'Pause' : `${gameSpeed}x`;
+
+  if (mobile) {
+    return (
+      <div className="pointer-events-auto absolute left-3 right-3 top-3 z-30 flex flex-col gap-2">
+        <div className="panel-glass rounded-2xl px-4 py-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-lg font-semibold leading-tight text-white">Cozy Town Builder</div>
+              <div className="mt-1 text-[11px] text-slate-200">
+                Day {day} • {formatClock(timeOfDay)} • Happy {happiness}%
+              </div>
+              <div className="mt-1 truncate text-[11px] text-cyan-100">AI: {aiLastAction}</div>
+            </div>
+            <div className="flex shrink-0 flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => cycleGameSpeed()}
+                className="rounded-xl border border-amber-300/60 bg-amber-400/20 px-3 py-2 text-xs font-medium text-amber-100"
+              >
+                {speedLabel}
+              </button>
+              <button
+                type="button"
+                onClick={onToggleFullscreen}
+                className="rounded-xl border border-cyan-300/50 bg-cyan-400/12 px-3 py-2 text-xs font-medium text-cyan-100"
+              >
+                {isFullscreen ? 'Exit' : 'Full'}
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Stat label="Money" value={formatMoney(money)} valueClassName="text-base tabular-nums" />
+          <Stat label="People" value={population.toLocaleString()} valueClassName="text-base" />
+          <Stat label="Jobs" value={jobs.toLocaleString()} valueClassName="text-base" />
+          <Stat label="Power" value={`${powerUsed}/${powerProduced} (${net >= 0 ? '+' : ''}${net})`} valueClassName="text-sm" />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => undoAction()}
+            disabled={undoCount === 0}
+            className="rounded-xl border border-slate-300/50 bg-slate-600/20 px-3 py-2 text-xs font-medium text-slate-100 disabled:opacity-45"
+          >
+            Undo {undoCount}
+          </button>
+          <button
+            type="button"
+            onClick={() => redoAction()}
+            disabled={redoCount === 0}
+            className="rounded-xl border border-slate-300/50 bg-slate-600/20 px-3 py-2 text-xs font-medium text-slate-100 disabled:opacity-45"
+          >
+            Redo {redoCount}
+          </button>
+          <button
+            type="button"
+            onClick={() => toggleAiAutoplay()}
+            className={`rounded-xl border px-3 py-2 text-xs font-medium ${
+              aiAutoplayEnabled
+                ? 'border-emerald-300/80 bg-emerald-400/25 text-emerald-100'
+                : 'border-slate-400/50 bg-slate-700/35 text-slate-100'
+            }`}
+          >
+            {aiAutoplayEnabled ? 'AI On' : 'AI Off'}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="pointer-events-auto absolute left-4 right-4 top-4 z-30 flex flex-col gap-2">

@@ -57,8 +57,24 @@ export class InputController {
   private readonly canvas: HTMLCanvasElement;
 
   private draggingPan = false;
+  private dragMoved = false;
 
   private lastPan = { x: 0, y: 0 };
+  private activeTouches = new Map<number, { x: number; y: number }>();
+  private touchTapCandidate:
+    | {
+        pointerId: number;
+        x: number;
+        y: number;
+      }
+    | null = null;
+  private pinchState:
+    | {
+        distance: number;
+        centerX: number;
+        centerY: number;
+      }
+    | null = null;
 
   private readonly keySet = new Set<string>();
 
@@ -582,8 +598,32 @@ export class InputController {
     this.sfx.unlock();
     this.renderer.setPointerFromClient(event.clientX, event.clientY);
 
+    if (event.pointerType === 'touch') {
+      this.activeTouches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (this.activeTouches.size === 1) {
+        this.touchTapCandidate = {
+          pointerId: event.pointerId,
+          x: event.clientX,
+          y: event.clientY
+        };
+        this.dragMoved = false;
+        const grid = this.renderer.pickGridCell();
+        setHoverCell(grid);
+      } else if (this.activeTouches.size === 2) {
+        const [a, b] = [...this.activeTouches.values()];
+        this.pinchState = {
+          distance: Math.hypot(a.x - b.x, a.y - b.y),
+          centerX: (a.x + b.x) / 2,
+          centerY: (a.y + b.y) / 2
+        };
+        this.touchTapCandidate = null;
+      }
+      return;
+    }
+
     if (event.button === 1 || event.button === 2) {
       this.draggingPan = true;
+      this.dragMoved = false;
       this.lastPan = { x: event.clientX, y: event.clientY };
       return;
     }
@@ -620,10 +660,57 @@ export class InputController {
   private readonly onPointerMove = (event: PointerEvent): void => {
     this.renderer.setPointerFromClient(event.clientX, event.clientY);
 
+    if (event.pointerType === 'touch') {
+      if (!this.activeTouches.has(event.pointerId)) return;
+      this.activeTouches.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+      if (this.activeTouches.size >= 2) {
+        const [a, b] = [...this.activeTouches.values()];
+        const distance = Math.hypot(a.x - b.x, a.y - b.y);
+        const centerX = (a.x + b.x) / 2;
+        const centerY = (a.y + b.y) / 2;
+        if (this.pinchState) {
+          const deltaDistance = distance - this.pinchState.distance;
+          this.renderer.setPointerFromClient(centerX, centerY);
+          const focus = this.renderer.pickGridCell();
+          this.renderer.zoomBy(-deltaDistance * 0.018, focus ?? undefined);
+          this.renderer.panBy(
+            -(centerX - this.pinchState.centerX) * 0.02,
+            -(centerY - this.pinchState.centerY) * 0.02
+          );
+        }
+        this.pinchState = { distance, centerX, centerY };
+        this.dragMoved = true;
+        return;
+      }
+
+      if (this.touchTapCandidate?.pointerId === event.pointerId) {
+        const dx = event.clientX - this.touchTapCandidate.x;
+        const dy = event.clientY - this.touchTapCandidate.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > 10) {
+          this.dragMoved = true;
+        }
+        if (this.dragMoved) {
+          this.renderer.panBy(-dx * 0.02, -dy * 0.02);
+          this.touchTapCandidate = {
+            pointerId: event.pointerId,
+            x: event.clientX,
+            y: event.clientY
+          };
+        } else {
+          const hit = this.renderer.pickGridCell();
+          setHoverCell(hit);
+        }
+      }
+      return;
+    }
+
     if (this.draggingPan) {
       const dx = event.clientX - this.lastPan.x;
       const dy = event.clientY - this.lastPan.y;
       this.lastPan = { x: event.clientX, y: event.clientY };
+      this.dragMoved = true;
       this.renderer.panBy(-dx * 0.025, -dy * 0.025);
       return;
     }
@@ -636,8 +723,58 @@ export class InputController {
     }
   };
 
-  private readonly onPointerUp = (): void => {
+  private readonly onPointerUp = (event: PointerEvent): void => {
+    if (event.pointerType === 'touch') {
+      const wasTap =
+        this.touchTapCandidate?.pointerId === event.pointerId && !this.dragMoved && this.activeTouches.size === 1;
+
+      if (wasTap) {
+        this.renderer.setPointerFromClient(event.clientX, event.clientY);
+        const state = gameStore.getState();
+        const grid = this.renderer.pickGridCell();
+        if (grid) {
+          setHoverCell(grid);
+          if (state.placementMode) {
+            const created = placeBuildingAt(state.placementMode, grid.x, grid.z);
+            if (created) {
+              this.renderer.playPlacementPulse(created.x, created.z, created.type);
+              this.sfx.beep(520, 0.075, 'triangle', 0.03);
+            } else {
+              this.sfx.beep(150, 0.05, 'square', 0.022);
+            }
+          } else {
+            const hitBuildingId = this.renderer.pickBuildingId();
+            if (hitBuildingId != null) {
+              selectBuildingById(hitBuildingId);
+              this.sfx.beep(300, 0.03, 'triangle', 0.02);
+            } else {
+              selectBuildingById(null);
+            }
+          }
+        }
+      }
+
+      this.activeTouches.delete(event.pointerId);
+      if (this.activeTouches.size < 2) this.pinchState = null;
+      if (this.activeTouches.size === 0) {
+        this.touchTapCandidate = null;
+        this.dragMoved = false;
+      } else {
+        const [remaining] = [...this.activeTouches.entries()];
+        if (remaining) {
+          this.touchTapCandidate = {
+            pointerId: remaining[0],
+            x: remaining[1].x,
+            y: remaining[1].y
+          };
+          this.dragMoved = false;
+        }
+      }
+      return;
+    }
+
     this.draggingPan = false;
+    this.dragMoved = false;
   };
 
   private readonly onWheel = (event: WheelEvent): void => {

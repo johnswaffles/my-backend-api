@@ -40,7 +40,7 @@ export function InfoPanel({ building }: InfoPanelProps): JSX.Element {
       <div className="mb-3 text-xs uppercase tracking-[0.18em] text-emerald-300">Selection</div>
       {!building ? (
         <div className="rounded-xl border border-slate-500/30 bg-slate-900/40 p-4 text-sm text-slate-300">
-          Click a placed building to inspect it.
+          Select a placed building to inspect it.
         </div>
       ) : (
         <div className="space-y-3 rounded-xl border border-emerald-300/30 bg-slate-900/50 p-4">

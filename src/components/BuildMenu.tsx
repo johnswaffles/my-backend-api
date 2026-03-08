@@ -51,6 +51,7 @@ const BUILD_SECTIONS: Array<{ title: string; accent: string; items: BuildItem[] 
 
 interface BuildMenuProps {
   placementMode: BuildType | null;
+  mobile?: boolean;
 }
 
 function BuildButton({
@@ -91,7 +92,46 @@ function BuildButton({
   );
 }
 
-export function BuildMenu({ placementMode }: BuildMenuProps): JSX.Element {
+export function BuildMenu({ placementMode, mobile = false }: BuildMenuProps): JSX.Element {
+  const flatItems = BUILD_SECTIONS.flatMap((section) => section.items);
+
+  if (mobile) {
+    return (
+      <aside className="pointer-events-auto panel-glass rounded-2xl p-3 text-slate-100 shadow-glow">
+        <div className="mb-3 flex items-end justify-between gap-2">
+          <div className="text-xs uppercase tracking-[0.18em] text-cyan-300">Build</div>
+          <div className="text-[11px] text-slate-300">Tap a tool, then tap the map</div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {flatItems.map((item) => (
+            <button
+              key={item.type}
+              type="button"
+              onClick={() => setPlacementMode(placementMode === item.type ? null : item.type)}
+              className={`rounded-xl border px-2.5 py-2.5 text-left transition ${
+                placementMode === item.type
+                  ? 'border-cyan-300 bg-cyan-400/18 shadow-[0_0_0_1px_rgba(103,232,249,0.12)]'
+                  : 'border-slate-500/30 bg-slate-900/38'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="rounded-md border border-slate-400/40 bg-slate-700/40 px-1.5 py-0.5 text-[10px] tracking-[0.12em] text-cyan-100">
+                  {item.icon}
+                </span>
+                <span className="text-[11px] text-slate-300">-${BUILDING_ECONOMY[item.type].cost}</span>
+              </div>
+              <div className="mt-2 text-sm font-medium">{item.label}</div>
+              <div className="mt-1 text-[11px] leading-tight text-slate-300">{item.desc}</div>
+            </button>
+          ))}
+        </div>
+        <div className="mt-3 text-[11px] text-slate-300">
+          Tap to place. Drag one finger to pan. Pinch to zoom. Tap a building for details.
+        </div>
+      </aside>
+    );
+  }
+
   return (
     <aside className="pointer-events-auto panel-glass flex min-h-0 flex-col rounded-2xl p-3 text-slate-100 shadow-glow">
       <div className="mb-2 flex items-end justify-between gap-2">
