@@ -18,6 +18,10 @@ interface RoadVisualData {
   crosswalks: Record<'n' | 'e' | 's' | 'w', THREE.Mesh>;
   cornerLamps: Record<'ne' | 'nw' | 'se' | 'sw', THREE.Group>;
   cornerPlanters: Record<'ne' | 'nw' | 'se' | 'sw', THREE.Group>;
+  majorSignals: Record<'ne' | 'nw' | 'se' | 'sw', THREE.Group>;
+  centerIsland: THREE.Mesh;
+  medianX: THREE.Mesh;
+  medianZ: THREE.Mesh;
 }
 
 interface BuildingPlacement {
@@ -731,6 +735,13 @@ export class GameRenderer {
       roadData.cornerPlanters.nw.visible = !north && !west && roadCount >= 1;
       roadData.cornerPlanters.se.visible = !south && !east && roadCount >= 1;
       roadData.cornerPlanters.sw.visible = !south && !west && roadCount >= 1;
+      roadData.majorSignals.ne.visible = roadCount >= 3 && north && east;
+      roadData.majorSignals.nw.visible = roadCount >= 3 && north && west;
+      roadData.majorSignals.se.visible = roadCount >= 3 && south && east;
+      roadData.majorSignals.sw.visible = roadCount >= 3 && south && west;
+      roadData.centerIsland.visible = roadCount >= 4;
+      roadData.medianX.visible = roadCount >= 4 || (roadCount === 3 && east && west);
+      roadData.medianZ.visible = roadCount >= 4 || (roadCount === 3 && north && south);
     }
 
     this.roadRuns = this.buildRoadRuns();
@@ -1358,6 +1369,68 @@ export class GameRenderer {
         group.add(part);
       });
 
+      const createSignal = (x: number, z: number) => {
+        const signal = new THREE.Group();
+        signal.position.set(x, 0.04, z);
+        signal.visible = false;
+        const pole = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.016, 0.02, 0.34, 8),
+          new THREE.MeshStandardMaterial({ color: 0x5b6570, roughness: 0.76, metalness: 0.18 })
+        );
+        pole.position.y = 0.17;
+        pole.userData.buildingId = building.id;
+        const arm = new THREE.Mesh(
+          new THREE.BoxGeometry(0.12, 0.018, 0.018),
+          new THREE.MeshStandardMaterial({ color: 0x5b6570, roughness: 0.76, metalness: 0.18 })
+        );
+        arm.position.set(0.04, 0.31, 0);
+        arm.userData.buildingId = building.id;
+        const light = new THREE.Mesh(
+          new THREE.BoxGeometry(0.05, 0.08, 0.03),
+          new THREE.MeshStandardMaterial({ color: 0xeff8ff, roughness: 0.22, metalness: 0.08, emissive: 0x67e8f9, emissiveIntensity: 0.14 })
+        );
+        light.position.set(0.09, 0.27, 0);
+        light.userData.buildingId = building.id;
+        signal.add(pole, arm, light);
+        return signal;
+      };
+
+      const signalNE = createSignal(0.45, -0.45);
+      const signalNW = createSignal(-0.45, -0.45);
+      signalNW.rotation.y = Math.PI;
+      const signalSE = createSignal(0.45, 0.45);
+      signalSE.rotation.y = -Math.PI / 2;
+      const signalSW = createSignal(-0.45, 0.45);
+      signalSW.rotation.y = Math.PI / 2;
+      [signalNE, signalNW, signalSE, signalSW].forEach((signal) => group.add(signal));
+
+      const centerIsland = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.14, 0.16, 0.04, 16),
+        new THREE.MeshStandardMaterial({ color: 0xdad7ce, roughness: 0.9, metalness: 0.02 })
+      );
+      centerIsland.position.set(0, 0.07, 0);
+      centerIsland.userData.buildingId = building.id;
+      centerIsland.visible = false;
+      group.add(centerIsland);
+
+      const medianX = new THREE.Mesh(
+        new THREE.BoxGeometry(0.44, 0.03, 0.08),
+        new THREE.MeshStandardMaterial({ color: 0xdad7ce, roughness: 0.9, metalness: 0.02 })
+      );
+      medianX.position.set(0, 0.068, 0);
+      medianX.userData.buildingId = building.id;
+      medianX.visible = false;
+      group.add(medianX);
+
+      const medianZ = new THREE.Mesh(
+        new THREE.BoxGeometry(0.08, 0.03, 0.44),
+        new THREE.MeshStandardMaterial({ color: 0xdad7ce, roughness: 0.9, metalness: 0.02 })
+      );
+      medianZ.position.set(0, 0.068, 0);
+      medianZ.userData.buildingId = building.id;
+      medianZ.visible = false;
+      group.add(medianZ);
+
       this.selectableMeshes.set(building.id, [
         sidewalkBase,
         asphaltBase,
@@ -1386,7 +1459,14 @@ export class GameRenderer {
         ...this.collectMeshes(planterNE),
         ...this.collectMeshes(planterNW),
         ...this.collectMeshes(planterSE),
-        ...this.collectMeshes(planterSW)
+        ...this.collectMeshes(planterSW),
+        ...this.collectMeshes(signalNE),
+        ...this.collectMeshes(signalNW),
+        ...this.collectMeshes(signalSE),
+        ...this.collectMeshes(signalSW),
+        centerIsland,
+        medianX,
+        medianZ
       ]);
       this.roadVisuals.set(building.id, {
         connectors: { n, e, s, w },
@@ -1395,7 +1475,11 @@ export class GameRenderer {
         intersection: intersectionMark,
         crosswalks: { n: cwN, e: cwE, s: cwS, w: cwW },
         cornerLamps: { ne: lampNE, nw: lampNW, se: lampSE, sw: lampSW },
-        cornerPlanters: { ne: planterNE, nw: planterNW, se: planterSE, sw: planterSW }
+        cornerPlanters: { ne: planterNE, nw: planterNW, se: planterSE, sw: planterSW },
+        majorSignals: { ne: signalNE, nw: signalNW, se: signalSE, sw: signalSW },
+        centerIsland,
+        medianX,
+        medianZ
       });
       return group;
     }
