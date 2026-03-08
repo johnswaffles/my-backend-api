@@ -6,7 +6,7 @@ import {
   upgradeBuildingById,
   upgradeCostForSelection
 } from '../game/actions';
-import { footprintForType, gameStore } from '../game/state';
+import { footprintForType, gameStore, MAX_BUILDING_LEVEL } from '../game/state';
 import type { Building } from '../game/state';
 
 interface InfoPanelProps {
@@ -75,7 +75,7 @@ export function InfoPanel({ building }: InfoPanelProps): JSX.Element {
             <div>
               <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Upgrade</div>
               <div className="text-sm text-slate-200">
-                {building.level >= 3 ? 'Maxed' : `${Math.round(building.upgradeProgress)} pts`}
+                {building.level >= MAX_BUILDING_LEVEL ? 'Maxed' : `${Math.round(building.upgradeProgress)} pts`}
               </div>
             </div>
           </div>
@@ -123,7 +123,7 @@ export function InfoPanel({ building }: InfoPanelProps): JSX.Element {
               <li>Health / Safety: {BUILDING_ECONOMY[building.type].health} / {BUILDING_ECONOMY[building.type].safety}</li>
             </ul>
           </div>
-          {building.level < 3 ? (
+          {building.level < MAX_BUILDING_LEVEL ? (
             <button
               type="button"
               onClick={() => upgradeBuildingById(building.id)}

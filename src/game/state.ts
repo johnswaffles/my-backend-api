@@ -24,7 +24,7 @@ export interface Building {
   x: number;
   z: number;
   createdAt: number;
-  level: 1 | 2 | 3;
+  level: 1 | 2 | 3 | 4 | 5;
   upgradeProgress: number;
   lastUpgradeAt: number;
   customImageUrl?: string | null;
@@ -99,6 +99,7 @@ export interface GameState {
 const GRID_SIZE = 28;
 export type GameSpeed = 0 | 1 | 2 | 10;
 export const INFINITE_MONEY = false;
+export const MAX_BUILDING_LEVEL = 5;
 export const STARTING_MONEY = 200000;
 export const STARTING_HAPPINESS = 62;
 export const DAY_LENGTH_SECONDS = 36;

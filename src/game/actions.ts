@@ -3,6 +3,7 @@ import {
   DAY_LENGTH_SECONDS,
   gameStore,
   INFINITE_MONEY,
+  MAX_BUILDING_LEVEL,
   occupiedCellsForBuilding,
   occupiedCellsForPlacement
 } from './state';
@@ -238,6 +239,8 @@ export const ECONOMY_TUNING = {
   upgradedHousingRevenuePerLevel: 0.08,
   apartmentRevenuePerTile: 0.11,
   highRiseRevenuePerTile: 0.22,
+  tier4ResidentialRevenuePerTile: 0.34,
+  tier5ResidentialRevenuePerTile: 0.52,
   minimumMoney: -20000
 } as const;
 
@@ -416,12 +419,12 @@ export function upgradeCostForBuilding(building: Building): number {
 
 export function upgradeCostForSelection(state: GameState, building: Building): number {
   return sameTypeConnectedCluster(state, building)
-    .filter((member) => member.level < 3)
+    .filter((member) => member.level < MAX_BUILDING_LEVEL)
     .reduce((sum, member) => sum + upgradeCostForBuilding(member), 0);
 }
 
 export function canUpgradeBuilding(state: GameState, building: Building): boolean {
-  const upgradableMembers = sameTypeConnectedCluster(state, building).filter((member) => member.level < 3);
+  const upgradableMembers = sameTypeConnectedCluster(state, building).filter((member) => member.level < MAX_BUILDING_LEVEL);
   if (!upgradableMembers.length) return false;
   return INFINITE_MONEY || state.resources.money >= upgradeCostForSelection(state, building);
 }
@@ -492,7 +495,7 @@ function evolveBuildings(state: GameState, dtSeconds: number): GameState {
                 : 0.92;
 
     building.upgradeProgress += dtSeconds * serviceFactor * appealFactor * typeFactor;
-    if (building.level >= 3) continue;
+    if (building.level >= MAX_BUILDING_LEVEL) continue;
 
     const threshold = upgradeThresholdFor(building);
     const upgradeCost = upgradeCostForBuilding(building);
@@ -502,7 +505,7 @@ function evolveBuildings(state: GameState, dtSeconds: number): GameState {
 
     availableMoney -= upgradeCost;
     building.upgradeProgress = 0;
-    building.level = (building.level + 1) as 1 | 2 | 3;
+    building.level = Math.min(MAX_BUILDING_LEVEL, building.level + 1) as 1 | 2 | 3 | 4 | 5;
     building.lastUpgradeAt = performance.now();
     upgradedAny = true;
   }
@@ -665,7 +668,11 @@ function residentialUpgradeRevenueBonus(state: GameState): number {
     const avgLevel = cluster.reduce((sum, member) => sum + member.level, 0) / cluster.length;
 
     if (cluster.length >= 4) {
-      if (avgLevel >= 3) {
+      if (avgLevel >= 5) {
+        bonus += cluster.length * ECONOMY_TUNING.tier5ResidentialRevenuePerTile;
+      } else if (avgLevel >= 4) {
+        bonus += cluster.length * ECONOMY_TUNING.tier4ResidentialRevenuePerTile;
+      } else if (avgLevel >= 3) {
         bonus += cluster.length * ECONOMY_TUNING.highRiseRevenuePerTile;
       } else if (avgLevel >= 2) {
         bonus += cluster.length * ECONOMY_TUNING.apartmentRevenuePerTile;
@@ -1191,10 +1198,10 @@ export function upgradeBuildingById(buildingId: number): boolean {
     const cluster = sameTypeConnectedCluster(state, target);
     const upgradeCost = upgradeCostForSelection(state, target);
     const nextBuildings = state.buildings.map((building) =>
-      cluster.some((member) => member.id === building.id) && building.level < 3
+      cluster.some((member) => member.id === building.id) && building.level < MAX_BUILDING_LEVEL
         ? {
             ...building,
-            level: (building.level + 1) as 1 | 2 | 3,
+            level: Math.min(MAX_BUILDING_LEVEL, building.level + 1) as 1 | 2 | 3 | 4 | 5,
             upgradeProgress: 0,
             lastUpgradeAt: performance.now()
           }
