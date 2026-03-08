@@ -235,6 +235,9 @@ export const ECONOMY_TUNING = {
   bankRevenue: 0.2,
   powerDeficitPenalty: 0.22,
   happinessIncomeFactor: 0.012,
+  upgradedHousingRevenuePerLevel: 0.08,
+  apartmentRevenuePerTile: 0.11,
+  highRiseRevenuePerTile: 0.22,
   minimumMoney: -20000
 } as const;
 
@@ -649,6 +652,33 @@ function clusterBonuses(state: GameState): {
   }
 
   return bonuses;
+}
+
+function residentialUpgradeRevenueBonus(state: GameState): number {
+  const seen = new Set<number>();
+  let bonus = 0;
+
+  for (const building of state.buildings) {
+    if (building.type !== 'house' || seen.has(building.id)) continue;
+    const cluster = sameTypeConnectedCluster(state, building);
+    cluster.forEach((member) => seen.add(member.id));
+    const avgLevel = cluster.reduce((sum, member) => sum + member.level, 0) / cluster.length;
+
+    if (cluster.length >= 4) {
+      if (avgLevel >= 3) {
+        bonus += cluster.length * ECONOMY_TUNING.highRiseRevenuePerTile;
+      } else if (avgLevel >= 2) {
+        bonus += cluster.length * ECONOMY_TUNING.apartmentRevenuePerTile;
+      }
+    }
+
+    bonus += cluster.reduce(
+      (sum, member) => sum + Math.max(0, member.level - 1) * ECONOMY_TUNING.upgradedHousingRevenuePerLevel,
+      0
+    );
+  }
+
+  return bonus;
 }
 
 function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happiness' | 'demand'> {
@@ -1290,12 +1320,21 @@ export function tickSimulation(dtSeconds: number): void {
       countType(evolvedState, 'groceryStore') * ECONOMY_TUNING.groceryRevenue +
       countType(evolvedState, 'cornerStore') * ECONOMY_TUNING.cornerStoreRevenue +
       countType(evolvedState, 'bank') * ECONOMY_TUNING.bankRevenue;
+    const upgradedHousingRevenue = residentialUpgradeRevenueBonus(evolvedState);
     const powerPenalty =
       Math.max(0, derived.resources.powerUsed - derived.resources.powerProduced) * ECONOMY_TUNING.powerDeficitPenalty;
     const happinessBonus = (derived.happiness - 50) * ECONOMY_TUNING.happinessIncomeFactor;
 
     const deltaMoney =
-      (residentTax + employmentTax + commercialTax - maintenancePerSecond - powerPenalty + happinessBonus) * dtSeconds;
+      (
+        residentTax +
+        employmentTax +
+        commercialTax +
+        upgradedHousingRevenue -
+        maintenancePerSecond -
+        powerPenalty +
+        happinessBonus
+      ) * dtSeconds;
 
     const simSeconds = evolvedState.simSeconds + dtSeconds;
     const day = Math.floor(simSeconds / DAY_LENGTH_SECONDS) + 1;
