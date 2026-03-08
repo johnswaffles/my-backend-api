@@ -330,6 +330,24 @@ function adjacentBuildings(state: GameState, building: Building): Building[] {
   );
 }
 
+function sameTypeConnectedCluster(state: GameState, building: Building): Building[] {
+  const cluster = new Map<number, Building>();
+  const queue: Building[] = [building];
+  cluster.set(building.id, building);
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current) break;
+    for (const other of adjacentBuildings(state, current)) {
+      if (other.type !== building.type || cluster.has(other.id)) continue;
+      cluster.set(other.id, other);
+      queue.push(other);
+    }
+  }
+
+  return [...cluster.values()];
+}
+
 function nearbyTypeCount(state: GameState, building: Building, types: BuildType[], range: number): number {
   const cells = occupiedCellsForBuilding(building);
   return state.buildings.filter(
@@ -387,6 +405,22 @@ function upgradeThresholdFor(building: Building): number {
               ? 34
               : 30;
   return base + (building.level - 1) * 18;
+}
+
+export function upgradeCostForBuilding(building: Building): number {
+  return Math.round(BUILDING_ECONOMY[building.type].cost * (0.14 + building.level * 0.08));
+}
+
+export function upgradeCostForSelection(state: GameState, building: Building): number {
+  return sameTypeConnectedCluster(state, building)
+    .filter((member) => member.level < 3)
+    .reduce((sum, member) => sum + upgradeCostForBuilding(member), 0);
+}
+
+export function canUpgradeBuilding(state: GameState, building: Building): boolean {
+  const upgradableMembers = sameTypeConnectedCluster(state, building).filter((member) => member.level < 3);
+  if (!upgradableMembers.length) return false;
+  return INFINITE_MONEY || state.resources.money >= upgradeCostForSelection(state, building);
 }
 
 function buildingAppealScore(state: GameState, building: Building): number {
@@ -458,7 +492,7 @@ function evolveBuildings(state: GameState, dtSeconds: number): GameState {
     if (building.level >= 3) continue;
 
     const threshold = upgradeThresholdFor(building);
-    const upgradeCost = Math.round(BUILDING_ECONOMY[building.type].cost * (0.14 + building.level * 0.08));
+    const upgradeCost = upgradeCostForBuilding(building);
     if (building.upgradeProgress < threshold) continue;
     if (!roadAccess || !powerAccess) continue;
     if (!INFINITE_MONEY && availableMoney < upgradeCost) continue;
@@ -737,12 +771,6 @@ export function canPlaceBuilding(state: GameState, type: BuildType, x: number, z
   if (!occupied.length) return false;
   if (occupied.some((cell) => !isInBounds(state, cell.x, cell.z))) return false;
   if (occupied.some((cell) => buildingAt(state, cell.x, cell.z))) return false;
-
-  if (type !== 'road') {
-    const roadsExist = state.buildings.some((b) => b.type === 'road');
-    if (roadsExist && type !== 'powerPlant' && !hasRoadAccess(state, type, x, z)) return false;
-    if (!roadsExist && type !== 'powerPlant') return false;
-  }
 
   if (type === 'house') {
     const nearWorkshop = state.buildings.some(
@@ -1032,6 +1060,52 @@ export function bulldozeAt(x: number, z: number): Building | null {
   });
 
   return removed;
+}
+
+export function upgradeBuildingById(buildingId: number): boolean {
+  let upgraded = false;
+
+  gameStore.update((state) => {
+    const target = state.buildings.find((building) => building.id === buildingId);
+    if (!target || !canUpgradeBuilding(state, target)) return state;
+    pushUndo(state);
+
+    const cluster = sameTypeConnectedCluster(state, target);
+    const upgradeCost = upgradeCostForSelection(state, target);
+    const nextBuildings = state.buildings.map((building) =>
+      cluster.some((member) => member.id === building.id) && building.level < 3
+        ? {
+            ...building,
+            level: (building.level + 1) as 1 | 2 | 3,
+            upgradeProgress: 0,
+            lastUpgradeAt: performance.now()
+          }
+        : building
+    );
+
+    upgraded = true;
+    const nextState = {
+      ...state,
+      buildings: nextBuildings,
+      resources: {
+        ...state.resources,
+        money: state.resources.money - upgradeCost
+      }
+    };
+    const derived = deriveSimulation(nextState);
+    return {
+      ...nextState,
+      resources: {
+        ...derived.resources,
+        money: Math.round(nextState.resources.money * 100) / 100
+      },
+      happiness: derived.happiness,
+      demand: derived.demand,
+      ...stackCounts()
+    };
+  });
+
+  return upgraded;
 }
 
 export function selectedBuilding(state: GameState): Building | null {

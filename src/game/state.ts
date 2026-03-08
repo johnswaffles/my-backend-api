@@ -99,7 +99,7 @@ export interface GameState {
 const GRID_SIZE = 28;
 export type GameSpeed = 0 | 1 | 2 | 10;
 export const INFINITE_MONEY = false;
-export const STARTING_MONEY = 100000;
+export const STARTING_MONEY = 200000;
 export const STARTING_HAPPINESS = 62;
 export const DAY_LENGTH_SECONDS = 36;
 export const CUSTOMIZABLE_BUILD_TYPES: BuildType[] = [

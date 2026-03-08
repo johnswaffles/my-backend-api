@@ -1,4 +1,11 @@
-import { BUILDING_ECONOMY, bulldozeAt, buildingContextSummary } from '../game/actions';
+import {
+  BUILDING_ECONOMY,
+  bulldozeAt,
+  buildingContextSummary,
+  canUpgradeBuilding,
+  upgradeBuildingById,
+  upgradeCostForSelection
+} from '../game/actions';
 import { footprintForType, gameStore } from '../game/state';
 import type { Building } from '../game/state';
 
@@ -33,7 +40,10 @@ function iconForType(type: Building['type']): string {
 }
 
 export function InfoPanel({ building }: InfoPanelProps): JSX.Element {
-  const context = building ? buildingContextSummary(gameStore.getState(), building) : null;
+  const state = gameStore.getState();
+  const context = building ? buildingContextSummary(state, building) : null;
+  const canUpgrade = building ? canUpgradeBuilding(state, building) : false;
+  const upgradeCost = building ? upgradeCostForSelection(state, building) : 0;
 
   return (
     <aside className="pointer-events-auto panel-glass rounded-2xl p-4 text-slate-100 shadow-glow">
@@ -64,7 +74,9 @@ export function InfoPanel({ building }: InfoPanelProps): JSX.Element {
             </div>
             <div>
               <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Upgrade</div>
-              <div className="text-sm text-slate-200">{Math.round(building.upgradeProgress)} pts</div>
+              <div className="text-sm text-slate-200">
+                {building.level >= 3 ? 'Maxed' : `${Math.round(building.upgradeProgress)} pts`}
+              </div>
             </div>
           </div>
           {context ? (
@@ -107,6 +119,16 @@ export function InfoPanel({ building }: InfoPanelProps): JSX.Element {
               <li>Health / Safety: {BUILDING_ECONOMY[building.type].health} / {BUILDING_ECONOMY[building.type].safety}</li>
             </ul>
           </div>
+          {building.level < 3 ? (
+            <button
+              type="button"
+              onClick={() => upgradeBuildingById(building.id)}
+              disabled={!canUpgrade}
+              className="w-full rounded-lg border border-cyan-300/60 bg-cyan-500/18 px-3 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-500/28 disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              Upgrade to Tier {building.level + 1} (${upgradeCost})
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => bulldozeAt(building.x, building.z)}
