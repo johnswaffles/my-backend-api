@@ -573,6 +573,84 @@ function countType(state: GameState, type: BuildType): number {
   return state.buildings.filter((b) => b.type === type).length;
 }
 
+function clusterBonuses(state: GameState): {
+  housing: number;
+  jobs: number;
+  commercial: number;
+  recreation: number;
+  essentials: number;
+  health: number;
+  safety: number;
+  power: number;
+  happiness: number;
+} {
+  const seen = new Set<number>();
+  const bonuses = {
+    housing: 0,
+    jobs: 0,
+    commercial: 0,
+    recreation: 0,
+    essentials: 0,
+    health: 0,
+    safety: 0,
+    power: 0,
+    happiness: 0
+  };
+
+  for (const building of state.buildings) {
+    if (seen.has(building.id) || building.type === 'road') continue;
+    const cluster = sameTypeConnectedCluster(state, building);
+    cluster.forEach((member) => seen.add(member.id));
+    const size = cluster.length;
+    if (size < 2) continue;
+    const avgLevel = cluster.reduce((sum, member) => sum + member.level, 0) / size;
+
+    if (building.type === 'house' && size >= 4) {
+      bonuses.housing += size * 3 + Math.round(avgLevel * 2);
+      bonuses.happiness += 2 + avgLevel;
+    } else if (building.type === 'shop' && size >= 3) {
+      bonuses.jobs += size * 3;
+      bonuses.commercial += size * 6 + Math.round(avgLevel * 3);
+      bonuses.essentials += size;
+      bonuses.happiness += 1 + avgLevel * 0.4;
+    } else if (building.type === 'restaurant' && size >= 2) {
+      bonuses.jobs += size * 2;
+      bonuses.commercial += size * 4;
+      bonuses.recreation += size * 2 + Math.round(avgLevel);
+      bonuses.happiness += 1 + avgLevel * 0.5;
+    } else if (building.type === 'groceryStore' && size >= 4) {
+      bonuses.jobs += size * 3;
+      bonuses.commercial += size * 4;
+      bonuses.essentials += size * 8 + Math.round(avgLevel * 3);
+      bonuses.health += Math.round(avgLevel);
+    } else if ((building.type === 'cornerStore' || building.type === 'bank') && size >= 2) {
+      bonuses.jobs += size * 2;
+      bonuses.commercial += size * 3 + Math.round(avgLevel * 2);
+      if (building.type === 'cornerStore') bonuses.essentials += size * 3;
+      if (building.type === 'bank') bonuses.safety += size * 2;
+    } else if (building.type === 'park' && size >= 4) {
+      bonuses.recreation += size * 6 + Math.round(avgLevel * 2);
+      bonuses.health += Math.round(avgLevel * 2);
+      bonuses.happiness += 3 + avgLevel;
+    } else if (building.type === 'workshop' && size >= 2) {
+      bonuses.jobs += size * 5 + Math.round(avgLevel * 2);
+      bonuses.commercial += size;
+    } else if (building.type === 'hospital' && size >= 4) {
+      bonuses.jobs += size * 2;
+      bonuses.health += size * 8 + Math.round(avgLevel * 4);
+      bonuses.safety += size;
+    } else if ((building.type === 'policeStation' || building.type === 'fireStation') && size >= 2) {
+      bonuses.jobs += size * 2;
+      bonuses.safety += size * 7 + Math.round(avgLevel * 3);
+    } else if (building.type === 'powerPlant' && size >= 4) {
+      bonuses.jobs += size;
+      bonuses.power += size * 8 + Math.round(avgLevel * 5);
+    }
+  }
+
+  return bonuses;
+}
+
 function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happiness' | 'demand'> {
   const roads = countType(state, 'road');
   const houses = state.buildings.filter((b) => b.type === 'house');
@@ -608,8 +686,16 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
     safetyCapacity += econ.safety * factor;
   }
 
+  const clusterBoost = clusterBonuses(state);
   housingCapacity += residentialComboBonus(state);
   commercialCapacity += commercialComboBonus(state);
+  housingCapacity += clusterBoost.housing;
+  jobCapacity += clusterBoost.jobs;
+  commercialCapacity += clusterBoost.commercial;
+  recreationCapacity += clusterBoost.recreation;
+  essentialsCapacity += clusterBoost.essentials;
+  healthCapacity += clusterBoost.health;
+  safetyCapacity += clusterBoost.safety;
 
   const servicedHomes = houses.filter(
     (h) => buildingHasRoadAccess(state, h) && buildingHasPowerCoverage(state, h)
@@ -640,6 +726,7 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
     powerUsed += econ.powerUse * (building.type === 'house' ? factor : 1 + (building.level - 1) * 0.14);
     powerProduced += econ.powerProduce * (building.type === 'powerPlant' ? 1 + (building.level - 1) * 0.18 : factor);
   }
+  powerProduced += clusterBoost.power;
 
   const targetPopulation = Math.max(
     houses.length > 0 ? 4 : 0,
@@ -680,7 +767,8 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
       Math.max(0, residentialAppeal - 58) * 0.16 +
       state.buildings.reduce((sum, building) => sum + (building.level - 1) * 0.75, 0) +
       commercialComboBonus(state) * 0.15 +
-      residentialComboBonus(state) * 0.2
+      residentialComboBonus(state) * 0.2 +
+      clusterBoost.happiness
   );
 
   const demandHousing = clampPercent(
@@ -1121,6 +1209,7 @@ export function buildingContextSummary(state: GameState, building: Building): {
   parkSupport: number;
   civicSupport: number;
   commerceSupport: number;
+  clusterSize: number;
 } {
   const roadAccess = buildingHasRoadAccess(state, building) || building.type === 'powerPlant';
   const powerAccess = buildingHasPowerCoverage(state, building) || building.type === 'powerPlant';
@@ -1130,6 +1219,7 @@ export function buildingContextSummary(state: GameState, building: Building): {
   const adjacentMatches = adjacentBuildings(state, building).filter(
     (other) => comboFamilyForType(other.type) === comboFamilyForType(building.type)
   ).length;
+  const clusterSize = sameTypeConnectedCluster(state, building).length;
 
   return {
     appeal: buildingAppealScore(state, building),
@@ -1138,7 +1228,8 @@ export function buildingContextSummary(state: GameState, building: Building): {
     adjacentMatches,
     parkSupport,
     civicSupport,
-    commerceSupport
+    commerceSupport,
+    clusterSize
   };
 }
 

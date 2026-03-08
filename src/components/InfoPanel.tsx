@@ -90,6 +90,10 @@ export function InfoPanel({ building }: InfoPanelProps): JSX.Element {
                 <div className="text-sm text-slate-100">{context.adjacentMatches}</div>
               </div>
               <div>
+                <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Cluster</div>
+                <div className="text-sm text-slate-100">{context.clusterSize}</div>
+              </div>
+              <div>
                 <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Road / Power</div>
                 <div className="text-sm text-slate-100">
                   {context.roadAccess ? 'Road' : 'No road'} • {context.powerAccess ? 'Powered' : 'No power'}
