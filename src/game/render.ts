@@ -2004,7 +2004,7 @@ export class GameRenderer {
       }
 
       const group = new THREE.Group();
-      const variant = building.id % 4;
+      const variant = building.id % 5;
       const level = building.level;
       const commercialCluster = this.connectedSides(building, (candidate) => this.isCommercialBuilding(candidate.type));
       const stripMode = commercialCluster.n || commercialCluster.e || commercialCluster.s || commercialCluster.w;
@@ -2030,32 +2030,32 @@ export class GameRenderer {
         emissiveIntensity: 0.04
       });
       const wallVariants = isRestaurant
-        ? [0xe6ccb0, 0xd9b89c, 0xe8d3b5, 0xd9c0a7]
+        ? [0xe6ccb0, 0xd9b89c, 0xe8d3b5, 0xd9c0a7, 0xe0c4b2]
         : isGrocery
-          ? [0xdbe4cc, 0xcdddbc, 0xe6ebd9, 0xd4ddc7]
+          ? [0xdbe4cc, 0xcdddbc, 0xe6ebd9, 0xd4ddc7, 0xd7e4d5]
           : isCornerStore
-            ? [0xe1d5be, 0xd9c7a8, 0xe8dcc7, 0xd8ccb7]
+            ? [0xe1d5be, 0xd9c7a8, 0xe8dcc7, 0xd8ccb7, 0xe4d4c2]
             : isBank
-              ? [0xd8dbe2, 0xd6dde8, 0xe1e5ea, 0xd2d6dc]
-              : [0xd6d5c8, 0xc6d2bc, 0xe0cfbf, 0xc9d7d8];
+              ? [0xd8dbe2, 0xd6dde8, 0xe1e5ea, 0xd2d6dc, 0xdfe4ea]
+              : [0xd6d5c8, 0xc6d2bc, 0xe0cfbf, 0xc9d7d8, 0xdcc8b8];
       const roofVariants = isRestaurant
-        ? [0x93453b, 0x8a5443, 0x7e4a39, 0x9a5e4f]
+        ? [0x93453b, 0x8a5443, 0x7e4a39, 0x9a5e4f, 0x775347]
         : isGrocery
-          ? [0x55754f, 0x4c6856, 0x5e7c63, 0x49634c]
+          ? [0x55754f, 0x4c6856, 0x5e7c63, 0x49634c, 0x637a55]
           : isCornerStore
-            ? [0x7e5f43, 0x91684a, 0x6f5e48, 0x8d6f52]
+            ? [0x7e5f43, 0x91684a, 0x6f5e48, 0x8d6f52, 0x63514a]
             : isBank
-              ? [0x546377, 0x465b75, 0x5d697d, 0x4f5d68]
-              : [0x5b636b, 0x6d5a43, 0x556a48, 0x4d6572];
+              ? [0x546377, 0x465b75, 0x5d697d, 0x4f5d68, 0x3d5368]
+              : [0x5b636b, 0x6d5a43, 0x556a48, 0x4d6572, 0x7f5d4a];
       const accentVariants = isRestaurant
-        ? [0xf4b05f, 0xf6c16a, 0xe99a54, 0xf0b677]
+        ? [0xf4b05f, 0xf6c16a, 0xe99a54, 0xf0b677, 0xe28b54]
         : isGrocery
-          ? [0x8fd18a, 0x74c285, 0x9ad39f, 0x7fbe72]
+          ? [0x8fd18a, 0x74c285, 0x9ad39f, 0x7fbe72, 0x62b880]
           : isCornerStore
-            ? [0xf1b476, 0xe89b5f, 0xf5c18a, 0xecae63]
+            ? [0xf1b476, 0xe89b5f, 0xf5c18a, 0xecae63, 0xf0c06d]
             : isBank
-              ? [0xbfd6f7, 0xd3e2fb, 0xaec9ef, 0xc7daf0]
-              : [0x76a6cf, 0xd58b58, 0x83b879, 0x9c88cf];
+              ? [0xbfd6f7, 0xd3e2fb, 0xaec9ef, 0xc7daf0, 0x95c0ec]
+              : [0x76a6cf, 0xd58b58, 0x83b879, 0x9c88cf, 0xe1a35b];
       const wallMat = new THREE.MeshStandardMaterial({
         color: wallVariants[variant],
         roughness: 0.78,
@@ -2553,6 +2553,127 @@ export class GameRenderer {
       roofSignTower.userData.buildingId = building.id;
       roofSignTower.visible = level >= 3 && (isShop || isRestaurant || isGrocery);
 
+      const tier2Mass = new THREE.Mesh(
+        new THREE.BoxGeometry(
+          isShop ? 0.7 : isRestaurant ? 0.62 : isGrocery ? 0.74 : isBank ? 0.56 : 0.48,
+          isShop ? 0.42 : isRestaurant ? 0.34 : isGrocery ? 0.4 : isBank ? 0.38 : 0.32,
+          isBank ? 0.38 : isRestaurant ? 0.42 : 0.34
+        ),
+        wallMat.clone()
+      );
+      tier2Mass.position.set(
+        isCornerStore ? 0.06 : 0,
+        isShop ? 0.88 : isRestaurant ? 0.72 : isGrocery ? 0.78 : isBank ? 0.74 : 0.62,
+        isRestaurant ? -0.06 : -0.04
+      );
+      tier2Mass.castShadow = true;
+      tier2Mass.receiveShadow = true;
+      tier2Mass.userData.buildingId = building.id;
+      tier2Mass.visible = level >= 2;
+
+      const tier2Roof = new THREE.Mesh(
+        new THREE.BoxGeometry(
+          isShop ? 0.76 : isRestaurant ? 0.68 : isGrocery ? 0.8 : isBank ? 0.62 : 0.54,
+          0.08,
+          isBank ? 0.42 : isRestaurant ? 0.48 : 0.38
+        ),
+        roofMat.clone()
+      );
+      tier2Roof.position.set(tier2Mass.position.x, tier2Mass.position.y + (isShop ? 0.25 : 0.21), tier2Mass.position.z);
+      tier2Roof.castShadow = true;
+      tier2Roof.receiveShadow = true;
+      tier2Roof.userData.buildingId = building.id;
+      tier2Roof.visible = level >= 2;
+
+      const tier2WindowBandFront = new THREE.Mesh(
+        new THREE.BoxGeometry(isCornerStore ? 0.34 : isBank ? 0.44 : 0.54, 0.12, 0.03),
+        new THREE.MeshStandardMaterial({
+          color: 0xffefc9,
+          roughness: 0.22,
+          metalness: 0.1,
+          transparent: true,
+          opacity: 0.84,
+          emissive: isBank ? 0x1d4ed8 : 0xf59e0b,
+          emissiveIntensity: 0.09
+        })
+      );
+      tier2WindowBandFront.position.set(tier2Mass.position.x, tier2Mass.position.y, tier2Mass.position.z + (isBank ? 0.22 : 0.2));
+      tier2WindowBandFront.userData.buildingId = building.id;
+      tier2WindowBandFront.visible = level >= 2;
+      const tier2WindowBandRear = tier2WindowBandFront.clone();
+      tier2WindowBandRear.position.set(tier2Mass.position.x, tier2Mass.position.y, tier2Mass.position.z - (isBank ? 0.22 : 0.2));
+      tier2WindowBandRear.userData.buildingId = building.id;
+
+      const tier3Tower = new THREE.Mesh(
+        new THREE.BoxGeometry(
+          isShop ? 0.34 : isRestaurant ? 0.28 : isGrocery ? 0.32 : isBank ? 0.3 : 0.24,
+          isShop ? 1.1 : isRestaurant ? 0.84 : isGrocery ? 0.96 : isBank ? 1.02 : 0.76,
+          isBank ? 0.22 : 0.26
+        ),
+        wallMat.clone()
+      );
+      tier3Tower.position.set(
+        isShop ? 0.24 : isRestaurant ? -0.22 : isGrocery ? 0.22 : isBank ? 0.18 : -0.18,
+        isShop ? 1.22 : isRestaurant ? 1.02 : isGrocery ? 1.1 : isBank ? 1.16 : 0.92,
+        -0.08
+      );
+      tier3Tower.castShadow = true;
+      tier3Tower.receiveShadow = true;
+      tier3Tower.userData.buildingId = building.id;
+      tier3Tower.visible = level >= 3;
+
+      const tier3Crown = new THREE.Mesh(
+        new THREE.BoxGeometry(
+          isShop ? 0.4 : isRestaurant ? 0.34 : isGrocery ? 0.38 : isBank ? 0.36 : 0.28,
+          0.08,
+          isBank ? 0.26 : 0.3
+        ),
+        accentMat.clone()
+      );
+      tier3Crown.position.set(tier3Tower.position.x, tier3Tower.position.y + (isShop ? 0.58 : isRestaurant ? 0.45 : isGrocery ? 0.5 : isBank ? 0.53 : 0.4), tier3Tower.position.z);
+      tier3Crown.castShadow = true;
+      tier3Crown.receiveShadow = true;
+      tier3Crown.userData.buildingId = building.id;
+      tier3Crown.visible = level >= 3;
+
+      const tier3Neon = new THREE.Mesh(
+        new THREE.BoxGeometry(isBank ? 0.18 : 0.22, 0.22, 0.03),
+        new THREE.MeshStandardMaterial({
+          color: isRestaurant ? 0xfec76e : isGrocery ? 0x99e2a0 : isBank ? 0xd8ecff : accentVariants[variant],
+          roughness: 0.35,
+          metalness: 0.08,
+          emissive: isBank ? 0x1d4ed8 : 0xf59e0b,
+          emissiveIntensity: 0.2
+        })
+      );
+      tier3Neon.position.set(tier3Tower.position.x, tier3Tower.position.y + (isShop ? 0.1 : 0.06), tier3Tower.position.z + 0.15);
+      tier3Neon.userData.buildingId = building.id;
+      tier3Neon.visible = level >= 3;
+
+      const rooftopTerrace = new THREE.Mesh(
+        new THREE.BoxGeometry(isRestaurant ? 0.46 : 0.36, 0.02, isRestaurant ? 0.28 : 0.22),
+        new THREE.MeshStandardMaterial({ color: 0xd9cfbc, roughness: 0.9, metalness: 0.01 })
+      );
+      rooftopTerrace.position.set(-0.12, isRestaurant ? 0.92 : 1.02, 0.02);
+      rooftopTerrace.userData.buildingId = building.id;
+      rooftopTerrace.visible = level >= 3 && (isRestaurant || isShop);
+
+      const terraceUmbrellaPole = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.012, 0.012, 0.18, 8),
+        new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.74, metalness: 0.22 })
+      );
+      terraceUmbrellaPole.position.set(-0.2, isRestaurant ? 1.02 : 1.12, 0.02);
+      terraceUmbrellaPole.userData.buildingId = building.id;
+      terraceUmbrellaPole.visible = rooftopTerrace.visible;
+
+      const terraceUmbrellaTop = new THREE.Mesh(
+        new THREE.ConeGeometry(0.11, 0.1, 10),
+        new THREE.MeshStandardMaterial({ color: isRestaurant ? 0xf3b562 : accentVariants[variant], roughness: 0.8, metalness: 0.01 })
+      );
+      terraceUmbrellaTop.position.set(-0.2, isRestaurant ? 1.14 : 1.24, 0.02);
+      terraceUmbrellaTop.userData.buildingId = building.id;
+      terraceUmbrellaTop.visible = rooftopTerrace.visible;
+
       const lampPost = this.createStreetLamp(
         isBank ? 0.33 : -0.34,
         0.055,
@@ -2808,6 +2929,16 @@ export class GameRenderer {
       group.add(umbrellaPole);
       group.add(umbrellaTop);
       group.add(roofSignTower);
+      group.add(tier2Mass);
+      group.add(tier2Roof);
+      group.add(tier2WindowBandFront);
+      group.add(tier2WindowBandRear);
+      group.add(tier3Tower);
+      group.add(tier3Crown);
+      group.add(tier3Neon);
+      group.add(rooftopTerrace);
+      group.add(terraceUmbrellaPole);
+      group.add(terraceUmbrellaTop);
       group.add(lampPost);
       group.add(parcelBench);
       group.add(planterAccentA);
@@ -2885,6 +3016,16 @@ export class GameRenderer {
         umbrellaPole,
         umbrellaTop,
         roofSignTower,
+        tier2Mass,
+        tier2Roof,
+        tier2WindowBandFront,
+        tier2WindowBandRear,
+        tier3Tower,
+        tier3Crown,
+        tier3Neon,
+        rooftopTerrace,
+        terraceUmbrellaPole,
+        terraceUmbrellaTop,
         ...this.collectMeshes(lampPost),
         ...this.collectMeshes(parcelBench),
         ...this.collectMeshes(planterAccentA),
@@ -5512,12 +5653,13 @@ export class GameRenderer {
     const width = cluster.tileWidth * 0.94;
     const depth = cluster.tileDepth * 0.94;
     const longAxisX = cluster.originWidth >= cluster.originDepth;
-    const theme = building.id % 4;
+    const theme = building.id % 5;
     const themes = [
       { body: 0xd8d7ca, roof: 0x59636f, accent: 0xaed4f6, sign: 0x164e63 },
       { body: 0xd7cfbf, roof: 0x77543f, accent: 0xecb07a, sign: 0x7c2d12 },
       { body: 0xd4dccd, roof: 0x52694b, accent: 0x98d19a, sign: 0x14532d },
-      { body: 0xdad2e2, roof: 0x5c5878, accent: 0xd5b7ef, sign: 0x4c1d95 }
+      { body: 0xdad2e2, roof: 0x5c5878, accent: 0xd5b7ef, sign: 0x4c1d95 },
+      { body: 0xe2d0c0, roof: 0x6f5f48, accent: 0xf0c173, sign: 0x7c2d12 }
     ][theme];
     const meshes: THREE.Mesh[] = [];
     const heightScale = level === 1 ? 0.56 : level === 2 ? 0.94 : 1.36;
@@ -5677,6 +5819,14 @@ export class GameRenderer {
         const t = Math.max(2, Math.min(5, cluster.size)) === 1 ? 0.5 : i / (Math.max(2, Math.min(5, cluster.size)) - 1);
         roofUnit.position.set(offset.x - width * 0.28 + t * width * 0.56, 0.68, offset.z - depth * 0.08);
       }
+
+      const mezzanine = addMesh(
+        new THREE.Mesh(
+          new THREE.BoxGeometry(width * (mode === 'superStore' ? 0.56 : 0.42), 0.22, depth * 0.16),
+          new THREE.MeshStandardMaterial({ color: themes.body, roughness: 0.76, metalness: 0.02 })
+        )
+      );
+      mezzanine.position.set(offset.x, 0.98, offset.z + (mode === 'restaurantHall' ? 0.04 : -0.06));
     }
 
     if (level >= 3) {
@@ -5699,6 +5849,22 @@ export class GameRenderer {
         )
       );
       towerCap.position.set(featureTower.position.x, featureTower.position.y + (mode === 'superStore' ? 0.48 : 0.4), featureTower.position.z);
+
+      const towerWindow = addMesh(
+        new THREE.Mesh(
+          new THREE.BoxGeometry(longAxisX ? 0.2 : 0.16, 0.14, 0.03),
+          new THREE.MeshStandardMaterial({
+            color: 0xffefc9,
+            roughness: 0.2,
+            metalness: 0.08,
+            transparent: true,
+            opacity: 0.82,
+            emissive: 0xf59e0b,
+            emissiveIntensity: 0.08
+          })
+        )
+      );
+      towerWindow.position.set(featureTower.position.x, featureTower.position.y + 0.08, featureTower.position.z + (longAxisX ? 0.13 : 0.18));
     }
 
     const parkingPad = addMesh(
