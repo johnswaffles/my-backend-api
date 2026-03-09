@@ -16,10 +16,14 @@ interface RoadVisualData {
   edgeCaps: Record<'n' | 'e' | 's' | 'w', THREE.Mesh>;
   intersection: THREE.Mesh;
   crosswalks: Record<'n' | 'e' | 's' | 'w', THREE.Mesh>;
+  stopBars: Record<'n' | 'e' | 's' | 'w', THREE.Mesh>;
+  cornerSidewalks: Record<'ne' | 'nw' | 'se' | 'sw', THREE.Mesh>;
+  curbRamps: Record<'ne' | 'nw' | 'se' | 'sw', THREE.Mesh>;
   cornerLamps: Record<'ne' | 'nw' | 'se' | 'sw', THREE.Group>;
   cornerPlanters: Record<'ne' | 'nw' | 'se' | 'sw', THREE.Group>;
   majorSignals: Record<'ne' | 'nw' | 'se' | 'sw', THREE.Group>;
   centerIsland: THREE.Mesh;
+  centerPlanting: THREE.Group;
   medianX: THREE.Mesh;
   medianZ: THREE.Mesh;
 }
@@ -116,8 +120,8 @@ export class GameRenderer {
   private readonly directional = new THREE.DirectionalLight(0xfff5da, 1.5);
   private readonly fill = new THREE.DirectionalLight(0xa6e1ff, 0.52);
 
-  private readonly ambientCars = Array.from({ length: 4 }, () => new THREE.Group());
-  private readonly ambientPedestrians = Array.from({ length: 6 }, () => new THREE.Group());
+  private readonly ambientCars = Array.from({ length: 6 }, () => new THREE.Group());
+  private readonly ambientPedestrians = Array.from({ length: 10 }, () => new THREE.Group());
   private roadRuns: RoadRun[] = [];
 
   private readonly houseAnimations = new Map<
@@ -503,12 +507,22 @@ export class GameRenderer {
   }
 
   private initAmbientActors(): void {
-    const carBodyMat = new THREE.MeshStandardMaterial({ color: 0xf3b34c, roughness: 0.72, metalness: 0.16 });
-    const carAltMat = new THREE.MeshStandardMaterial({ color: 0x5d88b7, roughness: 0.72, metalness: 0.16 });
+    const carMats = [
+      new THREE.MeshStandardMaterial({ color: 0xf3b34c, roughness: 0.72, metalness: 0.16 }),
+      new THREE.MeshStandardMaterial({ color: 0x5d88b7, roughness: 0.72, metalness: 0.16 }),
+      new THREE.MeshStandardMaterial({ color: 0xd97757, roughness: 0.72, metalness: 0.16 }),
+      new THREE.MeshStandardMaterial({ color: 0x8ab36b, roughness: 0.72, metalness: 0.16 })
+    ];
+    const pedestrianMats = [
+      new THREE.MeshStandardMaterial({ color: 0xe9d2b0, roughness: 0.84, metalness: 0.02 }),
+      new THREE.MeshStandardMaterial({ color: 0xbfd4e9, roughness: 0.84, metalness: 0.02 }),
+      new THREE.MeshStandardMaterial({ color: 0xd6c0df, roughness: 0.84, metalness: 0.02 }),
+      new THREE.MeshStandardMaterial({ color: 0xc8ddb4, roughness: 0.84, metalness: 0.02 })
+    ];
     const wheelMat = new THREE.MeshStandardMaterial({ color: 0x2b3139, roughness: 0.86, metalness: 0.08 });
 
     this.ambientCars.forEach((group, index) => {
-      const body = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.08, 0.34), index % 2 === 0 ? carBodyMat : carAltMat);
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.08, 0.34), carMats[index % carMats.length]);
       body.position.y = 0.1;
       body.castShadow = true;
       body.receiveShadow = true;
@@ -540,9 +554,9 @@ export class GameRenderer {
       group.add(cabin);
       group.userData.motion = {
         progress: index * 0.75,
-        speed: 0.62 + index * 0.07,
+        speed: 0.58 + index * 0.06,
         direction: index % 2 === 0 ? 1 : -1,
-        lane: index % 2 === 0 ? -0.12 : 0.12
+        lane: index % 3 === 0 ? -0.14 : index % 3 === 1 ? 0.14 : 0
       } as AmbientCarState;
       group.visible = false;
       this.ambientRoot.add(group);
@@ -551,11 +565,7 @@ export class GameRenderer {
     this.ambientPedestrians.forEach((group, index) => {
       const body = new THREE.Mesh(
         new THREE.CapsuleGeometry(0.03, 0.08, 4, 8),
-        new THREE.MeshStandardMaterial({
-          color: index % 2 === 0 ? 0xe9d2b0 : 0xbfd4e9,
-          roughness: 0.84,
-          metalness: 0.02
-        })
+        pedestrianMats[index % pedestrianMats.length]
       );
       body.position.y = 0.09;
       body.castShadow = true;
@@ -727,6 +737,18 @@ export class GameRenderer {
       roadData.crosswalks.e.visible = roadCount >= 3 && east;
       roadData.crosswalks.s.visible = roadCount >= 3 && south;
       roadData.crosswalks.w.visible = roadCount >= 3 && west;
+      roadData.stopBars.n.visible = roadCount >= 3 && north;
+      roadData.stopBars.e.visible = roadCount >= 3 && east;
+      roadData.stopBars.s.visible = roadCount >= 3 && south;
+      roadData.stopBars.w.visible = roadCount >= 3 && west;
+      roadData.cornerSidewalks.ne.visible = majorNode && (north || east);
+      roadData.cornerSidewalks.nw.visible = majorNode && (north || west);
+      roadData.cornerSidewalks.se.visible = majorNode && (south || east);
+      roadData.cornerSidewalks.sw.visible = majorNode && (south || west);
+      roadData.curbRamps.ne.visible = roadCount >= 3 && north && east;
+      roadData.curbRamps.nw.visible = roadCount >= 3 && north && west;
+      roadData.curbRamps.se.visible = roadCount >= 3 && south && east;
+      roadData.curbRamps.sw.visible = roadCount >= 3 && south && west;
       roadData.cornerLamps.ne.visible = majorNode && (north || east);
       roadData.cornerLamps.nw.visible = majorNode && (north || west);
       roadData.cornerLamps.se.visible = majorNode && (south || east);
@@ -740,6 +762,7 @@ export class GameRenderer {
       roadData.majorSignals.se.visible = roadCount >= 3 && south && east;
       roadData.majorSignals.sw.visible = roadCount >= 3 && south && west;
       roadData.centerIsland.visible = roadCount >= 4;
+      roadData.centerPlanting.visible = roadCount >= 4;
       roadData.medianX.visible = roadCount >= 4 || (roadCount === 3 && east && west);
       roadData.medianZ.visible = roadCount >= 4 || (roadCount === 3 && north && south);
     }
@@ -1356,6 +1379,61 @@ export class GameRenderer {
         group.add(part);
       });
 
+      const stopBarMat = new THREE.MeshStandardMaterial({
+        color: 0xf8fafc,
+        roughness: 0.58,
+        metalness: 0.01,
+        emissive: 0x111111,
+        emissiveIntensity: 0.04
+      });
+      const stopN = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.004, 0.04), stopBarMat);
+      const stopS = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.004, 0.04), stopBarMat.clone());
+      const stopE = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.004, 0.34), stopBarMat.clone());
+      const stopW = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.004, 0.34), stopBarMat.clone());
+      stopN.position.set(0, 0.081, -0.21);
+      stopS.position.set(0, 0.081, 0.21);
+      stopE.position.set(0.21, 0.081, 0);
+      stopW.position.set(-0.21, 0.081, 0);
+      [stopN, stopS, stopE, stopW].forEach((part) => {
+        part.userData.buildingId = building.id;
+        part.visible = false;
+        group.add(part);
+      });
+
+      const cornerSidewalkMat = new THREE.MeshStandardMaterial({ color: 0xe3e0d8, roughness: 0.96, metalness: 0.01 });
+      const cornerGeom = new THREE.BoxGeometry(0.22, 0.022, 0.22);
+      const cornerNE = new THREE.Mesh(cornerGeom, cornerSidewalkMat);
+      const cornerNW = new THREE.Mesh(cornerGeom, cornerSidewalkMat.clone());
+      const cornerSE = new THREE.Mesh(cornerGeom, cornerSidewalkMat.clone());
+      const cornerSW = new THREE.Mesh(cornerGeom, cornerSidewalkMat.clone());
+      cornerNE.position.set(0.4, 0.045, -0.4);
+      cornerNW.position.set(-0.4, 0.045, -0.4);
+      cornerSE.position.set(0.4, 0.045, 0.4);
+      cornerSW.position.set(-0.4, 0.045, 0.4);
+      [cornerNE, cornerNW, cornerSE, cornerSW].forEach((part) => {
+        part.userData.buildingId = building.id;
+        part.visible = false;
+        part.receiveShadow = true;
+        group.add(part);
+      });
+
+      const curbRampMat = new THREE.MeshStandardMaterial({ color: 0xd2cec3, roughness: 0.92, metalness: 0.01 });
+      const rampGeom = new THREE.BoxGeometry(0.11, 0.012, 0.11);
+      const rampNE = new THREE.Mesh(rampGeom, curbRampMat);
+      const rampNW = new THREE.Mesh(rampGeom, curbRampMat.clone());
+      const rampSE = new THREE.Mesh(rampGeom, curbRampMat.clone());
+      const rampSW = new THREE.Mesh(rampGeom, curbRampMat.clone());
+      rampNE.position.set(0.25, 0.042, -0.25);
+      rampNW.position.set(-0.25, 0.042, -0.25);
+      rampSE.position.set(0.25, 0.042, 0.25);
+      rampSW.position.set(-0.25, 0.042, 0.25);
+      [rampNE, rampNW, rampSE, rampSW].forEach((part) => {
+        part.userData.buildingId = building.id;
+        part.visible = false;
+        part.receiveShadow = true;
+        group.add(part);
+      });
+
       const lampNE = this.createStreetLamp(0.42, 0.04, -0.42, building.id, 0xffefbf);
       const lampNW = this.createStreetLamp(-0.42, 0.04, -0.42, building.id, 0xffefbf);
       const lampSE = this.createStreetLamp(0.42, 0.04, 0.42, building.id, 0xffefbf);
@@ -1413,6 +1491,23 @@ export class GameRenderer {
       centerIsland.visible = false;
       group.add(centerIsland);
 
+      const centerPlanting = new THREE.Group();
+      centerPlanting.visible = false;
+      const islandShrub = new THREE.Mesh(
+        new THREE.SphereGeometry(0.08, 10, 10),
+        new THREE.MeshStandardMaterial({ color: 0x6f9b61, roughness: 0.92, metalness: 0.01 })
+      );
+      islandShrub.position.set(0, 0.13, 0);
+      islandShrub.userData.buildingId = building.id;
+      const islandBloom = new THREE.Mesh(
+        new THREE.SphereGeometry(0.03, 8, 8),
+        new THREE.MeshStandardMaterial({ color: 0xf2d089, roughness: 0.82, metalness: 0.01 })
+      );
+      islandBloom.position.set(0.06, 0.18, -0.02);
+      islandBloom.userData.buildingId = building.id;
+      centerPlanting.add(islandShrub, islandBloom);
+      group.add(centerPlanting);
+
       const medianX = new THREE.Mesh(
         new THREE.BoxGeometry(0.44, 0.03, 0.08),
         new THREE.MeshStandardMaterial({ color: 0xdad7ce, roughness: 0.9, metalness: 0.02 })
@@ -1452,6 +1547,18 @@ export class GameRenderer {
         cwE,
         cwS,
         cwW,
+        stopN,
+        stopE,
+        stopS,
+        stopW,
+        cornerNE,
+        cornerNW,
+        cornerSE,
+        cornerSW,
+        rampNE,
+        rampNW,
+        rampSE,
+        rampSW,
         ...this.collectMeshes(lampNE),
         ...this.collectMeshes(lampNW),
         ...this.collectMeshes(lampSE),
@@ -1465,6 +1572,7 @@ export class GameRenderer {
         ...this.collectMeshes(signalSE),
         ...this.collectMeshes(signalSW),
         centerIsland,
+        ...this.collectMeshes(centerPlanting),
         medianX,
         medianZ
       ]);
@@ -1474,10 +1582,14 @@ export class GameRenderer {
         edgeCaps: { n: capN, e: capE, s: capS, w: capW },
         intersection: intersectionMark,
         crosswalks: { n: cwN, e: cwE, s: cwS, w: cwW },
+        stopBars: { n: stopN, e: stopE, s: stopS, w: stopW },
+        cornerSidewalks: { ne: cornerNE, nw: cornerNW, se: cornerSE, sw: cornerSW },
+        curbRamps: { ne: rampNE, nw: rampNW, se: rampSE, sw: rampSW },
         cornerLamps: { ne: lampNE, nw: lampNW, se: lampSE, sw: lampSW },
         cornerPlanters: { ne: planterNE, nw: planterNW, se: planterSE, sw: planterSW },
         majorSignals: { ne: signalNE, nw: signalNW, se: signalSE, sw: signalSW },
         centerIsland,
+        centerPlanting,
         medianX,
         medianZ
       });
@@ -8679,6 +8791,8 @@ export class GameRenderer {
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x8a6645, roughness: 0.95, metalness: 0.01 });
     const leafMat = new THREE.MeshStandardMaterial({ color: 0x5f9566, roughness: 0.86, metalness: 0.01 });
     const shrubMat = new THREE.MeshStandardMaterial({ color: 0x6f9b61, roughness: 0.92, metalness: 0.01 });
+    const hedgeMat = new THREE.MeshStandardMaterial({ color: 0x6b965e, roughness: 0.92, metalness: 0.01 });
+    const bannerMat = new THREE.MeshStandardMaterial({ color: 0xaecae7, roughness: 0.62, metalness: 0.04, emissive: 0x38bdf8, emissiveIntensity: 0.08 });
     const flowerMats = [
       new THREE.MeshStandardMaterial({ color: 0xf4b7b2, roughness: 0.82, metalness: 0.01 }),
       new THREE.MeshStandardMaterial({ color: 0xf2d089, roughness: 0.82, metalness: 0.01 }),
@@ -8742,6 +8856,8 @@ export class GameRenderer {
         const nearCivic = adjacent.some((building) => this.isCivicBuilding(building.type));
         const nearResidential = adjacent.some((building) => building.type === 'house');
         const nearUtility = adjacent.some((building) => building.type === 'workshop' || building.type === 'powerPlant');
+        const nearWorkshop = adjacent.some((building) => building.type === 'workshop');
+        const nearPower = adjacent.some((building) => building.type === 'powerPlant');
         const topTier = adjacent.reduce((max, building) => Math.max(max, building.level), 0);
         const sides = roadSides(x, z);
         const noise = (x * 37 + z * 19) % 11;
@@ -8788,6 +8904,14 @@ export class GameRenderer {
               sign.position.set(0.22, 0.16, 0);
               shelter.add(pad, roof, postA, postB, sign);
               this.decorRoot.add(shelter);
+              const seat = new THREE.Mesh(
+                new THREE.BoxGeometry(0.16, 0.03, 0.06),
+                new THREE.MeshStandardMaterial({ color: 0x8b6848, roughness: 0.82, metalness: 0.02 })
+              );
+              seat.position.set(world.x, 0.11, world.z);
+              seat.castShadow = true;
+              seat.receiveShadow = true;
+              this.decorRoot.add(seat);
               if (topTier >= 4) {
                 const neon = new THREE.Mesh(
                   new THREE.BoxGeometry(0.32, 0.04, 0.04),
@@ -8811,6 +8935,14 @@ export class GameRenderer {
                 umbrella.castShadow = true;
                 umbrella.receiveShadow = true;
                 this.decorRoot.add(umbrella);
+                const cafeTable = new THREE.Mesh(
+                  new THREE.CylinderGeometry(0.06, 0.06, 0.07, 10),
+                  new THREE.MeshStandardMaterial({ color: 0xd8c5a6, roughness: 0.82, metalness: 0.02 })
+                );
+                cafeTable.position.set(world.x - 0.1, 0.1, world.z + 0.08);
+                cafeTable.castShadow = true;
+                cafeTable.receiveShadow = true;
+                this.decorRoot.add(cafeTable);
 
                 if (topTier >= 5) {
                   const pylon = new THREE.Mesh(
@@ -8830,6 +8962,15 @@ export class GameRenderer {
                   kiosk.castShadow = true;
                   kiosk.receiveShadow = true;
                   this.decorRoot.add(kiosk);
+
+                  const newsstand = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.14, 0.18, 0.1),
+                    new THREE.MeshStandardMaterial({ color: 0x536a7d, roughness: 0.72, metalness: 0.08 })
+                  );
+                  newsstand.position.set(world.x + 0.12, 0.14, world.z - 0.16);
+                  newsstand.castShadow = true;
+                  newsstand.receiveShadow = true;
+                  this.decorRoot.add(newsstand);
                 }
               }
             } else if (nearCivic && (noise === 2 || noise === 3)) {
@@ -8850,6 +8991,11 @@ export class GameRenderer {
                   const bench = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.06), new THREE.MeshStandardMaterial({ color: 0x8b6848, roughness: 0.82, metalness: 0.02 }));
                   bench.position.set(-0.18, 0.06, 0.06);
                   monument.add(bench);
+                  const flagPole = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.42, 8), utilityMat.clone());
+                  flagPole.position.set(0.02, 0.22, -0.16);
+                  const flag = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.012), bannerMat.clone());
+                  flag.position.set(0.08, 0.28, -0.16);
+                  monument.add(flagPole, flag);
                 }
               }
               this.decorRoot.add(monument);
@@ -8859,6 +9005,11 @@ export class GameRenderer {
               driveway.receiveShadow = true;
               if (sides.e || sides.w) driveway.rotation.y = Math.PI / 2;
               this.decorRoot.add(driveway);
+              const hedge = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.08, 0.38), hedgeMat.clone());
+              hedge.position.set(world.x + 0.22, 0.08, world.z - 0.08);
+              hedge.castShadow = true;
+              hedge.receiveShadow = true;
+              this.decorRoot.add(hedge);
               if (topTier >= 4) {
                 const pocketGreen = new THREE.Mesh(
                   new THREE.BoxGeometry(0.42, 0.02, 0.22),
@@ -8876,6 +9027,7 @@ export class GameRenderer {
                 pergola.castShadow = true;
                 pergola.receiveShadow = true;
                 this.decorRoot.add(pergola);
+                addStreetTree(world.x - 0.2, world.z + 0.16, 0.72);
 
                 if (topTier >= 5) {
                   const arbor = new THREE.Mesh(
@@ -8886,6 +9038,14 @@ export class GameRenderer {
                   arbor.castShadow = true;
                   arbor.receiveShadow = true;
                   this.decorRoot.add(arbor);
+                  const bench = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.14, 0.04, 0.05),
+                    new THREE.MeshStandardMaterial({ color: 0x8b6848, roughness: 0.82, metalness: 0.02 })
+                  );
+                  bench.position.set(world.x - 0.16, 0.08, world.z - 0.12);
+                  bench.castShadow = true;
+                  bench.receiveShadow = true;
+                  this.decorRoot.add(bench);
                 }
               }
             } else if (nearUtility && (noise === 6 || noise === 7)) {
@@ -8902,10 +9062,40 @@ export class GameRenderer {
                 const beam = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.04, 0.04), new THREE.MeshStandardMaterial({ color: 0xd99b43, roughness: 0.72, metalness: 0.12 }));
                 beam.position.set(-0.04, 0.38, -0.04);
                 yard.add(mast, beam);
+                const fence = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.12, 0.02), utilityMat.clone());
+                fence.position.set(0, 0.08, 0.18);
+                yard.add(fence);
+                if (nearPower) {
+                  const transformer = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.18, 0.16, 0.12),
+                    new THREE.MeshStandardMaterial({ color: 0x97a6b2, roughness: 0.74, metalness: 0.12 })
+                  );
+                  transformer.position.set(-0.08, 0.1, -0.12);
+                  yard.add(transformer);
+                }
+                if (nearWorkshop) {
+                  const pallet = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.18, 0.04, 0.14),
+                    new THREE.MeshStandardMaterial({ color: 0x8a6a48, roughness: 0.82, metalness: 0.02 })
+                  );
+                  pallet.position.set(0.08, 0.02, -0.14);
+                  const cone = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.02, 0.04, 0.12, 8),
+                    new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.68, metalness: 0.04 })
+                  );
+                  cone.position.set(0.18, 0.06, 0.08);
+                  yard.add(pallet, cone);
+                }
               }
               this.decorRoot.add(yard);
             } else if (nearCommercial || nearCivic) {
               addStreetTree(world.x + 0.18, world.z - 0.18, 0.92);
+              if (nearCommercial && topTier >= 4) {
+                const plazaTile = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.02, 0.28), pavingMat.clone());
+                plazaTile.position.set(world.x - 0.12, 0.055, world.z + 0.08);
+                plazaTile.receiveShadow = true;
+                this.decorRoot.add(plazaTile);
+              }
             }
             continue;
           }
