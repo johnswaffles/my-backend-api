@@ -1508,7 +1508,7 @@ export class GameRenderer {
       }
 
       const group = new THREE.Group();
-      const variant = building.id % 5;
+      const variant = building.id % 6;
       const level = building.level;
       const houseCluster = this.connectedSides(building, (candidate) => candidate.type === 'house');
       const townhouseMode = houseCluster.n || houseCluster.e || houseCluster.s || houseCluster.w;
@@ -1516,9 +1516,17 @@ export class GameRenderer {
       const houseRowRight = this.connectedCountInDirection(building, 1, 0, (candidate) => candidate.type === 'house');
       const houseRowLength = 1 + houseRowLeft + houseRowRight;
       const rowhouseMode = houseRowLength >= 3;
-      const wallPalette = [0xcaa17b, 0xe1c9a9, 0xb78f63, 0xd7b58c, 0xcfa7a1];
-      const roofPalette = [0x6d5140, 0x9b5b3e, 0x6f6f72, 0x845742, 0x4d5b71];
-      const trimPalette = [0xaf7d52, 0xd9bc93, 0x9b7a57, 0xc69f74, 0xb48c84];
+      const wallPalette = [0xcaa17b, 0xe1c9a9, 0xb78f63, 0xd7b58c, 0xcfa7a1, 0xc9d7cc];
+      const roofPalette = [0x6d5140, 0x9b5b3e, 0x6f6f72, 0x845742, 0x4d5b71, 0x46645f];
+      const trimPalette = [0xaf7d52, 0xd9bc93, 0x9b7a57, 0xc69f74, 0xb48c84, 0x8fa49e];
+      const tier4Widths = [0.58, 0.48, 0.66, 0.54, 0.62, 0.5];
+      const tier4Heights = [0.82, 0.92, 0.76, 0.88, 0.84, 0.98];
+      const tier4Depths = [0.38, 0.32, 0.44, 0.4, 0.34, 0.46];
+      const tier5Widths = [0.42, 0.34, 0.5, 0.38, 0.46, 0.36];
+      const tier5Heights = [1.78, 2.04, 1.62, 1.9, 1.74, 2.14];
+      const tier5Depths = [0.32, 0.26, 0.36, 0.3, 0.34, 0.28];
+      const tier5Offsets = [0.12, -0.16, 0.06, -0.2, 0.18, -0.08];
+      const chimneyVariants = new Set([0, 2, 3]);
       const wallMat = new THREE.MeshStandardMaterial({
         color: wallPalette[variant],
         roughness: 0.78,
@@ -1676,7 +1684,7 @@ export class GameRenderer {
       chimney.castShadow = true;
       chimney.receiveShadow = true;
       chimney.userData.buildingId = building.id;
-      chimney.visible = variant !== 4;
+      chimney.visible = chimneyVariants.has(variant);
 
       const roofStrip = new THREE.Mesh(
         new THREE.BoxGeometry(0.12, 0.03, 0.86),
@@ -1687,7 +1695,7 @@ export class GameRenderer {
       roofStrip.castShadow = true;
       roofStrip.receiveShadow = true;
       roofStrip.userData.buildingId = building.id;
-      roofStrip.visible = variant !== 4;
+      roofStrip.visible = variant !== 4 && variant !== 5;
 
       const barrel = new THREE.Mesh(
         new THREE.CylinderGeometry(0.05, 0.055, 0.09, 10),
@@ -1915,45 +1923,137 @@ export class GameRenderer {
       tier3ResidenceCrown.visible = tier3ResidenceTower.visible;
 
       const tier4ResidenceSlab = new THREE.Mesh(
-        new THREE.BoxGeometry(0.58 + (variant === 4 ? 0.08 : 0), 0.82, 0.38),
+        new THREE.BoxGeometry(tier4Widths[variant], tier4Heights[variant], tier4Depths[variant]),
         wallMat.clone()
       );
-      tier4ResidenceSlab.position.set(0, 1.34, -0.02);
+      tier4ResidenceSlab.position.set(
+        variant === 1 ? -0.06 : variant === 4 ? 0.08 : variant === 5 ? -0.02 : 0,
+        0.92 + tier4Heights[variant] * 0.5,
+        variant === 2 ? -0.08 : variant === 5 ? 0.02 : -0.02
+      );
       tier4ResidenceSlab.castShadow = true;
       tier4ResidenceSlab.receiveShadow = true;
       tier4ResidenceSlab.userData.buildingId = building.id;
       tier4ResidenceSlab.visible = level >= 4 && !townhouseMode;
 
       const tier4WindowBandFront = new THREE.Mesh(
-        new THREE.BoxGeometry(0.42, 0.44, 0.02),
+        new THREE.BoxGeometry(tier4Widths[variant] * 0.68, Math.max(0.32, tier4Heights[variant] * 0.54), 0.02),
         windowMat.clone()
       );
-      tier4WindowBandFront.position.set(0, 1.36, 0.17);
+      tier4WindowBandFront.position.set(
+        tier4ResidenceSlab.position.x,
+        tier4ResidenceSlab.position.y,
+        tier4ResidenceSlab.position.z + tier4Depths[variant] * 0.5 + 0.02
+      );
       tier4WindowBandFront.userData.buildingId = building.id;
       tier4WindowBandFront.visible = tier4ResidenceSlab.visible;
       const tier4WindowBandRear = tier4WindowBandFront.clone();
-      tier4WindowBandRear.position.set(0, 1.36, -0.21);
+      tier4WindowBandRear.position.set(
+        tier4ResidenceSlab.position.x,
+        tier4ResidenceSlab.position.y,
+        tier4ResidenceSlab.position.z - tier4Depths[variant] * 0.5 - 0.02
+      );
       tier4WindowBandRear.userData.buildingId = building.id;
 
       const tier5ResidenceTower = new THREE.Mesh(
-        new THREE.BoxGeometry(0.42, 1.78, 0.32),
+        new THREE.BoxGeometry(tier5Widths[variant], tier5Heights[variant], tier5Depths[variant]),
         wallMat.clone()
       );
-      tier5ResidenceTower.position.set(variant % 2 === 0 ? 0.12 : -0.12, 2.04, -0.04);
+      tier5ResidenceTower.position.set(
+        tier5Offsets[variant],
+        1.15 + tier5Heights[variant] * 0.5,
+        variant === 2 ? -0.1 : variant === 5 ? 0.04 : -0.04
+      );
       tier5ResidenceTower.castShadow = true;
       tier5ResidenceTower.receiveShadow = true;
       tier5ResidenceTower.userData.buildingId = building.id;
       tier5ResidenceTower.visible = level >= 5 && !townhouseMode;
 
       const tier5ResidenceCrown = new THREE.Mesh(
-        new THREE.BoxGeometry(0.52, 0.1, 0.38),
+        new THREE.BoxGeometry(tier5Widths[variant] + 0.12, 0.1, tier5Depths[variant] + 0.08),
         trimMat.clone()
       );
-      tier5ResidenceCrown.position.set(tier5ResidenceTower.position.x, 2.98, -0.04);
+      tier5ResidenceCrown.position.set(
+        tier5ResidenceTower.position.x,
+        tier5ResidenceTower.position.y + tier5Heights[variant] * 0.5 + 0.11,
+        tier5ResidenceTower.position.z
+      );
       tier5ResidenceCrown.castShadow = true;
       tier5ResidenceCrown.receiveShadow = true;
       tier5ResidenceCrown.userData.buildingId = building.id;
       tier5ResidenceCrown.visible = tier5ResidenceTower.visible;
+
+      const tier4SidePod = new THREE.Mesh(
+        new THREE.BoxGeometry(
+          variant === 2 ? 0.2 : variant === 4 ? 0.24 : variant === 5 ? 0.16 : 0.18,
+          variant === 1 ? 0.54 : variant === 4 ? 0.46 : 0.4,
+          0.16
+        ),
+        wallMat.clone()
+      );
+      tier4SidePod.position.set(
+        variant === 1 || variant === 3 ? -0.24 : 0.24,
+        variant === 1 ? 1.16 : variant === 4 ? 1.12 : 1.02,
+        variant === 2 ? -0.12 : 0.02
+      );
+      tier4SidePod.castShadow = true;
+      tier4SidePod.receiveShadow = true;
+      tier4SidePod.userData.buildingId = building.id;
+      tier4SidePod.visible = level >= 4 && !townhouseMode && variant !== 0;
+
+      const tier5SkyFrame = new THREE.Mesh(
+        new THREE.BoxGeometry(
+          variant === 5 ? tier5Widths[variant] + 0.14 : variant === 1 ? 0.18 : 0.12,
+          variant === 1 ? 0.34 : 0.22,
+          0.08
+        ),
+        trimMat.clone()
+      );
+      tier5SkyFrame.position.set(
+        tier5ResidenceTower.position.x,
+        tier5ResidenceTower.position.y + tier5Heights[variant] * 0.5 + (variant === 1 ? 0.28 : 0.22),
+        tier5ResidenceTower.position.z
+      );
+      tier5SkyFrame.castShadow = true;
+      tier5SkyFrame.receiveShadow = true;
+      tier5SkyFrame.userData.buildingId = building.id;
+      tier5SkyFrame.visible = level >= 5 && !townhouseMode && (variant === 1 || variant === 5);
+
+      const tier5BalconyBand = new THREE.Mesh(
+        new THREE.BoxGeometry(
+          variant === 2 ? tier5Widths[variant] + 0.12 : tier5Widths[variant] + 0.06,
+          0.06,
+          variant === 2 ? 0.12 : 0.08
+        ),
+        trimMat.clone()
+      );
+      tier5BalconyBand.position.set(
+        tier5ResidenceTower.position.x,
+        tier5ResidenceTower.position.y - tier5Heights[variant] * 0.12,
+        tier5ResidenceTower.position.z + tier5Depths[variant] * 0.5 + 0.05
+      );
+      tier5BalconyBand.castShadow = true;
+      tier5BalconyBand.receiveShadow = true;
+      tier5BalconyBand.userData.buildingId = building.id;
+      tier5BalconyBand.visible = level >= 5 && !townhouseMode && (variant === 0 || variant === 2 || variant === 4);
+
+      const tier5CapTower = new THREE.Mesh(
+        new THREE.BoxGeometry(
+          variant === 3 ? 0.18 : 0.14,
+          variant === 3 ? 0.74 : 0.52,
+          0.14
+        ),
+        wallMat.clone()
+      );
+      tier5CapTower.position.set(
+        tier5ResidenceTower.position.x + (variant === 3 ? 0.18 : variant === 4 ? -0.18 : 0),
+        tier5ResidenceTower.position.y + tier5Heights[variant] * 0.32,
+        tier5ResidenceTower.position.z - 0.02
+      );
+      tier5CapTower.castShadow = true;
+      tier5CapTower.receiveShadow = true;
+      tier5CapTower.userData.buildingId = building.id;
+      tier5CapTower.visible = level >= 5 && !townhouseMode && (variant === 3 || variant === 4);
 
       const rowParapet = new THREE.Mesh(
         new THREE.BoxGeometry(0.9, 0.06, 0.12),
@@ -2032,7 +2132,7 @@ export class GameRenderer {
         );
         puff.position.set(0.18, 0.9 + index * 0.05, -0.14);
         puff.userData.buildingId = building.id;
-        puff.visible = variant !== 4;
+        puff.visible = chimney.visible;
         return puff;
       });
 
@@ -2055,8 +2155,12 @@ export class GameRenderer {
       group.add(tier4ResidenceSlab);
       group.add(tier4WindowBandFront);
       group.add(tier4WindowBandRear);
+      group.add(tier4SidePod);
       group.add(tier5ResidenceTower);
       group.add(tier5ResidenceCrown);
+      group.add(tier5SkyFrame);
+      group.add(tier5BalconyBand);
+      group.add(tier5CapTower);
       group.add(rowParapet);
       group.add(sharedFrontWalk);
       group.add(rowWindowBand);
@@ -2120,8 +2224,12 @@ export class GameRenderer {
         tier4ResidenceSlab,
         tier4WindowBandFront,
         tier4WindowBandRear,
+        tier4SidePod,
         tier5ResidenceTower,
         tier5ResidenceCrown,
+        tier5SkyFrame,
+        tier5BalconyBand,
+        tier5CapTower,
         rowParapet,
         sharedFrontWalk,
         rowWindowBand,
@@ -2168,7 +2276,7 @@ export class GameRenderer {
         ...smokePuffs
       ]);
       this.houseAnimations.set(building.id, {
-        windows: [windowLeft, windowRight, sideWindow, atticWindow].filter((mesh) => mesh.visible),
+        windows: [windowLeft, windowRight, sideWindow, atticWindow, tier2WindowBandFront, tier4WindowBandFront].filter((mesh) => mesh.visible),
         smoke: smokePuffs.filter((mesh) => mesh.visible),
         baseY: 0,
         wobble: variant * 0.8 + building.id * 0.11
