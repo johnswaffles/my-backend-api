@@ -17,8 +17,10 @@ interface RoadVisualData {
   intersection: THREE.Mesh;
   crosswalks: Record<'n' | 'e' | 's' | 'w', THREE.Mesh>;
   stopBars: Record<'n' | 'e' | 's' | 'w', THREE.Mesh>;
+  turnArrows: Record<'n' | 'e' | 's' | 'w', THREE.Mesh>;
   cornerSidewalks: Record<'ne' | 'nw' | 'se' | 'sw', THREE.Mesh>;
   curbRamps: Record<'ne' | 'nw' | 'se' | 'sw', THREE.Mesh>;
+  cornerBollards: Record<'ne' | 'nw' | 'se' | 'sw', THREE.Mesh>;
   cornerLamps: Record<'ne' | 'nw' | 'se' | 'sw', THREE.Group>;
   cornerPlanters: Record<'ne' | 'nw' | 'se' | 'sw', THREE.Group>;
   majorSignals: Record<'ne' | 'nw' | 'se' | 'sw', THREE.Group>;
@@ -741,6 +743,10 @@ export class GameRenderer {
       roadData.stopBars.e.visible = roadCount >= 3 && east;
       roadData.stopBars.s.visible = roadCount >= 3 && south;
       roadData.stopBars.w.visible = roadCount >= 3 && west;
+      roadData.turnArrows.n.visible = roadCount >= 3 && north;
+      roadData.turnArrows.e.visible = roadCount >= 3 && east;
+      roadData.turnArrows.s.visible = roadCount >= 3 && south;
+      roadData.turnArrows.w.visible = roadCount >= 3 && west;
       roadData.cornerSidewalks.ne.visible = majorNode && (north || east);
       roadData.cornerSidewalks.nw.visible = majorNode && (north || west);
       roadData.cornerSidewalks.se.visible = majorNode && (south || east);
@@ -749,6 +755,10 @@ export class GameRenderer {
       roadData.curbRamps.nw.visible = roadCount >= 3 && north && west;
       roadData.curbRamps.se.visible = roadCount >= 3 && south && east;
       roadData.curbRamps.sw.visible = roadCount >= 3 && south && west;
+      roadData.cornerBollards.ne.visible = roadCount >= 3 && north && east;
+      roadData.cornerBollards.nw.visible = roadCount >= 3 && north && west;
+      roadData.cornerBollards.se.visible = roadCount >= 3 && south && east;
+      roadData.cornerBollards.sw.visible = roadCount >= 3 && south && west;
       roadData.cornerLamps.ne.visible = majorNode && (north || east);
       roadData.cornerLamps.nw.visible = majorNode && (north || west);
       roadData.cornerLamps.se.visible = majorNode && (south || east);
@@ -1400,6 +1410,30 @@ export class GameRenderer {
         group.add(part);
       });
 
+      const arrowMat = new THREE.MeshStandardMaterial({
+        color: 0xf1f5f9,
+        roughness: 0.56,
+        metalness: 0.01,
+        emissive: 0x111111,
+        emissiveIntensity: 0.04
+      });
+      const arrowGeom = new THREE.BoxGeometry(0.12, 0.004, 0.18);
+      const arrowN = new THREE.Mesh(arrowGeom, arrowMat);
+      const arrowS = new THREE.Mesh(arrowGeom, arrowMat.clone());
+      const arrowE = new THREE.Mesh(arrowGeom, arrowMat.clone());
+      const arrowW = new THREE.Mesh(arrowGeom, arrowMat.clone());
+      arrowN.position.set(0, 0.081, -0.07);
+      arrowS.position.set(0, 0.081, 0.07);
+      arrowE.position.set(0.07, 0.081, 0);
+      arrowW.position.set(-0.07, 0.081, 0);
+      arrowE.rotation.y = Math.PI / 2;
+      arrowW.rotation.y = Math.PI / 2;
+      [arrowN, arrowS, arrowE, arrowW].forEach((part) => {
+        part.userData.buildingId = building.id;
+        part.visible = false;
+        group.add(part);
+      });
+
       const cornerSidewalkMat = new THREE.MeshStandardMaterial({ color: 0xe3e0d8, roughness: 0.96, metalness: 0.01 });
       const cornerGeom = new THREE.BoxGeometry(0.22, 0.022, 0.22);
       const cornerNE = new THREE.Mesh(cornerGeom, cornerSidewalkMat);
@@ -1430,6 +1464,24 @@ export class GameRenderer {
       [rampNE, rampNW, rampSE, rampSW].forEach((part) => {
         part.userData.buildingId = building.id;
         part.visible = false;
+        part.receiveShadow = true;
+        group.add(part);
+      });
+
+      const bollardMat = new THREE.MeshStandardMaterial({ color: 0x717b84, roughness: 0.76, metalness: 0.18 });
+      const bollardGeom = new THREE.CylinderGeometry(0.018, 0.022, 0.14, 10);
+      const bollardNE = new THREE.Mesh(bollardGeom, bollardMat);
+      const bollardNW = new THREE.Mesh(bollardGeom, bollardMat.clone());
+      const bollardSE = new THREE.Mesh(bollardGeom, bollardMat.clone());
+      const bollardSW = new THREE.Mesh(bollardGeom, bollardMat.clone());
+      bollardNE.position.set(0.34, 0.08, -0.34);
+      bollardNW.position.set(-0.34, 0.08, -0.34);
+      bollardSE.position.set(0.34, 0.08, 0.34);
+      bollardSW.position.set(-0.34, 0.08, 0.34);
+      [bollardNE, bollardNW, bollardSE, bollardSW].forEach((part) => {
+        part.userData.buildingId = building.id;
+        part.visible = false;
+        part.castShadow = true;
         part.receiveShadow = true;
         group.add(part);
       });
@@ -1551,6 +1603,10 @@ export class GameRenderer {
         stopE,
         stopS,
         stopW,
+        arrowN,
+        arrowE,
+        arrowS,
+        arrowW,
         cornerNE,
         cornerNW,
         cornerSE,
@@ -1559,6 +1615,10 @@ export class GameRenderer {
         rampNW,
         rampSE,
         rampSW,
+        bollardNE,
+        bollardNW,
+        bollardSE,
+        bollardSW,
         ...this.collectMeshes(lampNE),
         ...this.collectMeshes(lampNW),
         ...this.collectMeshes(lampSE),
@@ -1583,8 +1643,10 @@ export class GameRenderer {
         intersection: intersectionMark,
         crosswalks: { n: cwN, e: cwE, s: cwS, w: cwW },
         stopBars: { n: stopN, e: stopE, s: stopS, w: stopW },
+        turnArrows: { n: arrowN, e: arrowE, s: arrowS, w: arrowW },
         cornerSidewalks: { ne: cornerNE, nw: cornerNW, se: cornerSE, sw: cornerSW },
         curbRamps: { ne: rampNE, nw: rampNW, se: rampSE, sw: rampSW },
+        cornerBollards: { ne: bollardNE, nw: bollardNW, se: bollardSE, sw: bollardSW },
         cornerLamps: { ne: lampNE, nw: lampNW, se: lampSE, sw: lampSW },
         cornerPlanters: { ne: planterNE, nw: planterNW, se: planterSE, sw: planterSW },
         majorSignals: { ne: signalNE, nw: signalNW, se: signalSE, sw: signalSW },
@@ -8787,6 +8849,9 @@ export class GameRenderer {
     const flowerGeom = new THREE.SphereGeometry(0.028, 8, 8);
     const sidewalkMat = new THREE.MeshStandardMaterial({ color: 0xdfe0dc, roughness: 0.96, metalness: 0.01 });
     const pavingMat = new THREE.MeshStandardMaterial({ color: 0xd0c3b0, roughness: 0.92, metalness: 0.01 });
+    const plazaMat = new THREE.MeshStandardMaterial({ color: 0xd8d8d0, roughness: 0.92, metalness: 0.01 });
+    const gravelMat = new THREE.MeshStandardMaterial({ color: 0xb8b3aa, roughness: 0.95, metalness: 0.01 });
+    const lawnInsetMat = new THREE.MeshStandardMaterial({ color: 0x8ab17e, roughness: 0.96, metalness: 0.01 });
     const utilityMat = new THREE.MeshStandardMaterial({ color: 0x858f98, roughness: 0.82, metalness: 0.12 });
     const trunkMat = new THREE.MeshStandardMaterial({ color: 0x8a6645, roughness: 0.95, metalness: 0.01 });
     const leafMat = new THREE.MeshStandardMaterial({ color: 0x5f9566, roughness: 0.86, metalness: 0.01 });
@@ -8889,6 +8954,20 @@ export class GameRenderer {
             sidewalk.receiveShadow = true;
             this.decorRoot.add(sidewalk);
 
+            const districtInset = new THREE.Mesh(
+              new THREE.BoxGeometry(0.68, 0.014, 0.68),
+              nearResidential
+                ? lawnInsetMat.clone()
+                : nearCommercial
+                  ? pavingMat.clone()
+                  : nearCivic
+                    ? plazaMat.clone()
+                    : gravelMat.clone()
+            );
+            districtInset.position.set(world.x, 0.053, world.z);
+            districtInset.receiveShadow = true;
+            this.decorRoot.add(districtInset);
+
             if (nearCommercial && (noise === 0 || noise === 1)) {
               const shelter = new THREE.Group();
               shelter.position.set(world.x, 0.05, world.z);
@@ -8912,6 +8991,15 @@ export class GameRenderer {
               seat.castShadow = true;
               seat.receiveShadow = true;
               this.decorRoot.add(seat);
+              const bikeRack = new THREE.Mesh(
+                new THREE.TorusGeometry(0.06, 0.01, 8, 14),
+                new THREE.MeshStandardMaterial({ color: 0x6d7c89, roughness: 0.72, metalness: 0.14 })
+              );
+              bikeRack.rotation.y = Math.PI / 2;
+              bikeRack.position.set(world.x - 0.16, 0.08, world.z - 0.08);
+              bikeRack.castShadow = true;
+              bikeRack.receiveShadow = true;
+              this.decorRoot.add(bikeRack);
               if (topTier >= 4) {
                 const neon = new THREE.Mesh(
                   new THREE.BoxGeometry(0.32, 0.04, 0.04),
@@ -8943,6 +9031,14 @@ export class GameRenderer {
                 cafeTable.castShadow = true;
                 cafeTable.receiveShadow = true;
                 this.decorRoot.add(cafeTable);
+                const bin = new THREE.Mesh(
+                  new THREE.CylinderGeometry(0.035, 0.04, 0.1, 10),
+                  new THREE.MeshStandardMaterial({ color: 0x6a7682, roughness: 0.72, metalness: 0.14 })
+                );
+                bin.position.set(world.x + 0.16, 0.08, world.z - 0.12);
+                bin.castShadow = true;
+                bin.receiveShadow = true;
+                this.decorRoot.add(bin);
 
                 if (topTier >= 5) {
                   const pylon = new THREE.Mesh(
@@ -8971,6 +9067,14 @@ export class GameRenderer {
                   newsstand.castShadow = true;
                   newsstand.receiveShadow = true;
                   this.decorRoot.add(newsstand);
+                  const dumpster = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.18, 0.14, 0.12),
+                    new THREE.MeshStandardMaterial({ color: 0x4d6760, roughness: 0.78, metalness: 0.12 })
+                  );
+                  dumpster.position.set(world.x - 0.16, 0.12, world.z + 0.18);
+                  dumpster.castShadow = true;
+                  dumpster.receiveShadow = true;
+                  this.decorRoot.add(dumpster);
                 }
               }
             } else if (nearCivic && (noise === 2 || noise === 3)) {
@@ -8981,6 +9085,13 @@ export class GameRenderer {
               const obelisk = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.24, 0.08), new THREE.MeshStandardMaterial({ color: 0xc8cfd8, roughness: 0.82, metalness: 0.04 }));
               obelisk.position.y = 0.17;
               monument.add(base, obelisk);
+              const rack = new THREE.Mesh(
+                new THREE.TorusGeometry(0.05, 0.01, 8, 14),
+                new THREE.MeshStandardMaterial({ color: 0x6d7c89, roughness: 0.72, metalness: 0.14 })
+              );
+              rack.rotation.y = Math.PI / 2;
+              rack.position.set(-0.16, 0.08, -0.08);
+              monument.add(rack);
               if (topTier >= 4) {
                 const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.28, 8), utilityMat.clone());
                 lamp.position.set(0.18, 0.14, 0);
@@ -8996,6 +9107,12 @@ export class GameRenderer {
                   const flag = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.012), bannerMat.clone());
                   flag.position.set(0.08, 0.28, -0.16);
                   monument.add(flagPole, flag);
+                  const pool = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.18, 0.03, 0.12),
+                    new THREE.MeshStandardMaterial({ color: 0xa8ddf5, roughness: 0.18, metalness: 0.06, transparent: true, opacity: 0.82, emissive: 0x38bdf8, emissiveIntensity: 0.08 })
+                  );
+                  pool.position.set(-0.02, 0.04, 0.16);
+                  monument.add(pool);
                 }
               }
               this.decorRoot.add(monument);
@@ -9010,6 +9127,19 @@ export class GameRenderer {
               hedge.castShadow = true;
               hedge.receiveShadow = true;
               this.decorRoot.add(hedge);
+              const mailboxPost = new THREE.Mesh(
+                new THREE.BoxGeometry(0.02, 0.12, 0.02),
+                new THREE.MeshStandardMaterial({ color: 0x8b6848, roughness: 0.82, metalness: 0.02 })
+              );
+              mailboxPost.position.set(world.x - 0.18, 0.08, world.z + 0.12);
+              const mailbox = new THREE.Mesh(
+                new THREE.BoxGeometry(0.07, 0.05, 0.04),
+                new THREE.MeshStandardMaterial({ color: 0x6d88a8, roughness: 0.72, metalness: 0.12 })
+              );
+              mailbox.position.set(world.x - 0.15, 0.13, world.z + 0.12);
+              mailbox.castShadow = true;
+              mailbox.receiveShadow = true;
+              this.decorRoot.add(mailboxPost, mailbox);
               if (topTier >= 4) {
                 const pocketGreen = new THREE.Mesh(
                   new THREE.BoxGeometry(0.42, 0.02, 0.22),
@@ -9028,6 +9158,21 @@ export class GameRenderer {
                 pergola.receiveShadow = true;
                 this.decorRoot.add(pergola);
                 addStreetTree(world.x - 0.2, world.z + 0.16, 0.72);
+                const playPad = new THREE.Mesh(
+                  new THREE.BoxGeometry(0.24, 0.02, 0.18),
+                  new THREE.MeshStandardMaterial({ color: 0xd8c5a6, roughness: 0.9, metalness: 0.01 })
+                );
+                playPad.position.set(world.x + 0.12, 0.055, world.z + 0.12);
+                playPad.receiveShadow = true;
+                this.decorRoot.add(playPad);
+                const playFrame = new THREE.Mesh(
+                  new THREE.BoxGeometry(0.04, 0.2, 0.14),
+                  new THREE.MeshStandardMaterial({ color: 0xf3b34c, roughness: 0.72, metalness: 0.08 })
+                );
+                playFrame.position.set(world.x + 0.12, 0.16, world.z + 0.12);
+                playFrame.castShadow = true;
+                playFrame.receiveShadow = true;
+                this.decorRoot.add(playFrame);
 
                 if (topTier >= 5) {
                   const arbor = new THREE.Mesh(
@@ -9046,6 +9191,7 @@ export class GameRenderer {
                   bench.castShadow = true;
                   bench.receiveShadow = true;
                   this.decorRoot.add(bench);
+                  addStreetTree(world.x + 0.18, world.z + 0.18, 0.64);
                 }
               }
             } else if (nearUtility && (noise === 6 || noise === 7)) {
@@ -9072,6 +9218,12 @@ export class GameRenderer {
                   );
                   transformer.position.set(-0.08, 0.1, -0.12);
                   yard.add(transformer);
+                  const beacon = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.025, 0.03, 0.14, 10),
+                    new THREE.MeshStandardMaterial({ color: 0xfff1d4, roughness: 0.24, metalness: 0.08, emissive: 0xf59e0b, emissiveIntensity: 0.2 })
+                  );
+                  beacon.position.set(0.14, 0.1, -0.08);
+                  yard.add(beacon);
                 }
                 if (nearWorkshop) {
                   const pallet = new THREE.Mesh(
@@ -9084,7 +9236,17 @@ export class GameRenderer {
                     new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.68, metalness: 0.04 })
                   );
                   cone.position.set(0.18, 0.06, 0.08);
-                  yard.add(pallet, cone);
+                  const forkliftBody = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.14, 0.1, 0.1),
+                    new THREE.MeshStandardMaterial({ color: 0xd99b43, roughness: 0.72, metalness: 0.1 })
+                  );
+                  forkliftBody.position.set(-0.12, 0.08, 0.1);
+                  const fork = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.08, 0.02, 0.08),
+                    new THREE.MeshStandardMaterial({ color: 0x5b6570, roughness: 0.76, metalness: 0.18 })
+                  );
+                  fork.position.set(-0.04, 0.04, 0.1);
+                  yard.add(pallet, cone, forkliftBody, fork);
                 }
               }
               this.decorRoot.add(yard);
@@ -9095,6 +9257,21 @@ export class GameRenderer {
                 plazaTile.position.set(world.x - 0.12, 0.055, world.z + 0.08);
                 plazaTile.receiveShadow = true;
                 this.decorRoot.add(plazaTile);
+              }
+              if (nearCivic && topTier >= 4) {
+                const routePole = new THREE.Mesh(
+                  new THREE.CylinderGeometry(0.014, 0.014, 0.32, 8),
+                  utilityMat.clone()
+                );
+                routePole.position.set(world.x - 0.18, 0.16, world.z + 0.16);
+                const routePlate = new THREE.Mesh(
+                  new THREE.BoxGeometry(0.08, 0.12, 0.02),
+                  bannerMat.clone()
+                );
+                routePlate.position.set(world.x - 0.18, 0.26, world.z + 0.16);
+                routePlate.castShadow = true;
+                routePlate.receiveShadow = true;
+                this.decorRoot.add(routePole, routePlate);
               }
             }
             continue;
