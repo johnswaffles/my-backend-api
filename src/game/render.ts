@@ -6198,29 +6198,15 @@ export class GameRenderer {
     const width = cluster.tileWidth * 0.94;
     const depth = cluster.tileDepth * 0.94;
     const level = building.level;
-    const variant = building.id % 6;
+    const variant = building.id % 5;
     const tallCluster = cluster.size >= 6 || cluster.originWidth >= 3 || cluster.originDepth >= 3;
     const wallPalette = [0xd8c0a6, 0xd2c8bb, 0xcbb8a9, 0xd6c8bc, 0xc7cfc9, 0xc8d4c8];
     const trimPalette = [0xb8875f, 0xcab79a, 0xa47a5d, 0xd0ad95, 0x8ba19a, 0x7f9891];
     const roofPalette = [0x7c5843, 0x6f7883, 0x8e6547, 0x5b5f68, 0x4d6667, 0x556e63];
     const windowGlowPalette = [0xf59e0b, 0xf0b95a, 0xf6c36b, 0xf7b267, 0xb9d9ff, 0xf4d0a8];
-    const podiumWidthScale = [0.98, 0.66, 0.92, 0.8, 0.96, 0.64][variant];
-    const podiumDepthScale = [0.64, 0.38, 0.56, 0.46, 0.6, 0.38][variant];
-    const towerWidthScale = [0.84, 0.18, 0.24, 0.42, 0.62, 0.16][variant];
-    const towerDepthScale = [0.58, 0.14, 0.18, 0.26, 0.44, 0.14][variant];
-    const towerOffsetX = [0, -width * 0.22, -width * 0.12, width * 0.16, width * 0.06, 0][variant];
-    const towerOffsetZ = [0, -depth * 0.08, -depth * 0.1, depth * 0.06, -depth * 0.02, 0][variant];
-    const floorMultiplier = [0.54, 1.22, 0.72, 0.86, 0.68, 1.34][variant];
-    const podiumWidth = width * (level === 1 ? 0.84 : podiumWidthScale);
-    const podiumDepth = depth * (level >= 4 ? podiumDepthScale : level === 3 ? Math.max(0.5, podiumDepthScale + 0.04) : 0.62);
-    const towerWidth = width * (tallCluster ? towerWidthScale : towerWidthScale * 0.92);
-    const towerDepth = depth * (tallCluster ? towerDepthScale : towerDepthScale * 0.94);
-    const baseFloorCount = level === 1 ? (tallCluster ? 4 : 3) : level === 2 ? 6 : level === 3 ? 10 : level === 4 ? 16 : 24;
-    const floorCount = Math.max(3, Math.round(baseFloorCount * floorMultiplier));
-    const floorHeight = level >= 5 ? 0.18 : level >= 3 ? 0.17 : 0.16;
     const towerBaseY = 0.26;
-    const towerHeight = floorCount * floorHeight;
     const meshes: THREE.Mesh[] = [];
+    const glowMeshes: THREE.Mesh[] = [];
     const meshMat = (color: number, roughness = 0.78, metalness = 0.02, emissive?: number, emissiveIntensity = 0) =>
       new THREE.MeshStandardMaterial({ color, roughness, metalness, ...(emissive !== undefined ? { emissive, emissiveIntensity } : {}) });
 
@@ -6232,6 +6218,164 @@ export class GameRenderer {
       meshes.push(mesh);
       return mesh;
     };
+
+    const addGlowMesh = (mesh: THREE.Mesh) => {
+      addMesh(mesh);
+      glowMeshes.push(mesh);
+      return mesh;
+    };
+
+    type TowerSpec = {
+      x: number;
+      z: number;
+      width: number;
+      depth: number;
+      floors: number;
+      wallColor: number;
+      roofColor: number;
+      glowColor: number;
+      crown?: "flat" | "ring" | "frame" | "spire";
+      sideWindows?: boolean;
+      fins?: boolean;
+      terrace?: boolean;
+      offsetCap?: boolean;
+    };
+
+    const addResidentialTower = (spec: TowerSpec) => {
+      const floorHeight = level >= 5 ? 0.18 : level >= 3 ? 0.17 : 0.16;
+      const towerHeight = spec.floors * floorHeight;
+      const tower = addMesh(
+        new THREE.Mesh(
+          new THREE.BoxGeometry(spec.width, towerHeight, spec.depth),
+          meshMat(spec.wallColor, 0.74, 0.03)
+        )
+      );
+      tower.position.set(offset.x + spec.x, towerBaseY + towerHeight * 0.5, offset.z + spec.z);
+
+      const cap = addMesh(
+        new THREE.Mesh(
+          new THREE.BoxGeometry(spec.width + 0.08, 0.08, spec.depth + 0.08),
+          meshMat(spec.roofColor, 0.78, 0.03)
+        )
+      );
+      cap.position.set(
+        tower.position.x + (spec.offsetCap ? spec.width * 0.08 : 0),
+        tower.position.y + towerHeight * 0.5 + 0.05,
+        tower.position.z
+      );
+
+      for (let floor = 0; floor < spec.floors; floor += 1) {
+        const bandY = towerBaseY + floor * floorHeight + 0.06;
+        const frontBand = addGlowMesh(
+          new THREE.Mesh(
+            new THREE.BoxGeometry(spec.width * 0.72, 0.08, 0.025),
+            meshMat(0xffefc8, 0.34, 0.08, spec.glowColor, 0.24)
+          )
+        );
+        frontBand.position.set(tower.position.x, bandY, tower.position.z + spec.depth * 0.5 + 0.014);
+
+        const rearBand = addGlowMesh(frontBand.clone());
+        rearBand.position.set(tower.position.x, bandY, tower.position.z - spec.depth * 0.5 - 0.014);
+        rearBand.userData.buildingId = building.id;
+
+        if (spec.sideWindows) {
+          const eastBand = addGlowMesh(
+            new THREE.Mesh(
+              new THREE.BoxGeometry(0.024, 0.08, spec.depth * 0.52),
+              meshMat(0xffefc8, 0.34, 0.08, spec.glowColor, 0.16)
+            )
+          );
+          eastBand.position.set(tower.position.x + spec.width * 0.5 + 0.014, bandY, tower.position.z);
+
+          const westBand = addGlowMesh(eastBand.clone());
+          westBand.position.set(tower.position.x - spec.width * 0.5 - 0.014, bandY, tower.position.z);
+          westBand.userData.buildingId = building.id;
+        }
+      }
+
+      if (spec.fins) {
+        const finHeight = towerHeight * 0.84;
+        const leftFin = addMesh(
+          new THREE.Mesh(
+            new THREE.BoxGeometry(0.04, finHeight, spec.depth * 0.78),
+            meshMat(spec.roofColor, 0.76, 0.04)
+          )
+        );
+        leftFin.position.set(tower.position.x - spec.width * 0.44, tower.position.y, tower.position.z);
+
+        const rightFin = addMesh(leftFin.clone());
+        rightFin.position.set(tower.position.x + spec.width * 0.44, tower.position.y, tower.position.z);
+        rightFin.userData.buildingId = building.id;
+      }
+
+      if (spec.terrace) {
+        const terrace = addGlowMesh(
+          new THREE.Mesh(
+            new THREE.BoxGeometry(spec.width * 0.56, 0.06, spec.depth * 0.24),
+            meshMat(0x8fd8f8, 0.18, 0.08, 0x38bdf8, 0.1)
+          )
+        );
+        terrace.position.set(tower.position.x, cap.position.y + 0.05, tower.position.z - spec.depth * 0.06);
+      }
+
+      if (spec.crown === "ring") {
+        const halo = addGlowMesh(
+          new THREE.Mesh(
+            new THREE.TorusGeometry(Math.max(spec.width, spec.depth) * 0.42, 0.024, 8, 18),
+            meshMat(trimPalette[(variant + 2) % 5], 0.3, 0.08, spec.glowColor, 0.16)
+          )
+        );
+        halo.rotation.x = Math.PI / 2;
+        halo.position.set(tower.position.x, cap.position.y + 0.16, tower.position.z);
+      }
+
+      if (spec.crown === "frame") {
+        const frameA = addMesh(
+          new THREE.Mesh(
+            new THREE.BoxGeometry(0.045, towerHeight * 0.18, spec.depth * 0.2),
+            meshMat(trimPalette[(variant + 1) % 5], 0.74, 0.05)
+          )
+        );
+        frameA.position.set(tower.position.x - spec.width * 0.22, tower.position.y + towerHeight * 0.34, tower.position.z);
+        const frameB = addMesh(frameA.clone());
+        frameB.position.set(tower.position.x + spec.width * 0.22, tower.position.y + towerHeight * 0.34, tower.position.z);
+        frameB.userData.buildingId = building.id;
+      }
+
+      if (spec.crown === "spire") {
+        const spire = addGlowMesh(
+          new THREE.Mesh(
+            new THREE.BoxGeometry(spec.width * 0.16, 0.36, spec.depth * 0.16),
+            meshMat(trimPalette[(variant + 3) % 5], 0.62, 0.08, spec.glowColor, 0.12)
+          )
+        );
+        spire.position.set(tower.position.x, cap.position.y + 0.2, tower.position.z);
+      }
+
+      if (spec.crown === "flat") {
+        const crownBand = addMesh(
+          new THREE.Mesh(
+            new THREE.BoxGeometry(spec.width * 0.86, 0.08, spec.depth + 0.04),
+            meshMat(trimPalette[(variant + 4) % 5], 0.76, 0.04)
+          )
+        );
+        crownBand.position.set(tower.position.x, cap.position.y - 0.03, tower.position.z);
+      }
+
+      return { tower, cap, towerHeight };
+    };
+
+    const baseFloorCount = level === 1 ? (tallCluster ? 4 : 3) : level === 2 ? 6 : level === 3 ? 10 : level === 4 ? 16 : 24;
+    const podiumProfiles = [
+      { width: width * 0.98, depth: depth * 0.62, lawn: 0x88ab7d },
+      { width: width * 0.66, depth: depth * 0.4, lawn: 0x86aa7b },
+      { width: width * 0.9, depth: depth * 0.54, lawn: 0x8eaf87 },
+      { width: width * 0.82, depth: depth * 0.48, lawn: 0x8aac7d },
+      { width: width * 0.94, depth: depth * 0.58, lawn: 0x90b587 }
+    ] as const;
+    const podiumProfile = podiumProfiles[variant];
+    const podiumWidth = level === 1 ? width * 0.84 : podiumProfile.width;
+    const podiumDepth = level >= 4 ? podiumProfile.depth : level === 3 ? Math.max(0.5, podiumProfile.depth + 0.04) : 0.62;
 
     const walk = new THREE.Mesh(
       new THREE.BoxGeometry(width + 0.22, 0.025, depth + 0.22),
@@ -6245,7 +6389,7 @@ export class GameRenderer {
 
     const lawn = new THREE.Mesh(
       new THREE.BoxGeometry(width, 0.05, depth),
-      new THREE.MeshStandardMaterial({ color: level >= 2 ? 0x88ab7d : 0x8db482, roughness: 0.97, metalness: 0.01 })
+      new THREE.MeshStandardMaterial({ color: level >= 2 ? podiumProfile.lawn : 0x8db482, roughness: 0.97, metalness: 0.01 })
     );
     lawn.position.set(offset.x, 0.025, offset.z);
     lawn.receiveShadow = true;
@@ -6304,192 +6448,179 @@ export class GameRenderer {
     rearCanopy.userData.buildingId = building.id;
     group.add(rearCanopy);
     meshes.push(rearCanopy);
+    let primaryTowerHeight = 0;
+    let skyBridge: THREE.Mesh | null = null;
+    let rooftopPool: THREE.Mesh | null = null;
+    let solarCanopy: THREE.Mesh | null = null;
+    let loungeCanopy: THREE.Mesh | null = null;
+    let crownHalo: THREE.Mesh | null = null;
 
-    const tower = addMesh(
-      new THREE.Mesh(
-        new THREE.BoxGeometry(towerWidth, towerHeight, towerDepth),
-        meshMat(level === 3 ? wallPalette[(variant + 1) % 5] : wallPalette[variant], 0.74, 0.03)
-      )
-    );
-    tower.position.set(
-      offset.x + towerOffsetX,
-      towerBaseY + towerHeight * 0.5,
-      offset.z + towerOffsetZ
-    );
-
-    const towerCap = addMesh(
-      new THREE.Mesh(
-        new THREE.BoxGeometry(towerWidth + 0.06, 0.08, towerDepth + 0.06),
-        meshMat(roofPalette[variant], 0.8, 0.03)
-      )
-    );
-    towerCap.position.set(tower.position.x, tower.position.y + towerHeight * 0.5 + 0.05, tower.position.z);
-
-    if (level >= 3 && variant !== 0) {
-      const secondTowerWidth = variant === 2 ? towerWidth * 1.08 : variant === 5 ? towerWidth * 0.54 : variant === 4 ? towerWidth * 0.52 : towerWidth * 0.64;
-      const secondTowerHeight = variant === 1 ? towerHeight * 0.42 : variant === 2 ? towerHeight * 0.94 : variant === 5 ? towerHeight * 0.36 : variant === 4 ? towerHeight * 0.58 : towerHeight * 0.44;
-      const secondTowerDepth = variant === 2 ? towerDepth * 1.08 : variant === 4 ? towerDepth * 0.56 : towerDepth * 0.84;
-      const secondTower = addMesh(
-        new THREE.Mesh(
-          new THREE.BoxGeometry(secondTowerWidth, secondTowerHeight, secondTowerDepth),
-          meshMat(wallPalette[(variant + 2) % 5], 0.74, 0.03)
-        )
-      );
-      secondTower.position.set(
-        offset.x + (variant === 1 ? width * 0.1 : variant === 2 ? width * 0.18 : variant === 3 ? -width * 0.22 : variant === 4 ? -width * 0.24 : width * 0.12),
-        towerBaseY + (variant === 1 ? towerHeight * 0.18 : variant === 2 ? towerHeight * 0.46 : variant === 5 ? towerHeight * 0.14 : variant === 4 ? towerHeight * 0.22 : towerHeight * 0.24),
-        offset.z + (variant === 2 ? depth * 0.12 : variant === 3 ? -depth * 0.12 : variant === 4 ? depth * 0.16 : depth * 0.04)
-      );
-      const secondCap = addMesh(
-        new THREE.Mesh(
-          new THREE.BoxGeometry(secondTowerWidth + 0.05, 0.07, secondTowerDepth + 0.05),
-          meshMat(roofPalette[(variant + 2) % 5], 0.8, 0.03)
-        )
-      );
-      secondCap.position.set(secondTower.position.x, secondTower.position.y + secondTowerHeight * 0.5 + 0.045, secondTower.position.z);
-    }
-
-    const thirdTowerWidth = variant === 2 ? towerWidth * 0.62 : variant === 5 ? towerWidth * 0.78 : towerWidth * 0.46;
-    const thirdTowerHeight = variant === 5 ? towerHeight * 0.88 : variant === 2 ? towerHeight * 0.42 : towerHeight * 0.32;
-    const thirdTowerDepth = variant === 2 ? towerDepth * 0.72 : towerDepth * 0.66;
-    const thirdTower = addMesh(
-      new THREE.Mesh(
-        new THREE.BoxGeometry(thirdTowerWidth, thirdTowerHeight, thirdTowerDepth),
-        meshMat(wallPalette[(variant + 3) % 6], 0.74, 0.03)
-      )
-    );
-    thirdTower.position.set(
-      offset.x + (variant === 0 ? -width * 0.24 : variant === 2 ? width * 0.26 : variant === 4 ? -width * 0.24 : width * 0.02),
-      towerBaseY + thirdTowerHeight * 0.5,
-      offset.z + (variant === 5 ? depth * 0.16 : variant === 2 ? depth * 0.18 : -depth * 0.18)
-    );
-    thirdTower.visible = level >= 5 && (variant === 2 || variant === 5);
-
-    const thirdTowerCap = addMesh(
-      new THREE.Mesh(
-        new THREE.BoxGeometry(thirdTowerWidth + 0.05, 0.07, thirdTowerDepth + 0.05),
-        meshMat(roofPalette[(variant + 3) % 6], 0.8, 0.03)
-      )
-    );
-    thirdTowerCap.position.set(thirdTower.position.x, thirdTower.position.y + thirdTowerHeight * 0.5 + 0.045, thirdTower.position.z);
-    thirdTowerCap.visible = thirdTower.visible;
-
-    const variantAnnex = addMesh(
-      new THREE.Mesh(
-        new THREE.BoxGeometry(
-          variant === 0 ? width * 0.44 : variant === 3 ? width * 0.28 : variant === 4 ? width * 0.3 : width * 0.14,
-          variant === 0 ? 0.82 : variant === 3 ? 1.26 : variant === 4 ? 1.08 : 0.72,
-          variant === 0 ? depth * 0.26 : variant === 3 ? depth * 0.18 : depth * 0.16
-        ),
-        meshMat(wallPalette[(variant + 4) % 6], 0.74, 0.03)
-      )
-    );
-    variantAnnex.position.set(
-      offset.x + (variant === 0 ? width * 0.28 : variant === 3 ? width * 0.24 : variant === 4 ? -width * 0.26 : -width * 0.18),
-      variant === 0 ? 0.56 : variant === 3 ? 0.84 : variant === 4 ? 0.72 : 0.52,
-      offset.z + (variant === 3 ? depth * 0.18 : variant === 0 ? depth * 0.12 : -depth * 0.12)
-    );
-    variantAnnex.visible = level >= 5 && (variant === 0 || variant === 3 || variant === 4);
-
-    const variantBridge = addMesh(
-      new THREE.Mesh(
-        new THREE.BoxGeometry(
-          variant === 2 ? width * 0.26 : width * 0.18,
-          0.14,
-          variant === 2 ? depth * 0.12 : depth * 0.1
-        ),
-        meshMat(0xe6f4ff, 0.24, 0.08, windowGlowPalette[(variant + 2) % 6], 0.18)
-      )
-    );
-    variantBridge.position.set(
-      offset.x + (variant === 2 ? 0 : -width * 0.08),
-      variant === 2 ? towerBaseY + towerHeight * 0.52 : towerBaseY + towerHeight * 0.46,
-      offset.z + (variant === 2 ? depth * 0.02 : -depth * 0.04)
-    );
-    variantBridge.visible = level >= 5 && (variant === 2 || variant === 3);
-
-    const crownHalo = addMesh(
-      new THREE.Mesh(
-        new THREE.TorusGeometry(
-          variant === 1 ? 0.16 : 0.12,
-          0.024,
-          8,
-          18
-        ),
-        meshMat(trimPalette[(variant + 5) % 6], 0.3, 0.08, windowGlowPalette[(variant + 3) % 6], 0.16)
-      )
-    );
-    crownHalo.rotation.x = Math.PI / 2;
-    crownHalo.position.set(
-      tower.position.x,
-      tower.position.y + towerHeight * 0.5 + (variant === 1 ? 0.22 : 0.16),
-      tower.position.z
-    );
-    crownHalo.visible = level >= 5 && (variant === 1 || variant === 5);
-
-    const crownBand = addMesh(
-      new THREE.Mesh(
-        new THREE.BoxGeometry(
-          variant === 1 ? towerWidth * 0.64 : variant === 5 ? towerWidth + 0.12 : towerWidth * 0.86,
-          variant === 5 ? 0.12 : 0.06,
-          variant === 2 ? towerDepth + 0.12 : towerDepth + 0.03
-        ),
-        meshMat(trimPalette[(variant + 3) % 6], 0.76, 0.04)
-      )
-    );
-    crownBand.position.set(
-      tower.position.x,
-      tower.position.y + towerHeight * 0.5 - (variant === 5 ? 0.02 : 0.08),
-      tower.position.z
-    );
-    crownBand.visible = level >= 2 && variant !== 0;
-
-    const towerFinLeft = addMesh(
-      new THREE.Mesh(
-        new THREE.BoxGeometry(0.03, towerHeight * (level >= 3 ? 0.92 : 0.74), towerDepth * 0.78),
-        meshMat(trimPalette[variant], 0.76, 0.04)
-      )
-    );
-    towerFinLeft.position.set(tower.position.x - towerWidth * 0.42, tower.position.y, tower.position.z);
-    towerFinLeft.visible = level >= 2 && variant !== 0 && variant !== 2;
-    const towerFinRight = towerFinLeft.clone();
-    towerFinRight.position.set(tower.position.x + towerWidth * 0.42, tower.position.y, tower.position.z);
-    towerFinRight.userData.buildingId = building.id;
-    group.add(towerFinRight);
-    meshes.push(towerFinRight);
-
-    for (let floor = 0; floor < floorCount; floor += 1) {
-      const bandY = towerBaseY + floor * floorHeight + 0.06;
-      const frontBand = new THREE.Mesh(
-        new THREE.BoxGeometry(towerWidth * 0.72, 0.08, 0.025),
-        meshMat(0xffefc8, 0.34, 0.08, windowGlowPalette[variant], 0.24)
-      );
-      frontBand.position.set(tower.position.x, bandY, tower.position.z + towerDepth * 0.5 + 0.014);
-      frontBand.userData.buildingId = building.id;
-      group.add(frontBand);
-      meshes.push(frontBand);
-
-      const rearBand = frontBand.clone();
-      rearBand.position.set(tower.position.x, bandY, tower.position.z - towerDepth * 0.5 - 0.014);
-      rearBand.userData.buildingId = building.id;
-      group.add(rearBand);
-      meshes.push(rearBand);
-
-      if (level >= 2) {
-        const sideBandEast = new THREE.Mesh(
-          new THREE.BoxGeometry(0.024, 0.08, towerDepth * 0.52),
-          meshMat(0xffefc8, 0.34, 0.08, windowGlowPalette[variant], 0.18)
+    switch (variant) {
+      case 0: {
+        const main = addResidentialTower({
+          x: 0,
+          z: 0,
+          width: width * 0.54,
+          depth: depth * 0.4,
+          floors: Math.round(baseFloorCount * (level >= 5 ? 0.84 : 0.76)),
+          wallColor: wallPalette[0],
+          roofColor: roofPalette[0],
+          glowColor: windowGlowPalette[0],
+          crown: level >= 5 ? "frame" : "flat",
+          sideWindows: true,
+          fins: level >= 4,
+          terrace: level >= 4
+        });
+        primaryTowerHeight = main.towerHeight;
+        if (level >= 5) {
+          addResidentialTower({
+            x: -width * 0.22,
+            z: depth * 0.16,
+            width: width * 0.22,
+            depth: depth * 0.2,
+            floors: Math.round(baseFloorCount * 0.44),
+            wallColor: wallPalette[2],
+            roofColor: roofPalette[2],
+            glowColor: windowGlowPalette[2],
+            crown: "flat",
+            sideWindows: true
+          });
+        }
+        break;
+      }
+      case 1: {
+        const main = addResidentialTower({
+          x: -width * 0.16,
+          z: -depth * 0.05,
+          width: width * 0.18,
+          depth: depth * 0.14,
+          floors: Math.round(baseFloorCount * (level >= 5 ? 1.46 : 1.18)),
+          wallColor: wallPalette[1],
+          roofColor: roofPalette[1],
+          glowColor: windowGlowPalette[1],
+          crown: level >= 5 ? "ring" : "flat",
+          sideWindows: true,
+          offsetCap: true
+        });
+        primaryTowerHeight = main.towerHeight;
+        crownHalo = glowMeshes[glowMeshes.length - 1] ?? null;
+        if (level >= 4) {
+          addResidentialTower({
+            x: width * 0.18,
+            z: depth * 0.1,
+            width: width * 0.16,
+            depth: depth * 0.14,
+            floors: Math.round(baseFloorCount * 0.34),
+            wallColor: wallPalette[4],
+            roofColor: roofPalette[4],
+            glowColor: windowGlowPalette[4],
+            crown: "flat",
+            sideWindows: false
+          });
+        }
+        break;
+      }
+      case 2: {
+        const leftTower = addResidentialTower({
+          x: -width * 0.16,
+          z: 0,
+          width: width * 0.24,
+          depth: depth * 0.2,
+          floors: Math.round(baseFloorCount * (level >= 5 ? 0.96 : 0.82)),
+          wallColor: wallPalette[2],
+          roofColor: roofPalette[2],
+          glowColor: windowGlowPalette[2],
+          crown: "flat",
+          sideWindows: true
+        });
+        const rightTower = addResidentialTower({
+          x: width * 0.16,
+          z: 0,
+          width: width * 0.24,
+          depth: depth * 0.2,
+          floors: Math.round(baseFloorCount * (level >= 5 ? 0.9 : 0.78)),
+          wallColor: wallPalette[3],
+          roofColor: roofPalette[3],
+          glowColor: windowGlowPalette[3],
+          crown: level >= 5 ? "frame" : "flat",
+          sideWindows: true
+        });
+        primaryTowerHeight = Math.max(leftTower.towerHeight, rightTower.towerHeight);
+        if (level >= 4) {
+          skyBridge = addGlowMesh(
+            new THREE.Mesh(
+              new THREE.BoxGeometry(width * 0.28, 0.18, depth * 0.12),
+              meshMat(0xe6f4ff, 0.24, 0.08, windowGlowPalette[2], 0.18)
+            )
+          );
+          skyBridge.position.set(offset.x, towerBaseY + primaryTowerHeight * 0.62, offset.z);
+        }
+        break;
+      }
+      case 3: {
+        const main = addResidentialTower({
+          x: width * 0.18,
+          z: -depth * 0.04,
+          width: width * 0.28,
+          depth: depth * 0.18,
+          floors: Math.round(baseFloorCount * (level >= 5 ? 1.04 : 0.88)),
+          wallColor: wallPalette[3],
+          roofColor: roofPalette[3],
+          glowColor: windowGlowPalette[3],
+          crown: level >= 5 ? "spire" : "flat",
+          sideWindows: true,
+          fins: level >= 4
+        });
+        primaryTowerHeight = main.towerHeight;
+        const annex = addMesh(
+          new THREE.Mesh(
+            new THREE.BoxGeometry(width * 0.36, level >= 5 ? 1.5 : 0.94, depth * 0.22),
+            meshMat(wallPalette[0], 0.74, 0.03)
+          )
         );
-        sideBandEast.position.set(tower.position.x + towerWidth * 0.5 + 0.014, bandY, tower.position.z);
-        sideBandEast.userData.buildingId = building.id;
-        group.add(sideBandEast);
-        meshes.push(sideBandEast);
-
-        const sideBandWest = sideBandEast.clone();
-        sideBandWest.position.set(tower.position.x - towerWidth * 0.5 - 0.014, bandY, tower.position.z);
-        sideBandWest.userData.buildingId = building.id;
-        group.add(sideBandWest);
-        meshes.push(sideBandWest);
+        annex.position.set(offset.x - width * 0.22, level >= 5 ? 0.8 : 0.52, offset.z + depth * 0.16);
+        if (level >= 5) {
+          const bridge = addGlowMesh(
+            new THREE.Mesh(
+              new THREE.BoxGeometry(width * 0.18, 0.14, depth * 0.1),
+              meshMat(0xe6f4ff, 0.24, 0.08, windowGlowPalette[0], 0.16)
+            )
+          );
+          bridge.position.set(offset.x - width * 0.02, towerBaseY + main.towerHeight * 0.44, offset.z + depth * 0.08);
+        }
+        break;
+      }
+      case 4:
+      default: {
+        const main = addResidentialTower({
+          x: 0.02,
+          z: -depth * 0.02,
+          width: width * 0.34,
+          depth: depth * 0.28,
+          floors: Math.round(baseFloorCount * (level >= 5 ? 1.02 : 0.86)),
+          wallColor: wallPalette[4],
+          roofColor: roofPalette[4],
+          glowColor: windowGlowPalette[4],
+          crown: level >= 5 ? "frame" : "flat",
+          sideWindows: true,
+          terrace: level >= 4
+        });
+        primaryTowerHeight = main.towerHeight;
+        if (level >= 4) {
+          addResidentialTower({
+            x: -width * 0.2,
+            z: depth * 0.18,
+            width: width * 0.14,
+            depth: depth * 0.14,
+            floors: Math.round(baseFloorCount * (level >= 5 ? 0.52 : 0.34)),
+            wallColor: wallPalette[1],
+            roofColor: roofPalette[1],
+            glowColor: windowGlowPalette[1],
+            crown: "flat",
+            sideWindows: false
+          });
+        }
+        break;
       }
     }
 
@@ -6538,86 +6669,73 @@ export class GameRenderer {
     group.add(signBandRear);
     meshes.push(signBandRear);
 
-    const roofGardenA = addMesh(
+    const roofGardenA = addGlowMesh(
       new THREE.Mesh(
-        new THREE.BoxGeometry(towerWidth * 0.92, 0.05, towerDepth * 0.82),
+        new THREE.BoxGeometry(podiumWidth * 0.66, 0.05, podiumDepth * 0.72),
         meshMat(0x6d8c63, 0.96, 0.01)
       )
     );
-    roofGardenA.position.set(tower.position.x, podiumRoof.position.y + 0.08, tower.position.z);
+    roofGardenA.position.set(offset.x, podiumRoof.position.y + 0.08, offset.z);
     roofGardenA.visible = level >= 4;
 
-    const roofGardenB = addMesh(
+    const roofGardenB = addGlowMesh(
       new THREE.Mesh(
-        new THREE.BoxGeometry(towerWidth * 0.54, 0.05, towerDepth * 0.56),
+        new THREE.BoxGeometry(podiumWidth * 0.3, 0.05, podiumDepth * 0.36),
         meshMat(0x73916f, 0.96, 0.01)
       )
     );
     roofGardenB.position.set(offset.x, podiumRoof.position.y + 0.09, offset.z - depth * 0.18);
     roofGardenB.visible = level >= 4;
 
-    const loungeDeck = addMesh(
+    const loungeDeck = addGlowMesh(
       new THREE.Mesh(
-        new THREE.BoxGeometry(towerWidth * 0.72, 0.04, towerDepth * 0.2),
+        new THREE.BoxGeometry(podiumWidth * 0.46, 0.04, podiumDepth * 0.2),
         meshMat(0x9d7d59, 0.88, 0.02)
       )
     );
     loungeDeck.position.set(offset.x, podiumRoof.position.y + 0.11, offset.z + depth * 0.14);
     loungeDeck.visible = level >= 4;
 
-    const pergola = addMesh(
+    const pergola = addGlowMesh(
       new THREE.Mesh(
-        new THREE.BoxGeometry(towerWidth * 0.56, 0.12, towerDepth * 0.12),
+        new THREE.BoxGeometry(podiumWidth * 0.3, 0.12, podiumDepth * 0.12),
         meshMat(trimPalette[(variant + 1) % 5], 0.8, 0.03)
       )
     );
     pergola.position.set(offset.x, podiumRoof.position.y + 0.19, offset.z + depth * 0.14);
     pergola.visible = level >= 4;
+    if (!skyBridge) {
+      skyBridge = addGlowMesh(
+        new THREE.Mesh(
+          new THREE.BoxGeometry(width * 0.28, 0.18, depth * 0.12),
+          meshMat(0xe6f4ff, 0.24, 0.08, windowGlowPalette[(variant + 1) % 5], 0.18)
+        )
+      );
+      skyBridge.position.set(offset.x, towerBaseY + primaryTowerHeight * 0.54, offset.z);
+      skyBridge.visible = false;
+    }
 
-    const skyBridge = addMesh(
+    rooftopPool = addGlowMesh(
       new THREE.Mesh(
-        new THREE.BoxGeometry(width * 0.48, 0.2, towerDepth * 0.34),
-        meshMat(0xe6f4ff, 0.24, 0.08, windowGlowPalette[(variant + 1) % 5], 0.18)
-      )
-    );
-    skyBridge.position.set(offset.x, towerBaseY + towerHeight * 0.55, offset.z + depth * 0.02);
-    skyBridge.visible = level >= 5 && cluster.size >= 6;
-
-    const rooftopPool = addMesh(
-      new THREE.Mesh(
-        new THREE.BoxGeometry(towerWidth * 0.52, 0.06, towerDepth * 0.22),
+        new THREE.BoxGeometry(podiumWidth * 0.26, 0.06, podiumDepth * 0.18),
         meshMat(0x8fd8f8, 0.18, 0.08, 0x38bdf8, 0.1)
       )
     );
     rooftopPool.position.set(offset.x, podiumRoof.position.y + 0.11, offset.z - depth * 0.02);
     rooftopPool.visible = level >= 4 && (variant === 0 || variant === 4);
 
-    const crownFinA = addMesh(
+    solarCanopy = addGlowMesh(
       new THREE.Mesh(
-        new THREE.BoxGeometry(0.04, towerHeight * 0.24, towerDepth * 0.18),
-        meshMat(trimPalette[(variant + 2) % 5], 0.74, 0.05)
-      )
-    );
-    crownFinA.position.set(tower.position.x - towerWidth * 0.24, tower.position.y + towerHeight * 0.34, tower.position.z);
-    crownFinA.visible = level >= 5;
-    const crownFinB = crownFinA.clone();
-    crownFinB.position.set(tower.position.x + towerWidth * 0.24, tower.position.y + towerHeight * 0.34, tower.position.z);
-    crownFinB.userData.buildingId = building.id;
-    group.add(crownFinB);
-    meshes.push(crownFinB);
-
-    const solarCanopy = addMesh(
-      new THREE.Mesh(
-        new THREE.BoxGeometry(towerWidth * 0.44, 0.04, towerDepth * 0.16),
+        new THREE.BoxGeometry(podiumWidth * 0.22, 0.04, podiumDepth * 0.14),
         meshMat(0x4c6c85, 0.34, 0.18, 0x0f172a, 0.08)
       )
     );
     solarCanopy.position.set(offset.x + width * 0.16, podiumRoof.position.y + 0.18, offset.z - depth * 0.18);
     solarCanopy.visible = level >= 5;
 
-    const loungeCanopy = addMesh(
+    loungeCanopy = addGlowMesh(
       new THREE.Mesh(
-        new THREE.BoxGeometry(towerWidth * 0.24, 0.16, towerDepth * 0.12),
+        new THREE.BoxGeometry(podiumWidth * 0.18, 0.16, podiumDepth * 0.12),
         meshMat(trimPalette[(variant + 4) % 5], 0.76, 0.03)
       )
     );
@@ -6638,7 +6756,20 @@ export class GameRenderer {
     if (level >= 4) {
       this.utilityAnimations.set(building.id, {
         smoke: smokePuffs,
-        glow: [signBand, signBandRear, roofGardenA, roofGardenB, skyBridge, rooftopPool, solarCanopy, variantBridge, crownHalo].filter((mesh) => mesh.visible),
+        glow: [
+          signBand,
+          signBandRear,
+          roofGardenA,
+          roofGardenB,
+          loungeDeck,
+          pergola,
+          skyBridge,
+          rooftopPool,
+          solarCanopy,
+          loungeCanopy,
+          crownHalo,
+          ...glowMeshes
+        ].filter((mesh): mesh is THREE.Mesh => Boolean(mesh && mesh.visible)),
         phase: building.id * 0.17
       });
     }
