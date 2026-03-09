@@ -6204,13 +6204,13 @@ export class GameRenderer {
     const trimPalette = [0xb8875f, 0xcab79a, 0xa47a5d, 0xd0ad95, 0x8ba19a, 0x7f9891];
     const roofPalette = [0x7c5843, 0x6f7883, 0x8e6547, 0x5b5f68, 0x4d6667, 0x556e63];
     const windowGlowPalette = [0xf59e0b, 0xf0b95a, 0xf6c36b, 0xf7b267, 0xb9d9ff, 0xf4d0a8];
-    const podiumWidthScale = [0.96, 0.72, 0.88, 0.78, 0.94, 0.7][variant];
-    const podiumDepthScale = [0.58, 0.42, 0.5, 0.46, 0.56, 0.42][variant];
-    const towerWidthScale = [0.64, 0.22, 0.34, 0.28, 0.52, 0.2][variant];
-    const towerDepthScale = [0.48, 0.18, 0.24, 0.22, 0.4, 0.18][variant];
-    const towerOffsetX = [0, -width * 0.2, width * 0.18, -width * 0.22, width * 0.1, 0][variant];
-    const towerOffsetZ = [-depth * 0.02, -depth * 0.04, -depth * 0.12, depth * 0.08, -depth * 0.04, 0][variant];
-    const floorMultiplier = [0.78, 1.2, 0.92, 1.04, 0.86, 1.28][variant];
+    const podiumWidthScale = [0.98, 0.66, 0.92, 0.8, 0.96, 0.64][variant];
+    const podiumDepthScale = [0.64, 0.38, 0.56, 0.46, 0.6, 0.38][variant];
+    const towerWidthScale = [0.84, 0.18, 0.24, 0.42, 0.62, 0.16][variant];
+    const towerDepthScale = [0.58, 0.14, 0.18, 0.26, 0.44, 0.14][variant];
+    const towerOffsetX = [0, -width * 0.22, -width * 0.12, width * 0.16, width * 0.06, 0][variant];
+    const towerOffsetZ = [0, -depth * 0.08, -depth * 0.1, depth * 0.06, -depth * 0.02, 0][variant];
+    const floorMultiplier = [0.54, 1.22, 0.72, 0.86, 0.68, 1.34][variant];
     const podiumWidth = width * (level === 1 ? 0.84 : podiumWidthScale);
     const podiumDepth = depth * (level >= 4 ? podiumDepthScale : level === 3 ? Math.max(0.5, podiumDepthScale + 0.04) : 0.62);
     const towerWidth = width * (tallCluster ? towerWidthScale : towerWidthScale * 0.92);
@@ -6326,9 +6326,9 @@ export class GameRenderer {
     towerCap.position.set(tower.position.x, tower.position.y + towerHeight * 0.5 + 0.05, tower.position.z);
 
     if (level >= 3 && variant !== 0) {
-      const secondTowerWidth = variant === 2 ? towerWidth * 0.86 : variant === 5 ? towerWidth * 0.58 : towerWidth * 0.64;
-      const secondTowerHeight = variant === 1 ? towerHeight * 0.54 : variant === 2 ? towerHeight * 0.66 : variant === 5 ? towerHeight * 0.44 : towerHeight * 0.72;
-      const secondTowerDepth = variant === 2 ? towerDepth * 0.92 : towerDepth * 0.84;
+      const secondTowerWidth = variant === 2 ? towerWidth * 1.08 : variant === 5 ? towerWidth * 0.54 : variant === 4 ? towerWidth * 0.52 : towerWidth * 0.64;
+      const secondTowerHeight = variant === 1 ? towerHeight * 0.42 : variant === 2 ? towerHeight * 0.94 : variant === 5 ? towerHeight * 0.36 : variant === 4 ? towerHeight * 0.58 : towerHeight * 0.44;
+      const secondTowerDepth = variant === 2 ? towerDepth * 1.08 : variant === 4 ? towerDepth * 0.56 : towerDepth * 0.84;
       const secondTower = addMesh(
         new THREE.Mesh(
           new THREE.BoxGeometry(secondTowerWidth, secondTowerHeight, secondTowerDepth),
@@ -6336,9 +6336,9 @@ export class GameRenderer {
         )
       );
       secondTower.position.set(
-        offset.x + (variant === 1 ? width * 0.12 : variant === 2 ? -width * 0.2 : variant === 3 ? width * 0.16 : variant === 4 ? -width * 0.18 : width * 0.16),
-        towerBaseY + (variant === 1 ? towerHeight * 0.28 : variant === 5 ? towerHeight * 0.22 : towerHeight * 0.36),
-        offset.z + (variant === 2 ? depth * 0.12 : variant === 3 ? -depth * 0.08 : depth * 0.04)
+        offset.x + (variant === 1 ? width * 0.1 : variant === 2 ? width * 0.18 : variant === 3 ? -width * 0.22 : variant === 4 ? -width * 0.24 : width * 0.12),
+        towerBaseY + (variant === 1 ? towerHeight * 0.18 : variant === 2 ? towerHeight * 0.46 : variant === 5 ? towerHeight * 0.14 : variant === 4 ? towerHeight * 0.22 : towerHeight * 0.24),
+        offset.z + (variant === 2 ? depth * 0.12 : variant === 3 ? -depth * 0.12 : variant === 4 ? depth * 0.16 : depth * 0.04)
       );
       const secondCap = addMesh(
         new THREE.Mesh(
@@ -6363,7 +6363,7 @@ export class GameRenderer {
       towerBaseY + thirdTowerHeight * 0.5,
       offset.z + (variant === 5 ? depth * 0.16 : variant === 2 ? depth * 0.18 : -depth * 0.18)
     );
-    thirdTower.visible = level >= 5 && (variant === 0 || variant === 2 || variant === 4 || variant === 5);
+    thirdTower.visible = level >= 5 && (variant === 2 || variant === 5);
 
     const thirdTowerCap = addMesh(
       new THREE.Mesh(
@@ -6377,17 +6377,17 @@ export class GameRenderer {
     const variantAnnex = addMesh(
       new THREE.Mesh(
         new THREE.BoxGeometry(
-          variant === 0 ? width * 0.26 : variant === 3 ? width * 0.18 : variant === 4 ? width * 0.22 : width * 0.14,
-          variant === 0 ? 1.04 : variant === 3 ? 1.22 : variant === 4 ? 0.86 : 0.72,
-          variant === 0 ? depth * 0.2 : depth * 0.16
+          variant === 0 ? width * 0.44 : variant === 3 ? width * 0.28 : variant === 4 ? width * 0.3 : width * 0.14,
+          variant === 0 ? 0.82 : variant === 3 ? 1.26 : variant === 4 ? 1.08 : 0.72,
+          variant === 0 ? depth * 0.26 : variant === 3 ? depth * 0.18 : depth * 0.16
         ),
         meshMat(wallPalette[(variant + 4) % 6], 0.74, 0.03)
       )
     );
     variantAnnex.position.set(
       offset.x + (variant === 0 ? width * 0.28 : variant === 3 ? width * 0.24 : variant === 4 ? -width * 0.26 : -width * 0.18),
-      variant === 0 ? 0.7 : variant === 3 ? 0.82 : variant === 4 ? 0.6 : 0.52,
-      offset.z + (variant === 3 ? depth * 0.14 : -depth * 0.12)
+      variant === 0 ? 0.56 : variant === 3 ? 0.84 : variant === 4 ? 0.72 : 0.52,
+      offset.z + (variant === 3 ? depth * 0.18 : variant === 0 ? depth * 0.12 : -depth * 0.12)
     );
     variantAnnex.visible = level >= 5 && (variant === 0 || variant === 3 || variant === 4);
 
@@ -6442,7 +6442,7 @@ export class GameRenderer {
       tower.position.y + towerHeight * 0.5 - (variant === 5 ? 0.02 : 0.08),
       tower.position.z
     );
-    crownBand.visible = level >= 2;
+    crownBand.visible = level >= 2 && variant !== 0;
 
     const towerFinLeft = addMesh(
       new THREE.Mesh(
