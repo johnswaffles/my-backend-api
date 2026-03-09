@@ -1,5 +1,6 @@
 import type { AssetVariation, BuildType, Building, GameState } from './state';
 import {
+  createInitialGameState,
   DAY_LENGTH_SECONDS,
   gameStore,
   INFINITE_MONEY,
@@ -260,6 +261,11 @@ type StateSnapshot = Pick<
 const MAX_HISTORY = 10;
 const undoStack: StateSnapshot[] = [];
 const redoStack: StateSnapshot[] = [];
+
+function clearHistory(): void {
+  undoStack.length = 0;
+  redoStack.length = 0;
+}
 
 function cloneSnapshot(state: GameState): StateSnapshot {
   return {
@@ -997,6 +1003,96 @@ export function cycleGameSpeed(): void {
       gameSpeed: next
     };
   });
+}
+
+export function resetGame(): void {
+  clearHistory();
+  gameStore.setState(createInitialGameState());
+}
+
+export function buildStarterTown(): boolean {
+  const state = gameStore.getState();
+  if (state.buildings.length > 0) return false;
+
+  const blueprint: Array<{ type: BuildType; x: number; z: number }> = [
+    { type: 'road', x: 11, z: 12 },
+    { type: 'road', x: 12, z: 12 },
+    { type: 'road', x: 13, z: 12 },
+    { type: 'road', x: 14, z: 12 },
+    { type: 'road', x: 15, z: 12 },
+    { type: 'road', x: 16, z: 12 },
+    { type: 'road', x: 13, z: 10 },
+    { type: 'road', x: 13, z: 11 },
+    { type: 'road', x: 13, z: 13 },
+    { type: 'road', x: 13, z: 14 },
+    { type: 'house', x: 11, z: 10 },
+    { type: 'house', x: 12, z: 10 },
+    { type: 'house', x: 11, z: 11 },
+    { type: 'house', x: 12, z: 11 },
+    { type: 'shop', x: 14, z: 10 },
+    { type: 'groceryStore', x: 15, z: 10 },
+    { type: 'restaurant', x: 16, z: 10 },
+    { type: 'park', x: 11, z: 14 },
+    { type: 'park', x: 12, z: 14 },
+    { type: 'powerPlant', x: 17, z: 14 }
+  ];
+
+  let seeded = false;
+  gameStore.update((current) => {
+    if (current.buildings.length > 0) return current;
+    pushUndo(current);
+
+    let working = {
+      ...current,
+      buildings: current.buildings.map((building) => ({ ...building })),
+      resources: { ...current.resources },
+      nextBuildingId: current.nextBuildingId
+    };
+
+    for (const entry of blueprint) {
+      if (!canPlaceBuilding(working, entry.type, entry.x, entry.z)) continue;
+      const building: Building = {
+        id: working.nextBuildingId,
+        type: entry.type,
+        x: entry.x,
+        z: entry.z,
+        createdAt: performance.now(),
+        level: 1,
+        upgradeProgress: 0,
+        lastUpgradeAt: performance.now(),
+        customImageUrl: null,
+        customStyleName: null,
+        customArtStyle: null
+      };
+      working = {
+        ...working,
+        nextBuildingId: working.nextBuildingId + 1,
+        selectedBuildingId: building.id,
+        buildings: [...working.buildings, building],
+        resources: {
+          ...working.resources,
+          money: working.resources.money - BUILDING_ECONOMY[entry.type].cost
+        }
+      };
+      seeded = true;
+    }
+
+    if (!seeded) return current;
+    const derived = deriveSimulation(working);
+    return {
+      ...working,
+      resources: {
+        ...derived.resources,
+        money: Math.round(working.resources.money * 100) / 100
+      },
+      happiness: derived.happiness,
+      demand: derived.demand,
+      aiLastAction: 'Starter town seeded',
+      ...stackCounts()
+    };
+  });
+
+  return seeded;
 }
 
 export function setHoverCell(cell: { x: number; z: number } | null): void {

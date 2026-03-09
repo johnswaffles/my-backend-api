@@ -180,43 +180,47 @@ function createTiles(size: number): TileData[] {
   return out;
 }
 
-export const initialGameState: GameState = {
-  gridSize: GRID_SIZE,
-  tiles: createTiles(GRID_SIZE),
-  buildings: [],
-  selectedBuildingId: null,
-  placementMode: null,
-  hoverCell: null,
-  aiAutoplayEnabled: false,
-  aiLastAction: 'Idle',
-  resources: {
-    money: STARTING_MONEY,
-    population: 0,
-    jobs: 0,
-    powerUsed: 0,
-    powerProduced: 0
-  },
-  day: 1,
-  timeOfDay: 8,
-  happiness: STARTING_HAPPINESS,
-  demand: {
-    housing: 64,
-    roads: 30,
-    power: 12,
-    commerce: 36,
-    recreation: 30,
-    jobs: 38,
-    essentials: 34,
-    health: 22,
-    safety: 20
-  },
-  gameSpeed: 1,
-  simSeconds: 0,
-  undoCount: 0,
-  redoCount: 0,
-  nextBuildingId: 1,
-  pendingBuildAsset: null
-};
+export function createInitialGameState(): GameState {
+  return {
+    gridSize: GRID_SIZE,
+    tiles: createTiles(GRID_SIZE),
+    buildings: [],
+    selectedBuildingId: null,
+    placementMode: null,
+    hoverCell: null,
+    aiAutoplayEnabled: false,
+    aiLastAction: 'Idle',
+    resources: {
+      money: STARTING_MONEY,
+      population: 0,
+      jobs: 0,
+      powerUsed: 0,
+      powerProduced: 0
+    },
+    day: 1,
+    timeOfDay: 8,
+    happiness: STARTING_HAPPINESS,
+    demand: {
+      housing: 64,
+      roads: 30,
+      power: 12,
+      commerce: 36,
+      recreation: 30,
+      jobs: 38,
+      essentials: 34,
+      health: 22,
+      safety: 20
+    },
+    gameSpeed: 1,
+    simSeconds: 0,
+    undoCount: 0,
+    redoCount: 0,
+    nextBuildingId: 1,
+    pendingBuildAsset: null
+  };
+}
+
+export const initialGameState: GameState = createInitialGameState();
 
 type Listener = () => void;
 
@@ -248,4 +252,4 @@ class GameStore {
   }
 }
 
-export const gameStore = new GameStore(initialGameState);
+export const gameStore = new GameStore(createInitialGameState());

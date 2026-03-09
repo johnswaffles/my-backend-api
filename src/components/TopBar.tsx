@@ -1,4 +1,4 @@
-import { cycleGameSpeed, redoAction, toggleAiAutoplay, undoAction } from '../game/actions';
+import { buildStarterTown, cycleGameSpeed, redoAction, resetGame, toggleAiAutoplay, undoAction } from '../game/actions';
 import type { GameSpeed } from '../game/state';
 
 interface TopBarProps {
@@ -41,6 +41,7 @@ interface TopBarProps {
   aiLastAction: string;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
+  onOpenHelp: () => void;
   mobile?: boolean;
 }
 
@@ -95,6 +96,7 @@ export function TopBar({
   aiLastAction,
   isFullscreen,
   onToggleFullscreen,
+  onOpenHelp,
   mobile = false
 }: TopBarProps): JSX.Element {
   const net = powerProduced - powerUsed;
@@ -126,6 +128,13 @@ export function TopBar({
                 className="rounded-xl border border-cyan-300/50 bg-cyan-400/12 px-3 py-2 text-xs font-medium text-cyan-100"
               >
                 {isFullscreen ? 'Exit' : 'Full'}
+              </button>
+              <button
+                type="button"
+                onClick={onOpenHelp}
+                className="rounded-xl border border-slate-300/40 bg-slate-800/45 px-3 py-2 text-xs font-medium text-slate-100"
+              >
+                Help
               </button>
             </div>
           </div>
@@ -173,6 +182,20 @@ export function TopBar({
             }`}
           >
             {aiAutoplayEnabled ? 'AI On' : 'AI Off'}
+          </button>
+          <button
+            type="button"
+            onClick={() => buildStarterTown()}
+            className="rounded-xl border border-emerald-300/60 bg-emerald-500/18 px-3 py-2 text-xs font-medium text-emerald-100"
+          >
+            Starter
+          </button>
+          <button
+            type="button"
+            onClick={() => resetGame()}
+            className="rounded-xl border border-rose-300/60 bg-rose-500/18 px-3 py-2 text-xs font-medium text-rose-100"
+          >
+            Restart
           </button>
         </div>
       </div>
@@ -248,6 +271,27 @@ export function TopBar({
               className="rounded-xl border border-cyan-300/50 bg-cyan-400/12 px-3 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-400/22"
             >
               {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+            </button>
+            <button
+              type="button"
+              onClick={onOpenHelp}
+              className="rounded-xl border border-slate-300/50 bg-slate-700/35 px-3 py-2 text-sm font-medium text-slate-100 transition hover:border-cyan-300/60 hover:bg-slate-700/55"
+            >
+              Help
+            </button>
+            <button
+              type="button"
+              onClick={() => buildStarterTown()}
+              className="rounded-xl border border-emerald-300/60 bg-emerald-400/20 px-3 py-2 text-sm font-medium text-emerald-100 transition hover:bg-emerald-400/30"
+            >
+              Starter Town
+            </button>
+            <button
+              type="button"
+              onClick={() => resetGame()}
+              className="rounded-xl border border-rose-300/60 bg-rose-500/18 px-3 py-2 text-sm font-medium text-rose-100 transition hover:bg-rose-500/28"
+            >
+              Restart Map
             </button>
           </div>
         </div>

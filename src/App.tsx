@@ -5,6 +5,7 @@ import { TopBar } from './components/TopBar';
 import { TownProgressPanel } from './components/TownProgressPanel';
 import { HoverTooltip } from './components/HoverTooltip';
 import { MiniMapPanel } from './components/MiniMapPanel';
+import { HelpModal } from './components/HelpModal';
 import { economySummary, selectedBuilding } from './game/actions';
 import { InputController } from './game/input';
 import { GameRenderer } from './game/render';
@@ -33,6 +34,7 @@ export default function App(): JSX.Element {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -153,10 +155,13 @@ export default function App(): JSX.Element {
         aiLastAction={state.aiLastAction}
         isFullscreen={isFullscreen}
         mobile={isMobile}
+        onOpenHelp={() => setHelpOpen(true)}
         onToggleFullscreen={() => {
           void toggleFullscreen();
         }}
       />
+
+      <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
 
       {isMobile ? (
         <div
