@@ -6198,16 +6198,22 @@ export class GameRenderer {
     const width = cluster.tileWidth * 0.94;
     const depth = cluster.tileDepth * 0.94;
     const level = building.level;
-    const variant = building.id % 5;
+    const variant = building.id % 6;
     const tallCluster = cluster.size >= 6 || cluster.originWidth >= 3 || cluster.originDepth >= 3;
-    const wallPalette = [0xd8c0a6, 0xd2c8bb, 0xcbb8a9, 0xd6c8bc, 0xc7cfc9];
-    const trimPalette = [0xb8875f, 0xcab79a, 0xa47a5d, 0xd0ad95, 0x8ba19a];
-    const roofPalette = [0x7c5843, 0x6f7883, 0x8e6547, 0x5b5f68, 0x4d6667];
-    const windowGlowPalette = [0xf59e0b, 0xf0b95a, 0xf6c36b, 0xf7b267, 0xb9d9ff];
-    const podiumWidth = width * (level === 1 ? 0.84 : level >= 4 ? 0.9 : 0.88);
-    const podiumDepth = depth * (level >= 4 ? 0.52 : level === 3 ? 0.56 : 0.62);
-    const towerWidth = width * (tallCluster ? 0.48 : 0.42);
-    const towerDepth = depth * (tallCluster ? 0.38 : 0.34);
+    const wallPalette = [0xd8c0a6, 0xd2c8bb, 0xcbb8a9, 0xd6c8bc, 0xc7cfc9, 0xc8d4c8];
+    const trimPalette = [0xb8875f, 0xcab79a, 0xa47a5d, 0xd0ad95, 0x8ba19a, 0x7f9891];
+    const roofPalette = [0x7c5843, 0x6f7883, 0x8e6547, 0x5b5f68, 0x4d6667, 0x556e63];
+    const windowGlowPalette = [0xf59e0b, 0xf0b95a, 0xf6c36b, 0xf7b267, 0xb9d9ff, 0xf4d0a8];
+    const podiumWidthScale = [0.9, 0.76, 0.94, 0.82, 0.88, 0.74][variant];
+    const podiumDepthScale = [0.52, 0.46, 0.56, 0.48, 0.5, 0.44][variant];
+    const towerWidthScale = [0.52, 0.3, 0.4, 0.36, 0.46, 0.28][variant];
+    const towerDepthScale = [0.42, 0.24, 0.3, 0.28, 0.34, 0.22][variant];
+    const towerOffsetX = [0, -width * 0.16, width * 0.18, -width * 0.18, width * 0.12, 0][variant];
+    const towerOffsetZ = [-depth * 0.02, -depth * 0.04, -depth * 0.08, depth * 0.02, -depth * 0.06, 0][variant];
+    const podiumWidth = width * (level === 1 ? 0.84 : podiumWidthScale);
+    const podiumDepth = depth * (level >= 4 ? podiumDepthScale : level === 3 ? Math.max(0.5, podiumDepthScale + 0.04) : 0.62);
+    const towerWidth = width * (tallCluster ? towerWidthScale : towerWidthScale * 0.92);
+    const towerDepth = depth * (tallCluster ? towerDepthScale : towerDepthScale * 0.94);
     const floorCount = level === 1 ? (tallCluster ? 4 : 3) : level === 2 ? 6 : level === 3 ? 10 : level === 4 ? 16 : 24;
     const floorHeight = level >= 5 ? 0.18 : level >= 3 ? 0.17 : 0.16;
     const towerBaseY = 0.26;
@@ -6304,9 +6310,9 @@ export class GameRenderer {
       )
     );
     tower.position.set(
-      offset.x + (variant % 2 === 0 ? width * 0.14 : -width * 0.14),
+      offset.x + towerOffsetX,
       towerBaseY + towerHeight * 0.5,
-      offset.z - depth * 0.04
+      offset.z + towerOffsetZ
     );
 
     const towerCap = addMesh(
@@ -6317,34 +6323,70 @@ export class GameRenderer {
     );
     towerCap.position.set(tower.position.x, tower.position.y + towerHeight * 0.5 + 0.05, tower.position.z);
 
-    if (level >= 3) {
+    if (level >= 3 && variant !== 0) {
+      const secondTowerWidth = variant === 2 ? towerWidth * 0.86 : variant === 5 ? towerWidth * 0.58 : towerWidth * 0.64;
+      const secondTowerHeight = variant === 1 ? towerHeight * 0.54 : variant === 2 ? towerHeight * 0.66 : variant === 5 ? towerHeight * 0.44 : towerHeight * 0.72;
+      const secondTowerDepth = variant === 2 ? towerDepth * 0.92 : towerDepth * 0.84;
       const secondTower = addMesh(
         new THREE.Mesh(
-          new THREE.BoxGeometry(towerWidth * 0.64, towerHeight * 0.72, towerDepth * 0.84),
+          new THREE.BoxGeometry(secondTowerWidth, secondTowerHeight, secondTowerDepth),
           meshMat(wallPalette[(variant + 2) % 5], 0.74, 0.03)
         )
       );
       secondTower.position.set(
-        offset.x + (variant % 2 === 0 ? -width * 0.18 : width * 0.18),
-        towerBaseY + towerHeight * 0.36,
-        offset.z + depth * 0.04
+        offset.x + (variant === 1 ? width * 0.12 : variant === 2 ? -width * 0.2 : variant === 3 ? width * 0.16 : variant === 4 ? -width * 0.18 : width * 0.16),
+        towerBaseY + (variant === 1 ? towerHeight * 0.28 : variant === 5 ? towerHeight * 0.22 : towerHeight * 0.36),
+        offset.z + (variant === 2 ? depth * 0.12 : variant === 3 ? -depth * 0.08 : depth * 0.04)
       );
       const secondCap = addMesh(
         new THREE.Mesh(
-          new THREE.BoxGeometry(towerWidth * 0.64 + 0.05, 0.07, towerDepth * 0.84 + 0.05),
+          new THREE.BoxGeometry(secondTowerWidth + 0.05, 0.07, secondTowerDepth + 0.05),
           meshMat(roofPalette[(variant + 2) % 5], 0.8, 0.03)
         )
       );
-      secondCap.position.set(secondTower.position.x, secondTower.position.y + towerHeight * 0.36 + 0.045, secondTower.position.z);
+      secondCap.position.set(secondTower.position.x, secondTower.position.y + secondTowerHeight * 0.5 + 0.045, secondTower.position.z);
     }
+
+    const thirdTowerWidth = variant === 2 ? towerWidth * 0.62 : variant === 5 ? towerWidth * 0.78 : towerWidth * 0.46;
+    const thirdTowerHeight = variant === 5 ? towerHeight * 0.88 : variant === 2 ? towerHeight * 0.42 : towerHeight * 0.32;
+    const thirdTowerDepth = variant === 2 ? towerDepth * 0.72 : towerDepth * 0.66;
+    const thirdTower = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(thirdTowerWidth, thirdTowerHeight, thirdTowerDepth),
+        meshMat(wallPalette[(variant + 3) % 6], 0.74, 0.03)
+      )
+    );
+    thirdTower.position.set(
+      offset.x + (variant === 0 ? -width * 0.24 : variant === 2 ? width * 0.26 : variant === 4 ? -width * 0.24 : width * 0.02),
+      towerBaseY + thirdTowerHeight * 0.5,
+      offset.z + (variant === 5 ? depth * 0.16 : variant === 2 ? depth * 0.18 : -depth * 0.18)
+    );
+    thirdTower.visible = level >= 5 && (variant === 0 || variant === 2 || variant === 4 || variant === 5);
+
+    const thirdTowerCap = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(thirdTowerWidth + 0.05, 0.07, thirdTowerDepth + 0.05),
+        meshMat(roofPalette[(variant + 3) % 6], 0.8, 0.03)
+      )
+    );
+    thirdTowerCap.position.set(thirdTower.position.x, thirdTower.position.y + thirdTowerHeight * 0.5 + 0.045, thirdTower.position.z);
+    thirdTowerCap.visible = thirdTower.visible;
 
     const crownBand = addMesh(
       new THREE.Mesh(
-        new THREE.BoxGeometry(towerWidth * 0.86, 0.06, towerDepth + 0.03),
-        meshMat(trimPalette[(variant + 3) % 5], 0.76, 0.04)
+        new THREE.BoxGeometry(
+          variant === 1 ? towerWidth * 0.64 : variant === 5 ? towerWidth + 0.12 : towerWidth * 0.86,
+          variant === 5 ? 0.12 : 0.06,
+          variant === 2 ? towerDepth + 0.12 : towerDepth + 0.03
+        ),
+        meshMat(trimPalette[(variant + 3) % 6], 0.76, 0.04)
       )
     );
-    crownBand.position.set(tower.position.x, tower.position.y + towerHeight * 0.5 - 0.08, tower.position.z);
+    crownBand.position.set(
+      tower.position.x,
+      tower.position.y + towerHeight * 0.5 - (variant === 5 ? 0.02 : 0.08),
+      tower.position.z
+    );
     crownBand.visible = level >= 2;
 
     const towerFinLeft = addMesh(
@@ -6354,7 +6396,7 @@ export class GameRenderer {
       )
     );
     towerFinLeft.position.set(tower.position.x - towerWidth * 0.42, tower.position.y, tower.position.z);
-    towerFinLeft.visible = level >= 2;
+    towerFinLeft.visible = level >= 2 && variant !== 0 && variant !== 2;
     const towerFinRight = towerFinLeft.clone();
     towerFinRight.position.set(tower.position.x + towerWidth * 0.42, tower.position.y, tower.position.z);
     towerFinRight.userData.buildingId = building.id;
@@ -6493,7 +6535,7 @@ export class GameRenderer {
       )
     );
     rooftopPool.position.set(offset.x, podiumRoof.position.y + 0.11, offset.z - depth * 0.02);
-    rooftopPool.visible = level >= 4;
+    rooftopPool.visible = level >= 4 && (variant === 0 || variant === 4);
 
     const crownFinA = addMesh(
       new THREE.Mesh(
@@ -6533,14 +6575,12 @@ export class GameRenderer {
     const planterRight = this.createPlanterBox(0x8d6846, 0x78a06c, offset.x + width * 0.22, 0.05, offset.z + depth * 0.24, building.id, 0.18, 0.14);
     const bike = this.createBike(offset.x - width * 0.18, 0.03, offset.z - depth * 0.24, 0.18, building.id, 0x587094);
 
-    const smokePuffs = level >= 3
-      ? this.createSmokePuffs(building.id, { x: tower.position.x, y: towerCap.position.y + 0.04, z: tower.position.z - towerDepth * 0.12 }, level >= 5 ? 5 : level >= 4 ? 4 : 3, level >= 5 ? 1 : 0.85)
-      : [];
+    const smokePuffs: SmokeAnimation[] = [];
     smokePuffs.forEach((puff) => {
       group.add(puff.mesh);
       meshes.push(puff.mesh);
     });
-    if (smokePuffs.length > 0 || level >= 4) {
+    if (level >= 4) {
       this.utilityAnimations.set(building.id, {
         smoke: smokePuffs,
         glow: [signBand, signBandRear, roofGardenA, roofGardenB, skyBridge, rooftopPool, solarCanopy].filter((mesh) => mesh.visible),
