@@ -7606,6 +7606,76 @@ export class GameRenderer {
     group.add(sculptureWalk);
     meshes.push(sculptureWalk);
 
+    const concertStage = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.26, 0.18, depth * 0.14),
+      new THREE.MeshStandardMaterial({ color: 0xa68462, roughness: 0.82, metalness: 0.03 })
+    );
+    concertStage.position.set(offset.x + width * 0.02, 0.16, offset.z - depth * 0.3);
+    concertStage.userData.buildingId = building.id;
+    concertStage.visible = level >= 4;
+    group.add(concertStage);
+    meshes.push(concertStage);
+
+    const stageCanopy = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.3, 0.08, depth * 0.18),
+      new THREE.MeshStandardMaterial({ color: roofPalette[(variant + 1) % 5], roughness: 0.74, metalness: 0.04, emissive: 0xfff2c2, emissiveIntensity: 0.08 })
+    );
+    stageCanopy.position.set(offset.x + width * 0.02, 0.34, offset.z - depth * 0.3);
+    stageCanopy.userData.buildingId = building.id;
+    stageCanopy.visible = level >= 4;
+    group.add(stageCanopy);
+    meshes.push(stageCanopy);
+
+    const kiosk = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.16, 0.18, depth * 0.14),
+      new THREE.MeshStandardMaterial({ color: 0xe6dcc8, roughness: 0.78, metalness: 0.02 })
+    );
+    kiosk.position.set(offset.x - width * 0.34, 0.16, offset.z + depth * 0.3);
+    kiosk.userData.buildingId = building.id;
+    kiosk.visible = level >= 4;
+    group.add(kiosk);
+    meshes.push(kiosk);
+
+    const kioskRoof = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.2, 0.06, depth * 0.18),
+      new THREE.MeshStandardMaterial({ color: roofPalette[(variant + 4) % 5], roughness: 0.76, metalness: 0.04 })
+    );
+    kioskRoof.position.set(offset.x - width * 0.34, 0.3, offset.z + depth * 0.3);
+    kioskRoof.userData.buildingId = building.id;
+    kioskRoof.visible = level >= 4;
+    group.add(kioskRoof);
+    meshes.push(kioskRoof);
+
+    const terraceGarden = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.22, 0.08, depth * 0.18),
+      new THREE.MeshStandardMaterial({ color: 0x7faa72, roughness: 0.94, metalness: 0.01 })
+    );
+    terraceGarden.position.set(offset.x + width * 0.34, 0.12, offset.z + depth * 0.24);
+    terraceGarden.userData.buildingId = building.id;
+    terraceGarden.visible = level >= 5;
+    group.add(terraceGarden);
+    meshes.push(terraceGarden);
+
+    const terraceGardenUpper = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.16, 0.08, depth * 0.12),
+      new THREE.MeshStandardMaterial({ color: 0x8ab67b, roughness: 0.94, metalness: 0.01 })
+    );
+    terraceGardenUpper.position.set(offset.x + width * 0.34, 0.2, offset.z + depth * 0.24);
+    terraceGardenUpper.userData.buildingId = building.id;
+    terraceGardenUpper.visible = level >= 5;
+    group.add(terraceGardenUpper);
+    meshes.push(terraceGardenUpper);
+
+    const pergolaWalk = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.16, 0.16, depth * 0.44),
+      new THREE.MeshStandardMaterial({ color: roofPalette[(variant + 2) % 5], roughness: 0.74, metalness: 0.04 })
+    );
+    pergolaWalk.position.set(offset.x - width * 0.38, 0.2, offset.z);
+    pergolaWalk.userData.buildingId = building.id;
+    pergolaWalk.visible = level >= 5;
+    group.add(pergolaWalk);
+    meshes.push(pergolaWalk);
+
     group.add(flowerBedA);
     group.add(flowerBedB);
     group.add(lampA);
@@ -7615,7 +7685,7 @@ export class GameRenderer {
 
     this.utilityAnimations.set(building.id, {
       smoke: [],
-      glow: [fountainWater, conservatory, fountainJet, reflectingBasin, sculptureWalk].filter((mesh) => mesh.visible),
+      glow: [fountainWater, conservatory, fountainJet, reflectingBasin, sculptureWalk, stageCanopy].filter((mesh) => mesh.visible),
       phase: building.id * 0.09
     });
 
@@ -7767,11 +7837,59 @@ export class GameRenderer {
     const benchA = this.createBench(offset.x - width * 0.12, 0.03, offset.z + (longAxisX ? 0.18 : -0.18), longAxisX ? 0 : Math.PI / 2, building.id);
     const benchB = this.createBench(offset.x + width * 0.12, 0.03, offset.z + (longAxisX ? -0.18 : 0.18), longAxisX ? Math.PI : -Math.PI / 2, building.id);
 
+    const bikeRibbon = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(longAxisX ? width * 0.84 : width * 0.08, 0.01, longAxisX ? depth * 0.08 : depth * 0.84),
+        new THREE.MeshStandardMaterial({ color: 0x6ec1d4, roughness: 0.62, metalness: 0.03 })
+      )
+    );
+    bikeRibbon.position.set(offset.x + (longAxisX ? 0 : -width * 0.28), 0.058, offset.z + (longAxisX ? -depth * 0.28 : 0));
+    bikeRibbon.visible = level >= 3;
+
+    const playCourt = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(longAxisX ? width * 0.18 : width * 0.28, 0.018, longAxisX ? depth * 0.28 : depth * 0.18),
+        new THREE.MeshStandardMaterial({ color: 0xc98d65, roughness: 0.88, metalness: 0.02 })
+      )
+    );
+    playCourt.position.set(offset.x + (longAxisX ? width * 0.34 : 0), 0.06, offset.z + (longAxisX ? 0 : depth * 0.34));
+    playCourt.visible = level >= 4;
+
+    const footbridge = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(longAxisX ? width * 0.18 : width * 0.12, 0.08, longAxisX ? depth * 0.14 : depth * 0.18),
+        new THREE.MeshStandardMaterial({ color: 0x9d7c58, roughness: 0.8, metalness: 0.03 })
+      )
+    );
+    footbridge.position.set(offset.x + (longAxisX ? -width * 0.18 : width * 0.18), 0.12, offset.z + (longAxisX ? -depth * 0.02 : depth * 0.02));
+    footbridge.visible = level >= 4;
+
+    const lanternRun = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(longAxisX ? width * 0.52 : width * 0.04, 0.04, longAxisX ? depth * 0.04 : depth * 0.52),
+        new THREE.MeshStandardMaterial({ color: 0xe6f7ff, roughness: 0.24, metalness: 0.08, emissive: 0x67e8f9, emissiveIntensity: 0.12 })
+      )
+    );
+    lanternRun.position.set(offset.x, 0.14, offset.z + (longAxisX ? depth * 0.28 : 0));
+    if (!longAxisX) {
+      lanternRun.position.set(offset.x + width * 0.28, 0.14, offset.z);
+    }
+    lanternRun.visible = level >= 5;
+
+    const orchardRow = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(longAxisX ? width * 0.42 : width * 0.18, 0.08, longAxisX ? depth * 0.12 : depth * 0.42),
+        new THREE.MeshStandardMaterial({ color: 0x84b66d, roughness: 0.94, metalness: 0.01 })
+      )
+    );
+    orchardRow.position.set(offset.x + (longAxisX ? 0 : -width * 0.22), 0.08, offset.z + (longAxisX ? depth * 0.34 : 0));
+    orchardRow.visible = level >= 5;
+
     group.add(lampA, lampB, planterA, planterB, benchA, benchB);
 
     this.utilityAnimations.set(building.id, {
       smoke: [],
-      glow: [waterRun, conservatory].filter((mesh) => mesh.visible),
+      glow: [waterRun, conservatory, lanternRun].filter((mesh) => mesh.visible),
       phase: building.id * 0.09
     });
 
@@ -9711,6 +9829,46 @@ export class GameRenderer {
     forecourtPool.userData.buildingId = building.id;
     forecourtPool.visible = level >= 4;
 
+    const justicePlaza = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.42, 0.02, depth * 0.18),
+      new THREE.MeshStandardMaterial({ color: 0xe0ddd7, roughness: 0.94, metalness: 0.01 })
+    );
+    justicePlaza.position.set(offset.x - width * 0.04, 0.06, offset.z - depth * 0.28);
+    justicePlaza.userData.buildingId = building.id;
+    justicePlaza.visible = level >= 4;
+
+    const trainingWing = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.28, 0.44, depth * 0.18),
+      new THREE.MeshStandardMaterial({ color: wallPalette[(variant + 2) % 5], roughness: 0.76, metalness: 0.04 })
+    );
+    trainingWing.position.set(offset.x - width * 0.32, 0.28, offset.z - depth * 0.18);
+    trainingWing.userData.buildingId = building.id;
+    trainingWing.visible = level >= 4;
+
+    const honorGarden = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.22, 0.04, depth * 0.18),
+      new THREE.MeshStandardMaterial({ color: 0x83ab77, roughness: 0.94, metalness: 0.01 })
+    );
+    honorGarden.position.set(offset.x + width * 0.3, 0.08, offset.z - depth * 0.26);
+    honorGarden.userData.buildingId = building.id;
+    honorGarden.visible = level >= 4;
+
+    const civicArch = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.34, 0.08, depth * 0.08),
+      new THREE.MeshStandardMaterial({ color: wallPalette[(variant + 4) % 5], roughness: 0.76, metalness: 0.04, emissive: accentColor, emissiveIntensity: 0.08 })
+    );
+    civicArch.position.set(offset.x, 0.38, offset.z + depth * 0.36);
+    civicArch.userData.buildingId = building.id;
+    civicArch.visible = level >= 5;
+
+    const trainingTower = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.12, 2.16, depth * 0.12),
+      new THREE.MeshStandardMaterial({ color: wallPalette[(variant + 1) % 5], roughness: 0.74, metalness: 0.05 })
+    );
+    trainingTower.position.set(offset.x - width * 0.4, 1.46, offset.z + depth * 0.06);
+    trainingTower.userData.buildingId = building.id;
+    trainingTower.visible = level >= 5;
+
     group.add(walk);
     group.add(lot);
     group.add(body);
@@ -9739,10 +9897,15 @@ export class GameRenderer {
     group.add(beaconSpire);
     group.add(civicBridge);
     group.add(forecourtPool);
+    group.add(justicePlaza);
+    group.add(trainingWing);
+    group.add(honorGarden);
+    group.add(civicArch);
+    group.add(trainingTower);
 
     this.utilityAnimations.set(building.id, {
       smoke: [],
-      glow: [frontAccent, frontWindowBand, rearWindowBand, towerLightBand, adminGlass, plazaSculpture, beaconSpire, forecourtPool].filter((mesh) => mesh.visible),
+      glow: [frontAccent, frontWindowBand, rearWindowBand, towerLightBand, adminGlass, plazaSculpture, beaconSpire, forecourtPool, civicArch].filter((mesh) => mesh.visible),
       phase: building.id * 0.16
     });
 
