@@ -4309,26 +4309,26 @@ export class GameRenderer {
         rearEntryWalk.position.set(0, 0.06, -0.88);
         rearEntryWalk.userData.buildingId = building.id;
 
-        const mainWing = new THREE.Mesh(new THREE.BoxGeometry(1.42, 0.62, 0.86), wallMat);
-        mainWing.position.set(0, 0.31, -0.12);
+        const mainWing = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.68, 0.9), wallMat);
+        mainWing.position.set(0, 0.34, -0.1);
         mainWing.castShadow = true;
         mainWing.receiveShadow = true;
         mainWing.userData.buildingId = building.id;
 
-        const eastWing = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.52, 0.7), wingMat);
-        eastWing.position.set(0.58, 0.26, 0.42);
+        const eastWing = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.58, 0.78), wingMat);
+        eastWing.position.set(0.62, 0.3, 0.42);
         eastWing.castShadow = true;
         eastWing.receiveShadow = true;
         eastWing.userData.buildingId = building.id;
 
-        const westWing = new THREE.Mesh(new THREE.BoxGeometry(0.66, 0.42, 0.68), wingMat.clone());
-        westWing.position.set(-0.58, 0.21, 0.4);
+        const westWing = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.52, 0.74), wingMat.clone());
+        westWing.position.set(-0.62, 0.26, 0.4);
         westWing.castShadow = true;
         westWing.receiveShadow = true;
         westWing.userData.buildingId = building.id;
 
-        const roof = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.08, 0.94), roofMat);
-        roof.position.set(0, 0.66, -0.12);
+        const roof = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.08, 1), roofMat);
+        roof.position.set(0, 0.72, -0.1);
         roof.castShadow = true;
         roof.receiveShadow = true;
         roof.userData.buildingId = building.id;
@@ -4432,8 +4432,8 @@ export class GameRenderer {
         group.add(rearCampusLampRight);
         group.add(campusPlanterLeft);
         group.add(campusPlanterRight);
-        const clinicTower = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.86, 0.28), wallMat.clone());
-        clinicTower.position.set(-0.72, 0.43, -0.22);
+        const clinicTower = new THREE.Mesh(new THREE.BoxGeometry(0.36, 1.18, 0.32), wallMat.clone());
+        clinicTower.position.set(-0.76, 0.6, -0.22);
         clinicTower.castShadow = true;
         clinicTower.receiveShadow = true;
         clinicTower.userData.buildingId = building.id;
@@ -4464,30 +4464,30 @@ export class GameRenderer {
         clinicPod.userData.buildingId = building.id;
         clinicPod.visible = level >= 2;
 
-        const researchTower = new THREE.Mesh(new THREE.BoxGeometry(0.24, 1, 0.24), wallMat.clone());
-        researchTower.position.set(variant % 2 === 0 ? 0.74 : -0.74, 0.86, -0.18);
+        const researchTower = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.42, 0.28), wallMat.clone());
+        researchTower.position.set(variant % 2 === 0 ? 0.76 : -0.76, 1.08, -0.18);
         researchTower.castShadow = true;
         researchTower.receiveShadow = true;
         researchTower.userData.buildingId = building.id;
         researchTower.visible = level >= 3;
 
-        const patientTower = new THREE.Mesh(new THREE.BoxGeometry(0.34, 1.34, 0.3), wallMat.clone());
-        patientTower.position.set(variant % 2 === 0 ? 0.76 : -0.76, 1.1, 0.02);
+        const patientTower = new THREE.Mesh(new THREE.BoxGeometry(0.46, 2.28, 0.38), wallMat.clone());
+        patientTower.position.set(variant % 2 === 0 ? 0.76 : -0.76, 1.58, 0.02);
         patientTower.castShadow = true;
         patientTower.receiveShadow = true;
         patientTower.userData.buildingId = building.id;
         patientTower.visible = level >= 4;
 
         const patientGlass = new THREE.Mesh(
-          new THREE.BoxGeometry(0.24, 0.78, 0.03),
+          new THREE.BoxGeometry(0.3, 1.56, 0.03),
           new THREE.MeshStandardMaterial({ color: 0xdaf4ff, roughness: 0.2, metalness: 0.08, transparent: true, opacity: 0.86, emissive: 0x7dd3fc, emissiveIntensity: 0.12 })
         );
-        patientGlass.position.set(patientTower.position.x, 1.1, 0.18);
+        patientGlass.position.set(patientTower.position.x, 1.58, 0.22);
         patientGlass.userData.buildingId = building.id;
         patientGlass.visible = level >= 4;
 
-        const medSpire = new THREE.Mesh(new THREE.BoxGeometry(0.22, 1.82, 0.22), wallMat.clone());
-        medSpire.position.set(variant % 2 === 0 ? -0.72 : 0.72, 1.56, -0.12);
+        const medSpire = new THREE.Mesh(new THREE.BoxGeometry(0.3, 3.1, 0.28), wallMat.clone());
+        medSpire.position.set(variant % 2 === 0 ? -0.74 : 0.74, 2.2, -0.12);
         medSpire.castShadow = true;
         medSpire.receiveShadow = true;
         medSpire.userData.buildingId = building.id;
@@ -4497,9 +4497,63 @@ export class GameRenderer {
           new THREE.BoxGeometry(0.28, 0.08, 0.28),
           roofMat.clone()
         );
-        spireCap.position.set(medSpire.position.x, 2.5, medSpire.position.z);
+        spireCap.position.set(medSpire.position.x, 3.8, medSpire.position.z);
         spireCap.userData.buildingId = building.id;
         spireCap.visible = level >= 5;
+
+        const diagnosticsWing = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.54, 0.42), wingMat.clone());
+        diagnosticsWing.position.set(0.1, 0.36, -0.56);
+        diagnosticsWing.castShadow = true;
+        diagnosticsWing.receiveShadow = true;
+        diagnosticsWing.userData.buildingId = building.id;
+        diagnosticsWing.visible = level >= 2;
+
+        const labTower = new THREE.Mesh(new THREE.BoxGeometry(0.34, 1.86, 0.28), wallMat.clone());
+        labTower.position.set(variant % 2 === 0 ? 0.18 : -0.18, 1.44, -0.46);
+        labTower.castShadow = true;
+        labTower.receiveShadow = true;
+        labTower.userData.buildingId = building.id;
+        labTower.visible = level >= 4;
+
+        const labGlass = new THREE.Mesh(
+          new THREE.BoxGeometry(0.22, 1.02, 0.03),
+          new THREE.MeshStandardMaterial({ color: 0xdaf4ff, roughness: 0.2, metalness: 0.08, transparent: true, opacity: 0.86, emissive: 0x7dd3fc, emissiveIntensity: 0.14 })
+        );
+        labGlass.position.set(labTower.position.x, 1.44, -0.3);
+        labGlass.userData.buildingId = building.id;
+        labGlass.visible = level >= 4;
+
+        const centralAtriumSpine = new THREE.Mesh(
+          new THREE.BoxGeometry(0.26, 1.24, 0.2),
+          new THREE.MeshStandardMaterial({ color: 0xd8f2ff, roughness: 0.22, metalness: 0.08, transparent: true, opacity: 0.88, emissive: 0x7dd3fc, emissiveIntensity: 0.14 })
+        );
+        centralAtriumSpine.position.set(0, 1.08, 0.1);
+        centralAtriumSpine.userData.buildingId = building.id;
+        centralAtriumSpine.visible = level >= 3;
+
+        const towerSkyBridge = new THREE.Mesh(
+          new THREE.BoxGeometry(0.64, 0.12, 0.18),
+          glassMat.clone()
+        );
+        towerSkyBridge.position.set(0, 1.82, 0.04);
+        towerSkyBridge.userData.buildingId = building.id;
+        towerSkyBridge.visible = level >= 5;
+
+        const helipadRing = new THREE.Mesh(
+          new THREE.TorusGeometry(0.38, 0.024, 8, 28),
+          new THREE.MeshStandardMaterial({ color: 0xe5f3ff, roughness: 0.24, metalness: 0.08, emissive: 0xdc2626, emissiveIntensity: 0.18 })
+        );
+        helipadRing.rotation.x = Math.PI / 2;
+        helipadRing.position.set(0.5, 0.75, -0.18);
+        helipadRing.userData.buildingId = building.id;
+        helipadRing.visible = level >= 4;
+
+        const emergencyPod = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.34, 0.3), wingMat.clone());
+        emergencyPod.position.set(-0.76, 0.22, 0.62);
+        emergencyPod.castShadow = true;
+        emergencyPod.receiveShadow = true;
+        emergencyPod.userData.buildingId = building.id;
+        emergencyPod.visible = level >= 3;
 
         const campusArch = new THREE.Mesh(
           new THREE.BoxGeometry(0.44, 0.12, 0.08),
@@ -4541,9 +4595,16 @@ export class GameRenderer {
           clinicTower,
           emergencySign,
           clinicPod,
+          diagnosticsWing,
           researchTower,
           patientTower,
           patientGlass,
+          labTower,
+          labGlass,
+          centralAtriumSpine,
+          towerSkyBridge,
+          helipadRing,
+          emergencyPod,
           medSpire,
           spireCap,
           campusArch
@@ -4553,12 +4614,34 @@ export class GameRenderer {
         group.add(rehabWing);
         group.add(skyBridge);
         group.add(clinicPod);
+        group.add(diagnosticsWing);
         group.add(researchTower);
         group.add(patientTower);
         group.add(patientGlass);
+        group.add(labTower);
+        group.add(labGlass);
+        group.add(centralAtriumSpine);
+        group.add(towerSkyBridge);
+        group.add(helipadRing);
+        group.add(emergencyPod);
         group.add(medSpire);
         group.add(spireCap);
         group.add(campusArch);
+        this.utilityAnimations.set(building.id, {
+          smoke: [],
+          glow: [
+            atrium,
+            redCross,
+            rearRedCross,
+            patientGlass,
+            labGlass,
+            centralAtriumSpine,
+            towerSkyBridge,
+            helipadRing,
+            emergencySign
+          ].filter((mesh) => mesh.visible),
+          phase: building.id * 0.14
+        });
         return group;
       }
 
@@ -5074,14 +5157,14 @@ export class GameRenderer {
     pad.receiveShadow = true;
     pad.userData.buildingId = building.id;
 
-    const hall = new THREE.Mesh(new THREE.BoxGeometry(1.08, 0.6, 0.88), bodyMat);
-    hall.position.set(-0.35, 0.3, 0.12);
+    const hall = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.72, 0.96), bodyMat);
+    hall.position.set(-0.34, 0.36, 0.12);
     hall.castShadow = true;
     hall.receiveShadow = true;
     hall.userData.buildingId = building.id;
 
-    const hallRoof = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.08, 0.96), accentMat);
-    hallRoof.position.set(-0.35, 0.64, 0.12);
+    const hallRoof = new THREE.Mesh(new THREE.BoxGeometry(1.26, 0.08, 1.04), accentMat);
+    hallRoof.position.set(-0.34, 0.78, 0.12);
     hallRoof.castShadow = true;
     hallRoof.receiveShadow = true;
     hallRoof.userData.buildingId = building.id;
@@ -5092,25 +5175,25 @@ export class GameRenderer {
     transformer.receiveShadow = true;
     transformer.userData.buildingId = building.id;
 
-    const coolingTowerA = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.26, 1.02, 18), pipeMat);
-    coolingTowerA.position.set(0.54, 0.54, -0.22);
+    const coolingTowerA = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.3, 1.42, 18), pipeMat);
+    coolingTowerA.position.set(0.54, 0.74, -0.22);
     coolingTowerA.castShadow = true;
     coolingTowerA.receiveShadow = true;
     coolingTowerA.userData.buildingId = building.id;
 
-    const coolingTowerB = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.26, 1.12, 18), pipeMat.clone());
-    coolingTowerB.position.set(0.86, 0.6, 0.22);
+    const coolingTowerB = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.3, 1.56, 18), pipeMat.clone());
+    coolingTowerB.position.set(0.9, 0.82, 0.22);
     coolingTowerB.castShadow = true;
     coolingTowerB.receiveShadow = true;
     coolingTowerB.userData.buildingId = building.id;
 
-    const stack = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 1.18, 16), pipeMat.clone());
-    stack.position.set(0.1, 0.71, -0.58);
+    const stack = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 1.64, 16), pipeMat.clone());
+    stack.position.set(0.08, 0.94, -0.58);
     stack.castShadow = true;
     stack.receiveShadow = true;
     stack.userData.buildingId = building.id;
 
-    const stackSmoke = this.createSmokePuffs(building.id, { x: stack.position.x, y: 1.34, z: stack.position.z }, 4, 0.95);
+    const stackSmoke = this.createSmokePuffs(building.id, { x: stack.position.x, y: 1.88, z: stack.position.z }, 5, 1.05);
 
     const substation = new THREE.Mesh(
       new THREE.BoxGeometry(0.62, 0.2, 0.48),
@@ -5122,7 +5205,7 @@ export class GameRenderer {
     substation.userData.buildingId = building.id;
 
     const powerCore = new THREE.Mesh(
-      new THREE.BoxGeometry(0.26, 0.22, 0.18),
+      new THREE.BoxGeometry(0.34, 0.3, 0.22),
       new THREE.MeshStandardMaterial({
         color: 0xfff1b3,
         roughness: 0.35,
@@ -5131,7 +5214,7 @@ export class GameRenderer {
         emissiveIntensity: 0.4
       })
     );
-    powerCore.position.set(-0.1, 0.32, 0.58);
+    powerCore.position.set(-0.08, 0.38, 0.58);
     powerCore.castShadow = true;
     powerCore.receiveShadow = true;
     powerCore.userData.buildingId = building.id;
@@ -5195,10 +5278,10 @@ export class GameRenderer {
     group.add(shrubBed);
     stackSmoke.forEach((puff) => group.add(puff.mesh));
     const turbineHall = new THREE.Mesh(
-      new THREE.BoxGeometry(0.54, 0.32, 0.32),
+      new THREE.BoxGeometry(0.68, 0.4, 0.38),
       new THREE.MeshStandardMaterial({ color: 0xa8b3bc, roughness: 0.72, metalness: 0.12 })
     );
-    turbineHall.position.set(0.44, 0.17, 0.64);
+    turbineHall.position.set(0.44, 0.22, 0.64);
     turbineHall.castShadow = true;
     turbineHall.receiveShadow = true;
     turbineHall.userData.buildingId = building.id;
@@ -5210,8 +5293,8 @@ export class GameRenderer {
     pipeRack.position.set(0.24, 0.34, 0.28);
     pipeRack.userData.buildingId = building.id;
 
-    const coolingTowerC = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.2, 0.82, 16), pipeMat.clone());
-    coolingTowerC.position.set(0.42, 0.44, 0.5);
+    const coolingTowerC = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.24, 1.06, 16), pipeMat.clone());
+    coolingTowerC.position.set(0.42, 0.58, 0.5);
     coolingTowerC.castShadow = true;
     coolingTowerC.receiveShadow = true;
     coolingTowerC.userData.buildingId = building.id;
@@ -5226,55 +5309,112 @@ export class GameRenderer {
     cableBridge.visible = level >= 3;
 
     const reactorBlock = new THREE.Mesh(
-      new THREE.BoxGeometry(0.42, 0.38, 0.32),
+      new THREE.BoxGeometry(0.58, 0.56, 0.42),
       bodyMat.clone()
     );
-    reactorBlock.position.set(0.48, level >= 3 ? 0.46 : 0.28, 0.52);
+    reactorBlock.position.set(0.48, level >= 3 ? 0.62 : 0.36, 0.52);
     reactorBlock.castShadow = true;
     reactorBlock.receiveShadow = true;
     reactorBlock.userData.buildingId = building.id;
     reactorBlock.visible = level >= 2;
 
     const stackTower = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.08, 0.1, 0.94, 14),
+      new THREE.CylinderGeometry(0.1, 0.12, 1.4, 14),
       pipeMat.clone()
     );
-    stackTower.position.set(-0.48, 1.02, 0.42);
+    stackTower.position.set(-0.48, 1.28, 0.42);
     stackTower.castShadow = true;
     stackTower.receiveShadow = true;
     stackTower.userData.buildingId = building.id;
     stackTower.visible = level >= 3;
 
     const reactorHallTier4 = new THREE.Mesh(
-      new THREE.BoxGeometry(0.62, 0.54, 0.4),
+      new THREE.BoxGeometry(0.82, 0.78, 0.56),
       bodyMat.clone()
     );
-    reactorHallTier4.position.set(0.4, 0.54, 0.42);
+    reactorHallTier4.position.set(0.42, 0.82, 0.42);
     reactorHallTier4.castShadow = true;
     reactorHallTier4.receiveShadow = true;
     reactorHallTier4.userData.buildingId = building.id;
     reactorHallTier4.visible = level >= 4;
 
-    const coolingTowerD = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 1.08, 16), pipeMat.clone());
-    coolingTowerD.position.set(0.72, 0.56, 0.18);
+    const coolingTowerD = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.26, 1.48, 16), pipeMat.clone());
+    coolingTowerD.position.set(0.78, 0.78, 0.18);
     coolingTowerD.castShadow = true;
     coolingTowerD.receiveShadow = true;
     coolingTowerD.userData.buildingId = building.id;
     coolingTowerD.visible = level >= 4;
 
     const megaStack = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.1, 0.12, 1.52, 16),
+      new THREE.CylinderGeometry(0.14, 0.18, 2.46, 16),
       pipeMat.clone()
     );
-    megaStack.position.set(-0.14, 1.42, 0.08);
+    megaStack.position.set(-0.1, 2.04, 0.08);
     megaStack.castShadow = true;
     megaStack.receiveShadow = true;
     megaStack.userData.buildingId = building.id;
     megaStack.visible = level >= 5;
 
-    const megaSmoke = this.createSmokePuffs(building.id, { x: megaStack.position.x, y: 2.22, z: megaStack.position.z }, 4, 1.05);
+    const megaSmoke = this.createSmokePuffs(building.id, { x: megaStack.position.x, y: 3.14, z: megaStack.position.z }, 6, 1.22);
 
-    const towerSmoke = this.createSmokePuffs(building.id, { x: stackTower.position.x, y: 1.56, z: stackTower.position.z }, 3, 0.82);
+    const towerSmoke = this.createSmokePuffs(building.id, { x: stackTower.position.x, y: 2.06, z: stackTower.position.z }, 4, 0.96);
+
+    const reactorDome = new THREE.Mesh(
+      new THREE.SphereGeometry(0.26, 18, 14),
+      new THREE.MeshStandardMaterial({ color: bodyPalette[(variant + 2) % 5], roughness: 0.66, metalness: 0.1 })
+    );
+    reactorDome.position.set(0.36, 0.82, 0.24);
+    reactorDome.scale.y = 0.72;
+    reactorDome.castShadow = true;
+    reactorDome.receiveShadow = true;
+    reactorDome.userData.buildingId = building.id;
+    reactorDome.visible = level >= 3;
+
+    const switchyard = new THREE.Mesh(
+      new THREE.BoxGeometry(0.62, 0.22, 0.34),
+      new THREE.MeshStandardMaterial({ color: 0x9ea9b2, roughness: 0.74, metalness: 0.14 })
+    );
+    switchyard.position.set(-0.64, 0.16, 0.54);
+    switchyard.castShadow = true;
+    switchyard.receiveShadow = true;
+    switchyard.userData.buildingId = building.id;
+    switchyard.visible = level >= 2;
+
+    const condenserHall = new THREE.Mesh(
+      new THREE.BoxGeometry(0.54, 0.42, 0.34),
+      bodyMat.clone()
+    );
+    condenserHall.position.set(-0.04, 0.26, -0.08);
+    condenserHall.castShadow = true;
+    condenserHall.receiveShadow = true;
+    condenserHall.userData.buildingId = building.id;
+    condenserHall.visible = level >= 3;
+
+    const hyperReactor = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.16, 0.2, 0.52, 14),
+      new THREE.MeshStandardMaterial({ color: 0xfff3c2, roughness: 0.22, metalness: 0.1, emissive: 0xffb300, emissiveIntensity: 0.3 })
+    );
+    hyperReactor.position.set(0.62, 0.52, 0.5);
+    hyperReactor.userData.buildingId = building.id;
+    hyperReactor.visible = level >= 4;
+
+    const reactorTower2 = new THREE.Mesh(
+      new THREE.BoxGeometry(0.28, 1.94, 0.22),
+      bodyMat.clone()
+    );
+    reactorTower2.position.set(0.76, 1.52, -0.36);
+    reactorTower2.castShadow = true;
+    reactorTower2.receiveShadow = true;
+    reactorTower2.userData.buildingId = building.id;
+    reactorTower2.visible = level >= 5;
+
+    const beaconSpire = new THREE.Mesh(
+      new THREE.BoxGeometry(0.1, 0.56, 0.1),
+      new THREE.MeshStandardMaterial({ color: 0xe0f2fe, roughness: 0.2, metalness: 0.08, emissive: 0x38bdf8, emissiveIntensity: 0.24 })
+    );
+    beaconSpire.position.set(0.76, 2.86, -0.36);
+    beaconSpire.userData.buildingId = building.id;
+    beaconSpire.visible = level >= 5;
 
     group.add(turbineHall);
     group.add(pipeRack);
@@ -5285,12 +5425,18 @@ export class GameRenderer {
     group.add(reactorHallTier4);
     group.add(coolingTowerD);
     group.add(megaStack);
+    group.add(reactorDome);
+    group.add(switchyard);
+    group.add(condenserHall);
+    group.add(hyperReactor);
+    group.add(reactorTower2);
+    group.add(beaconSpire);
     towerSmoke.forEach((puff) => group.add(puff.mesh));
     megaSmoke.forEach((puff) => group.add(puff.mesh));
 
     this.utilityAnimations.set(building.id, {
       smoke: [...stackSmoke, ...towerSmoke, ...megaSmoke],
-      glow: [powerCore, rearPowerCore],
+      glow: [powerCore, rearPowerCore, hyperReactor, beaconSpire],
       phase: building.id * 0.11
     });
     this.selectableMeshes.set(building.id, [
@@ -5323,6 +5469,12 @@ export class GameRenderer {
       reactorHallTier4,
       coolingTowerD,
       megaStack,
+      reactorDome,
+      switchyard,
+      condenserHall,
+      hyperReactor,
+      reactorTower2,
+      beaconSpire,
       ...stackSmoke.map((entry) => entry.mesh)
         .concat(towerSmoke.map((entry) => entry.mesh))
         .concat(megaSmoke.map((entry) => entry.mesh))
@@ -7863,6 +8015,42 @@ export class GameRenderer {
     helipadLightRing.position.set(offset.x + width * archetype.towerAX, (level >= 5 ? 1.42 : 0.9) * archetype.towerScale, offset.z - depth * 0.12);
     helipadLightRing.visible = level >= 4;
 
+    const surgeryTower = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(width * 0.22, level >= 5 ? 2.48 : 1.66, depth * 0.18),
+        new THREE.MeshStandardMaterial({ color: wallPalette[(variant + 3) % 5], roughness: 0.72, metalness: 0.04 })
+      )
+    );
+    surgeryTower.position.set(offset.x - width * 0.18, level >= 5 ? 2.02 : 1.38, offset.z - depth * 0.3);
+    surgeryTower.visible = level >= 4;
+
+    const surgeryGlass = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(width * 0.14, level >= 5 ? 1.48 : 1.02, 0.03),
+        new THREE.MeshStandardMaterial({ color: 0xdff7ff, roughness: 0.2, metalness: 0.08, transparent: true, opacity: 0.86, emissive: accentPalette[(variant + 4) % 5], emissiveIntensity: 0.14 })
+      )
+    );
+    surgeryGlass.position.set(surgeryTower.position.x, surgeryTower.position.y, surgeryTower.position.z + depth * 0.1);
+    surgeryGlass.visible = level >= 4;
+
+    const triageHall = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(width * 0.34, 0.42, depth * 0.22),
+        new THREE.MeshStandardMaterial({ color: wingPalette[(variant + 1) % 5], roughness: 0.74, metalness: 0.03 })
+      )
+    );
+    triageHall.position.set(offset.x + width * 0.26, 0.24, offset.z + depth * 0.04);
+    triageHall.visible = level >= 3;
+
+    const medSkywalk = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(width * 0.34, 0.12, depth * 0.12),
+        new THREE.MeshStandardMaterial({ color: 0xcbe8f8, roughness: 0.24, metalness: 0.08, transparent: true, opacity: 0.84, emissive: accentPalette[(variant + 1) % 5], emissiveIntensity: 0.12 })
+      )
+    );
+    medSkywalk.position.set(offset.x + width * 0.08, 1.22, offset.z - depth * 0.12);
+    medSkywalk.visible = level >= 5;
+
     const emergencyBay = addMesh(
       new THREE.Mesh(
         new THREE.BoxGeometry(width * 0.26, 0.26, depth * 0.18),
@@ -7897,7 +8085,7 @@ export class GameRenderer {
 
     this.utilityAnimations.set(building.id, {
       smoke: [],
-      glow: [frontWindowBand, rearWindowBand, towerWindowBand, patientTowerGlass, helipadLightRing, triageLight].filter((mesh) => mesh.visible),
+      glow: [frontWindowBand, rearWindowBand, towerWindowBand, patientTowerGlass, helipadLightRing, triageLight, surgeryGlass, medSkywalk].filter((mesh) => mesh.visible),
       phase: building.id * 0.14
     });
 
@@ -8124,6 +8312,34 @@ export class GameRenderer {
     hyperBeacon.userData.buildingId = building.id;
     hyperBeacon.visible = level >= 5;
 
+    const reactorHallB = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.28, level >= 5 ? 0.92 : 0.56, depth * 0.2),
+      new THREE.MeshStandardMaterial({ color: hallPalette[(variant + 2) % 5], roughness: 0.7, metalness: 0.12 })
+    );
+    reactorHallB.position.set(offset.x + width * 0.28, level >= 5 ? 0.56 : 0.32, offset.z - depth * 0.26);
+    reactorHallB.castShadow = true;
+    reactorHallB.receiveShadow = true;
+    reactorHallB.userData.buildingId = building.id;
+    reactorHallB.visible = level >= 4;
+
+    const reactorGlowSpine = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.12, level >= 5 ? 1.18 : 0.74, 0.04),
+      new THREE.MeshStandardMaterial({ color: 0xfff3c2, roughness: 0.22, metalness: 0.1, emissive: accentPalette[(variant + 3) % 5], emissiveIntensity: 0.24 })
+    );
+    reactorGlowSpine.position.set(offset.x + width * 0.28, level >= 5 ? 0.92 : 0.58, offset.z - depth * 0.14);
+    reactorGlowSpine.userData.buildingId = building.id;
+    reactorGlowSpine.visible = level >= 4;
+
+    const megaCoolingTower = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.22, 0.3, 1.92, 18),
+      new THREE.MeshStandardMaterial({ color: metalPalette[(variant + 3) % 5], roughness: 0.74, metalness: 0.18 })
+    );
+    megaCoolingTower.position.set(offset.x + width * 0.44, 1.08, offset.z + depth * 0.04);
+    megaCoolingTower.castShadow = true;
+    megaCoolingTower.receiveShadow = true;
+    megaCoolingTower.userData.buildingId = building.id;
+    megaCoolingTower.visible = level >= 5;
+
     const coolingPond = new THREE.Mesh(
       new THREE.BoxGeometry(width * 0.24, 0.05, depth * 0.16),
       new THREE.MeshStandardMaterial({ color: 0x8ed3f4, roughness: 0.18, metalness: 0.06, transparent: true, opacity: 0.82, emissive: 0x38bdf8, emissiveIntensity: 0.08 })
@@ -8187,6 +8403,9 @@ export class GameRenderer {
     group.add(condenser);
     group.add(hyperCore);
     group.add(hyperBeacon);
+    group.add(reactorHallB);
+    group.add(reactorGlowSpine);
+    group.add(megaCoolingTower);
     group.add(coolingPond);
     group.add(transformerField);
     group.add(switchyardTower);
@@ -8196,7 +8415,7 @@ export class GameRenderer {
 
     this.utilityAnimations.set(building.id, {
       smoke: stackSmoke,
-      glow: [powerCore, reactorBand, coolingBand, hyperCore, hyperBeacon, coolingPond, switchyardTower].filter((mesh) => mesh.visible),
+      glow: [powerCore, reactorBand, coolingBand, hyperCore, hyperBeacon, coolingPond, switchyardTower, reactorGlowSpine].filter((mesh) => mesh.visible),
       phase: building.id * 0.13
     });
 
