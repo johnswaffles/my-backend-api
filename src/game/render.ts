@@ -7295,6 +7295,51 @@ export class GameRenderer {
     skylineWing.position.set(offset.x + width * 0.28, 1.72, offset.z - depth * 0.1);
     skylineWing.visible = superblockMode && level >= 5;
 
+    const greenhouseDeck = addGlowMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(width * 0.24, 0.18, depth * 0.16),
+        meshMat(0xdff7ef, 0.18, 0.08, 0x34d399, 0.1)
+      )
+    );
+    greenhouseDeck.position.set(offset.x + width * 0.18, podiumRoof.position.y + 0.18, offset.z - depth * 0.18);
+    greenhouseDeck.visible = superblockMode && level >= 4;
+
+    const observationDeck = addGlowMesh(
+      new THREE.Mesh(
+        new THREE.CylinderGeometry(width * 0.1, width * 0.12, 0.08, 14),
+        meshMat(trimPalette[(variant + 2) % 6], 0.44, 0.08, windowGlowPalette[(variant + 5) % 6], 0.12)
+      )
+    );
+    observationDeck.position.set(offset.x - width * 0.06, towerBaseY + primaryTowerHeight + 0.22, offset.z + depth * 0.02);
+    observationDeck.visible = superblockMode && level >= 5;
+
+    const verticalGarden = addGlowMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(width * 0.08, 1.24, 0.03),
+        meshMat(0xbce5c4, 0.28, 0.04, 0x22c55e, 0.14)
+      )
+    );
+    verticalGarden.position.set(offset.x + width * 0.26, 0.92, offset.z + depth * 0.08);
+    verticalGarden.visible = superblockMode && level >= 5;
+
+    const amenityWing = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(width * 0.24, 0.54, depth * 0.18),
+        meshMat(wallPalette[(variant + 3) % 6], 0.74, 0.04)
+      )
+    );
+    amenityWing.position.set(offset.x - width * 0.34, 0.34, offset.z + depth * 0.18);
+    amenityWing.visible = superblockMode && level >= 4;
+
+    const amenityGlow = addGlowMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(width * 0.14, 0.14, 0.03),
+        meshMat(0xffefc8, 0.24, 0.08, windowGlowPalette[(variant + 1) % 6], 0.1)
+      )
+    );
+    amenityGlow.position.set(offset.x - width * 0.34, 0.34, offset.z + depth * 0.28);
+    amenityGlow.visible = superblockMode && level >= 4;
+
     const lampLeft = this.createStreetLamp(offset.x - width * 0.26, 0.055, offset.z + depth * 0.26, building.id, 0xffefbf);
     const lampRight = this.createStreetLamp(offset.x + width * 0.26, 0.055, offset.z + depth * 0.26, building.id, 0xffefbf);
     const planterLeft = this.createPlanterBox(0x8d6846, 0x78a06c, offset.x - width * 0.22, 0.05, offset.z + depth * 0.24, building.id, 0.18, 0.14);
@@ -7324,6 +7369,10 @@ export class GameRenderer {
           courtyardPool,
           garageGlow,
           skyBridgeMega,
+          greenhouseDeck,
+          observationDeck,
+          verticalGarden,
+          amenityGlow,
           crownHalo,
           ...glowMeshes
         ].filter((mesh): mesh is THREE.Mesh => Boolean(mesh && mesh.visible)),
@@ -8282,6 +8331,67 @@ export class GameRenderer {
     roofMarket.position.set(offset.x - width * 0.24, 1.36, offset.z + depth * 0.14);
     roofMarket.visible = megaDowntown && level >= 5;
 
+    const grandAtrium = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(width * 0.34, 0.38, depth * 0.18),
+        new THREE.MeshStandardMaterial({
+          color: 0xe9f7ff,
+          roughness: 0.2,
+          metalness: 0.08,
+          transparent: true,
+          opacity: 0.86,
+          emissive: themes.sign,
+          emissiveIntensity: 0.14
+        })
+      )
+    );
+    grandAtrium.position.set(offset.x + width * 0.08, 0.32, offset.z - depth * 0.26);
+    grandAtrium.visible = megaDowntown && level >= 4;
+
+    const skyHotel = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(width * 0.2, 2.56, depth * 0.18),
+        new THREE.MeshStandardMaterial({ color: themes.body, roughness: 0.7, metalness: 0.05 })
+      )
+    );
+    skyHotel.position.set(offset.x - width * 0.36, 1.82, offset.z + depth * 0.06);
+    skyHotel.visible = megaDowntown && level >= 5;
+
+    const skyHotelGlow = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(width * 0.12, 1.48, 0.03),
+        new THREE.MeshStandardMaterial({
+          color: 0xffefc9,
+          roughness: 0.18,
+          metalness: 0.08,
+          transparent: true,
+          opacity: 0.84,
+          emissive: themes.sign,
+          emissiveIntensity: 0.14
+        })
+      )
+    );
+    skyHotelGlow.position.set(skyHotel.position.x, skyHotel.position.y, skyHotel.position.z + depth * 0.1);
+    skyHotelGlow.visible = megaDowntown && level >= 5;
+
+    const districtBillboard = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(width * 0.18, 0.36, 0.05),
+        new THREE.MeshStandardMaterial({ color: themes.accent, roughness: 0.34, metalness: 0.08, emissive: themes.sign, emissiveIntensity: 0.24 })
+      )
+    );
+    districtBillboard.position.set(offset.x + width * 0.36, 1.18, offset.z - depth * 0.12);
+    districtBillboard.visible = megaDowntown && level >= 5;
+
+    const marketCanopy = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(width * 0.32, 0.12, depth * 0.18),
+        new THREE.MeshStandardMaterial({ color: themes.accent, roughness: 0.46, metalness: 0.08, emissive: themes.sign, emissiveIntensity: 0.12 })
+      )
+    );
+    marketCanopy.position.set(offset.x + width * 0.22, 0.26, offset.z + depth * 0.3);
+    marketCanopy.visible = megaDowntown && level >= 4;
+
     const parkingPad = addMesh(
       new THREE.Mesh(
         new THREE.BoxGeometry(width * 0.86, 0.012, depth * 0.24),
@@ -8333,7 +8443,11 @@ export class GameRenderer {
         residentialGlow,
         arcadeHall,
         hotelGlow,
-        roofMarket
+        roofMarket,
+        grandAtrium,
+        skyHotelGlow,
+        districtBillboard,
+        marketCanopy
       ].filter((mesh) => mesh.visible),
       phase: building.id * 0.12
     });
@@ -8757,6 +8871,76 @@ export class GameRenderer {
     medCoreGlow.position.set(medCoreTower.position.x, medCoreTower.position.y, medCoreTower.position.z + depth * 0.08);
     medCoreGlow.visible = medicalCity && level >= 5;
 
+    const traumaCenter = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(width * 0.28, 0.62, depth * 0.2),
+        new THREE.MeshStandardMaterial({ color: wingPalette[(variant + 4) % 5], roughness: 0.74, metalness: 0.04 })
+      )
+    );
+    traumaCenter.position.set(offset.x + width * 0.34, 0.38, offset.z - depth * 0.26);
+    traumaCenter.visible = medicalCity && level >= 4;
+
+    const traumaGlow = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(width * 0.18, 0.18, 0.03),
+        new THREE.MeshStandardMaterial({
+          color: 0xe3f6ff,
+          roughness: 0.2,
+          metalness: 0.08,
+          transparent: true,
+          opacity: 0.88,
+          emissive: accentPalette[(variant + 2) % 5],
+          emissiveIntensity: 0.16
+        })
+      )
+    );
+    traumaGlow.position.set(offset.x + width * 0.34, 0.42, offset.z - depth * 0.16);
+    traumaGlow.visible = medicalCity && level >= 4;
+
+    const emergencyTower = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(width * 0.18, 3.1, depth * 0.16),
+        new THREE.MeshStandardMaterial({ color: wallPalette[(variant + 1) % 5], roughness: 0.72, metalness: 0.05 })
+      )
+    );
+    emergencyTower.position.set(offset.x - width * 0.08, 2.18, offset.z + depth * 0.32);
+    emergencyTower.visible = medicalCity && level >= 5;
+
+    const emergencyTowerGlass = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(width * 0.1, 1.74, 0.03),
+        new THREE.MeshStandardMaterial({
+          color: 0xdff7ff,
+          roughness: 0.18,
+          metalness: 0.08,
+          transparent: true,
+          opacity: 0.86,
+          emissive: accentPalette[(variant + 3) % 5],
+          emissiveIntensity: 0.16
+        })
+      )
+    );
+    emergencyTowerGlass.position.set(emergencyTower.position.x, emergencyTower.position.y, emergencyTower.position.z + depth * 0.08);
+    emergencyTowerGlass.visible = medicalCity && level >= 5;
+
+    const ambulanceLoop = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(width * 0.64, 0.02, depth * 0.16),
+        new THREE.MeshStandardMaterial({ color: 0xd6d2cb, roughness: 0.94, metalness: 0.01 })
+      )
+    );
+    ambulanceLoop.position.set(offset.x, 0.06, offset.z + depth * 0.4);
+    ambulanceLoop.visible = medicalCity && level >= 4;
+
+    const triagePylon = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(0.08, 0.64, 0.08),
+        new THREE.MeshStandardMaterial({ color: 0xe3f6ff, roughness: 0.2, metalness: 0.08, emissive: accentPalette[(variant + 4) % 5], emissiveIntensity: 0.22 })
+      )
+    );
+    triagePylon.position.set(offset.x + width * 0.4, 0.38, offset.z + depth * 0.34);
+    triagePylon.visible = medicalCity && level >= 5;
+
     const ambulanceA = this.createParkedCar(0xf3f4f6, offset.x - width * 0.22, 0.08, offset.z + depth * 0.4, Math.PI / 2, building.id, 1.06);
     const ambulanceB = this.createParkedCar(0xf3f4f6, offset.x - width * 0.06, 0.08, offset.z + depth * 0.4, Math.PI / 2, building.id, 1.06);
     const lampLeft = this.createStreetLamp(offset.x - width * 0.34, 0.055, offset.z + depth * 0.32, building.id, 0xcfe8ff);
@@ -8785,7 +8969,10 @@ export class GameRenderer {
         researchAtrium,
         patientTowerBGlass,
         diagnosticsGlass,
-        medCoreGlow
+        medCoreGlow,
+        traumaGlow,
+        emergencyTowerGlass,
+        triagePylon
       ].filter((mesh) => mesh.visible),
       phase: building.id * 0.14
     });
@@ -9135,6 +9322,46 @@ export class GameRenderer {
     lineSpine.userData.buildingId = building.id;
     lineSpine.visible = supergridMode && level >= 5;
 
+    const solarField = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.32, 0.04, depth * 0.18),
+      new THREE.MeshStandardMaterial({ color: 0x34506a, roughness: 0.34, metalness: 0.18, emissive: 0x0f172a, emissiveIntensity: 0.08 })
+    );
+    solarField.position.set(offset.x - width * 0.26, 0.08, offset.z + depth * 0.36);
+    solarField.userData.buildingId = building.id;
+    solarField.visible = supergridMode && level >= 4;
+
+    const cableBridge = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.56, 0.08, 0.08),
+      new THREE.MeshStandardMaterial({ color: metalPalette[(variant + 3) % 5], roughness: 0.72, metalness: 0.18 })
+    );
+    cableBridge.position.set(offset.x + width * 0.06, 0.98, offset.z - depth * 0.18);
+    cableBridge.userData.buildingId = building.id;
+    cableBridge.visible = supergridMode && level >= 4;
+
+    const cableGlow = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.48, 0.03, 0.03),
+      new THREE.MeshStandardMaterial({ color: 0xe5f3ff, roughness: 0.24, metalness: 0.08, emissive: accentPalette[(variant + 4) % 5], emissiveIntensity: 0.16 })
+    );
+    cableGlow.position.set(offset.x + width * 0.06, 1.02, offset.z - depth * 0.18);
+    cableGlow.userData.buildingId = building.id;
+    cableGlow.visible = supergridMode && level >= 5;
+
+    const inverterHall = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.26, 0.46, depth * 0.18),
+      new THREE.MeshStandardMaterial({ color: hallPalette[(variant + 4) % 5], roughness: 0.72, metalness: 0.12 })
+    );
+    inverterHall.position.set(offset.x - width * 0.38, 0.28, offset.z + depth * 0.14);
+    inverterHall.userData.buildingId = building.id;
+    inverterHall.visible = supergridMode && level >= 4;
+
+    const switchArray = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.26, 0.2, depth * 0.12),
+      new THREE.MeshStandardMaterial({ color: hallPalette[(variant + 2) % 5], roughness: 0.72, metalness: 0.14 })
+    );
+    switchArray.position.set(offset.x + width * 0.38, 0.16, offset.z - depth * 0.28);
+    switchArray.userData.buildingId = building.id;
+    switchArray.visible = supergridMode && level >= 5;
+
     const stackSmoke = [
       ...this.createSmokePuffs(building.id, { x: stacks[0].position.x, y: 1.34, z: stacks[0].position.z }, 3, 1),
       ...this.createSmokePuffs(building.id, { x: stacks[1].position.x, y: 1.34, z: stacks[1].position.z }, 3, 0.92)
@@ -9181,6 +9408,11 @@ export class GameRenderer {
     group.add(transmissionPylonA);
     group.add(transmissionPylonB);
     group.add(lineSpine);
+    group.add(solarField);
+    group.add(cableBridge);
+    group.add(cableGlow);
+    group.add(inverterHall);
+    group.add(switchArray);
     stackSmoke.forEach((puff) => group.add(puff.mesh));
     powerCore.visible = level >= 2;
 
@@ -9196,7 +9428,9 @@ export class GameRenderer {
         switchyardTower,
         reactorGlowSpine,
         coolingCanal,
-        lineSpine
+        lineSpine,
+        solarField,
+        cableGlow
       ].filter((mesh) => mesh.visible),
       phase: building.id * 0.13
     });
@@ -9233,6 +9467,11 @@ export class GameRenderer {
       transmissionPylonA,
       transmissionPylonB,
       lineSpine,
+      solarField,
+      cableBridge,
+      cableGlow,
+      inverterHall,
+      switchArray,
       ...towers,
       ...stacks,
       ...stackSmoke.map((entry) => entry.mesh),
@@ -9821,6 +10060,55 @@ export class GameRenderer {
       ? this.createSmokePuffs(building.id, { x: foundryTower.position.x, y: level >= 5 ? 2.0 : 1.72, z: foundryTower.position.z }, level >= 5 ? 5 : 3, level >= 5 ? 1.04 : 0.86)
       : [];
 
+    const loadingCanopy = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.34, 0.1, depth * 0.18),
+      new THREE.MeshStandardMaterial({ color: roofPalette[(variant + 1) % 5], roughness: 0.76, metalness: 0.08 })
+    );
+    loadingCanopy.position.set(offset.x + width * 0.22, 0.3, offset.z + depth * 0.26);
+    loadingCanopy.userData.buildingId = building.id;
+    loadingCanopy.visible = logisticsHub && level >= 4;
+
+    const tanker = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.1, 0.1, 0.42, 12),
+      new THREE.MeshStandardMaterial({ color: metalPalette[(variant + 3) % 5], roughness: 0.72, metalness: 0.18 })
+    );
+    tanker.rotation.z = Math.PI / 2;
+    tanker.position.set(offset.x - width * 0.18, 0.18, offset.z + depth * 0.28);
+    tanker.userData.buildingId = building.id;
+    tanker.visible = logisticsHub && level >= 4;
+
+    const dispatchTower = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.16, 1.94, depth * 0.14),
+      new THREE.MeshStandardMaterial({ color: wallPalette[(variant + 2) % 5], roughness: 0.74, metalness: 0.06 })
+    );
+    dispatchTower.position.set(offset.x + width * 0.4, 1.36, offset.z + depth * 0.02);
+    dispatchTower.userData.buildingId = building.id;
+    dispatchTower.visible = logisticsHub && level >= 5;
+
+    const dispatchGlow = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.1, 1.04, 0.03),
+      new THREE.MeshStandardMaterial({ color: 0xe8f4ff, roughness: 0.2, metalness: 0.08, transparent: true, opacity: 0.86, emissive: accentPalette[(variant + 1) % 5], emissiveIntensity: 0.14 })
+    );
+    dispatchGlow.position.set(dispatchTower.position.x, dispatchTower.position.y, dispatchTower.position.z + depth * 0.08);
+    dispatchGlow.userData.buildingId = building.id;
+    dispatchGlow.visible = logisticsHub && level >= 5;
+
+    const yardGrid = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.62, 0.02, depth * 0.24),
+      new THREE.MeshStandardMaterial({ color: 0xd5cbbd, roughness: 0.9, metalness: 0.02 })
+    );
+    yardGrid.position.set(offset.x + width * 0.04, 0.055, offset.z + depth * 0.34);
+    yardGrid.userData.buildingId = building.id;
+    yardGrid.visible = logisticsHub && level >= 4;
+
+    const loaderBayGlow = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.18, 0.12, 0.03),
+      new THREE.MeshStandardMaterial({ color: 0xfff1d4, roughness: 0.24, metalness: 0.08, transparent: true, opacity: 0.88, emissive: accentPalette[(variant + 2) % 5], emissiveIntensity: 0.2 })
+    );
+    loaderBayGlow.position.set(offset.x + width * 0.22, 0.34, offset.z + depth * 0.22);
+    loaderBayGlow.userData.buildingId = building.id;
+    loaderBayGlow.visible = logisticsHub && level >= 4;
+
     group.add(walk);
     group.add(pad);
     group.add(hall);
@@ -9853,11 +10141,17 @@ export class GameRenderer {
     group.add(logisticsWarehouseRoof);
     group.add(containerStack);
     group.add(logisticsCrane);
+    group.add(loadingCanopy);
+    group.add(tanker);
+    group.add(dispatchTower);
+    group.add(dispatchGlow);
+    group.add(yardGrid);
+    group.add(loaderBayGlow);
     yardSmoke.forEach((puff) => group.add(puff.mesh));
 
     this.utilityAnimations.set(building.id, {
       smoke: yardSmoke,
-      glow: [officeBand, furnaceGlow, loaderArm, assemblyHall, logisticsCrane].filter((mesh) => mesh.visible),
+      glow: [officeBand, furnaceGlow, loaderArm, assemblyHall, logisticsCrane, dispatchGlow, loaderBayGlow].filter((mesh) => mesh.visible),
       phase: building.id * 0.11
     });
 
@@ -9893,6 +10187,12 @@ export class GameRenderer {
       logisticsWarehouseRoof,
       containerStack,
       logisticsCrane,
+      loadingCanopy,
+      tanker,
+      dispatchTower,
+      dispatchGlow,
+      yardGrid,
+      loaderBayGlow,
       ...yardSmoke.map((entry) => entry.mesh),
       ...this.collectMeshes(truck)
     ]);
