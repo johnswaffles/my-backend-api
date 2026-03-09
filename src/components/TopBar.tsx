@@ -10,6 +10,19 @@ interface TopBarProps {
   day: number;
   timeOfDay: number;
   happiness: number;
+  economy: {
+    income: number;
+    maintenance: number;
+    penalties: number;
+    happinessBonus: number;
+    net: number;
+  };
+  counts: {
+    homes: number;
+    stores: number;
+    civic: number;
+    utility: number;
+  };
   gameSpeed: GameSpeed;
   undoCount: number;
   redoCount: number;
@@ -72,6 +85,8 @@ export function TopBar({
   day,
   timeOfDay,
   happiness,
+  economy,
+  counts,
   gameSpeed,
   undoCount,
   redoCount,
@@ -120,6 +135,16 @@ export function TopBar({
           <Stat label="People" value={population.toLocaleString()} valueClassName="text-base" />
           <Stat label="Jobs" value={jobs.toLocaleString()} valueClassName="text-base" />
           <Stat label="Power" value={`${powerUsed}/${powerProduced} (${net >= 0 ? '+' : ''}${net})`} valueClassName="text-sm" />
+          <Stat
+            label="Cashflow"
+            value={`${economy.net >= 0 ? '+' : ''}$${economy.net.toFixed(2)}/s`}
+            valueClassName="text-sm"
+          />
+          <Stat
+            label="Districts"
+            value={`H${counts.homes} S${counts.stores} C${counts.civic} U${counts.utility}`}
+            valueClassName="text-sm"
+          />
         </div>
         <div className="flex flex-wrap gap-2">
           <button
@@ -227,7 +252,7 @@ export function TopBar({
           </div>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-7">
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-9">
         <Stat
           label="Money"
           value={formatMoney(money)}
@@ -236,6 +261,16 @@ export function TopBar({
         <Stat label="Population" value={population.toLocaleString()} />
         <Stat label="Jobs" value={jobs.toLocaleString()} />
         <Stat label="Power" value={`${powerUsed}/${powerProduced} (${net >= 0 ? '+' : ''}${net})`} />
+        <Stat
+          label="Cashflow"
+          value={`${economy.net >= 0 ? '+' : ''}$${economy.net.toFixed(2)}/s`}
+          valueClassName="text-sm"
+        />
+        <Stat
+          label="Districts"
+          value={`Homes ${counts.homes} • Stores ${counts.stores} • Civic ${counts.civic} • Utility ${counts.utility}`}
+          valueClassName="text-sm leading-tight"
+        />
         <Stat
           label="Growth"
           value={`Homes ${demand.housing} • Stores ${demand.commerce} • Jobs ${demand.jobs}`}

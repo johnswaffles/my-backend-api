@@ -126,7 +126,7 @@ export function BuildMenu({ placementMode, mobile = false }: BuildMenuProps): JS
           ))}
         </div>
         <div className="mt-3 text-[11px] text-slate-300">
-          Tap to place. Drag one finger to pan. Pinch to zoom. Tap a building for details.
+          Tap to place. Drag one finger to pan. Pinch to zoom. Tap a building for details. Roads can be painted by dragging after the first tap.
         </div>
       </aside>
     );
@@ -152,6 +152,8 @@ export function BuildMenu({ placementMode, mobile = false }: BuildMenuProps): JS
       </div>
       <div className="mt-3 grid grid-cols-1 gap-y-1 border-t border-slate-500/25 pt-3 text-[11px] text-slate-300">
         <div>Left click: place/select</div>
+        <div>Road tool: click-drag to paint</div>
+        <div>Alt + drag: bulldoze brush</div>
         <div>Right click or Esc: cancel</div>
         <div>Wheel: zoom</div>
         <div>WASD: pan</div>

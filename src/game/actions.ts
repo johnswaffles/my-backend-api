@@ -1270,6 +1270,48 @@ export function buildingContextSummary(state: GameState, building: Building): {
   };
 }
 
+export function economySummary(state: GameState): {
+  income: number;
+  maintenance: number;
+  penalties: number;
+  happinessBonus: number;
+  net: number;
+} {
+  const derived = deriveSimulation(state);
+
+  let maintenance = 0;
+  for (const b of state.buildings) {
+    maintenance += BUILDING_ECONOMY[b.type].maintenance;
+  }
+
+  const residentTax = derived.resources.population * ECONOMY_TUNING.residentTaxPerCitizen;
+  const employmentTax =
+    Math.min(derived.resources.population, derived.resources.jobs) * ECONOMY_TUNING.employmentTaxPerWorker;
+  const commercialTax =
+    countType(state, 'shop') * ECONOMY_TUNING.shopRevenue +
+    countType(state, 'restaurant') * ECONOMY_TUNING.restaurantRevenue +
+    countType(state, 'workshop') * ECONOMY_TUNING.workshopRevenue +
+    countType(state, 'groceryStore') * ECONOMY_TUNING.groceryRevenue +
+    countType(state, 'cornerStore') * ECONOMY_TUNING.cornerStoreRevenue +
+    countType(state, 'bank') * ECONOMY_TUNING.bankRevenue;
+  const upgradedHousingRevenue = residentialUpgradeRevenueBonus(state);
+  const powerPenalty =
+    Math.max(0, derived.resources.powerUsed - derived.resources.powerProduced) * ECONOMY_TUNING.powerDeficitPenalty;
+  const happinessBonus = (derived.happiness - 50) * ECONOMY_TUNING.happinessIncomeFactor;
+
+  const income = residentTax + employmentTax + commercialTax + upgradedHousingRevenue;
+  const penalties = powerPenalty;
+  const net = income + happinessBonus - maintenance - penalties;
+
+  return {
+    income: Math.round(income * 100) / 100,
+    maintenance: Math.round(maintenance * 100) / 100,
+    penalties: Math.round(penalties * 100) / 100,
+    happinessBonus: Math.round(happinessBonus * 100) / 100,
+    net: Math.round(net * 100) / 100
+  };
+}
+
 export type AiGameCommand =
   | { action: 'place'; type: BuildType; x: number; z: number }
   | { action: 'bulldoze'; x: number; z: number };

@@ -11,6 +11,7 @@ import type { Building } from '../game/state';
 
 interface InfoPanelProps {
   building: Building | null;
+  onFocusBuilding?: (x: number, z: number) => void;
 }
 
 function prettyType(type: Building['type']): string {
@@ -39,7 +40,7 @@ function iconForType(type: Building['type']): string {
   return 'RD';
 }
 
-export function InfoPanel({ building }: InfoPanelProps): JSX.Element {
+export function InfoPanel({ building, onFocusBuilding }: InfoPanelProps): JSX.Element {
   const state = gameStore.getState();
   const context = building ? buildingContextSummary(state, building) : null;
   const canUpgrade = building ? canUpgradeBuilding(state, building) : false;
@@ -133,6 +134,13 @@ export function InfoPanel({ building }: InfoPanelProps): JSX.Element {
               Upgrade to Tier {building.level + 1} (${upgradeCost})
             </button>
           ) : null}
+          <button
+            type="button"
+            onClick={() => onFocusBuilding?.(building.x, building.z)}
+            className="w-full rounded-lg border border-emerald-300/60 bg-emerald-500/16 px-3 py-2 text-sm font-medium text-emerald-100 transition hover:bg-emerald-500/26"
+          >
+            Focus In View
+          </button>
           <button
             type="button"
             onClick={() => bulldozeAt(building.x, building.z)}

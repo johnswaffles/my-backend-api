@@ -4,7 +4,8 @@ import { InfoPanel } from './components/InfoPanel';
 import { TopBar } from './components/TopBar';
 import { TownProgressPanel } from './components/TownProgressPanel';
 import { HoverTooltip } from './components/HoverTooltip';
-import { selectedBuilding } from './game/actions';
+import { MiniMapPanel } from './components/MiniMapPanel';
+import { economySummary, selectedBuilding } from './game/actions';
 import { InputController } from './game/input';
 import { GameRenderer } from './game/render';
 import { gameStore } from './game/state';
@@ -27,6 +28,7 @@ export default function App(): JSX.Element {
   const selected = useMemo(() => selectedBuilding(state), [state]);
   const mountRef = useRef<HTMLDivElement | null>(null);
   const appRef = useRef<HTMLDivElement | null>(null);
+  const rendererRef = useRef<GameRenderer | null>(null);
   const previousSelectedIdRef = useRef<number | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -37,13 +39,37 @@ export default function App(): JSX.Element {
 
     const renderer = new GameRenderer(mountRef.current);
     const input = new InputController(renderer);
+    rendererRef.current = renderer;
     renderer.setFrameHook((dt) => input.update(dt));
 
     return () => {
+      rendererRef.current = null;
       input.dispose();
       renderer.dispose();
     };
   }, []);
+
+  const economy = useMemo(() => economySummary(state), [state]);
+  const counts = useMemo(() => {
+    const byType = {
+      homes: 0,
+      stores: 0,
+      civic: 0,
+      utility: 0
+    };
+    state.buildings.forEach((building) => {
+      if (building.type === 'house') byType.homes += 1;
+      else if (['shop', 'restaurant', 'groceryStore', 'cornerStore', 'bank'].includes(building.type)) byType.stores += 1;
+      else if (['hospital', 'policeStation', 'fireStation', 'park'].includes(building.type)) byType.civic += 1;
+      else if (['workshop', 'powerPlant'].includes(building.type)) byType.utility += 1;
+    });
+    return byType;
+  }, [state.buildings]);
+
+  const focusCell = (x: number, z: number): void => {
+    const building = state.buildings.find((entry) => entry.x === x && entry.z === z);
+    rendererRef.current?.focusOnCell(x, z, 0.34, building?.type ?? 'road');
+  };
 
   useEffect(() => {
     const onFullscreenChange = () => {
@@ -117,6 +143,8 @@ export default function App(): JSX.Element {
         day={state.day}
         timeOfDay={state.timeOfDay}
         happiness={state.happiness}
+        economy={economy}
+        counts={counts}
         gameSpeed={state.gameSpeed}
         undoCount={state.undoCount}
         redoCount={state.redoCount}
@@ -152,6 +180,7 @@ export default function App(): JSX.Element {
                 {mobilePanel === 'build' ? <BuildMenu placementMode={state.placementMode} mobile /> : null}
                 {mobilePanel === 'info' ? <InfoPanel building={selected} /> : null}
                 {mobilePanel === 'progress' ? <TownProgressPanel state={state} /> : null}
+                {mobilePanel === 'build' ? <MiniMapPanel state={state} mobile onFocusCell={focusCell} /> : null}
               </div>
             ) : null}
 
@@ -207,7 +236,8 @@ export default function App(): JSX.Element {
             </div>
             <div />
             <div className="flex min-h-0 flex-col gap-4 overflow-hidden">
-              <InfoPanel building={selected} />
+              <MiniMapPanel state={state} onFocusCell={focusCell} />
+              <InfoPanel building={selected} onFocusBuilding={focusCell} />
             </div>
           </div>
           <HoverTooltip state={state} />

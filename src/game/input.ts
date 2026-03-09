@@ -58,6 +58,9 @@ export class InputController {
 
   private draggingPan = false;
   private dragMoved = false;
+  private paintingRoad = false;
+  private bulldozingBrush = false;
+  private lastBrushCell: { x: number; z: number } | null = null;
 
   private lastPan = { x: 0, y: 0 };
   private activeTouches = new Map<number, { x: number; y: number }>();
@@ -637,11 +640,26 @@ export class InputController {
       return;
     }
 
+    if (event.altKey) {
+      this.bulldozingBrush = true;
+      this.lastBrushCell = grid;
+      const removed = bulldozeAt(grid.x, grid.z);
+      if (removed) {
+        this.renderer.playRemovalPulse(grid.x, grid.z, removed.type);
+        this.sfx.beep(180, 0.08, 'sawtooth', 0.03);
+      }
+      return;
+    }
+
     if (state.placementMode) {
       const created = placeBuildingAt(state.placementMode, grid.x, grid.z);
       if (created) {
         this.renderer.playPlacementPulse(created.x, created.z, created.type);
         this.sfx.beep(520, 0.075, 'triangle', 0.03);
+        if (state.placementMode === 'road') {
+          this.paintingRoad = true;
+          this.lastBrushCell = grid;
+        }
       } else {
         this.sfx.beep(150, 0.05, 'square', 0.022);
       }
@@ -718,6 +736,11 @@ export class InputController {
     const hit = this.renderer.pickGridCell();
     if (hit) {
       setHoverCell(hit);
+      if (this.paintingRoad) {
+        this.applyRoadBrush(hit);
+      } else if (this.bulldozingBrush) {
+        this.applyBulldozeBrush(hit);
+      }
     } else {
       setHoverCell(null);
     }
@@ -775,6 +798,9 @@ export class InputController {
 
     this.draggingPan = false;
     this.dragMoved = false;
+    this.paintingRoad = false;
+    this.bulldozingBrush = false;
+    this.lastBrushCell = null;
   };
 
   private readonly onWheel = (event: WheelEvent): void => {
@@ -853,5 +879,56 @@ export class InputController {
   private readonly onBlur = (): void => {
     this.keySet.clear();
     this.draggingPan = false;
+    this.paintingRoad = false;
+    this.bulldozingBrush = false;
+    this.lastBrushCell = null;
   };
+
+  private applyRoadBrush(target: { x: number; z: number }): void {
+    if (!this.lastBrushCell) {
+      this.lastBrushCell = target;
+      return;
+    }
+
+    for (const cell of this.lineCells(this.lastBrushCell, target)) {
+      const created = placeBuildingAt('road', cell.x, cell.z);
+      if (created) {
+        this.renderer.playPlacementPulse(created.x, created.z, created.type);
+      }
+    }
+    this.lastBrushCell = target;
+  }
+
+  private applyBulldozeBrush(target: { x: number; z: number }): void {
+    if (!this.lastBrushCell) {
+      this.lastBrushCell = target;
+      return;
+    }
+
+    for (const cell of this.lineCells(this.lastBrushCell, target)) {
+      const removed = bulldozeAt(cell.x, cell.z);
+      if (removed) {
+        this.renderer.playRemovalPulse(cell.x, cell.z, removed.type);
+      }
+    }
+    this.lastBrushCell = target;
+  }
+
+  private lineCells(a: { x: number; z: number }, b: { x: number; z: number }): Array<{ x: number; z: number }> {
+    const cells: Array<{ x: number; z: number }> = [];
+    const dx = b.x - a.x;
+    const dz = b.z - a.z;
+    const steps = Math.max(Math.abs(dx), Math.abs(dz), 1);
+
+    for (let i = 0; i <= steps; i += 1) {
+      const x = Math.round(a.x + (dx * i) / steps);
+      const z = Math.round(a.z + (dz * i) / steps);
+      const last = cells[cells.length - 1];
+      if (!last || last.x !== x || last.z !== z) {
+        cells.push({ x, z });
+      }
+    }
+
+    return cells;
+  }
 }
