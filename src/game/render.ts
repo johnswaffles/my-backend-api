@@ -1051,8 +1051,8 @@ export class GameRenderer {
     if (
       building.type === 'park' &&
       cluster.filled &&
-      cluster.size >= 3 &&
-      ((cluster.originWidth >= 3 && cluster.originDepth === 1) || (cluster.originDepth >= 3 && cluster.originWidth === 1))
+      cluster.size >= 2 &&
+      ((cluster.originWidth >= 2 && cluster.originDepth === 1) || (cluster.originDepth >= 2 && cluster.originWidth === 1))
     ) {
       return 'parkGreenway';
     }
@@ -7405,6 +7405,8 @@ export class GameRenderer {
     const depth = cluster.tileDepth * 0.94;
     const level = building.level;
     const variant = building.id % 5;
+    const districtPark = cluster.originWidth >= 4 && cluster.originDepth >= 4;
+    const grandPark = cluster.originWidth >= 8 && cluster.originDepth >= 8;
     const lawnPalette = [0x8bb876, 0x82b36f, 0x7ea872, 0x95bb7c, 0x7fbf8d];
     const pathPalette = [0xd9cfbc, 0xe0d6c2, 0xd1c2a7, 0xe2d3b4, 0xd8d8cf];
     const roofPalette = [0x8a5d47, 0x6f7c58, 0x547a84, 0x7f5b89, 0x9b6b43];
@@ -7606,6 +7608,117 @@ export class GameRenderer {
     group.add(sculptureWalk);
     meshes.push(sculptureWalk);
 
+    const centralLake = new THREE.Mesh(
+      new THREE.CylinderGeometry(
+        districtPark ? Math.min(width, depth) * (grandPark ? 0.15 : 0.1) : 0.12,
+        districtPark ? Math.min(width, depth) * (grandPark ? 0.17 : 0.12) : 0.14,
+        0.05,
+        24
+      ),
+      new THREE.MeshStandardMaterial({
+        color: 0x9cd9ef,
+        roughness: 0.18,
+        metalness: 0.06,
+        transparent: true,
+        opacity: 0.84,
+        emissive: 0x38bdf8,
+        emissiveIntensity: 0.08
+      })
+    );
+    centralLake.position.set(offset.x, 0.09, offset.z - depth * 0.18);
+    centralLake.userData.buildingId = building.id;
+    centralLake.visible = districtPark;
+    group.add(centralLake);
+    meshes.push(centralLake);
+
+    const grandPromenade = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.74, 0.02, depth * 0.12),
+      new THREE.MeshStandardMaterial({ color: pathPalette[(variant + 2) % 5], roughness: 0.92, metalness: 0.01 })
+    );
+    grandPromenade.position.set(offset.x, 0.058, offset.z + depth * 0.34);
+    grandPromenade.userData.buildingId = building.id;
+    grandPromenade.visible = districtPark;
+    group.add(grandPromenade);
+    meshes.push(grandPromenade);
+
+    const loopWalk = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.82, 0.018, depth * 0.82),
+      new THREE.MeshStandardMaterial({ color: pathPalette[(variant + 3) % 5], roughness: 0.92, metalness: 0.01 })
+    );
+    loopWalk.position.set(offset.x, 0.053, offset.z);
+    loopWalk.userData.buildingId = building.id;
+    loopWalk.visible = grandPark;
+    group.add(loopWalk);
+    meshes.push(loopWalk);
+
+    const loopLawnInset = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.66, 0.014, depth * 0.66),
+      new THREE.MeshStandardMaterial({ color: lawnPalette[(variant + 2) % 5], roughness: 0.97, metalness: 0.01 })
+    );
+    loopLawnInset.position.set(offset.x, 0.056, offset.z);
+    loopLawnInset.userData.buildingId = building.id;
+    loopLawnInset.visible = grandPark;
+    group.add(loopLawnInset);
+    meshes.push(loopLawnInset);
+
+    const grandGlasshouse = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.18, 0.42, depth * 0.12),
+      new THREE.MeshStandardMaterial({
+        color: 0xe3f7f4,
+        roughness: 0.2,
+        metalness: 0.08,
+        transparent: true,
+        opacity: 0.84,
+        emissive: 0x34d399,
+        emissiveIntensity: 0.12
+      })
+    );
+    grandGlasshouse.position.set(offset.x + width * 0.28, 0.28, offset.z - depth * 0.24);
+    grandGlasshouse.userData.buildingId = building.id;
+    grandGlasshouse.visible = districtPark && level >= 4;
+    group.add(grandGlasshouse);
+    meshes.push(grandGlasshouse);
+
+    const grandGlasshouseRoof = new THREE.Mesh(
+      new THREE.ConeGeometry(Math.min(width, depth) * 0.09, 0.2, 8),
+      new THREE.MeshStandardMaterial({ color: roofPalette[(variant + 2) % 5], roughness: 0.74, metalness: 0.04 })
+    );
+    grandGlasshouseRoof.position.set(offset.x + width * 0.28, 0.56, offset.z - depth * 0.24);
+    grandGlasshouseRoof.userData.buildingId = building.id;
+    grandGlasshouseRoof.visible = districtPark && level >= 4;
+    group.add(grandGlasshouseRoof);
+    meshes.push(grandGlasshouseRoof);
+
+    const amphitheaterTerrace = new THREE.Mesh(
+      new THREE.CylinderGeometry(Math.min(width, depth) * 0.08, Math.min(width, depth) * 0.1, 0.08, 20),
+      new THREE.MeshStandardMaterial({ color: pathPalette[(variant + 4) % 5], roughness: 0.9, metalness: 0.01 })
+    );
+    amphitheaterTerrace.position.set(offset.x - width * 0.3, 0.09, offset.z + depth * 0.06);
+    amphitheaterTerrace.userData.buildingId = building.id;
+    amphitheaterTerrace.visible = districtPark && level >= 4;
+    group.add(amphitheaterTerrace);
+    meshes.push(amphitheaterTerrace);
+
+    const grandMonument = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.08, 0.74, depth * 0.08),
+      new THREE.MeshStandardMaterial({ color: 0xe8e1d4, roughness: 0.8, metalness: 0.04, emissive: 0xfff2c2, emissiveIntensity: 0.08 })
+    );
+    grandMonument.position.set(offset.x, 0.42, offset.z + depth * 0.02);
+    grandMonument.userData.buildingId = building.id;
+    grandMonument.visible = grandPark && level >= 5;
+    group.add(grandMonument);
+    meshes.push(grandMonument);
+
+    const grandArbor = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.16, 0.18, depth * 0.46),
+      new THREE.MeshStandardMaterial({ color: roofPalette[(variant + 1) % 5], roughness: 0.76, metalness: 0.04 })
+    );
+    grandArbor.position.set(offset.x - width * 0.38, 0.2, offset.z);
+    grandArbor.userData.buildingId = building.id;
+    grandArbor.visible = grandPark && level >= 5;
+    group.add(grandArbor);
+    meshes.push(grandArbor);
+
     const concertStage = new THREE.Mesh(
       new THREE.BoxGeometry(width * 0.26, 0.18, depth * 0.14),
       new THREE.MeshStandardMaterial({ color: 0xa68462, roughness: 0.82, metalness: 0.03 })
@@ -7685,7 +7798,17 @@ export class GameRenderer {
 
     this.utilityAnimations.set(building.id, {
       smoke: [],
-      glow: [fountainWater, conservatory, fountainJet, reflectingBasin, sculptureWalk, stageCanopy].filter((mesh) => mesh.visible),
+      glow: [
+        fountainWater,
+        conservatory,
+        fountainJet,
+        reflectingBasin,
+        sculptureWalk,
+        stageCanopy,
+        centralLake,
+        grandGlasshouse,
+        grandMonument
+      ].filter((mesh) => mesh.visible),
       phase: building.id * 0.09
     });
 
@@ -7710,6 +7833,8 @@ export class GameRenderer {
     const longAxisX = cluster.originWidth >= cluster.originDepth;
     const level = building.level;
     const variant = building.id % 5;
+    const pairedPocket = cluster.size === 2;
+    const extendedGreenway = cluster.size >= 5;
     const lawnPalette = [0x86b676, 0x7fae70, 0x79a96d, 0x8ebc7c, 0x78b98a];
     const pathPalette = [0xd8cfbf, 0xe0d5c5, 0xd1c4ad, 0xe2d6ba, 0xd7ddd2];
     const roofPalette = [0x8a5d47, 0x6f7c58, 0x547a84, 0x7f5b89, 0x9b6b43];
@@ -7885,11 +8010,50 @@ export class GameRenderer {
     orchardRow.position.set(offset.x + (longAxisX ? 0 : -width * 0.22), 0.08, offset.z + (longAxisX ? depth * 0.34 : 0));
     orchardRow.visible = level >= 5;
 
+    const pocketPlaza = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(longAxisX ? width * 0.22 : width * 0.3, 0.02, longAxisX ? depth * 0.3 : depth * 0.22),
+        new THREE.MeshStandardMaterial({ color: pathPalette[(variant + 2) % 5], roughness: 0.92, metalness: 0.01 })
+      )
+    );
+    pocketPlaza.position.set(offset.x, 0.058, offset.z);
+    pocketPlaza.visible = pairedPocket;
+
+    const pocketFountain = addMesh(
+      new THREE.Mesh(
+        new THREE.CylinderGeometry(0.12, 0.14, 0.05, 18),
+        new THREE.MeshStandardMaterial({ color: 0xa9dff4, roughness: 0.18, metalness: 0.06, transparent: true, opacity: 0.84, emissive: 0x38bdf8, emissiveIntensity: 0.08 })
+      )
+    );
+    pocketFountain.position.set(offset.x, 0.09, offset.z);
+    pocketFountain.visible = pairedPocket && level >= 2;
+
+    const greenwayPavilion = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(longAxisX ? width * 0.16 : width * 0.2, 0.24, longAxisX ? depth * 0.22 : depth * 0.16),
+        new THREE.MeshStandardMaterial({ color: roofPalette[(variant + 1) % 5], roughness: 0.76, metalness: 0.04 })
+      )
+    );
+    greenwayPavilion.position.set(offset.x + (longAxisX ? width * 0.34 : 0), 0.18, offset.z + (longAxisX ? 0 : depth * 0.34));
+    greenwayPavilion.visible = extendedGreenway && level >= 4;
+
+    const rill = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(longAxisX ? width * 0.56 : width * 0.08, 0.04, longAxisX ? depth * 0.08 : depth * 0.56),
+        new THREE.MeshStandardMaterial({ color: 0x9adcf2, roughness: 0.18, metalness: 0.06, transparent: true, opacity: 0.82, emissive: 0x38bdf8, emissiveIntensity: 0.09 })
+      )
+    );
+    rill.position.set(offset.x, 0.08, offset.z + (longAxisX ? depth * 0.12 : 0));
+    if (!longAxisX) {
+      rill.position.set(offset.x + width * 0.12, 0.08, offset.z);
+    }
+    rill.visible = extendedGreenway && level >= 4;
+
     group.add(lampA, lampB, planterA, planterB, benchA, benchB);
 
     this.utilityAnimations.set(building.id, {
       smoke: [],
-      glow: [waterRun, conservatory, lanternRun].filter((mesh) => mesh.visible),
+      glow: [waterRun, conservatory, lanternRun, pocketFountain, rill].filter((mesh) => mesh.visible),
       phase: building.id * 0.09
     });
 
