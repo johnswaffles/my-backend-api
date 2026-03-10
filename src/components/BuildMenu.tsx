@@ -1,5 +1,6 @@
 import { BUILDING_ECONOMY, setPlacementMode } from '../game/actions';
 import type { BuildType } from '../game/state';
+import { useMemo, useState } from 'react';
 
 interface BuildItem {
   type: BuildType;
@@ -54,6 +55,8 @@ interface BuildMenuProps {
   mobile?: boolean;
 }
 
+type MobileFilter = 'all' | 'core' | 'commerce' | 'civic' | 'utility';
+
 function BuildButton({
   item,
   active
@@ -94,6 +97,23 @@ function BuildButton({
 
 export function BuildMenu({ placementMode, mobile = false }: BuildMenuProps): JSX.Element {
   const flatItems = BUILD_SECTIONS.flatMap((section) => section.items);
+  const [mobileFilter, setMobileFilter] = useState<MobileFilter>('core');
+
+  const filteredMobileItems = useMemo(() => {
+    if (mobileFilter === 'all') return flatItems;
+    if (mobileFilter === 'core') return flatItems.filter((item) => item.type === 'road' || item.type === 'house' || item.type === 'park');
+    if (mobileFilter === 'commerce') {
+      return flatItems.filter((item) =>
+        ['shop', 'restaurant', 'groceryStore', 'cornerStore', 'bank'].includes(item.type)
+      );
+    }
+    if (mobileFilter === 'civic') {
+      return flatItems.filter((item) =>
+        ['hospital', 'policeStation', 'fireStation', 'park'].includes(item.type)
+      );
+    }
+    return flatItems.filter((item) => ['workshop', 'powerPlant'].includes(item.type));
+  }, [flatItems, mobileFilter]);
 
   if (mobile) {
     return (
@@ -102,8 +122,30 @@ export function BuildMenu({ placementMode, mobile = false }: BuildMenuProps): JS
           <div className="text-xs uppercase tracking-[0.18em] text-cyan-300">Build</div>
           <div className="text-[11px] text-slate-300">Tap a tool, then tap the map</div>
         </div>
+        <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+          {[
+            ['core', 'Core'],
+            ['commerce', 'Commerce'],
+            ['civic', 'Civic'],
+            ['utility', 'Utility'],
+            ['all', 'All']
+          ].map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setMobileFilter(value as MobileFilter)}
+              className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-medium transition ${
+                mobileFilter === value
+                  ? 'border-cyan-300 bg-cyan-400/18 text-cyan-100'
+                  : 'border-slate-500/30 bg-slate-900/38 text-slate-300'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {flatItems.map((item) => (
+          {filteredMobileItems.map((item) => (
             <button
               key={item.type}
               type="button"
@@ -126,7 +168,7 @@ export function BuildMenu({ placementMode, mobile = false }: BuildMenuProps): JS
           ))}
         </div>
         <div className="mt-3 text-[11px] text-slate-300">
-          Tap to place. Drag one finger to pan. Pinch to zoom. Tap a building for details. Roads can be painted by dragging after the first tap.
+          Filter tools by district type. Tap to place. Drag one finger to pan. Pinch to zoom. Tap a building for details. Roads can be painted by dragging after the first tap.
         </div>
       </aside>
     );

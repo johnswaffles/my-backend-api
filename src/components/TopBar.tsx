@@ -42,6 +42,9 @@ interface TopBarProps {
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
   onOpenHelp: () => void;
+  onToggleMobileHud?: () => void;
+  mobileHudExpanded?: boolean;
+  onFocusHome?: () => void;
   mobile?: boolean;
 }
 
@@ -97,6 +100,9 @@ export function TopBar({
   isFullscreen,
   onToggleFullscreen,
   onOpenHelp,
+  onToggleMobileHud,
+  mobileHudExpanded = true,
+  onFocusHome,
   mobile = false
 }: TopBarProps): JSX.Element {
   const net = powerProduced - powerUsed;
@@ -115,6 +121,13 @@ export function TopBar({
               <div className="mt-1 truncate text-[11px] text-cyan-100">AI: {aiLastAction}</div>
             </div>
             <div className="flex shrink-0 flex-col gap-2">
+              <button
+                type="button"
+                onClick={onToggleMobileHud}
+                className="rounded-xl border border-slate-300/40 bg-slate-800/45 px-3 py-2 text-xs font-medium text-slate-100"
+              >
+                {mobileHudExpanded ? 'Hide HUD' : 'Show HUD'}
+              </button>
               <button
                 type="button"
                 onClick={() => cycleGameSpeed()}
@@ -136,25 +149,34 @@ export function TopBar({
               >
                 Help
               </button>
+              <button
+                type="button"
+                onClick={onFocusHome}
+                className="rounded-xl border border-slate-300/40 bg-slate-800/45 px-3 py-2 text-xs font-medium text-slate-100"
+              >
+                Home
+              </button>
             </div>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <Stat label="Money" value={formatMoney(money)} valueClassName="text-base tabular-nums" />
-          <Stat label="People" value={population.toLocaleString()} valueClassName="text-base" />
-          <Stat label="Jobs" value={jobs.toLocaleString()} valueClassName="text-base" />
-          <Stat label="Power" value={`${powerUsed}/${powerProduced} (${net >= 0 ? '+' : ''}${net})`} valueClassName="text-sm" />
-          <Stat
-            label="Cashflow"
-            value={`${economy.net >= 0 ? '+' : ''}$${economy.net.toFixed(2)}/s`}
-            valueClassName="text-sm"
-          />
-          <Stat
-            label="Districts"
-            value={`H${counts.homes} S${counts.stores} C${counts.civic} U${counts.utility}`}
-            valueClassName="text-sm"
-          />
-        </div>
+        {mobileHudExpanded ? (
+          <div className="grid grid-cols-2 gap-2">
+            <Stat label="Money" value={formatMoney(money)} valueClassName="text-base tabular-nums" />
+            <Stat label="People" value={population.toLocaleString()} valueClassName="text-base" />
+            <Stat label="Jobs" value={jobs.toLocaleString()} valueClassName="text-base" />
+            <Stat label="Power" value={`${powerUsed}/${powerProduced} (${net >= 0 ? '+' : ''}${net})`} valueClassName="text-sm" />
+            <Stat
+              label="Cashflow"
+              value={`${economy.net >= 0 ? '+' : ''}$${economy.net.toFixed(2)}/s`}
+              valueClassName="text-sm"
+            />
+            <Stat
+              label="Districts"
+              value={`H${counts.homes} S${counts.stores} C${counts.civic} U${counts.utility}`}
+              valueClassName="text-sm"
+            />
+          </div>
+        ) : null}
         <div className="flex flex-wrap gap-2">
           <button
             type="button"

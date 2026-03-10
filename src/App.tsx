@@ -6,7 +6,14 @@ import { TownProgressPanel } from './components/TownProgressPanel';
 import { HoverTooltip } from './components/HoverTooltip';
 import { MiniMapPanel } from './components/MiniMapPanel';
 import { HelpModal } from './components/HelpModal';
-import { economySummary, selectedBuilding } from './game/actions';
+import {
+  buildStarterTown,
+  bulldozeAt,
+  cancelPlacement,
+  economySummary,
+  selectedBuilding,
+  upgradeBuildingById
+} from './game/actions';
 import { InputController } from './game/input';
 import { GameRenderer } from './game/render';
 import { gameStore } from './game/state';
@@ -18,7 +25,8 @@ function useGameState() {
   );
 }
 
-type MobilePanel = 'build' | 'info' | 'progress' | null;
+type MobilePanel = 'build' | 'info' | 'progress' | 'map' | 'help' | null;
+type MobileSheetMode = 'peek' | 'half' | 'full';
 type LegacyMediaQueryList = MediaQueryList & {
   addListener?: (listener: (event: MediaQueryListEvent) => void) => void;
   removeListener?: (listener: (event: MediaQueryListEvent) => void) => void;
@@ -34,6 +42,8 @@ export default function App(): JSX.Element {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>(null);
+  const [mobileSheetMode, setMobileSheetMode] = useState<MobileSheetMode>('half');
+  const [mobileHudExpanded, setMobileHudExpanded] = useState(true);
   const [helpOpen, setHelpOpen] = useState(false);
 
   useEffect(() => {
@@ -89,6 +99,7 @@ export default function App(): JSX.Element {
       setIsMobile(nextMobile);
       if (!nextMobile) {
         setMobilePanel(null);
+        setMobileHudExpanded(true);
       }
     };
 
@@ -131,6 +142,14 @@ export default function App(): JSX.Element {
     await host.requestFullscreen();
   };
 
+  const focusTownCenter = (): void => {
+    const center = Math.floor(state.gridSize / 2);
+    rendererRef.current?.focusOnCell(center, center, 0.34, 'road');
+  };
+
+  const mobileSheetHeightClass =
+    mobileSheetMode === 'peek' ? 'max-h-[28vh]' : mobileSheetMode === 'half' ? 'max-h-[50vh]' : 'max-h-[76vh]';
+
   return (
     <div ref={appRef} className="relative h-full w-full overflow-hidden">
       <div ref={mountRef} className="absolute inset-0 touch-none" />
@@ -156,41 +175,118 @@ export default function App(): JSX.Element {
         isFullscreen={isFullscreen}
         mobile={isMobile}
         onOpenHelp={() => setHelpOpen(true)}
+        onToggleMobileHud={() => setMobileHudExpanded((value) => !value)}
+        mobileHudExpanded={mobileHudExpanded}
+        onFocusHome={focusTownCenter}
         onToggleFullscreen={() => {
           void toggleFullscreen();
         }}
       />
 
-      <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <HelpModal
+        open={helpOpen || mobilePanel === 'help'}
+        onClose={() => {
+          setHelpOpen(false);
+          if (mobilePanel === 'help') setMobilePanel(null);
+        }}
+      />
 
       {isMobile ? (
         <div
           className="pointer-events-none absolute inset-0 z-20 px-3 pb-3 pt-40"
           style={{
-            paddingTop: 'max(env(safe-area-inset-top), 10rem)',
+            paddingTop: mobileHudExpanded ? 'max(env(safe-area-inset-top), 10rem)' : 'max(env(safe-area-inset-top), 6rem)',
             paddingBottom: 'max(env(safe-area-inset-bottom), 0.75rem)'
           }}
         >
           {state.placementMode ? (
-            <div className="pointer-events-none absolute left-3 right-3 top-[8.9rem] z-20">
+            <div className={`pointer-events-none absolute left-3 right-3 z-20 ${mobileHudExpanded ? 'top-[8.9rem]' : 'top-[5.1rem]'}`}>
               <div className="mx-auto w-fit rounded-full border border-cyan-200/40 bg-slate-950/70 px-4 py-2 text-xs text-cyan-100 backdrop-blur">
                 Placing {state.placementMode}. Tap a tile to build. Drag to pan. Pinch to zoom.
               </div>
             </div>
           ) : null}
 
+          {(state.placementMode || selected) && mobilePanel !== 'help' ? (
+            <div className="pointer-events-auto absolute bottom-28 left-3 right-3 z-30">
+              <div className="panel-glass rounded-2xl p-2 shadow-glow">
+                <div className="flex flex-wrap gap-2">
+                  {state.placementMode ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => cancelPlacement()}
+                        className="rounded-xl border border-rose-300/60 bg-rose-500/18 px-3 py-2 text-xs font-medium text-rose-100"
+                      >
+                        Cancel Tool
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMobilePanel('build')}
+                        className="rounded-xl border border-cyan-300/60 bg-cyan-500/18 px-3 py-2 text-xs font-medium text-cyan-100"
+                      >
+                        Change Tool
+                      </button>
+                    </>
+                  ) : null}
+                  {selected ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => rendererRef.current?.focusOnCell(selected.x, selected.z, 0.32, selected.type)}
+                        className="rounded-xl border border-emerald-300/60 bg-emerald-500/16 px-3 py-2 text-xs font-medium text-emerald-100"
+                      >
+                        Focus
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => upgradeBuildingById(selected.id)}
+                        className="rounded-xl border border-cyan-300/60 bg-cyan-500/18 px-3 py-2 text-xs font-medium text-cyan-100"
+                      >
+                        Upgrade
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => bulldozeAt(selected.x, selected.z)}
+                        className="rounded-xl border border-rose-300/60 bg-rose-500/18 px-3 py-2 text-xs font-medium text-rose-100"
+                      >
+                        Bulldoze
+                      </button>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           <div className="pointer-events-none absolute bottom-3 left-3 right-3 z-30 flex flex-col gap-3">
             {mobilePanel ? (
-              <div className="pointer-events-auto max-h-[48vh] overflow-y-auto">
+              <div className={`pointer-events-auto overflow-y-auto ${mobileSheetHeightClass}`}>
+                {mobilePanel !== 'help' ? (
+                  <div className="panel-glass mb-2 rounded-2xl p-2 shadow-glow">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="mx-auto h-1.5 w-14 rounded-full bg-slate-500/55" />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setMobileSheetMode((mode) => (mode === 'peek' ? 'half' : mode === 'half' ? 'full' : 'peek'))
+                        }
+                        className="rounded-lg border border-slate-300/35 bg-slate-800/45 px-2 py-1 text-[10px] font-medium text-slate-100"
+                      >
+                        {mobileSheetMode === 'peek' ? 'Half' : mobileSheetMode === 'half' ? 'Full' : 'Peek'}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
                 {mobilePanel === 'build' ? <BuildMenu placementMode={state.placementMode} mobile /> : null}
-                {mobilePanel === 'info' ? <InfoPanel building={selected} /> : null}
+                {mobilePanel === 'info' ? <InfoPanel building={selected} onFocusBuilding={focusCell} /> : null}
                 {mobilePanel === 'progress' ? <TownProgressPanel state={state} /> : null}
-                {mobilePanel === 'build' ? <MiniMapPanel state={state} mobile onFocusCell={focusCell} /> : null}
+                {mobilePanel === 'map' ? <MiniMapPanel state={state} mobile onFocusCell={focusCell} /> : null}
               </div>
             ) : null}
 
             <div className="pointer-events-auto panel-glass rounded-2xl p-2 shadow-glow">
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-5 gap-2">
                 <button
                   type="button"
                   onClick={() => setMobilePanel((panel) => (panel === 'build' ? null : 'build'))}
@@ -215,6 +311,17 @@ export default function App(): JSX.Element {
                 </button>
                 <button
                   type="button"
+                  onClick={() => setMobilePanel((panel) => (panel === 'map' ? null : 'map'))}
+                  className={`rounded-xl px-3 py-3 text-sm font-medium transition ${
+                    mobilePanel === 'map'
+                      ? 'bg-violet-400/22 text-violet-100'
+                      : 'bg-slate-900/45 text-slate-100'
+                  }`}
+                >
+                  Map
+                </button>
+                <button
+                  type="button"
                   onClick={() => setMobilePanel((panel) => (panel === 'progress' ? null : 'progress'))}
                   className={`rounded-xl px-3 py-3 text-sm font-medium transition ${
                     mobilePanel === 'progress'
@@ -223,6 +330,40 @@ export default function App(): JSX.Element {
                   }`}
                 >
                   Goals
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMobilePanel((panel) => (panel === 'help' ? null : 'help'))}
+                  className={`rounded-xl px-3 py-3 text-sm font-medium transition ${
+                    mobilePanel === 'help'
+                      ? 'bg-slate-300/22 text-white'
+                      : 'bg-slate-900/45 text-slate-100'
+                  }`}
+                >
+                  Help
+                </button>
+              </div>
+              <div className="mt-2 grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={focusTownCenter}
+                  className="rounded-xl border border-slate-400/35 bg-slate-900/35 px-3 py-2 text-xs font-medium text-slate-100"
+                >
+                  Recenter
+                </button>
+                <button
+                  type="button"
+                  onClick={() => buildStarterTown()}
+                  className="rounded-xl border border-emerald-300/60 bg-emerald-500/18 px-3 py-2 text-xs font-medium text-emerald-100"
+                >
+                  Starter
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMobileSheetMode((mode) => (mode === 'full' ? 'peek' : 'full'))}
+                  className="rounded-xl border border-cyan-300/50 bg-cyan-400/12 px-3 py-2 text-xs font-medium text-cyan-100"
+                >
+                  {mobileSheetMode === 'full' ? 'Compact' : 'Expand'}
                 </button>
               </div>
             </div>
