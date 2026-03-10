@@ -729,6 +729,7 @@ export class GameRenderer {
     const width = Math.max(0.22, size.x);
     const depth = Math.max(0.22, size.z);
     const height = Math.max(0.22, size.y);
+    const baseY = bbox.min.y;
     const topY = bbox.max.y;
     const merged = this.mergeModeForBuilding(building) !== 'none';
 
@@ -833,22 +834,111 @@ export class GameRenderer {
         addMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.16, 0.96, depth * 0.16), roofMat)).position.set(center.x, topY + 0.52, center.z - depth * 0.24);
       }
     } else if (family === 'commercial') {
+      const signColor =
+        building.type === 'shop'
+          ? 0x7dd3fc
+          : building.type === 'restaurant'
+            ? 0xf59e0b
+            : building.type === 'groceryStore'
+              ? 0x4ade80
+              : building.type === 'bank'
+                ? 0xfacc15
+                : 0xc4b5fd;
+
       if (building.level >= 6) {
-        addMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.26, 0.56, depth * 0.18), bodyMat)).position.set(center.x - width * 0.28, topY + 0.3, center.z - depth * 0.14);
+        addMesh(
+          new THREE.Mesh(
+            new THREE.BoxGeometry(width * 0.28, 0.62, depth * 0.2),
+            bodyMat
+          )
+        ).position.set(center.x - width * 0.26, baseY + 0.31, center.z - depth * 0.18);
+
+        addGlowMesh(
+          new THREE.Mesh(
+            new THREE.BoxGeometry(width * 0.22, 0.12, 0.04),
+            new THREE.MeshStandardMaterial({
+              color: 0xeaf7ff,
+              roughness: 0.22,
+              metalness: 0.08,
+              transparent: true,
+              opacity: 0.88,
+              emissive: signColor,
+              emissiveIntensity: 0.18
+            })
+          )
+        ).position.set(center.x, topY + 0.1, center.z + depth * 0.22);
       }
       if (building.level >= 7) {
-        addGlowMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.18, 0.28, depth * 0.12), glowMat)).position.set(center.x + width * 0.24, topY + 0.26, center.z + depth * 0.1);
+        addMesh(
+          new THREE.Mesh(
+            new THREE.BoxGeometry(width * 0.18, 1.24, depth * 0.16),
+            accentMat
+          )
+        ).position.set(center.x + width * 0.28, baseY + 0.62, center.z + depth * 0.02);
       }
       if (building.level >= 8) {
-        addMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.18, height * 0.4 + 0.72, depth * 0.16), accentMat)).position.set(center.x + width * 0.08, topY + height * 0.2 + 0.34, center.z - depth * 0.04);
+        addMesh(
+          new THREE.Mesh(
+            new THREE.BoxGeometry(width * 0.22, 1.86, depth * 0.18),
+            bodyMat
+          )
+        ).position.set(center.x + width * 0.04, baseY + 0.93, center.z - depth * 0.08);
+
+        addGlowMesh(
+          new THREE.Mesh(
+            new THREE.BoxGeometry(width * 0.12, 0.74, 0.03),
+            new THREE.MeshStandardMaterial({
+              color: 0xeaf7ff,
+              roughness: 0.22,
+              metalness: 0.08,
+              transparent: true,
+              opacity: 0.88,
+              emissive: signColor,
+              emissiveIntensity: 0.16
+            })
+          )
+        ).position.set(center.x + width * 0.04, baseY + 0.96, center.z + depth * 0.12);
       }
       if (building.level >= 9) {
-        addGlowMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.12, 0.54, 0.05), glowMat)).position.set(center.x + width * 0.36, topY + 0.44, center.z + depth * 0.18);
+        addMesh(
+          new THREE.Mesh(
+            new THREE.BoxGeometry(width * 0.34, 0.1, depth * 0.12),
+            roofMat
+          )
+        ).position.set(center.x, topY + 0.22, center.z - depth * 0.02);
+
+        addGlowMesh(
+          new THREE.Mesh(
+            new THREE.BoxGeometry(width * 0.14, 0.48, 0.05),
+            new THREE.MeshStandardMaterial({
+              color: 0xeaf7ff,
+              roughness: 0.22,
+              metalness: 0.08,
+              transparent: true,
+              opacity: 0.88,
+              emissive: signColor,
+              emissiveIntensity: 0.22
+            })
+          )
+        ).position.set(center.x + width * 0.34, baseY + 0.54, center.z + depth * 0.18);
       }
       if (building.level >= 10) {
-        const crown = addGlowMesh(new THREE.Mesh(new THREE.TorusGeometry(Math.max(width, depth) * 0.18, 0.03, 8, 20), glowMat));
+        const crown = addGlowMesh(
+          new THREE.Mesh(
+            new THREE.TorusGeometry(Math.max(width, depth) * 0.18, 0.03, 8, 20),
+            new THREE.MeshStandardMaterial({
+              color: 0xeaf7ff,
+              roughness: 0.22,
+              metalness: 0.08,
+              transparent: true,
+              opacity: 0.88,
+              emissive: signColor,
+              emissiveIntensity: 0.18
+            })
+          )
+        );
         crown.rotation.x = Math.PI / 2;
-        crown.position.set(center.x, topY + 0.74, center.z);
+        crown.position.set(center.x, topY + 0.34, center.z);
       }
     } else if (family === 'civic') {
       if (building.level >= 6) {
@@ -867,20 +957,63 @@ export class GameRenderer {
         addGlowMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.1, 1.04, depth * 0.1), glowMat)).position.set(center.x, topY + 0.6, center.z);
       }
     } else {
-      if (building.level >= 6) {
-        addMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.26, 0.52, depth * 0.18), bodyMat)).position.set(center.x + width * 0.28, topY + 0.26, center.z + depth * 0.08);
-      }
-      if (building.level >= 7) {
-        addMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.14, height * 0.4 + 0.7, depth * 0.14), accentMat)).position.set(center.x - width * 0.24, topY + height * 0.2 + 0.3, center.z - depth * 0.08);
-      }
-      if (building.level >= 8) {
-        addGlowMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.46, 0.08, 0.06), glowMat)).position.set(center.x, topY + 0.36, center.z);
-      }
-      if (building.level >= 9) {
-        addMesh(new THREE.Mesh(new THREE.CylinderGeometry(Math.max(width, depth) * 0.08, Math.max(width, depth) * 0.1, 0.72, 12), roofMat)).position.set(center.x + width * 0.1, topY + 0.44, center.z - depth * 0.18);
-      }
-      if (building.level >= 10) {
-        addGlowMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.12, 1.12, depth * 0.12), glowMat)).position.set(center.x - width * 0.02, topY + 0.66, center.z + depth * 0.04);
+      if (building.type === 'powerPlant') {
+        if (building.level >= 6) {
+          addMesh(
+            new THREE.Mesh(
+              new THREE.BoxGeometry(width * 0.28, 0.52, depth * 0.2),
+              bodyMat
+            )
+          ).position.set(center.x + width * 0.28, baseY + 0.28, center.z + depth * 0.06);
+        }
+        if (building.level >= 7) {
+          addMesh(
+            new THREE.Mesh(
+              new THREE.CylinderGeometry(Math.max(width, depth) * 0.08, Math.max(width, depth) * 0.1, 1.42, 14),
+              roofMat
+            )
+          ).position.set(center.x - width * 0.24, baseY + 0.72, center.z - depth * 0.08);
+        }
+        if (building.level >= 8) {
+          addGlowMesh(
+            new THREE.Mesh(
+              new THREE.BoxGeometry(width * 0.32, 0.08, 0.06),
+              glowMat
+            )
+          ).position.set(center.x, baseY + 0.46, center.z + depth * 0.14);
+        }
+        if (building.level >= 9) {
+          addMesh(
+            new THREE.Mesh(
+              new THREE.BoxGeometry(width * 0.22, 0.84, depth * 0.16),
+              accentMat
+            )
+          ).position.set(center.x + width * 0.08, baseY + 0.44, center.z - depth * 0.24);
+        }
+        if (building.level >= 10) {
+          addGlowMesh(
+            new THREE.Mesh(
+              new THREE.CylinderGeometry(Math.max(width, depth) * 0.06, Math.max(width, depth) * 0.06, 0.52, 12),
+              glowMat
+            )
+          ).position.set(center.x + width * 0.02, topY + 0.26, center.z - depth * 0.02);
+        }
+      } else {
+        if (building.level >= 6) {
+          addMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.26, 0.52, depth * 0.18), bodyMat)).position.set(center.x + width * 0.28, baseY + 0.26, center.z + depth * 0.08);
+        }
+        if (building.level >= 7) {
+          addMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.14, height * 0.4 + 0.7, depth * 0.14), accentMat)).position.set(center.x - width * 0.24, baseY + (height * 0.2 + 0.35), center.z - depth * 0.08);
+        }
+        if (building.level >= 8) {
+          addGlowMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.46, 0.08, 0.06), glowMat)).position.set(center.x, topY + 0.2, center.z);
+        }
+        if (building.level >= 9) {
+          addMesh(new THREE.Mesh(new THREE.CylinderGeometry(Math.max(width, depth) * 0.08, Math.max(width, depth) * 0.1, 0.72, 12), roofMat)).position.set(center.x + width * 0.1, topY + 0.32, center.z - depth * 0.18);
+        }
+        if (building.level >= 10) {
+          addGlowMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.12, 1.12, depth * 0.12), glowMat)).position.set(center.x - width * 0.02, topY + 0.48, center.z + depth * 0.04);
+        }
       }
     }
 
