@@ -57,6 +57,8 @@ const ART_STYLES = [
 
 const TYPE_GUIDANCE: Record<BuildType, string> = {
   road: 'This game uses connected road kits, not standalone illustration props.',
+  railLine: 'This game uses connected rail kits, not standalone illustration props.',
+  powerLine: 'This game uses connected power-line kits, not standalone illustration props.',
   house:
     'Cozy small-town city-builder house for a single 1x1 parcel. Compact footprint, readable at close zoom, front door facing the street edge, leave 16-20% transparent margin around the whole building so no roof, porch, chimney, or corner touches the image border.',
   shop:
@@ -79,7 +81,13 @@ const TYPE_GUIDANCE: Record<BuildType, string> = {
   workshop:
     'Light industrial workshop for a single 1x1 parcel. Compact service-yard feel, fits cozy town scale, leave 16-20% transparent margin around the full silhouette.',
   powerPlant:
-    'Power plant landmark for a 2x2 parcel. Utility complex with strong silhouette, compact enough for a cozy block builder, leave 16-20% transparent margin around the full silhouette.'
+    'Power plant landmark for a 2x2 parcel. Utility complex with strong silhouette, compact enough for a cozy block builder, leave 16-20% transparent margin around the full silhouette.',
+  substation:
+    'Electrical substation for a single 1x1 parcel. Utility yard with transformers and steel hardware, readable at close zoom, leave 16-20% transparent margin around the full silhouette.',
+  trainStation:
+    'Compact city rail station for a single 1x1 parcel. Transit hub with canopy and glass hall, readable at close zoom, leave 16-20% transparent margin around the full silhouette.',
+  cityHall:
+    'City hall landmark for a single 1x1 parcel. Civic building with tower and formal entrance, readable at close zoom, leave 16-20% transparent margin around the full silhouette.'
 };
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {

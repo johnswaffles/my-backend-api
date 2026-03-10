@@ -27,12 +27,17 @@ interface BuildingEconomy {
 
 export const ASSET_GENERATION_COST: Record<BuildType, number> = {
   road: 0,
+  railLine: 0,
+  powerLine: 0,
   house: 80,
   restaurant: 130,
   shop: 120,
   park: 65,
   workshop: 110,
   powerPlant: 220,
+  substation: 130,
+  trainStation: 170,
+  cityHall: 190,
   groceryStore: 140,
   cornerStore: 90,
   bank: 170,
@@ -55,6 +60,34 @@ export const BUILDING_ECONOMY: Record<BuildType, BuildingEconomy> = {
     health: 0,
     safety: 0,
     maintenance: 0.02
+  },
+  railLine: {
+    name: 'Rail Line',
+    cost: 28,
+    powerUse: 0,
+    powerProduce: 0,
+    housing: 0,
+    jobs: 0,
+    commerce: 0,
+    recreation: 0,
+    essentials: 0,
+    health: 0,
+    safety: 0,
+    maintenance: 0.04
+  },
+  powerLine: {
+    name: 'Power Line',
+    cost: 18,
+    powerUse: 0,
+    powerProduce: 0,
+    housing: 0,
+    jobs: 0,
+    commerce: 0,
+    recreation: 0,
+    essentials: 0,
+    health: 0,
+    safety: 0,
+    maintenance: 0.03
   },
   house: {
     name: 'House',
@@ -139,6 +172,48 @@ export const BUILDING_ECONOMY: Record<BuildType, BuildingEconomy> = {
     health: -2,
     safety: -3,
     maintenance: 0.42
+  },
+  substation: {
+    name: 'Substation',
+    cost: 620,
+    powerUse: 1,
+    powerProduce: 0,
+    housing: 0,
+    jobs: 5,
+    commerce: 0,
+    recreation: 0,
+    essentials: 0,
+    health: 0,
+    safety: 2,
+    maintenance: 0.24
+  },
+  trainStation: {
+    name: 'Train Station',
+    cost: 980,
+    powerUse: 5,
+    powerProduce: 0,
+    housing: 0,
+    jobs: 16,
+    commerce: 18,
+    recreation: 4,
+    essentials: 2,
+    health: 0,
+    safety: 3,
+    maintenance: 0.48
+  },
+  cityHall: {
+    name: 'City Hall',
+    cost: 1400,
+    powerUse: 6,
+    powerProduce: 0,
+    housing: 0,
+    jobs: 18,
+    commerce: 6,
+    recreation: 8,
+    essentials: 0,
+    health: 0,
+    safety: 12,
+    maintenance: 0.66
   },
   groceryStore: {
     name: 'Grocery Store',
@@ -316,28 +391,29 @@ function isCommercialType(type: BuildType): boolean {
   return (
     type === 'shop' ||
     type === 'restaurant' ||
+    type === 'trainStation' ||
     type === 'groceryStore' ||
     type === 'cornerStore' ||
     type === 'bank'
   );
 }
 
+function isTransportType(type: BuildType): boolean {
+  return type === 'road' || type === 'railLine' || type === 'trainStation';
+}
+
+function isInfrastructureLine(type: BuildType): boolean {
+  return type === 'road' || type === 'railLine' || type === 'powerLine';
+}
+
 function comboFamilyForType(type: BuildType): 'residential' | 'commercial' | 'civic' | 'industrial' | 'utility' | 'park' | 'street' {
-  if (type === 'road') return 'street';
+  if (type === 'road' || type === 'railLine' || type === 'powerLine') return 'street';
   if (type === 'house') return 'residential';
   if (isCommercialType(type)) return 'commercial';
-  if (type === 'policeStation' || type === 'fireStation' || type === 'hospital') return 'civic';
+  if (type === 'policeStation' || type === 'fireStation' || type === 'hospital' || type === 'cityHall') return 'civic';
   if (type === 'workshop') return 'industrial';
-  if (type === 'powerPlant') return 'utility';
+  if (type === 'powerPlant' || type === 'substation') return 'utility';
   return 'park';
-}
-
-function buildingHasPowerCoverage(state: GameState, building: Building): boolean {
-  return occupiedCellsForBuilding(building).some((cell) => hasPowerCoverage(state, cell.x, cell.z));
-}
-
-function buildingHasRoadAccess(state: GameState, building: Building): boolean {
-  return hasRoadAccess(state, building.type, building.x, building.z);
 }
 
 function adjacentBuildings(state: GameState, building: Building): Building[] {
@@ -435,17 +511,18 @@ export function upgradeCostForSelection(state: GameState, building: Building): n
 }
 
 export function canUpgradeBuilding(state: GameState, building: Building): boolean {
+  if (isInfrastructureLine(building.type)) return false;
   const upgradableMembers = sameTypeConnectedCluster(state, building).filter((member) => member.level < MAX_BUILDING_LEVEL);
   if (!upgradableMembers.length) return false;
   return INFINITE_MONEY || state.resources.money >= upgradeCostForSelection(state, building);
 }
 
-function buildingAppealScore(state: GameState, building: Building): number {
-  const roadAccess = buildingHasRoadAccess(state, building) || building.type === 'powerPlant';
-  const powerAccess = buildingHasPowerCoverage(state, building) || building.type === 'powerPlant';
+function buildingAppealScore(state: GameState, building: Building, infrastructure = computeInfrastructureStatus(state)): number {
+  const roadAccess = infrastructure.transportConnected.has(building.id) || building.type === 'powerPlant';
+  const powerAccess = infrastructure.powerConnected.has(building.id) || building.type === 'powerPlant';
   const parkSupport = nearbyTypeCount(state, building, ['park'], 3);
-  const commerceSupport = nearbyTypeCount(state, building, ['shop', 'restaurant', 'groceryStore', 'cornerStore', 'bank'], 3);
-  const civicSupport = nearbyTypeCount(state, building, ['hospital', 'policeStation', 'fireStation'], 4);
+  const commerceSupport = nearbyTypeCount(state, building, ['shop', 'restaurant', 'groceryStore', 'cornerStore', 'bank', 'trainStation'], 3);
+  const civicSupport = nearbyTypeCount(state, building, ['hospital', 'policeStation', 'fireStation', 'cityHall'], 4);
   const directAdjacency = adjacentBuildings(state, building).filter(
     (other) => comboFamilyForType(other.type) === comboFamilyForType(building.type)
   ).length;
@@ -460,6 +537,8 @@ function buildingAppealScore(state: GameState, building: Building): number {
       commerceSupport * 3 +
       civicSupport * 4 +
       directAdjacency * 7 +
+      nearbyTypeCount(state, building, ['trainStation'], 4) * 4 +
+      nearbyTypeCount(state, building, ['cityHall'], 5) * 5 +
       (building.level - 1) * 10 +
       Math.max(0, state.happiness - 50) * 0.35 -
       (building.type === 'house' ? industrialPressure * 9 : industrialPressure * 3) -
@@ -472,19 +551,25 @@ function evolveBuildings(state: GameState, dtSeconds: number): GameState {
   const nextBuildings = state.buildings.map((building) => ({ ...building }));
   let availableMoney = state.resources.money;
   let upgradedAny = false;
+  const infrastructure = computeInfrastructureStatus(state);
+  const cityHallBoost = state.buildings.some(
+    (building) => building.type === 'cityHall' && infrastructure.activeBuildings.has(building.id)
+  )
+    ? 1.18
+    : 1;
 
   for (const building of nextBuildings) {
-    if (building.type === 'road') continue;
-    const roadAccess = buildingHasRoadAccess(state, building) || building.type === 'powerPlant';
-    const powerAccess = buildingHasPowerCoverage(state, building) || building.type === 'powerPlant';
+    if (isInfrastructureLine(building.type)) continue;
+    const roadAccess = infrastructure.transportConnected.has(building.id) || building.type === 'powerPlant';
+    const powerAccess = infrastructure.powerConnected.has(building.id) || building.type === 'powerPlant';
     const serviceFactor = (roadAccess ? 1 : 0.32) * (powerAccess ? 1 : 0.45);
     const parkSupport = nearbyTypeCount(state, building, ['park'], 3);
-    const commerceSupport = nearbyTypeCount(state, building, ['shop', 'restaurant', 'groceryStore', 'cornerStore', 'bank'], 3);
-    const civicSupport = nearbyTypeCount(state, building, ['hospital', 'policeStation', 'fireStation'], 4);
+    const commerceSupport = nearbyTypeCount(state, building, ['shop', 'restaurant', 'groceryStore', 'cornerStore', 'bank', 'trainStation'], 3);
+    const civicSupport = nearbyTypeCount(state, building, ['hospital', 'policeStation', 'fireStation', 'cityHall'], 4);
     const directAdjacency = adjacentBuildings(state, building).filter(
       (other) => comboFamilyForType(other.type) === comboFamilyForType(building.type)
     ).length;
-    const appeal = buildingAppealScore(state, building);
+    const appeal = buildingAppealScore(state, building, infrastructure);
     const appealFactor =
       0.45 +
       (appeal / 100) * 0.9 +
@@ -501,11 +586,11 @@ function evolveBuildings(state: GameState, dtSeconds: number): GameState {
             ? 1.22
             : building.type === 'workshop'
               ? 0.86
-              : building.type === 'powerPlant'
-                ? 0.78
-                : 0.92;
+            : building.type === 'powerPlant'
+              ? 0.78
+              : 0.92;
 
-    building.upgradeProgress += dtSeconds * serviceFactor * appealFactor * typeFactor;
+    building.upgradeProgress += dtSeconds * serviceFactor * appealFactor * typeFactor * cityHallBoost;
     if (building.level >= MAX_BUILDING_LEVEL) continue;
 
     const threshold = upgradeThresholdFor(building);
@@ -556,30 +641,105 @@ function minDistanceToBuildingCells(
   return min;
 }
 
-function hasRoadAccess(state: GameState, type: BuildType, x: number, z: number): boolean {
-  const occupied = occupiedCellsForPlacement(type, x, z);
-  const occupiedKeys = new Set(occupied.map((cell) => `${cell.x}:${cell.z}`));
+interface InfrastructureStatus {
+  transportConnected: Set<number>;
+  powerConnected: Set<number>;
+  activeBuildings: Set<number>;
+}
 
-  return occupied.some((cell) => {
-    const neighbors = [
-      { x: cell.x + 1, z: cell.z },
-      { x: cell.x - 1, z: cell.z },
-      { x: cell.x, z: cell.z + 1 },
-      { x: cell.x, z: cell.z - 1 }
-    ];
+function cellsTouch(a: Array<{ x: number; z: number }>, b: Array<{ x: number; z: number }>): boolean {
+  for (const acell of a) {
+    for (const bcell of b) {
+      if (Math.abs(acell.x - bcell.x) + Math.abs(acell.z - bcell.z) === 1) return true;
+    }
+  }
+  return false;
+}
 
-    return neighbors.some((neighbor) => {
-      if (occupiedKeys.has(`${neighbor.x}:${neighbor.z}`)) return false;
-      return buildingAt(state, neighbor.x, neighbor.z)?.type === 'road';
+function touchesTransportNetwork(state: GameState, building: Building): boolean {
+  const cluster = sameTypeConnectedCluster(state, building);
+  return cluster.some((member) => {
+    const occupied = occupiedCellsForBuilding(member);
+    const occupiedKeys = new Set(occupied.map((cell) => `${cell.x}:${cell.z}`));
+    return occupied.some((cell) => {
+      const neighbors = [
+        { x: cell.x + 1, z: cell.z },
+        { x: cell.x - 1, z: cell.z },
+        { x: cell.x, z: cell.z + 1 },
+        { x: cell.x, z: cell.z - 1 }
+      ];
+      return neighbors.some((neighbor) => {
+        if (occupiedKeys.has(`${neighbor.x}:${neighbor.z}`)) return false;
+        const hit = buildingAt(state, neighbor.x, neighbor.z);
+        return hit ? isTransportType(hit.type) : false;
+      });
     });
   });
 }
 
-function hasPowerCoverage(state: GameState, x: number, z: number): boolean {
-  return state.buildings.some((b) => {
-    if (b.type !== 'powerPlant') return false;
-    return minDistanceToBuildingCells([{ x, z }], b) <= 10;
+function computeInfrastructureStatus(state: GameState): InfrastructureStatus {
+  const transportConnected = new Set<number>();
+  const powerConnected = new Set<number>();
+  const activeBuildings = new Set<number>();
+  const occupancies = new Map<number, Array<{ x: number; z: number }>>();
+
+  state.buildings.forEach((building) => {
+    occupancies.set(building.id, occupiedCellsForBuilding(building));
   });
+
+  for (const building of state.buildings) {
+    if (building.type !== 'road' && building.type !== 'railLine') continue;
+    transportConnected.add(building.id);
+  }
+
+  for (const building of state.buildings) {
+    if (building.type === 'trainStation') {
+      if (touchesTransportNetwork(state, building) || state.buildings.some((other) => other.id !== building.id && other.type === 'railLine' && cellsTouch(occupancies.get(building.id) ?? [], occupancies.get(other.id) ?? []))) {
+        transportConnected.add(building.id);
+      }
+    } else if (!isTransportType(building.type) && touchesTransportNetwork(state, building)) {
+      transportConnected.add(building.id);
+    }
+  }
+
+  const queue: Building[] = state.buildings.filter(
+    (building) => building.type === 'powerPlant' && transportConnected.has(building.id)
+  );
+  queue.forEach((building) => powerConnected.add(building.id));
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current) break;
+    const currentCells = occupancies.get(current.id) ?? [];
+
+    for (const candidate of state.buildings) {
+      if (powerConnected.has(candidate.id) || candidate.id === current.id) continue;
+      const candidateCells = occupancies.get(candidate.id) ?? [];
+      const poweredByAdjacency = cellsTouch(currentCells, candidateCells);
+      const poweredBySubstationAura =
+        current.type === 'substation' && minDistanceToBuildingCells(currentCells, candidate) <= 2;
+      if (!poweredByAdjacency && !poweredBySubstationAura) continue;
+      powerConnected.add(candidate.id);
+      queue.push(candidate);
+    }
+  }
+
+  for (const building of state.buildings) {
+    if (isInfrastructureLine(building.type)) continue;
+    if (building.type === 'powerPlant') {
+      if (transportConnected.has(building.id)) activeBuildings.add(building.id);
+      continue;
+    }
+    if (building.type === 'substation') {
+      if (transportConnected.has(building.id) && powerConnected.has(building.id)) activeBuildings.add(building.id);
+      continue;
+    }
+    if (transportConnected.has(building.id) && powerConnected.has(building.id)) {
+      activeBuildings.add(building.id);
+    }
+  }
+
+  return { transportConnected, powerConnected, activeBuildings };
 }
 
 function clampPercent(value: number): number {
@@ -590,7 +750,7 @@ function countType(state: GameState, type: BuildType): number {
   return state.buildings.filter((b) => b.type === type).length;
 }
 
-function clusterBonuses(state: GameState): {
+function clusterBonuses(state: GameState, infrastructure = computeInfrastructureStatus(state)): {
   housing: number;
   jobs: number;
   commercial: number;
@@ -615,11 +775,12 @@ function clusterBonuses(state: GameState): {
   };
 
   for (const building of state.buildings) {
-    if (seen.has(building.id) || building.type === 'road') continue;
+    if (seen.has(building.id) || isInfrastructureLine(building.type)) continue;
     const cluster = sameTypeConnectedCluster(state, building);
     cluster.forEach((member) => seen.add(member.id));
     const size = cluster.length;
     if (size < 2) continue;
+    if (!cluster.some((member) => infrastructure.activeBuildings.has(member.id))) continue;
     const avgLevel = cluster.reduce((sum, member) => sum + member.level, 0) / size;
 
     if (building.type === 'house' && size >= 4) {
@@ -668,7 +829,7 @@ function clusterBonuses(state: GameState): {
   return bonuses;
 }
 
-function residentialUpgradeRevenueBonus(state: GameState): number {
+function residentialUpgradeRevenueBonus(state: GameState, infrastructure = computeInfrastructureStatus(state)): number {
   const seen = new Set<number>();
   let bonus = 0;
 
@@ -676,6 +837,7 @@ function residentialUpgradeRevenueBonus(state: GameState): number {
     if (building.type !== 'house' || seen.has(building.id)) continue;
     const cluster = sameTypeConnectedCluster(state, building);
     cluster.forEach((member) => seen.add(member.id));
+    if (!cluster.some((member) => infrastructure.activeBuildings.has(member.id))) continue;
     const avgLevel = cluster.reduce((sum, member) => sum + member.level, 0) / cluster.length;
 
     if (cluster.length >= 4) {
@@ -710,13 +872,19 @@ function residentialUpgradeRevenueBonus(state: GameState): number {
 }
 
 function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happiness' | 'demand'> {
+  const infrastructure = computeInfrastructureStatus(state);
   const roads = countType(state, 'road');
+  const rails = countType(state, 'railLine');
+  const powerLines = countType(state, 'powerLine');
   const houses = state.buildings.filter((b) => b.type === 'house');
   const restaurants = countType(state, 'restaurant');
   const shops = countType(state, 'shop');
   const parks = countType(state, 'park');
   const workshops = countType(state, 'workshop');
   const plants = countType(state, 'powerPlant');
+  const substations = countType(state, 'substation');
+  const trainStations = countType(state, 'trainStation');
+  const cityHalls = countType(state, 'cityHall');
   const groceries = countType(state, 'groceryStore');
   const cornerStores = countType(state, 'cornerStore');
   const banks = countType(state, 'bank');
@@ -733,6 +901,8 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
   let safetyCapacity = 0;
 
   for (const building of state.buildings) {
+    if (isInfrastructureLine(building.type)) continue;
+    if (building.type !== 'powerPlant' && !infrastructure.activeBuildings.has(building.id)) continue;
     const econ = BUILDING_ECONOMY[building.type];
     const factor = buildingLevelFactor(building);
     housingCapacity += econ.housing * factor;
@@ -744,7 +914,7 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
     safetyCapacity += econ.safety * factor;
   }
 
-  const clusterBoost = clusterBonuses(state);
+  const clusterBoost = clusterBonuses(state, infrastructure);
   housingCapacity += residentialComboBonus(state);
   commercialCapacity += commercialComboBonus(state);
   housingCapacity += clusterBoost.housing;
@@ -755,30 +925,31 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
   healthCapacity += clusterBoost.health;
   safetyCapacity += clusterBoost.safety;
 
-  const servicedHomes = houses.filter(
-    (h) => buildingHasRoadAccess(state, h) && buildingHasPowerCoverage(state, h)
-  ).length;
+  const servicedHomes = houses.filter((h) => infrastructure.activeBuildings.has(h.id)).length;
 
   const serviceRatio = houses.length > 0 ? servicedHomes / houses.length : 1;
-  const activeBuildings = state.buildings.filter((building) => building.type !== 'road');
+  const activeBuildings = state.buildings.filter((building) => !isInfrastructureLine(building.type));
   const averageAppeal =
     activeBuildings.length > 0
-      ? activeBuildings.reduce((sum, building) => sum + buildingAppealScore(state, building), 0) / activeBuildings.length
+      ? activeBuildings.reduce((sum, building) => sum + buildingAppealScore(state, building, infrastructure), 0) / activeBuildings.length
       : 58;
   const residentialAppeal =
     houses.length > 0
-      ? houses.reduce((sum, building) => sum + buildingAppealScore(state, building), 0) / houses.length
+      ? houses.reduce((sum, building) => sum + buildingAppealScore(state, building, infrastructure), 0) / houses.length
       : averageAppeal;
   const commercialBuildings = state.buildings.filter((building) => isCommercialType(building.type));
   const commercialAppeal =
     commercialBuildings.length > 0
-      ? commercialBuildings.reduce((sum, building) => sum + buildingAppealScore(state, building), 0) /
+      ? commercialBuildings.reduce((sum, building) => sum + buildingAppealScore(state, building, infrastructure), 0) /
         commercialBuildings.length
       : averageAppeal;
 
-  let powerUsed = roads * 0.2;
+  let powerUsed = roads * 0.12 + rails * 0.08 + powerLines * 0.04;
   let powerProduced = 0;
   for (const building of state.buildings) {
+    if (isInfrastructureLine(building.type)) continue;
+    const active = building.type === 'powerPlant' ? infrastructure.transportConnected.has(building.id) : infrastructure.activeBuildings.has(building.id);
+    if (!active) continue;
     const econ = BUILDING_ECONOMY[building.type];
     const factor = buildingLevelFactor(building);
     powerUsed += econ.powerUse * (building.type === 'house' ? factor : 1 + (building.level - 1) * 0.14);
@@ -823,6 +994,9 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
       Math.min(parks, 8) * 1.4 +
       Math.max(0, averageAppeal - 55) * 0.42 +
       Math.max(0, residentialAppeal - 58) * 0.16 +
+      Math.min(trainStations, 4) * 1.2 +
+      Math.min(cityHalls, 2) * 3.4 +
+      Math.min(substations, 6) * 0.4 +
       state.buildings.reduce((sum, building) => sum + (building.level - 1) * 0.75, 0) +
       commercialComboBonus(state) * 0.15 +
       residentialComboBonus(state) * 0.2 +
@@ -852,12 +1026,12 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
           fireStations +
           hospitals) *
           0.55 -
-          roads
+          (roads + rails + trainStations)
       ) *
         7
   );
   const demandPower = clampPercent(
-    14 + Math.max(0, powerUsed - powerProduced) * 6 + Math.max(0, houses.length - plants * 4)
+    14 + Math.max(0, powerUsed - powerProduced) * 6 + Math.max(0, houses.length - (plants * 4 + substations * 2))
   );
   const demandCommerce = clampPercent(
     28 +
@@ -1048,6 +1222,9 @@ export function buildStarterTown(): boolean {
     { type: 'road', x: 13, z: 11 },
     { type: 'road', x: 13, z: 13 },
     { type: 'road', x: 13, z: 14 },
+    { type: 'road', x: 14, z: 14 },
+    { type: 'road', x: 15, z: 14 },
+    { type: 'road', x: 16, z: 14 },
     { type: 'house', x: 11, z: 10 },
     { type: 'house', x: 12, z: 10 },
     { type: 'house', x: 11, z: 11 },
@@ -1057,6 +1234,17 @@ export function buildStarterTown(): boolean {
     { type: 'restaurant', x: 16, z: 10 },
     { type: 'park', x: 11, z: 14 },
     { type: 'park', x: 12, z: 14 },
+    { type: 'powerLine', x: 16, z: 15 },
+    { type: 'powerLine', x: 15, z: 15 },
+    { type: 'powerLine', x: 14, z: 15 },
+    { type: 'powerLine', x: 13, z: 15 },
+    { type: 'powerLine', x: 12, z: 15 },
+    { type: 'powerLine', x: 11, z: 15 },
+    { type: 'powerLine', x: 10, z: 15 },
+    { type: 'powerLine', x: 10, z: 14 },
+    { type: 'powerLine', x: 10, z: 13 },
+    { type: 'powerLine', x: 10, z: 12 },
+    { type: 'powerLine', x: 10, z: 11 },
     { type: 'powerPlant', x: 17, z: 14 }
   ];
 
@@ -1359,28 +1547,31 @@ export function selectedBuilding(state: GameState): Building | null {
 
 export function buildingContextSummary(state: GameState, building: Building): {
   appeal: number;
-  roadAccess: boolean;
+  transportAccess: boolean;
   powerAccess: boolean;
+  active: boolean;
   adjacentMatches: number;
   parkSupport: number;
   civicSupport: number;
   commerceSupport: number;
   clusterSize: number;
 } {
-  const roadAccess = buildingHasRoadAccess(state, building) || building.type === 'powerPlant';
-  const powerAccess = buildingHasPowerCoverage(state, building) || building.type === 'powerPlant';
+  const infrastructure = computeInfrastructureStatus(state);
+  const transportAccess = infrastructure.transportConnected.has(building.id) || isTransportType(building.type);
+  const powerAccess = infrastructure.powerConnected.has(building.id) || building.type === 'powerPlant';
   const parkSupport = nearbyTypeCount(state, building, ['park'], 3);
-  const commerceSupport = nearbyTypeCount(state, building, ['shop', 'restaurant', 'groceryStore', 'cornerStore', 'bank'], 3);
-  const civicSupport = nearbyTypeCount(state, building, ['hospital', 'policeStation', 'fireStation'], 4);
+  const commerceSupport = nearbyTypeCount(state, building, ['shop', 'restaurant', 'groceryStore', 'cornerStore', 'bank', 'trainStation'], 3);
+  const civicSupport = nearbyTypeCount(state, building, ['hospital', 'policeStation', 'fireStation', 'cityHall'], 4);
   const adjacentMatches = adjacentBuildings(state, building).filter(
     (other) => comboFamilyForType(other.type) === comboFamilyForType(building.type)
   ).length;
   const clusterSize = sameTypeConnectedCluster(state, building).length;
 
   return {
-    appeal: buildingAppealScore(state, building),
-    roadAccess,
+    appeal: buildingAppealScore(state, building, infrastructure),
+    transportAccess,
     powerAccess,
+    active: infrastructure.activeBuildings.has(building.id) || isInfrastructureLine(building.type),
     adjacentMatches,
     parkSupport,
     civicSupport,
@@ -1397,6 +1588,7 @@ export function economySummary(state: GameState): {
   net: number;
 } {
   const derived = deriveSimulation(state);
+  const infrastructure = computeInfrastructureStatus(state);
 
   let maintenance = 0;
   for (const b of state.buildings) {
@@ -1406,14 +1598,18 @@ export function economySummary(state: GameState): {
   const residentTax = derived.resources.population * ECONOMY_TUNING.residentTaxPerCitizen;
   const employmentTax =
     Math.min(derived.resources.population, derived.resources.jobs) * ECONOMY_TUNING.employmentTaxPerWorker;
+  const activeCount = (type: BuildType) =>
+    state.buildings.filter((building) => building.type === type && infrastructure.activeBuildings.has(building.id)).length;
   const commercialTax =
-    countType(state, 'shop') * ECONOMY_TUNING.shopRevenue +
-    countType(state, 'restaurant') * ECONOMY_TUNING.restaurantRevenue +
-    countType(state, 'workshop') * ECONOMY_TUNING.workshopRevenue +
-    countType(state, 'groceryStore') * ECONOMY_TUNING.groceryRevenue +
-    countType(state, 'cornerStore') * ECONOMY_TUNING.cornerStoreRevenue +
-    countType(state, 'bank') * ECONOMY_TUNING.bankRevenue;
-  const upgradedHousingRevenue = residentialUpgradeRevenueBonus(state);
+    activeCount('shop') * ECONOMY_TUNING.shopRevenue +
+    activeCount('restaurant') * ECONOMY_TUNING.restaurantRevenue +
+    activeCount('workshop') * ECONOMY_TUNING.workshopRevenue +
+    activeCount('groceryStore') * ECONOMY_TUNING.groceryRevenue +
+    activeCount('cornerStore') * ECONOMY_TUNING.cornerStoreRevenue +
+    activeCount('bank') * ECONOMY_TUNING.bankRevenue +
+    activeCount('trainStation') * 0.11 +
+    activeCount('cityHall') * 0.08;
+  const upgradedHousingRevenue = residentialUpgradeRevenueBonus(state, infrastructure);
   const powerPenalty =
     Math.max(0, derived.resources.powerUsed - derived.resources.powerProduced) * ECONOMY_TUNING.powerDeficitPenalty;
   const happinessBonus = (derived.happiness - 50) * ECONOMY_TUNING.happinessIncomeFactor;
@@ -1472,6 +1668,7 @@ export function tickSimulation(dtSeconds: number): void {
   gameStore.update((state) => {
     const evolvedState = evolveBuildings(state, dtSeconds);
     const derived = deriveSimulation(evolvedState);
+    const infrastructure = computeInfrastructureStatus(evolvedState);
 
     let maintenancePerSecond = 0;
     for (const b of evolvedState.buildings) {
@@ -1481,14 +1678,18 @@ export function tickSimulation(dtSeconds: number): void {
     const residentTax = derived.resources.population * ECONOMY_TUNING.residentTaxPerCitizen;
     const employmentTax =
       Math.min(derived.resources.population, derived.resources.jobs) * ECONOMY_TUNING.employmentTaxPerWorker;
+    const activeCount = (type: BuildType) =>
+      evolvedState.buildings.filter((building) => building.type === type && infrastructure.activeBuildings.has(building.id)).length;
     const commercialTax =
-      countType(evolvedState, 'shop') * ECONOMY_TUNING.shopRevenue +
-      countType(evolvedState, 'restaurant') * ECONOMY_TUNING.restaurantRevenue +
-      countType(evolvedState, 'workshop') * ECONOMY_TUNING.workshopRevenue +
-      countType(evolvedState, 'groceryStore') * ECONOMY_TUNING.groceryRevenue +
-      countType(evolvedState, 'cornerStore') * ECONOMY_TUNING.cornerStoreRevenue +
-      countType(evolvedState, 'bank') * ECONOMY_TUNING.bankRevenue;
-    const upgradedHousingRevenue = residentialUpgradeRevenueBonus(evolvedState);
+      activeCount('shop') * ECONOMY_TUNING.shopRevenue +
+      activeCount('restaurant') * ECONOMY_TUNING.restaurantRevenue +
+      activeCount('workshop') * ECONOMY_TUNING.workshopRevenue +
+      activeCount('groceryStore') * ECONOMY_TUNING.groceryRevenue +
+      activeCount('cornerStore') * ECONOMY_TUNING.cornerStoreRevenue +
+      activeCount('bank') * ECONOMY_TUNING.bankRevenue +
+      activeCount('trainStation') * 0.11 +
+      activeCount('cityHall') * 0.08;
+    const upgradedHousingRevenue = residentialUpgradeRevenueBonus(evolvedState, infrastructure);
     const powerPenalty =
       Math.max(0, derived.resources.powerUsed - derived.resources.powerProduced) * ECONOMY_TUNING.powerDeficitPenalty;
     const happinessBonus = (derived.happiness - 50) * ECONOMY_TUNING.happinessIncomeFactor;

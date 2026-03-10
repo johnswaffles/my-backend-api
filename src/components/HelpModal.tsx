@@ -12,7 +12,7 @@ export function HelpModal({ open, onClose }: HelpModalProps): JSX.Element | null
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-2xl font-semibold text-white">How To Play</h2>
-            <p className="mt-1 text-sm text-slate-300">Build a cozy city, upgrade districts, and let clusters evolve into landmark structures.</p>
+            <p className="mt-1 text-sm text-slate-300">Build a cozy city, wire up infrastructure, and let connected districts evolve into landmark structures.</p>
           </div>
           <button
             type="button"
@@ -27,10 +27,11 @@ export function HelpModal({ open, onClose }: HelpModalProps): JSX.Element | null
           <section className="rounded-2xl border border-slate-300/20 bg-slate-950/35 p-4">
             <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-100">Core Loop</h3>
             <ul className="mt-3 space-y-2 text-sm text-slate-200">
-              <li>Place roads, homes, commerce, services, parks, workshops, and power.</li>
+              <li>Place roads, rail lines, power lines, homes, commerce, services, parks, workshops, and utilities.</li>
               <li>Watch money, happiness, power, jobs, and service demand in the top HUD.</li>
-              <li>Grouped buildings merge into larger structures and can be upgraded through five tiers.</li>
-              <li>High appeal, power access, and surrounding services accelerate growth.</li>
+              <li>Buildings only go live once they are connected to transport and power.</li>
+              <li>Grouped buildings merge into larger structures and can be upgraded through ten tiers.</li>
+              <li>High appeal, city hall influence, stations, and surrounding services accelerate growth.</li>
             </ul>
           </section>
 
@@ -48,7 +49,11 @@ export function HelpModal({ open, onClose }: HelpModalProps): JSX.Element | null
           <section className="rounded-2xl border border-slate-300/20 bg-slate-950/35 p-4">
             <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-100">Building Rules</h3>
             <ul className="mt-3 space-y-2 text-sm text-slate-200">
-              <li>Roads improve appeal and service access, but buildings can now be placed without them.</li>
+              <li>Buildings can be placed anywhere, but they stay offline until connected.</li>
+              <li>Roads or rail lines must touch a building cluster to activate transport access.</li>
+              <li>Power plants need transport access, then power lines, substations, and adjacent live buildings can carry electricity outward.</li>
+              <li>Train stations count as transport hubs and boost nearby districts.</li>
+              <li>City hall boosts appeal, happiness, and growth in the connected core.</li>
               <li>Workshops and power plants still dislike sensitive neighbors such as homes, parks, groceries, and hospitals.</li>
               <li>Hospitals and power plants use larger footprints and become much stronger when clustered.</li>
               <li>Four or more matching buildings often merge into one larger campus, block, or complex.</li>
@@ -70,7 +75,7 @@ export function HelpModal({ open, onClose }: HelpModalProps): JSX.Element | null
             <ul className="mt-3 space-y-2 text-sm text-slate-200">
               <li>Select a building and upgrade it manually from the inspect panel.</li>
               <li>Entire connected same-type clusters upgrade together.</li>
-              <li>Tier 1-2 are neighborhood scale, Tier 3-5 are district and skyline scale.</li>
+              <li>Tier 1-2 are neighborhood scale, Tier 3-5 are district scale, and Tier 6-10 become skyline and mega-district scale.</li>
               <li>Higher tiers bring more housing, jobs, services, power, revenue, and visual detail.</li>
             </ul>
           </section>
@@ -80,7 +85,7 @@ export function HelpModal({ open, onClose }: HelpModalProps): JSX.Element | null
             <ul className="mt-3 space-y-2 text-sm text-slate-200">
               <li><strong>Growth</strong>: demand for homes, stores, and jobs.</li>
               <li><strong>Services</strong>: demand for food, health, and safety coverage.</li>
-              <li><strong>Town Needs</strong>: leisure, roads, and power pressure.</li>
+              <li><strong>Town Needs</strong>: leisure, transport, and power pressure.</li>
               <li>Higher numbers usually mean the city wants more of that category.</li>
             </ul>
           </section>

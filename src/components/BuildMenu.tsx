@@ -16,6 +16,8 @@ const BUILD_SECTIONS: Array<{ title: string; accent: string; items: BuildItem[] 
     accent: 'text-cyan-200',
     items: [
       { type: 'road', label: 'Road', desc: 'Block layout and frontage', icon: 'RD', hotkey: '1' },
+      { type: 'railLine', label: 'Rail Line', desc: 'Transit corridor and alternate access', icon: 'RL' },
+      { type: 'powerLine', label: 'Power Line', desc: 'Link the electrical grid', icon: 'PL' },
       { type: 'house', label: 'House', desc: 'Homes and neighborhood life', icon: 'HS', hotkey: '2' }
     ]
   },
@@ -27,7 +29,8 @@ const BUILD_SECTIONS: Array<{ title: string; accent: string; items: BuildItem[] 
       { type: 'restaurant', label: 'Restaurant', desc: 'Dining and street life', icon: 'RT', hotkey: '4' },
       { type: 'groceryStore', label: 'Grocery', desc: 'Daily essentials', icon: 'GR' },
       { type: 'cornerStore', label: 'Corner Store', desc: 'Compact convenience retail', icon: 'CS' },
-      { type: 'bank', label: 'Bank', desc: 'Finance and civic prestige', icon: 'BK' }
+      { type: 'bank', label: 'Bank', desc: 'Finance and civic prestige', icon: 'BK' },
+      { type: 'trainStation', label: 'Train Station', desc: 'Transit hub and commerce boost', icon: 'TS' }
     ]
   },
   {
@@ -35,6 +38,7 @@ const BUILD_SECTIONS: Array<{ title: string; accent: string; items: BuildItem[] 
     accent: 'text-rose-200',
     items: [
       { type: 'park', label: 'Park', desc: 'Beauty and recreation', icon: 'PK', hotkey: '5' },
+      { type: 'cityHall', label: 'City Hall', desc: 'Civic heart and growth bonus', icon: 'CH' },
       { type: 'hospital', label: 'Hospital', desc: 'Regional care campus', icon: 'HP' },
       { type: 'policeStation', label: 'Police', desc: 'Safety and order', icon: 'PL' },
       { type: 'fireStation', label: 'Fire', desc: 'Fast emergency response', icon: 'FR' }
@@ -45,6 +49,7 @@ const BUILD_SECTIONS: Array<{ title: string; accent: string; items: BuildItem[] 
     accent: 'text-violet-200',
     items: [
       { type: 'workshop', label: 'Workshop', desc: 'Light industry and jobs', icon: 'WK', hotkey: '6' },
+      { type: 'substation', label: 'Substation', desc: 'Relay power deeper into town', icon: 'SS' },
       { type: 'powerPlant', label: 'Power Plant', desc: 'Grid power for expansion', icon: 'PW', hotkey: '7' }
     ]
   }
@@ -101,7 +106,9 @@ export function BuildMenu({ placementMode, mobile = false }: BuildMenuProps): JS
 
   const filteredMobileItems = useMemo(() => {
     if (mobileFilter === 'all') return flatItems;
-    if (mobileFilter === 'core') return flatItems.filter((item) => item.type === 'road' || item.type === 'house' || item.type === 'park');
+    if (mobileFilter === 'core') {
+      return flatItems.filter((item) => item.type === 'road' || item.type === 'railLine' || item.type === 'powerLine' || item.type === 'house' || item.type === 'park');
+    }
     if (mobileFilter === 'commerce') {
       return flatItems.filter((item) =>
         ['shop', 'restaurant', 'groceryStore', 'cornerStore', 'bank'].includes(item.type)
@@ -109,10 +116,10 @@ export function BuildMenu({ placementMode, mobile = false }: BuildMenuProps): JS
     }
     if (mobileFilter === 'civic') {
       return flatItems.filter((item) =>
-        ['hospital', 'policeStation', 'fireStation', 'park'].includes(item.type)
+        ['hospital', 'policeStation', 'fireStation', 'park', 'cityHall'].includes(item.type)
       );
     }
-    return flatItems.filter((item) => ['workshop', 'powerPlant'].includes(item.type));
+    return flatItems.filter((item) => ['workshop', 'powerPlant', 'substation', 'trainStation'].includes(item.type));
   }, [flatItems, mobileFilter]);
 
   if (mobile) {
@@ -168,7 +175,7 @@ export function BuildMenu({ placementMode, mobile = false }: BuildMenuProps): JS
           ))}
         </div>
         <div className="mt-3 text-[11px] text-slate-300">
-          Filter tools by district type. Tap to place. Drag one finger to pan. Pinch to zoom. Tap a building for details. Roads can be painted by dragging after the first tap.
+          Filter tools by district type. Tap to place. Drag one finger to pan. Pinch to zoom. Tap a building for details. Roads, rail lines, and power lines can be painted by dragging after the first tap.
         </div>
       </aside>
     );
@@ -194,7 +201,7 @@ export function BuildMenu({ placementMode, mobile = false }: BuildMenuProps): JS
       </div>
       <div className="mt-3 grid grid-cols-1 gap-y-1 border-t border-slate-500/25 pt-3 text-[11px] text-slate-300">
         <div>Left click: place/select</div>
-        <div>Road tool: click-drag to paint</div>
+        <div>Road, rail, and power tools: click-drag to paint</div>
         <div>Alt + drag: bulldoze brush</div>
         <div>Right click or Esc: cancel</div>
         <div>Wheel: zoom</div>

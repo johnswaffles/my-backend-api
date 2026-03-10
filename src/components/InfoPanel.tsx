@@ -16,7 +16,12 @@ interface InfoPanelProps {
 
 function prettyType(type: Building['type']): string {
   if (type === 'powerPlant') return 'Power Plant';
+  if (type === 'powerLine') return 'Power Line';
+  if (type === 'railLine') return 'Rail Line';
   if (type === 'workshop') return 'Workshop';
+  if (type === 'substation') return 'Substation';
+  if (type === 'trainStation') return 'Train Station';
+  if (type === 'cityHall') return 'City Hall';
   if (type === 'groceryStore') return 'Grocery Store';
   if (type === 'cornerStore') return 'Corner Store';
   if (type === 'policeStation') return 'Police Station';
@@ -26,7 +31,12 @@ function prettyType(type: Building['type']): string {
 
 function iconForType(type: Building['type']): string {
   if (type === 'powerPlant') return 'PW';
+  if (type === 'powerLine') return 'PL';
+  if (type === 'railLine') return 'RL';
   if (type === 'workshop') return 'WK';
+  if (type === 'substation') return 'SS';
+  if (type === 'trainStation') return 'TS';
+  if (type === 'cityHall') return 'CH';
   if (type === 'restaurant') return 'RT';
   if (type === 'shop') return 'SH';
   if (type === 'groceryStore') return 'GR';
@@ -95,10 +105,14 @@ export function InfoPanel({ building, onFocusBuilding }: InfoPanelProps): JSX.El
                 <div className="text-sm text-slate-100">{context.clusterSize}</div>
               </div>
               <div>
-                <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Road / Power</div>
+                <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Transport / Power</div>
                 <div className="text-sm text-slate-100">
-                  {context.roadAccess ? 'Road' : 'No road'} • {context.powerAccess ? 'Powered' : 'No power'}
+                  {context.transportAccess ? 'Connected' : 'No route'} • {context.powerAccess ? 'Powered' : 'No power'}
                 </div>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Status</div>
+                <div className="text-sm text-slate-100">{context.active ? 'Live' : 'Offline'}</div>
               </div>
               <div>
                 <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Support</div>

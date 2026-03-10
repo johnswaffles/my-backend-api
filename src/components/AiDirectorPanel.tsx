@@ -17,12 +17,17 @@ interface CommandResponse {
         action: 'place';
         type:
           | 'road'
+          | 'railLine'
+          | 'powerLine'
           | 'house'
           | 'restaurant'
           | 'shop'
           | 'park'
           | 'workshop'
           | 'powerPlant'
+          | 'substation'
+          | 'trainStation'
+          | 'cityHall'
           | 'groceryStore'
           | 'cornerStore'
           | 'bank'

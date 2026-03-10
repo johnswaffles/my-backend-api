@@ -58,7 +58,7 @@ export class InputController {
 
   private draggingPan = false;
   private dragMoved = false;
-  private paintingRoad = false;
+  private paintingNetwork = false;
   private bulldozingBrush = false;
   private lastBrushCell: { x: number; z: number } | null = null;
 
@@ -656,8 +656,8 @@ export class InputController {
       if (created) {
         this.renderer.playPlacementPulse(created.x, created.z, created.type);
         this.sfx.beep(520, 0.075, 'triangle', 0.03);
-        if (state.placementMode === 'road') {
-          this.paintingRoad = true;
+        if (state.placementMode === 'road' || state.placementMode === 'railLine' || state.placementMode === 'powerLine') {
+          this.paintingNetwork = true;
           this.lastBrushCell = grid;
         }
       } else {
@@ -736,8 +736,8 @@ export class InputController {
     const hit = this.renderer.pickGridCell();
     if (hit) {
       setHoverCell(hit);
-      if (this.paintingRoad) {
-        this.applyRoadBrush(hit);
+      if (this.paintingNetwork) {
+        this.applyNetworkBrush(hit);
       } else if (this.bulldozingBrush) {
         this.applyBulldozeBrush(hit);
       }
@@ -798,7 +798,7 @@ export class InputController {
 
     this.draggingPan = false;
     this.dragMoved = false;
-    this.paintingRoad = false;
+    this.paintingNetwork = false;
     this.bulldozingBrush = false;
     this.lastBrushCell = null;
   };
@@ -879,19 +879,25 @@ export class InputController {
   private readonly onBlur = (): void => {
     this.keySet.clear();
     this.draggingPan = false;
-    this.paintingRoad = false;
+    this.paintingNetwork = false;
     this.bulldozingBrush = false;
     this.lastBrushCell = null;
   };
 
-  private applyRoadBrush(target: { x: number; z: number }): void {
+  private applyNetworkBrush(target: { x: number; z: number }): void {
     if (!this.lastBrushCell) {
       this.lastBrushCell = target;
       return;
     }
 
+    const mode = gameStore.getState().placementMode;
+    if (mode !== 'road' && mode !== 'railLine' && mode !== 'powerLine') {
+      this.lastBrushCell = target;
+      return;
+    }
+
     for (const cell of this.lineCells(this.lastBrushCell, target)) {
-      const created = placeBuildingAt('road', cell.x, cell.z);
+      const created = placeBuildingAt(mode, cell.x, cell.z);
       if (created) {
         this.renderer.playPlacementPulse(created.x, created.z, created.type);
       }

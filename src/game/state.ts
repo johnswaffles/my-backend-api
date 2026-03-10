@@ -1,11 +1,16 @@
 export type BuildType =
   | 'road'
+  | 'railLine'
+  | 'powerLine'
   | 'house'
   | 'restaurant'
   | 'shop'
   | 'park'
   | 'workshop'
   | 'powerPlant'
+  | 'substation'
+  | 'trainStation'
+  | 'cityHall'
   | 'groceryStore'
   | 'cornerStore'
   | 'bank'
@@ -119,12 +124,17 @@ export const CUSTOMIZABLE_BUILD_TYPES: BuildType[] = [
 
 export const BUILDING_FOOTPRINTS: Record<BuildType, BuildingFootprint> = {
   road: { width: 1, depth: 1 },
+  railLine: { width: 1, depth: 1 },
+  powerLine: { width: 1, depth: 1 },
   house: { width: 1, depth: 1 },
   restaurant: { width: 1, depth: 1 },
   shop: { width: 1, depth: 1 },
   park: { width: 1, depth: 1 },
   workshop: { width: 1, depth: 1 },
   powerPlant: { width: 2, depth: 2 },
+  substation: { width: 1, depth: 1 },
+  trainStation: { width: 1, depth: 1 },
+  cityHall: { width: 1, depth: 1 },
   groceryStore: { width: 1, depth: 1 },
   cornerStore: { width: 1, depth: 1 },
   bank: { width: 1, depth: 1 },

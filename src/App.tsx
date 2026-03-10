@@ -94,9 +94,9 @@ export default function App(): JSX.Element {
     };
     state.buildings.forEach((building) => {
       if (building.type === 'house') byType.homes += 1;
-      else if (['shop', 'restaurant', 'groceryStore', 'cornerStore', 'bank'].includes(building.type)) byType.stores += 1;
-      else if (['hospital', 'policeStation', 'fireStation', 'park'].includes(building.type)) byType.civic += 1;
-      else if (['workshop', 'powerPlant'].includes(building.type)) byType.utility += 1;
+      else if (['shop', 'restaurant', 'groceryStore', 'cornerStore', 'bank', 'trainStation'].includes(building.type)) byType.stores += 1;
+      else if (['hospital', 'policeStation', 'fireStation', 'park', 'cityHall'].includes(building.type)) byType.civic += 1;
+      else if (['workshop', 'powerPlant', 'substation', 'road', 'railLine', 'powerLine'].includes(building.type)) byType.utility += 1;
     });
     return byType;
   }, [state.buildings]);

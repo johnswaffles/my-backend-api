@@ -375,7 +375,7 @@ export function TopBar({
         />
         <Stat
           label="Town Needs"
-          value={`Leisure ${demand.recreation} • Roads ${demand.roads} • Power ${demand.power}`}
+          value={`Leisure ${demand.recreation} • Transport ${demand.roads} • Power ${demand.power}`}
           valueClassName="text-sm leading-tight"
         />
       </div>

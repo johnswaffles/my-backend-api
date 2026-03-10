@@ -129,8 +129,10 @@ export class GameRenderer {
   private readonly fill = new THREE.DirectionalLight(0xa6e1ff, 0.52);
 
   private readonly ambientCars = Array.from({ length: 6 }, () => new THREE.Group());
+  private readonly ambientTrains = Array.from({ length: 3 }, () => new THREE.Group());
   private readonly ambientPedestrians = Array.from({ length: 10 }, () => new THREE.Group());
   private roadRuns: RoadRun[] = [];
+  private railRuns: RoadRun[] = [];
 
   private readonly houseAnimations = new Map<
     number,
@@ -570,6 +572,40 @@ export class GameRenderer {
       this.ambientRoot.add(group);
     });
 
+    this.ambientTrains.forEach((group, index) => {
+      const bodyMat = new THREE.MeshStandardMaterial({
+        color: index % 2 === 0 ? 0x5f7fa0 : 0xa05f5f,
+        roughness: 0.74,
+        metalness: 0.14
+      });
+      const engine = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.16, 0.62), bodyMat);
+      engine.position.y = 0.12;
+      engine.castShadow = true;
+      engine.receiveShadow = true;
+      const cabin = new THREE.Mesh(
+        new THREE.BoxGeometry(0.18, 0.12, 0.2),
+        new THREE.MeshStandardMaterial({ color: 0xdfe8ef, roughness: 0.42, metalness: 0.08 })
+      );
+      cabin.position.set(0, 0.22, -0.1);
+      cabin.castShadow = true;
+      cabin.receiveShadow = true;
+      const carA = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.14, 0.46), bodyMat.clone());
+      carA.position.set(0, 0.11, 0.62);
+      carA.castShadow = true;
+      carA.receiveShadow = true;
+      const carB = carA.clone();
+      carB.position.z = 1.12;
+      group.add(engine, cabin, carA, carB);
+      group.userData.motion = {
+        progress: index * 1.8,
+        speed: 0.72 + index * 0.05,
+        direction: index % 2 === 0 ? 1 : -1,
+        lane: 0
+      } as AmbientCarState;
+      group.visible = false;
+      this.ambientRoot.add(group);
+    });
+
     this.ambientPedestrians.forEach((group, index) => {
       const body = new THREE.Mesh(
         new THREE.CapsuleGeometry(0.03, 0.08, 4, 8),
@@ -615,9 +651,37 @@ export class GameRenderer {
       group.visible = true;
     });
 
+    this.ambientTrains.forEach((group, index) => {
+      const preferredAxis: 'x' | 'z' = index % 2 === 0 ? 'x' : 'z';
+      const runs = this.railRuns.filter((run) => run.axis === preferredAxis && run.end - run.start >= 3);
+      const run = runs[index % Math.max(1, runs.length)];
+      if (!run) {
+        group.visible = false;
+        return;
+      }
+
+      const motion = group.userData.motion as AmbientCarState;
+      motion.progress = (motion.progress + dtSeconds * motion.speed) % (run.end - run.start + 4.2);
+      const startWorld =
+        run.axis === 'x'
+          ? this.gridToWorld(run.start, run.fixed, state.gridSize)
+          : this.gridToWorld(run.fixed, run.start, state.gridSize);
+      const span = run.end - run.start + 1;
+      const along = motion.direction === 1 ? motion.progress : span + 2.6 - motion.progress;
+
+      if (run.axis === 'x') {
+        group.position.set(startWorld.x - 0.45 + along, 0.03, startWorld.z);
+        group.rotation.y = motion.direction === 1 ? Math.PI / 2 : -Math.PI / 2;
+      } else {
+        group.position.set(startWorld.x, 0.03, startWorld.z - 0.45 + along);
+        group.rotation.y = motion.direction === 1 ? 0 : Math.PI;
+      }
+      group.visible = true;
+    });
+
     const frontageBuildings = state.buildings.filter(
       (building) =>
-        building.type !== 'road' &&
+        !['road', 'railLine', 'powerLine'].includes(building.type) &&
         building.type !== 'park' &&
         this.roadFrontage(building).n + this.roadFrontage(building).e + this.roadFrontage(building).s + this.roadFrontage(building).w > 0
     );
@@ -718,7 +782,7 @@ export class GameRenderer {
   }
 
   private addLateTierEnhancements(object: THREE.Object3D, building: Building): void {
-    if (building.type === 'road' || building.level < 6) return;
+    if (building.type === 'road' || building.type === 'railLine' || building.type === 'powerLine' || building.level < 6) return;
 
     object.updateMatrixWorld(true);
     const bbox = new THREE.Box3().setFromObject(object);
@@ -1111,6 +1175,7 @@ export class GameRenderer {
     }
 
     this.roadRuns = this.buildRoadRuns();
+    this.railRuns = this.buildRailRuns();
   }
 
   private buildRoadRuns(): RoadRun[] {
@@ -1135,6 +1200,32 @@ export class GameRenderer {
         if (end > road.z) {
           runs.push({ axis: 'z', fixed: road.x, start: road.z, end });
         }
+      }
+    }
+
+    return runs;
+  }
+
+  private buildRailRuns(): RoadRun[] {
+    const rails = gameStore
+      .getState()
+      .buildings.filter((building) => building.type === 'railLine' || building.type === 'trainStation');
+    const railSet = new Set(rails.map((rail) => `${rail.x}:${rail.z}`));
+    const runs: RoadRun[] = [];
+
+    for (const rail of rails) {
+      const westKey = `${rail.x - 1}:${rail.z}`;
+      if (!railSet.has(westKey) && railSet.has(`${rail.x + 1}:${rail.z}`)) {
+        let end = rail.x;
+        while (railSet.has(`${end + 1}:${rail.z}`)) end += 1;
+        if (end > rail.x) runs.push({ axis: 'x', fixed: rail.z, start: rail.x, end });
+      }
+
+      const northKey = `${rail.x}:${rail.z - 1}`;
+      if (!railSet.has(northKey) && railSet.has(`${rail.x}:${rail.z + 1}`)) {
+        let end = rail.z;
+        while (railSet.has(`${rail.x}:${end + 1}`)) end += 1;
+        if (end > rail.z) runs.push({ axis: 'z', fixed: rail.x, start: rail.z, end });
       }
     }
 
@@ -1198,13 +1289,17 @@ export class GameRenderer {
     const sides = { n: 0, e: 0, s: 0, w: 0 };
 
     for (const cell of cells) {
-      if (this.buildingByCell.get(`${cell.x}:${cell.z - 1}`)?.type === 'road') sides.n += 1;
-      if (this.buildingByCell.get(`${cell.x + 1}:${cell.z}`)?.type === 'road') sides.e += 1;
-      if (this.buildingByCell.get(`${cell.x}:${cell.z + 1}`)?.type === 'road') sides.s += 1;
-      if (this.buildingByCell.get(`${cell.x - 1}:${cell.z}`)?.type === 'road') sides.w += 1;
+      if (this.isTransportFrontageType(this.buildingByCell.get(`${cell.x}:${cell.z - 1}`)?.type)) sides.n += 1;
+      if (this.isTransportFrontageType(this.buildingByCell.get(`${cell.x + 1}:${cell.z}`)?.type)) sides.e += 1;
+      if (this.isTransportFrontageType(this.buildingByCell.get(`${cell.x}:${cell.z + 1}`)?.type)) sides.s += 1;
+      if (this.isTransportFrontageType(this.buildingByCell.get(`${cell.x - 1}:${cell.z}`)?.type)) sides.w += 1;
     }
 
     return sides;
+  }
+
+  private isTransportFrontageType(type?: BuildType): boolean {
+    return type === 'road' || type === 'railLine' || type === 'trainStation';
   }
 
   private connectedSides(
@@ -1443,7 +1538,39 @@ export class GameRenderer {
     return 'none';
   }
 
+  private railConnections(building: Building): { n: boolean; e: boolean; s: boolean; w: boolean } {
+    const matchesRail = (type?: BuildType) => type === 'railLine' || type === 'trainStation';
+    return {
+      n: matchesRail(this.buildingByCell.get(`${building.x}:${building.z - 1}`)?.type),
+      e: matchesRail(this.buildingByCell.get(`${building.x + 1}:${building.z}`)?.type),
+      s: matchesRail(this.buildingByCell.get(`${building.x}:${building.z + 1}`)?.type),
+      w: matchesRail(this.buildingByCell.get(`${building.x - 1}:${building.z}`)?.type)
+    };
+  }
+
+  private powerConnections(building: Building): { n: boolean; e: boolean; s: boolean; w: boolean } {
+    const matchesPower = (type?: BuildType) =>
+      type === 'powerLine' ||
+      type === 'powerPlant' ||
+      type === 'substation' ||
+      (type !== undefined && !['road', 'railLine', 'park'].includes(type));
+    return {
+      n: matchesPower(this.buildingByCell.get(`${building.x}:${building.z - 1}`)?.type),
+      e: matchesPower(this.buildingByCell.get(`${building.x + 1}:${building.z}`)?.type),
+      s: matchesPower(this.buildingByCell.get(`${building.x}:${building.z + 1}`)?.type),
+      w: matchesPower(this.buildingByCell.get(`${building.x - 1}:${building.z}`)?.type)
+    };
+  }
+
   private renderSignatureForBuilding(building: Building): string {
+    if (building.type === 'railLine' || building.type === 'trainStation') {
+      const rail = this.railConnections(building);
+      return [building.type, Number(rail.n), Number(rail.e), Number(rail.s), Number(rail.w), building.level].join(':');
+    }
+    if (building.type === 'powerLine' || building.type === 'substation') {
+      const power = this.powerConnections(building);
+      return [building.type, Number(power.n), Number(power.e), Number(power.s), Number(power.w), building.level].join(':');
+    }
     const sameTypeSides = this.connectedSides(building, (candidate) => candidate.type === building.type);
     const sameTypeCluster = this.connectedCluster(building, (candidate) => candidate.type === building.type);
     const commercialSides = this.connectedSides(building, (candidate) =>
@@ -1504,7 +1631,7 @@ export class GameRenderer {
   }
 
   private computeBuildingPlacement(building: Building): BuildingPlacement {
-    if (building.type === 'road' || building.type === 'park') {
+    if (building.type === 'road' || building.type === 'railLine' || building.type === 'powerLine' || building.type === 'park') {
       return { offsetX: 0, offsetZ: 0, rotationY: 0 };
     }
 
@@ -1537,6 +1664,7 @@ export class GameRenderer {
     return (
       type === 'shop' ||
       type === 'restaurant' ||
+      type === 'trainStation' ||
       type === 'groceryStore' ||
       type === 'cornerStore' ||
       type === 'bank'
@@ -1544,7 +1672,7 @@ export class GameRenderer {
   }
 
   private isCivicBuilding(type: BuildType): boolean {
-    return type === 'hospital' || type === 'policeStation' || type === 'fireStation';
+    return type === 'hospital' || type === 'policeStation' || type === 'fireStation' || type === 'cityHall';
   }
 
   private placementForFacing(
@@ -2108,6 +2236,103 @@ export class GameRenderer {
       return group;
     }
 
+    if (building.type === 'railLine') {
+      const group = new THREE.Group();
+      const rail = this.railConnections(building);
+      const bedMat = new THREE.MeshStandardMaterial({ color: 0x8f938f, roughness: 0.96, metalness: 0.01 });
+      const sleeperMat = new THREE.MeshStandardMaterial({ color: 0x6c5846, roughness: 0.9, metalness: 0.02 });
+      const railMat = new THREE.MeshStandardMaterial({ color: 0xaeb8c0, roughness: 0.54, metalness: 0.42 });
+
+      const bed = new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.05, 1.02), bedMat);
+      bed.position.y = 0.02;
+      bed.receiveShadow = true;
+      bed.userData.buildingId = building.id;
+      group.add(bed);
+
+      const addRailSegment = (rotationY = 0) => {
+        const segment = new THREE.Group();
+        const sleeperGeom = new THREE.BoxGeometry(0.64, 0.03, 0.08);
+        for (let i = -3; i <= 3; i += 1) {
+          const sleeper = new THREE.Mesh(sleeperGeom, sleeperMat);
+          sleeper.position.set(0, 0.045, i * 0.14);
+          sleeper.castShadow = true;
+          sleeper.receiveShadow = true;
+          sleeper.userData.buildingId = building.id;
+          segment.add(sleeper);
+        }
+        [-0.12, 0.12].forEach((x) => {
+          const line = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.03, 1.06), railMat);
+          line.position.set(x, 0.07, 0);
+          line.castShadow = true;
+          line.receiveShadow = true;
+          line.userData.buildingId = building.id;
+          segment.add(line);
+        });
+        segment.rotation.y = rotationY;
+        group.add(segment);
+      };
+
+      if (rail.e || rail.w || (!rail.n && !rail.s)) addRailSegment(Math.PI / 2);
+      if (rail.n || rail.s) addRailSegment(0);
+      return group;
+    }
+
+    if (building.type === 'powerLine') {
+      const group = new THREE.Group();
+      const power = this.powerConnections(building);
+      const base = new THREE.Mesh(
+        new THREE.BoxGeometry(0.44, 0.03, 0.44),
+        new THREE.MeshStandardMaterial({ color: 0xc2c5c9, roughness: 0.94, metalness: 0.01 })
+      );
+      base.position.y = 0.015;
+      base.userData.buildingId = building.id;
+      base.receiveShadow = true;
+      group.add(base);
+
+      const poleMat = new THREE.MeshStandardMaterial({ color: 0x8a684a, roughness: 0.88, metalness: 0.03 });
+      const wireMat = new THREE.MeshStandardMaterial({
+        color: 0xa9cfff,
+        roughness: 0.42,
+        metalness: 0.26,
+        emissive: 0x38bdf8,
+        emissiveIntensity: 0.09
+      });
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.032, 0.7, 10), poleMat);
+      pole.position.y = 0.36;
+      pole.castShadow = true;
+      pole.receiveShadow = true;
+      pole.userData.buildingId = building.id;
+      group.add(pole);
+      const crossarm = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.03, 0.03), poleMat);
+      crossarm.position.set(0, 0.58, 0);
+      crossarm.castShadow = true;
+      crossarm.receiveShadow = true;
+      crossarm.userData.buildingId = building.id;
+      group.add(crossarm);
+
+      const addWire = (x: number, z: number, width: number, depth: number) => {
+        const wire = new THREE.Mesh(new THREE.BoxGeometry(width, 0.02, depth), wireMat);
+        wire.position.set(x, 0.58, z);
+        wire.userData.buildingId = building.id;
+        wire.castShadow = true;
+        wire.receiveShadow = true;
+        group.add(wire);
+      };
+      if (power.n) addWire(0, -0.28, 0.03, 0.56);
+      if (power.s) addWire(0, 0.28, 0.03, 0.56);
+      if (power.e) addWire(0.28, 0, 0.56, 0.03);
+      if (power.w) addWire(-0.28, 0, 0.56, 0.03);
+      if ((power.n || power.s) && (power.e || power.w)) {
+        const node = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.08), wireMat.clone());
+        node.position.set(0, 0.58, 0);
+        node.userData.buildingId = building.id;
+        node.castShadow = true;
+        node.receiveShadow = true;
+        group.add(node);
+      }
+      return group;
+    }
+
     if (building.type === 'park') {
       const sameTypeCluster = this.connectedCluster(building, (candidate) => candidate.type === 'park');
       if (this.mergeModeForBuilding(building, sameTypeCluster) === 'parkSquare') {
@@ -2122,6 +2347,115 @@ export class GameRenderer {
         }
         return this.createClusterSupportLot(building, 0x89b876, 0xe5e1db);
       }
+    }
+
+    if (building.type === 'substation') {
+      const group = new THREE.Group();
+      const padMat = new THREE.MeshStandardMaterial({ color: 0xc9cbce, roughness: 0.94, metalness: 0.01 });
+      const steelMat = new THREE.MeshStandardMaterial({ color: 0x9aa8b4, roughness: 0.56, metalness: 0.3 });
+      const glowMat = new THREE.MeshStandardMaterial({
+        color: 0xe7f7ff,
+        roughness: 0.26,
+        metalness: 0.12,
+        emissive: 0x38bdf8,
+        emissiveIntensity: 0.16
+      });
+      const pad = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.04, 0.9), padMat);
+      pad.position.y = 0.02;
+      pad.receiveShadow = true;
+      pad.userData.buildingId = building.id;
+      group.add(pad);
+      const yard = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.02, 0.74), new THREE.MeshStandardMaterial({ color: 0xb4b7bb, roughness: 0.96, metalness: 0.02 }));
+      yard.position.y = 0.04;
+      yard.userData.buildingId = building.id;
+      group.add(yard);
+      [-0.2, 0.2].forEach((x) => {
+        [-0.2, 0.2].forEach((z) => {
+          const tower = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.42, 0.08), steelMat);
+          tower.position.set(x, 0.25, z);
+          tower.userData.buildingId = building.id;
+          tower.castShadow = true;
+          tower.receiveShadow = true;
+          group.add(tower);
+        });
+      });
+      const transformer = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.22, 0.22), glowMat);
+      transformer.position.set(0, 0.16, 0);
+      transformer.userData.buildingId = building.id;
+      transformer.castShadow = true;
+      transformer.receiveShadow = true;
+      group.add(transformer);
+      return group;
+    }
+
+    if (building.type === 'trainStation') {
+      const group = new THREE.Group();
+      const baseMat = new THREE.MeshStandardMaterial({ color: 0xd7d1c5, roughness: 0.9, metalness: 0.02 });
+      const roofMat = new THREE.MeshStandardMaterial({ color: 0x5f7386, roughness: 0.76, metalness: 0.08 });
+      const glassMat = new THREE.MeshStandardMaterial({ color: 0xb4d8ec, roughness: 0.34, metalness: 0.06 });
+      const glowMat = new THREE.MeshStandardMaterial({ color: 0xe6fbff, roughness: 0.2, metalness: 0.12, emissive: 0x67e8f9, emissiveIntensity: 0.12 });
+      const base = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.12, 0.82), baseMat);
+      base.position.y = 0.06;
+      base.castShadow = true;
+      base.receiveShadow = true;
+      base.userData.buildingId = building.id;
+      const hall = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.36, 0.48), glassMat);
+      hall.position.set(0, 0.24, 0);
+      hall.castShadow = true;
+      hall.receiveShadow = true;
+      hall.userData.buildingId = building.id;
+      const roof = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.08, 0.56), roofMat);
+      roof.position.set(0, 0.46, 0);
+      roof.castShadow = true;
+      roof.receiveShadow = true;
+      roof.userData.buildingId = building.id;
+      const canopy = new THREE.Mesh(new THREE.BoxGeometry(1.08, 0.04, 0.18), roofMat.clone());
+      canopy.position.set(0, 0.22, 0.28);
+      canopy.userData.buildingId = building.id;
+      canopy.castShadow = true;
+      canopy.receiveShadow = true;
+      const sign = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.1, 0.04), glowMat);
+      sign.position.set(0, 0.48, 0.3);
+      sign.userData.buildingId = building.id;
+      sign.castShadow = true;
+      sign.receiveShadow = true;
+      group.add(base, hall, roof, canopy, sign);
+      return group;
+    }
+
+    if (building.type === 'cityHall') {
+      const group = new THREE.Group();
+      const wallMat = new THREE.MeshStandardMaterial({ color: 0xd9c4a5, roughness: 0.84, metalness: 0.03 });
+      const roofMat = new THREE.MeshStandardMaterial({ color: 0x5d6f86, roughness: 0.74, metalness: 0.08 });
+      const accentMat = new THREE.MeshStandardMaterial({ color: 0xf1e7d3, roughness: 0.58, metalness: 0.05 });
+      const glowMat = new THREE.MeshStandardMaterial({ color: 0xfef7d7, roughness: 0.22, metalness: 0.08, emissive: 0xfacc15, emissiveIntensity: 0.12 });
+      const base = new THREE.Mesh(new THREE.BoxGeometry(0.94, 0.14, 0.9), wallMat);
+      base.position.y = 0.07;
+      base.userData.buildingId = building.id;
+      base.castShadow = true;
+      base.receiveShadow = true;
+      const main = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.42, 0.58), wallMat.clone());
+      main.position.set(0, 0.35, 0);
+      main.userData.buildingId = building.id;
+      main.castShadow = true;
+      main.receiveShadow = true;
+      const tower = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.62, 0.24), accentMat);
+      tower.position.set(0, 0.56, -0.04);
+      tower.userData.buildingId = building.id;
+      tower.castShadow = true;
+      tower.receiveShadow = true;
+      const roof = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.08, 0.68), roofMat);
+      roof.position.set(0, 0.6, 0);
+      roof.userData.buildingId = building.id;
+      roof.castShadow = true;
+      roof.receiveShadow = true;
+      const beacon = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.08, 12), glowMat);
+      beacon.position.set(0, 0.94, -0.04);
+      beacon.userData.buildingId = building.id;
+      beacon.castShadow = true;
+      beacon.receiveShadow = true;
+      group.add(base, main, tower, roof, beacon);
+      return group;
     }
 
     if (this.shouldUseIllustratedAsset(building.type)) {
@@ -5940,10 +6274,13 @@ export class GameRenderer {
 
   private geometryForType(type: BuildType): THREE.BufferGeometry {
     if (type === 'road') return new THREE.BoxGeometry(0.92, 0.06, 0.92);
+    if (type === 'railLine') return new THREE.BoxGeometry(0.96, 0.08, 0.96);
+    if (type === 'powerLine') return new THREE.BoxGeometry(0.42, 0.78, 0.42);
     if (type === 'house') return new THREE.BoxGeometry(0.72, 0.88, 0.72);
     if (
       type === 'shop' ||
       type === 'restaurant' ||
+      type === 'trainStation' ||
       type === 'groceryStore' ||
       type === 'cornerStore' ||
       type === 'bank'
@@ -5953,16 +6290,21 @@ export class GameRenderer {
     if (type === 'park') return new THREE.BoxGeometry(0.92, 0.36, 0.92);
     if (type === 'workshop') return new THREE.BoxGeometry(1.05, 0.95, 0.86);
     if (type === 'hospital') return new THREE.BoxGeometry(1.92, 0.95, 1.92);
-    if (type === 'policeStation' || type === 'fireStation') return new THREE.BoxGeometry(0.98, 0.9, 0.98);
+    if (type === 'policeStation' || type === 'fireStation' || type === 'cityHall' || type === 'substation') {
+      return new THREE.BoxGeometry(0.98, 0.9, 0.98);
+    }
     return new THREE.BoxGeometry(1.92, 1.5, 1.92);
   }
 
   private baseHeightForType(type: BuildType): number {
     if (type === 'road') return 0.03;
+    if (type === 'railLine') return 0.04;
+    if (type === 'powerLine') return 0.39;
     if (type === 'house') return 0.44;
     if (
       type === 'shop' ||
       type === 'restaurant' ||
+      type === 'trainStation' ||
       type === 'groceryStore' ||
       type === 'cornerStore' ||
       type === 'bank'
@@ -5972,7 +6314,7 @@ export class GameRenderer {
     if (type === 'park') return 0.18;
     if (type === 'workshop') return 0.48;
     if (type === 'hospital') return 0.48;
-    if (type === 'policeStation' || type === 'fireStation') return 0.44;
+    if (type === 'policeStation' || type === 'fireStation' || type === 'substation' || type === 'cityHall') return 0.44;
     return 0.76;
   }
 
@@ -10902,7 +11244,7 @@ export class GameRenderer {
     const roadDistance = (x: number, z: number) => {
       for (let dz = -1; dz <= 1; dz += 1) {
         for (let dx = -1; dx <= 1; dx += 1) {
-          if (this.buildingByCell.get(`${x + dx}:${z + dz}`)?.type === 'road') return true;
+          if (this.isTransportFrontageType(this.buildingByCell.get(`${x + dx}:${z + dz}`)?.type)) return true;
         }
       }
       return false;
@@ -10917,15 +11259,15 @@ export class GameRenderer {
       ] as const;
       coords.forEach(([cx, cz]) => {
         const building = this.buildingByCell.get(`${cx}:${cz}`);
-        if (building && building.type !== 'road') found.set(building.id, building);
+        if (building && !['road', 'railLine', 'powerLine'].includes(building.type)) found.set(building.id, building);
       });
       return [...found.values()];
     };
     const roadSides = (x: number, z: number) => ({
-      n: this.buildingByCell.get(`${x}:${z - 1}`)?.type === 'road',
-      e: this.buildingByCell.get(`${x + 1}:${z}`)?.type === 'road',
-      s: this.buildingByCell.get(`${x}:${z + 1}`)?.type === 'road',
-      w: this.buildingByCell.get(`${x - 1}:${z}`)?.type === 'road'
+      n: this.isTransportFrontageType(this.buildingByCell.get(`${x}:${z - 1}`)?.type),
+      e: this.isTransportFrontageType(this.buildingByCell.get(`${x + 1}:${z}`)?.type),
+      s: this.isTransportFrontageType(this.buildingByCell.get(`${x}:${z + 1}`)?.type),
+      w: this.isTransportFrontageType(this.buildingByCell.get(`${x - 1}:${z}`)?.type)
     });
     const addStreetTree = (wx: number, wz: number, scale = 1) => {
       const trunk = new THREE.Mesh(treeTrunk, trunkMat);
