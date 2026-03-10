@@ -15,6 +15,7 @@ import {
   upgradeBuildingById
 } from './game/actions';
 import { InputController } from './game/input';
+import { CitySoundtrack } from './game/music';
 import { GameRenderer } from './game/render';
 import { gameStore } from './game/state';
 
@@ -38,6 +39,7 @@ export default function App(): JSX.Element {
   const mountRef = useRef<HTMLDivElement | null>(null);
   const appRef = useRef<HTMLDivElement | null>(null);
   const rendererRef = useRef<GameRenderer | null>(null);
+  const musicRef = useRef<CitySoundtrack | null>(null);
   const previousSelectedIdRef = useRef<number | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -45,6 +47,7 @@ export default function App(): JSX.Element {
   const [mobileSheetMode, setMobileSheetMode] = useState<MobileSheetMode>('half');
   const [mobileHudExpanded, setMobileHudExpanded] = useState(true);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [musicEnabled, setMusicEnabled] = useState(true);
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -58,6 +61,26 @@ export default function App(): JSX.Element {
       rendererRef.current = null;
       input.dispose();
       renderer.dispose();
+    };
+  }, []);
+
+  useEffect(() => {
+    const music = new CitySoundtrack();
+    musicRef.current = music;
+    setMusicEnabled(music.isEnabled());
+
+    const unlockMusic = () => {
+      void music.unlock();
+    };
+
+    window.addEventListener('pointerdown', unlockMusic, { passive: true, once: true });
+    window.addEventListener('keydown', unlockMusic, { once: true });
+
+    return () => {
+      musicRef.current = null;
+      window.removeEventListener('pointerdown', unlockMusic);
+      window.removeEventListener('keydown', unlockMusic);
+      music.dispose();
     };
   }, []);
 
@@ -147,6 +170,13 @@ export default function App(): JSX.Element {
     rendererRef.current?.focusOnCell(center, center, 0.34, 'road');
   };
 
+  const toggleMusic = (): void => {
+    const music = musicRef.current;
+    if (!music) return;
+    const next = music.toggle();
+    setMusicEnabled(next);
+  };
+
   const mobileSheetHeightClass =
     mobileSheetMode === 'peek' ? 'max-h-[28vh]' : mobileSheetMode === 'half' ? 'max-h-[50vh]' : 'max-h-[76vh]';
 
@@ -172,9 +202,11 @@ export default function App(): JSX.Element {
         demand={state.demand}
         aiAutoplayEnabled={state.aiAutoplayEnabled}
         aiLastAction={state.aiLastAction}
+        musicEnabled={musicEnabled}
         isFullscreen={isFullscreen}
         mobile={isMobile}
         onOpenHelp={() => setHelpOpen(true)}
+        onToggleMusic={toggleMusic}
         onToggleMobileHud={() => setMobileHudExpanded((value) => !value)}
         mobileHudExpanded={mobileHudExpanded}
         onFocusHome={focusTownCenter}

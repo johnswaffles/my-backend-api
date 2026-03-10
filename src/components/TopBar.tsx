@@ -39,9 +39,11 @@ interface TopBarProps {
   };
   aiAutoplayEnabled: boolean;
   aiLastAction: string;
+  musicEnabled: boolean;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
   onOpenHelp: () => void;
+  onToggleMusic: () => void;
   onToggleMobileHud?: () => void;
   mobileHudExpanded?: boolean;
   onFocusHome?: () => void;
@@ -97,9 +99,11 @@ export function TopBar({
   demand,
   aiAutoplayEnabled,
   aiLastAction,
+  musicEnabled,
   isFullscreen,
   onToggleFullscreen,
   onOpenHelp,
+  onToggleMusic,
   onToggleMobileHud,
   mobileHudExpanded = true,
   onFocusHome,
@@ -134,6 +138,17 @@ export function TopBar({
                 className="rounded-xl border border-amber-300/60 bg-amber-400/20 px-3 py-2 text-xs font-medium text-amber-100"
               >
                 {speedLabel}
+              </button>
+              <button
+                type="button"
+                onClick={onToggleMusic}
+                className={`rounded-xl border px-3 py-2 text-xs font-medium ${
+                  musicEnabled
+                    ? 'border-fuchsia-300/70 bg-fuchsia-400/18 text-fuchsia-100'
+                    : 'border-slate-300/40 bg-slate-800/45 text-slate-100'
+                }`}
+              >
+                {musicEnabled ? 'Music On' : 'Music Off'}
               </button>
               <button
                 type="button"
@@ -275,6 +290,17 @@ export function TopBar({
               className="rounded-xl border border-amber-300/60 bg-amber-400/20 px-3 py-2 text-sm font-medium text-amber-100 transition hover:bg-amber-400/30"
             >
               Speed: {speedLabel}
+            </button>
+            <button
+              type="button"
+              onClick={onToggleMusic}
+              className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                musicEnabled
+                  ? 'border-fuchsia-300/70 bg-fuchsia-400/18 text-fuchsia-100 hover:bg-fuchsia-400/28'
+                  : 'border-slate-300/50 bg-slate-700/35 text-slate-100 hover:border-fuchsia-300/60 hover:bg-slate-700/55'
+              }`}
+            >
+              {musicEnabled ? 'Music: ON' : 'Music: OFF'}
             </button>
             <button
               type="button"
