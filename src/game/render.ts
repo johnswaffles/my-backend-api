@@ -783,6 +783,7 @@ export class GameRenderer {
 
   private addLateTierEnhancements(object: THREE.Object3D, building: Building): void {
     if (building.type === 'road' || building.type === 'railLine' || building.type === 'powerLine' || building.level < 6) return;
+    if (building.type === 'house' && this.mergeModeForBuilding(building) === 'apartmentBlock') return;
 
     object.updateMatrixWorld(true);
     const bbox = new THREE.Box3().setFromObject(object);
@@ -7999,6 +8000,60 @@ export class GameRenderer {
     amenityGlow.position.set(offset.x - width * 0.34, 0.34, offset.z + depth * 0.28);
     amenityGlow.visible = superblockMode && level >= 4;
 
+    const civicLobby = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(podiumWidth * 0.32, 0.2, podiumDepth * 0.12),
+        meshMat(0xe7f3fb, 0.28, 0.06, 0x7dd3fc, 0.08)
+      )
+    );
+    civicLobby.position.set(offset.x, 0.2, offset.z + podiumDepth * 0.44);
+    civicLobby.visible = level >= 6;
+
+    const upperSetback = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(podiumWidth * 0.48, 0.42, podiumDepth * 0.24),
+        meshMat(wallPalette[(variant + 1) % 6], 0.72, 0.03)
+      )
+    );
+    upperSetback.position.set(offset.x, podiumRoof.position.y + 0.24, offset.z - depth * 0.04);
+    upperSetback.visible = level >= 6;
+
+    const skyLounge = addGlowMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(width * 0.2, 0.16, depth * 0.12),
+        meshMat(0xe8f8ff, 0.2, 0.08, windowGlowPalette[(variant + 2) % 6], 0.16)
+      )
+    );
+    skyLounge.position.set(offset.x + width * 0.02, towerBaseY + primaryTowerHeight * 0.78, offset.z + depth * 0.08);
+    skyLounge.visible = level >= 7;
+
+    const sideWing = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(width * 0.18, 1.26, depth * 0.16),
+        meshMat(wallPalette[(variant + 4) % 6], 0.72, 0.04)
+      )
+    );
+    sideWing.position.set(offset.x + width * 0.26, 0.92, offset.z + depth * 0.12);
+    sideWing.visible = level >= 8;
+
+    const crownFrame = addMesh(
+      new THREE.Mesh(
+        new THREE.BoxGeometry(width * 0.22, 0.1, depth * 0.22),
+        meshMat(trimPalette[(variant + 2) % 6], 0.62, 0.04)
+      )
+    );
+    crownFrame.position.set(offset.x, towerBaseY + primaryTowerHeight + 0.18, offset.z);
+    crownFrame.visible = level >= 9;
+
+    const lanternSpire = addGlowMesh(
+      new THREE.Mesh(
+        new THREE.CylinderGeometry(width * 0.035, width * 0.05, 0.44, 12),
+        meshMat(0xf6fbff, 0.2, 0.08, windowGlowPalette[(variant + 3) % 6], 0.2)
+      )
+    );
+    lanternSpire.position.set(offset.x, towerBaseY + primaryTowerHeight + 0.38, offset.z);
+    lanternSpire.visible = level >= 10;
+
     const lampLeft = this.createStreetLamp(offset.x - width * 0.26, 0.055, offset.z + depth * 0.26, building.id, 0xffefbf);
     const lampRight = this.createStreetLamp(offset.x + width * 0.26, 0.055, offset.z + depth * 0.26, building.id, 0xffefbf);
     const planterLeft = this.createPlanterBox(0x8d6846, 0x78a06c, offset.x - width * 0.22, 0.05, offset.z + depth * 0.24, building.id, 0.18, 0.14);
@@ -8032,6 +8087,11 @@ export class GameRenderer {
           observationDeck,
           verticalGarden,
           amenityGlow,
+          civicLobby,
+          upperSetback,
+          skyLounge,
+          crownFrame,
+          lanternSpire,
           crownHalo,
           ...glowMeshes
         ].filter((mesh): mesh is THREE.Mesh => Boolean(mesh && mesh.visible)),
@@ -11522,7 +11582,7 @@ export class GameRenderer {
               if (topTier >= 4 && ((sides.e && sides.w) || (sides.n && sides.s)) && noise === 2) {
                 addGatewayArch(world.x, world.z, sides.e && sides.w ? 0 : Math.PI / 2, 0xa78bfa);
               }
-            } else if (nearResidential && (noise === 4 || noise === 5)) {
+            } else if (nearResidential && noise === 4) {
               const driveway = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.014, 0.74), pavingMat.clone());
               driveway.position.set(world.x, 0.045, world.z);
               driveway.receiveShadow = true;
@@ -11548,47 +11608,31 @@ export class GameRenderer {
               this.decorRoot.add(mailboxPost, mailbox);
               if (topTier >= 4) {
                 const pocketGreen = new THREE.Mesh(
-                  new THREE.BoxGeometry(0.42, 0.02, 0.22),
+                  new THREE.BoxGeometry(0.34, 0.02, 0.2),
                   new THREE.MeshStandardMaterial({ color: 0x7faa74, roughness: 0.96, metalness: 0.01 })
                 );
                 pocketGreen.position.set(world.x, 0.055, world.z);
                 pocketGreen.receiveShadow = true;
                 this.decorRoot.add(pocketGreen);
-
-                const pergola = new THREE.Mesh(
-                  new THREE.BoxGeometry(0.22, 0.12, 0.12),
-                  new THREE.MeshStandardMaterial({ color: 0x9b7c5d, roughness: 0.82, metalness: 0.02 })
+                const walkPad = new THREE.Mesh(
+                  new THREE.BoxGeometry(0.22, 0.02, 0.12),
+                  new THREE.MeshStandardMaterial({ color: 0xe3d8c7, roughness: 0.9, metalness: 0.01 })
                 );
-                pergola.position.set(world.x, 0.18, world.z);
-                pergola.castShadow = true;
-                pergola.receiveShadow = true;
-                this.decorRoot.add(pergola);
-                addStreetTree(world.x - 0.2, world.z + 0.16, 0.72);
-                const playPad = new THREE.Mesh(
-                  new THREE.BoxGeometry(0.24, 0.02, 0.18),
-                  new THREE.MeshStandardMaterial({ color: 0xd8c5a6, roughness: 0.9, metalness: 0.01 })
-                );
-                playPad.position.set(world.x + 0.12, 0.055, world.z + 0.12);
-                playPad.receiveShadow = true;
-                this.decorRoot.add(playPad);
-                const playFrame = new THREE.Mesh(
-                  new THREE.BoxGeometry(0.04, 0.2, 0.14),
-                  new THREE.MeshStandardMaterial({ color: 0xf3b34c, roughness: 0.72, metalness: 0.08 })
-                );
-                playFrame.position.set(world.x + 0.12, 0.16, world.z + 0.12);
-                playFrame.castShadow = true;
-                playFrame.receiveShadow = true;
-                this.decorRoot.add(playFrame);
+                walkPad.position.set(world.x + 0.1, 0.055, world.z + 0.1);
+                walkPad.receiveShadow = true;
+                this.decorRoot.add(walkPad);
+                addStreetTree(world.x - 0.18, world.z + 0.14, 0.68);
+                const lamp = this.createStreetLamp(world.x + 0.14, 0.05, world.z - 0.1, 0, 0xffefbf);
+                this.decorRoot.add(lamp);
 
                 if (topTier >= 5) {
-                  const arbor = new THREE.Mesh(
-                    new THREE.BoxGeometry(0.14, 0.16, 0.14),
-                    new THREE.MeshStandardMaterial({ color: 0xe6f7ff, roughness: 0.22, metalness: 0.06, emissive: 0x67e8f9, emissiveIntensity: 0.12 })
+                  const seatingPad = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.26, 0.02, 0.16),
+                    new THREE.MeshStandardMaterial({ color: 0xd7cfbf, roughness: 0.92, metalness: 0.01 })
                   );
-                  arbor.position.set(world.x + 0.16, 0.18, world.z);
-                  arbor.castShadow = true;
-                  arbor.receiveShadow = true;
-                  this.decorRoot.add(arbor);
+                  seatingPad.position.set(world.x + 0.12, 0.055, world.z - 0.02);
+                  seatingPad.receiveShadow = true;
+                  this.decorRoot.add(seatingPad);
                   const bench = new THREE.Mesh(
                     new THREE.BoxGeometry(0.14, 0.04, 0.05),
                     new THREE.MeshStandardMaterial({ color: 0x8b6848, roughness: 0.82, metalness: 0.02 })
@@ -11597,7 +11641,14 @@ export class GameRenderer {
                   bench.castShadow = true;
                   bench.receiveShadow = true;
                   this.decorRoot.add(bench);
-                  addStreetTree(world.x + 0.18, world.z + 0.18, 0.64);
+                  const lowHedge = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.22, 0.08, 0.08),
+                    hedgeMat.clone()
+                  );
+                  lowHedge.position.set(world.x + 0.18, 0.08, world.z + 0.1);
+                  lowHedge.castShadow = true;
+                  lowHedge.receiveShadow = true;
+                  this.decorRoot.add(lowHedge);
                 }
               }
             } else if (nearUtility && (noise === 6 || noise === 7)) {
