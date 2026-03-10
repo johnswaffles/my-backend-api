@@ -28,6 +28,11 @@ function buildingColor(type: BuildType): string {
 }
 
 function tierColor(level: number): string {
+  if (level >= 10) return '#f43f5e';
+  if (level === 9) return '#fb7185';
+  if (level === 8) return '#c084fc';
+  if (level === 7) return '#a78bfa';
+  if (level === 6) return '#22d3ee';
   if (level >= 5) return '#f59e0b';
   if (level === 4) return '#fb7185';
   if (level === 3) return '#60a5fa';

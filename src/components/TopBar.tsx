@@ -278,24 +278,6 @@ export function TopBar({
             </button>
             <button
               type="button"
-              onClick={() => toggleAiAutoplay()}
-              className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
-                aiAutoplayEnabled
-                  ? 'border-emerald-300/80 bg-emerald-400/25 text-emerald-100'
-                  : 'border-slate-400/50 bg-slate-700/35 text-slate-100 hover:border-cyan-300/60 hover:bg-slate-700/55'
-              }`}
-            >
-              {aiAutoplayEnabled ? 'AI Auto: ON' : 'AI Auto: OFF'}
-            </button>
-            <button
-              type="button"
-              onClick={onToggleFullscreen}
-              className="rounded-xl border border-cyan-300/50 bg-cyan-400/12 px-3 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-400/22"
-            >
-              {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
-            </button>
-            <button
-              type="button"
               onClick={onOpenHelp}
               className="rounded-xl border border-slate-300/50 bg-slate-700/35 px-3 py-2 text-sm font-medium text-slate-100 transition hover:border-cyan-300/60 hover:bg-slate-700/55"
             >
@@ -314,6 +296,24 @@ export function TopBar({
               className="rounded-xl border border-rose-300/60 bg-rose-500/18 px-3 py-2 text-sm font-medium text-rose-100 transition hover:bg-rose-500/28"
             >
               Restart Map
+            </button>
+            <button
+              type="button"
+              onClick={() => toggleAiAutoplay()}
+              className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
+                aiAutoplayEnabled
+                  ? 'border-emerald-300/80 bg-emerald-400/25 text-emerald-100'
+                  : 'border-slate-400/50 bg-slate-700/35 text-slate-100 hover:border-cyan-300/60 hover:bg-slate-700/55'
+              }`}
+            >
+              {aiAutoplayEnabled ? 'AI Auto: ON' : 'AI Auto: OFF'}
+            </button>
+            <button
+              type="button"
+              onClick={onToggleFullscreen}
+              className="rounded-xl border border-cyan-300/50 bg-cyan-400/12 px-3 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-400/22"
+            >
+              {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
             </button>
           </div>
         </div>

@@ -683,6 +683,7 @@ export class GameRenderer {
 
       if (!this.buildingMeshes.has(b.id)) {
         const mesh = this.createBuildingObject(b);
+        this.addLateTierEnhancements(mesh, b);
         this.buildingMeshes.set(b.id, mesh);
         this.buildingRenderSignatures.set(b.id, nextSignature);
         this.buildingRoot.add(mesh);
@@ -714,6 +715,189 @@ export class GameRenderer {
     }
 
     this.syncRoadVisuals();
+  }
+
+  private addLateTierEnhancements(object: THREE.Object3D, building: Building): void {
+    if (building.type === 'road' || building.level < 6) return;
+
+    object.updateMatrixWorld(true);
+    const bbox = new THREE.Box3().setFromObject(object);
+    if (bbox.isEmpty()) return;
+
+    const size = bbox.getSize(new THREE.Vector3());
+    const center = bbox.getCenter(new THREE.Vector3());
+    const width = Math.max(0.22, size.x);
+    const depth = Math.max(0.22, size.z);
+    const height = Math.max(0.22, size.y);
+    const topY = bbox.max.y;
+    const merged = this.mergeModeForBuilding(building) !== 'none';
+
+    const selectable = this.selectableMeshes.get(building.id) ?? [];
+    const existingAnimation = this.utilityAnimations.get(building.id) ?? {
+      smoke: [],
+      glow: [] as THREE.Mesh[],
+      phase: building.id * 0.13
+    };
+
+    const addMesh = (mesh: THREE.Mesh) => {
+      mesh.userData.buildingId = building.id;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      object.add(mesh);
+      selectable.push(mesh);
+      return mesh;
+    };
+
+    const addGlowMesh = (mesh: THREE.Mesh) => {
+      const added = addMesh(mesh);
+      existingAnimation.glow.push(added);
+      return added;
+    };
+
+    const family =
+      building.type === 'house'
+        ? 'residential'
+        : building.type === 'park'
+          ? 'park'
+          : building.type === 'workshop'
+            ? 'industrial'
+            : building.type === 'powerPlant'
+              ? 'power'
+              : building.type === 'hospital' || building.type === 'policeStation' || building.type === 'fireStation'
+                ? 'civic'
+                : 'commercial';
+
+    const palette =
+      family === 'residential'
+        ? { body: 0xd9d4ca, accent: 0x9cc5d6, glow: 0x8fd8f8, roof: 0x5f6770 }
+        : family === 'park'
+          ? { body: 0xded7cc, accent: 0x7ebf7c, glow: 0x67e8f9, roof: 0x7b9459 }
+          : family === 'civic'
+            ? { body: 0xe4eaef, accent: 0x8fb4d5, glow: 0x7dd3fc, roof: 0x6f87a2 }
+            : family === 'power'
+              ? { body: 0x9da9b3, accent: 0xf3b34c, glow: 0xf59e0b, roof: 0x67737d }
+              : family === 'industrial'
+                ? { body: 0xa58d74, accent: 0xd8893a, glow: 0xf97316, roof: 0x6a747c }
+                : { body: 0xe0d6c8, accent: 0xaed4f6, glow: 0x38bdf8, roof: 0x5c6772 };
+
+    const bodyMat = new THREE.MeshStandardMaterial({ color: palette.body, roughness: 0.74, metalness: 0.04 });
+    const accentMat = new THREE.MeshStandardMaterial({ color: palette.accent, roughness: 0.52, metalness: 0.08 });
+    const roofMat = new THREE.MeshStandardMaterial({ color: palette.roof, roughness: 0.76, metalness: 0.06 });
+    const glowMat = new THREE.MeshStandardMaterial({
+      color: 0xeaf7ff,
+      roughness: 0.22,
+      metalness: 0.08,
+      transparent: true,
+      opacity: 0.88,
+      emissive: palette.glow,
+      emissiveIntensity: 0.16
+    });
+
+    if (family === 'residential') {
+      if (building.level >= 6) {
+        addMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.34, 0.24, depth * 0.18), bodyMat)).position.set(center.x - width * 0.28, topY + 0.14, center.z + depth * 0.12);
+        addGlowMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.22, 0.08, 0.03), glowMat)).position.set(center.x, topY + 0.1, center.z + depth * 0.24);
+      }
+      if (building.level >= 7) {
+        addMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.16, height * 0.36 + 0.46, depth * 0.14), bodyMat)).position.set(center.x + width * 0.24, topY + height * 0.18 + 0.18, center.z - depth * 0.08);
+      }
+      if (building.level >= 8) {
+        addGlowMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.42, 0.1, depth * 0.1), glowMat)).position.set(center.x, topY + height * 0.24 + 0.12, center.z);
+      }
+      if (building.level >= 9) {
+        const finA = addMesh(new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.7, depth * 0.16), roofMat));
+        finA.position.set(center.x - width * 0.18, topY + 0.42, center.z);
+        const finB = addMesh(finA.clone());
+        finB.position.set(center.x + width * 0.18, topY + 0.42, center.z);
+        finB.userData.buildingId = building.id;
+      }
+      if (building.level >= 10) {
+        const halo = addGlowMesh(new THREE.Mesh(new THREE.TorusGeometry(Math.max(width, depth) * 0.16, 0.024, 8, 18), glowMat));
+        halo.rotation.x = Math.PI / 2;
+        halo.position.set(center.x, topY + 0.62, center.z);
+      }
+    } else if (family === 'park') {
+      if (building.level >= 6) {
+        addGlowMesh(new THREE.Mesh(new THREE.CylinderGeometry(Math.max(width, depth) * 0.08, Math.max(width, depth) * 0.1, 0.05, 18), glowMat)).position.set(center.x, topY + 0.06, center.z);
+      }
+      if (building.level >= 7) {
+        addMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.18, 0.22, depth * 0.14), accentMat)).position.set(center.x + width * 0.22, topY + 0.16, center.z - depth * 0.18);
+      }
+      if (building.level >= 8) {
+        addMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.1, 0.64, depth * 0.1), bodyMat)).position.set(center.x - width * 0.24, topY + 0.34, center.z + depth * 0.06);
+      }
+      if (building.level >= 9) {
+        addGlowMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.54, 0.04, 0.04), glowMat)).position.set(center.x, topY + 0.24, center.z);
+      }
+      if (building.level >= 10) {
+        addMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.16, 0.96, depth * 0.16), roofMat)).position.set(center.x, topY + 0.52, center.z - depth * 0.24);
+      }
+    } else if (family === 'commercial') {
+      if (building.level >= 6) {
+        addMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.26, 0.56, depth * 0.18), bodyMat)).position.set(center.x - width * 0.28, topY + 0.3, center.z - depth * 0.14);
+      }
+      if (building.level >= 7) {
+        addGlowMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.18, 0.28, depth * 0.12), glowMat)).position.set(center.x + width * 0.24, topY + 0.26, center.z + depth * 0.1);
+      }
+      if (building.level >= 8) {
+        addMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.18, height * 0.4 + 0.72, depth * 0.16), accentMat)).position.set(center.x + width * 0.08, topY + height * 0.2 + 0.34, center.z - depth * 0.04);
+      }
+      if (building.level >= 9) {
+        addGlowMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.12, 0.54, 0.05), glowMat)).position.set(center.x + width * 0.36, topY + 0.44, center.z + depth * 0.18);
+      }
+      if (building.level >= 10) {
+        const crown = addGlowMesh(new THREE.Mesh(new THREE.TorusGeometry(Math.max(width, depth) * 0.18, 0.03, 8, 20), glowMat));
+        crown.rotation.x = Math.PI / 2;
+        crown.position.set(center.x, topY + 0.74, center.z);
+      }
+    } else if (family === 'civic') {
+      if (building.level >= 6) {
+        addMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.24, 0.48, depth * 0.18), bodyMat)).position.set(center.x + width * 0.3, topY + 0.24, center.z - depth * 0.16);
+      }
+      if (building.level >= 7) {
+        addMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.16, height * 0.44 + 0.8, depth * 0.14), accentMat)).position.set(center.x - width * 0.2, topY + height * 0.22 + 0.32, center.z + depth * 0.04);
+      }
+      if (building.level >= 8) {
+        addGlowMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.34, 0.12, depth * 0.1), glowMat)).position.set(center.x, topY + 0.4, center.z + depth * 0.18);
+      }
+      if (building.level >= 9) {
+        addMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.4, 0.08, depth * 0.08), roofMat)).position.set(center.x, topY + 0.62, center.z - depth * 0.12);
+      }
+      if (building.level >= 10) {
+        addGlowMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.1, 1.04, depth * 0.1), glowMat)).position.set(center.x, topY + 0.6, center.z);
+      }
+    } else {
+      if (building.level >= 6) {
+        addMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.26, 0.52, depth * 0.18), bodyMat)).position.set(center.x + width * 0.28, topY + 0.26, center.z + depth * 0.08);
+      }
+      if (building.level >= 7) {
+        addMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.14, height * 0.4 + 0.7, depth * 0.14), accentMat)).position.set(center.x - width * 0.24, topY + height * 0.2 + 0.3, center.z - depth * 0.08);
+      }
+      if (building.level >= 8) {
+        addGlowMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.46, 0.08, 0.06), glowMat)).position.set(center.x, topY + 0.36, center.z);
+      }
+      if (building.level >= 9) {
+        addMesh(new THREE.Mesh(new THREE.CylinderGeometry(Math.max(width, depth) * 0.08, Math.max(width, depth) * 0.1, 0.72, 12), roofMat)).position.set(center.x + width * 0.1, topY + 0.44, center.z - depth * 0.18);
+      }
+      if (building.level >= 10) {
+        addGlowMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.12, 1.12, depth * 0.12), glowMat)).position.set(center.x - width * 0.02, topY + 0.66, center.z + depth * 0.04);
+      }
+    }
+
+    if (merged && building.level >= 8) {
+      const districtBridge = addGlowMesh(
+        new THREE.Mesh(
+          new THREE.BoxGeometry(width * 0.38, 0.12, Math.max(0.08, depth * 0.08)),
+          glowMat
+        )
+      );
+      districtBridge.position.set(center.x, topY + 0.28, center.z);
+    }
+
+    this.selectableMeshes.set(building.id, selectable);
+    if (existingAnimation.glow.length > 0 || existingAnimation.smoke.length > 0) {
+      this.utilityAnimations.set(building.id, existingAnimation);
+    }
   }
 
   private syncRoadVisuals(): void {

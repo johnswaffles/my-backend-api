@@ -1,4 +1,4 @@
-import type { AssetVariation, BuildType, Building, GameState } from './state';
+import type { AssetVariation, BuildType, Building, BuildingLevel, GameState } from './state';
 import {
   createInitialGameState,
   DAY_LENGTH_SECONDS,
@@ -242,6 +242,11 @@ export const ECONOMY_TUNING = {
   highRiseRevenuePerTile: 0.22,
   tier4ResidentialRevenuePerTile: 0.34,
   tier5ResidentialRevenuePerTile: 0.52,
+  tier6ResidentialRevenuePerTile: 0.68,
+  tier7ResidentialRevenuePerTile: 0.86,
+  tier8ResidentialRevenuePerTile: 1.08,
+  tier9ResidentialRevenuePerTile: 1.34,
+  tier10ResidentialRevenuePerTile: 1.64,
   minimumMoney: -20000
 } as const;
 
@@ -511,7 +516,7 @@ function evolveBuildings(state: GameState, dtSeconds: number): GameState {
 
     availableMoney -= upgradeCost;
     building.upgradeProgress = 0;
-    building.level = Math.min(MAX_BUILDING_LEVEL, building.level + 1) as 1 | 2 | 3 | 4 | 5;
+    building.level = Math.min(MAX_BUILDING_LEVEL, building.level + 1) as BuildingLevel;
     building.lastUpgradeAt = performance.now();
     upgradedAny = true;
   }
@@ -674,7 +679,17 @@ function residentialUpgradeRevenueBonus(state: GameState): number {
     const avgLevel = cluster.reduce((sum, member) => sum + member.level, 0) / cluster.length;
 
     if (cluster.length >= 4) {
-      if (avgLevel >= 5) {
+      if (avgLevel >= 10) {
+        bonus += cluster.length * ECONOMY_TUNING.tier10ResidentialRevenuePerTile;
+      } else if (avgLevel >= 9) {
+        bonus += cluster.length * ECONOMY_TUNING.tier9ResidentialRevenuePerTile;
+      } else if (avgLevel >= 8) {
+        bonus += cluster.length * ECONOMY_TUNING.tier8ResidentialRevenuePerTile;
+      } else if (avgLevel >= 7) {
+        bonus += cluster.length * ECONOMY_TUNING.tier7ResidentialRevenuePerTile;
+      } else if (avgLevel >= 6) {
+        bonus += cluster.length * ECONOMY_TUNING.tier6ResidentialRevenuePerTile;
+      } else if (avgLevel >= 5) {
         bonus += cluster.length * ECONOMY_TUNING.tier5ResidentialRevenuePerTile;
       } else if (avgLevel >= 4) {
         bonus += cluster.length * ECONOMY_TUNING.tier4ResidentialRevenuePerTile;
@@ -997,7 +1012,15 @@ export function setAiLastAction(message: string): void {
 export function cycleGameSpeed(): void {
   gameStore.update((state) => {
     const next: GameSpeed =
-      state.gameSpeed === 0 ? 1 : state.gameSpeed === 1 ? 2 : state.gameSpeed === 2 ? 10 : 0;
+      state.gameSpeed === 0
+        ? 1
+        : state.gameSpeed === 1
+          ? 2
+          : state.gameSpeed === 2
+            ? 10
+            : state.gameSpeed === 10
+              ? 100
+              : 0;
     return {
       ...state,
       gameSpeed: next
@@ -1297,7 +1320,7 @@ export function upgradeBuildingById(buildingId: number): boolean {
       cluster.some((member) => member.id === building.id) && building.level < MAX_BUILDING_LEVEL
         ? {
             ...building,
-            level: Math.min(MAX_BUILDING_LEVEL, building.level + 1) as 1 | 2 | 3 | 4 | 5,
+            level: Math.min(MAX_BUILDING_LEVEL, building.level + 1) as BuildingLevel,
             upgradeProgress: 0,
             lastUpgradeAt: performance.now()
           }
