@@ -2,8 +2,9 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { buildingContextSummary, serviceRadiusForType } from './actions';
 import { getAssetCardOptions, paintAssetCard, paintAssetSideCard, paintHeroAsset } from './assets';
-import type { BuildType, Building, GameState } from './state';
+import type { BuildType, Building, GameState, OverlayMode } from './state';
 import {
   footprintForType,
   gameStore,
@@ -116,6 +117,9 @@ export class GameRenderer {
   private readonly buildingRoot = new THREE.Group();
   private readonly decorRoot = new THREE.Group();
   private readonly ambientRoot = new THREE.Group();
+  private readonly overlayRoot = new THREE.Group();
+  private readonly statusRoot = new THREE.Group();
+  private readonly selectionRangeRoot = new THREE.Group();
 
   private readonly buildingMeshes = new Map<number, THREE.Object3D>();
   private readonly buildingRenderSignatures = new Map<number, string>();
@@ -174,6 +178,8 @@ export class GameRenderer {
     z: 0,
     distance: 6.7
   };
+
+  private overlayMode: OverlayMode = 'base';
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -265,6 +271,9 @@ export class GameRenderer {
     if (this.tileMesh.instanceColor) this.tileMesh.instanceColor.needsUpdate = true;
     this.scene.add(this.tileMesh);
     this.scene.add(this.decorRoot);
+    this.scene.add(this.overlayRoot);
+    this.scene.add(this.statusRoot);
+    this.scene.add(this.selectionRangeRoot);
     this.scene.add(this.ambientRoot);
     this.rebuildGroundDecor(state);
     this.initAmbientActors();
@@ -332,6 +341,11 @@ export class GameRenderer {
 
   setFrameHook(hook: ((dtSeconds: number) => void) | null): void {
     this.frameHook = hook;
+  }
+
+  setOverlayMode(mode: OverlayMode): void {
+    this.overlayMode = mode;
+    this.refreshOverlay(gameStore.getState());
   }
 
   setPointerFromClient(clientX: number, clientY: number): void {
@@ -718,6 +732,8 @@ export class GameRenderer {
     this.syncBuildingMaps(state);
     this.syncHoverAndGhost(state);
     this.syncSelection(state);
+    this.refreshOverlay(state);
+    this.syncStatusMarkers(state);
   }
 
   private syncBuildingMaps(state: GameState): void {
@@ -779,6 +795,89 @@ export class GameRenderer {
     }
 
     this.syncRoadVisuals();
+  }
+
+  private clearGroup(group: THREE.Group): void {
+    while (group.children.length > 0) {
+      const child = group.children[0];
+      group.remove(child);
+      this.disposeObject(child);
+    }
+  }
+
+  private refreshOverlay(state: GameState): void {
+    this.clearGroup(this.overlayRoot);
+    if (this.overlayMode === 'base') return;
+
+    for (const building of state.buildings) {
+      if (building.type === 'road') continue;
+      const context = buildingContextSummary(state, building);
+      const cells = occupiedCellsForBuilding(building);
+      let color = 0x334155;
+      let opacity = 0.3;
+
+      if (this.overlayMode === 'appeal') {
+        color = context.appeal >= 75 ? 0x22c55e : context.appeal >= 55 ? 0xfacc15 : 0xef4444;
+      } else if (this.overlayMode === 'power') {
+        color = context.powerAccess ? 0x38bdf8 : 0xef4444;
+      } else if (this.overlayMode === 'transport') {
+        color = context.transportAccess ? 0x22c55e : 0xf97316;
+      } else if (this.overlayMode === 'services') {
+        const support = context.parkSupport + context.commerceSupport + context.civicSupport;
+        color = support >= 8 ? 0xfacc15 : support >= 4 ? 0x60a5fa : 0x64748b;
+      } else if (this.overlayMode === 'tiers') {
+        color =
+          building.level >= 10 ? 0xf43f5e :
+          building.level >= 8 ? 0xa855f7 :
+          building.level >= 6 ? 0x06b6d4 :
+          building.level >= 4 ? 0xf59e0b :
+          building.level >= 2 ? 0x4ade80 : 0xcbd5e1;
+      } else if (this.overlayMode === 'offline') {
+        color = context.active ? 0x22c55e : context.powerAccess ? 0xf59e0b : 0xef4444;
+        opacity = 0.36;
+      }
+
+      for (const cell of cells) {
+        const world = this.gridToWorld(cell.x, cell.z, state.gridSize);
+        const marker = new THREE.Mesh(
+          new THREE.BoxGeometry(0.92, 0.02, 0.92),
+          new THREE.MeshBasicMaterial({ color, transparent: true, opacity })
+        );
+        marker.position.set(world.x, 0.085, world.z);
+        this.overlayRoot.add(marker);
+      }
+    }
+  }
+
+  private syncStatusMarkers(state: GameState): void {
+    this.clearGroup(this.statusRoot);
+
+    for (const building of state.buildings) {
+      if (building.type === 'road' || building.type === 'railLine' || building.type === 'powerLine') continue;
+      const context = buildingContextSummary(state, building);
+      if (context.active) continue;
+
+      const world = this.buildingOriginWorld(building, state.gridSize);
+      const ringColor = context.powerAccess ? 0xf59e0b : 0xef4444;
+      const poleColor = context.transportAccess ? 0xf59e0b : 0x38bdf8;
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(0.14, 0.2, 18),
+        new THREE.MeshBasicMaterial({ color: ringColor, transparent: true, opacity: 0.72, side: THREE.DoubleSide })
+      );
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.set(world.x, 0.08, world.z);
+      const pole = new THREE.Mesh(
+        new THREE.BoxGeometry(0.05, 0.34, 0.05),
+        new THREE.MeshStandardMaterial({ color: poleColor, roughness: 0.48, metalness: 0.12, emissive: poleColor, emissiveIntensity: 0.12 })
+      );
+      pole.position.set(world.x, 0.28, world.z);
+      const cap = new THREE.Mesh(
+        new THREE.BoxGeometry(0.16, 0.08, 0.04),
+        new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.22, metalness: 0.08, emissive: ringColor, emissiveIntensity: 0.16 })
+      );
+      cap.position.set(world.x, 0.46, world.z);
+      this.statusRoot.add(ring, pole, cap);
+    }
   }
 
   private addLateTierEnhancements(object: THREE.Object3D, building: Building): void {
@@ -1754,6 +1853,41 @@ export class GameRenderer {
         }
       }
     }
+
+    this.clearGroup(this.selectionRangeRoot);
+    const selectedBuilding = state.buildings.find((building) => building.id === state.selectedBuildingId);
+    if (!selectedBuilding) return;
+
+    const radius = serviceRadiusForType(selectedBuilding.type);
+    if (radius <= 1) return;
+
+    const world = this.buildingOriginWorld(selectedBuilding, state.gridSize);
+    const baseColor =
+      selectedBuilding.type === 'park'
+        ? 0x4ade80
+        : selectedBuilding.type === 'hospital' || selectedBuilding.type === 'policeStation' || selectedBuilding.type === 'fireStation'
+          ? 0x38bdf8
+          : selectedBuilding.type === 'cityHall'
+            ? 0xfacc15
+            : selectedBuilding.type === 'substation'
+              ? 0xf59e0b
+              : 0xc084fc;
+
+    const disc = new THREE.Mesh(
+      new THREE.CircleGeometry(radius + 0.15, 48),
+      new THREE.MeshBasicMaterial({ color: baseColor, transparent: true, opacity: 0.08 })
+    );
+    disc.rotation.x = -Math.PI / 2;
+    disc.position.set(world.x, 0.05, world.z);
+
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(radius + 0.05, radius + 0.15, 48),
+      new THREE.MeshBasicMaterial({ color: baseColor, transparent: true, opacity: 0.42, side: THREE.DoubleSide })
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.set(world.x, 0.055, world.z);
+
+    this.selectionRangeRoot.add(disc, ring);
   }
 
   private createBuildingObject(building: Building): THREE.Object3D {

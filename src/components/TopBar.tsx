@@ -1,5 +1,15 @@
-import { buildStarterTown, cycleGameSpeed, redoAction, resetGame, toggleAiAutoplay, undoAction } from '../game/actions';
-import type { GameSpeed } from '../game/state';
+import {
+  buildMainStreetTemplate,
+  buildResidentialTemplate,
+  buildStarterTown,
+  buildTransitHubTemplate,
+  cycleGameSpeed,
+  redoAction,
+  resetGame,
+  toggleAiAutoplay,
+  undoAction
+} from '../game/actions';
+import type { GameSpeed, OverlayMode } from '../game/state';
 
 interface TopBarProps {
   money: number;
@@ -40,10 +50,12 @@ interface TopBarProps {
   aiAutoplayEnabled: boolean;
   aiLastAction: string;
   musicEnabled: boolean;
+  overlayMode: OverlayMode;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
   onOpenHelp: () => void;
   onToggleMusic: () => void;
+  onOverlayChange: (mode: OverlayMode) => void;
   onToggleMobileHud?: () => void;
   mobileHudExpanded?: boolean;
   onFocusHome?: () => void;
@@ -100,10 +112,12 @@ export function TopBar({
   aiAutoplayEnabled,
   aiLastAction,
   musicEnabled,
+  overlayMode,
   isFullscreen,
   onToggleFullscreen,
   onOpenHelp,
   onToggleMusic,
+  onOverlayChange,
   onToggleMobileHud,
   mobileHudExpanded = true,
   onFocusHome,
@@ -111,6 +125,7 @@ export function TopBar({
 }: TopBarProps): JSX.Element {
   const net = powerProduced - powerUsed;
   const speedLabel = gameSpeed === 0 ? 'Pause' : `${gameSpeed}x`;
+  const overlayOptions: OverlayMode[] = ['base', 'appeal', 'power', 'transport', 'services', 'tiers', 'offline'];
 
   if (mobile) {
     return (
@@ -193,6 +208,43 @@ export function TopBar({
           </div>
         ) : null}
         <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1">
+            {overlayOptions.map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => onOverlayChange(option)}
+                className={`rounded-xl border px-2.5 py-2 text-[10px] font-medium uppercase tracking-[0.12em] ${
+                  overlayMode === option
+                    ? 'border-cyan-300/70 bg-cyan-400/18 text-cyan-100'
+                    : 'border-slate-300/35 bg-slate-800/35 text-slate-200'
+                }`}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => buildResidentialTemplate()}
+            className="rounded-xl border border-cyan-300/55 bg-cyan-500/14 px-3 py-2 text-xs font-medium text-cyan-100"
+          >
+            Resi
+          </button>
+          <button
+            type="button"
+            onClick={() => buildMainStreetTemplate()}
+            className="rounded-xl border border-amber-300/60 bg-amber-500/14 px-3 py-2 text-xs font-medium text-amber-100"
+          >
+            Street
+          </button>
+          <button
+            type="button"
+            onClick={() => buildTransitHubTemplate()}
+            className="rounded-xl border border-violet-300/60 bg-violet-500/14 px-3 py-2 text-xs font-medium text-violet-100"
+          >
+            Hub
+          </button>
           <button
             type="button"
             onClick={() => undoAction()}
@@ -318,6 +370,27 @@ export function TopBar({
             </button>
             <button
               type="button"
+              onClick={() => buildResidentialTemplate()}
+              className="rounded-xl border border-cyan-300/55 bg-cyan-500/14 px-3 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-500/24"
+            >
+              Resi Block
+            </button>
+            <button
+              type="button"
+              onClick={() => buildMainStreetTemplate()}
+              className="rounded-xl border border-amber-300/60 bg-amber-500/14 px-3 py-2 text-sm font-medium text-amber-100 transition hover:bg-amber-500/24"
+            >
+              Main Street
+            </button>
+            <button
+              type="button"
+              onClick={() => buildTransitHubTemplate()}
+              className="rounded-xl border border-violet-300/60 bg-violet-500/14 px-3 py-2 text-sm font-medium text-violet-100 transition hover:bg-violet-500/24"
+            >
+              Transit Hub
+            </button>
+            <button
+              type="button"
               onClick={() => resetGame()}
               className="rounded-xl border border-rose-300/60 bg-rose-500/18 px-3 py-2 text-sm font-medium text-rose-100 transition hover:bg-rose-500/28"
             >
@@ -343,6 +416,22 @@ export function TopBar({
             </button>
           </div>
         </div>
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {overlayOptions.map((option) => (
+          <button
+            key={option}
+            type="button"
+            onClick={() => onOverlayChange(option)}
+            className={`rounded-lg border px-2 py-1 text-[10px] font-medium uppercase tracking-[0.12em] transition ${
+              overlayMode === option
+                ? 'border-cyan-300/70 bg-cyan-400/18 text-cyan-100'
+                : 'border-slate-300/35 bg-slate-800/35 text-slate-200 hover:bg-slate-700/45'
+            }`}
+          >
+            {option}
+          </button>
+        ))}
       </div>
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-9">
         <Stat

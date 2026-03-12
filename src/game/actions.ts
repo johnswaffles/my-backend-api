@@ -1,4 +1,4 @@
-import type { AssetVariation, BuildType, Building, BuildingLevel, GameState } from './state';
+import type { AssetVariation, BuildType, Building, BuildingLevel, CityPolicies, GameState, MilestoneId } from './state';
 import {
   createInitialGameState,
   DAY_LENGTH_SECONDS,
@@ -336,7 +336,25 @@ type StateSnapshot = Pick<
   | 'timeOfDay'
   | 'simSeconds'
   | 'nextBuildingId'
+  | 'policies'
+  | 'claimedMilestones'
 >;
+
+export const MILESTONE_REWARDS: Record<
+  MilestoneId,
+  {
+    label: string;
+    money: number;
+    happiness: number;
+  }
+> = {
+  first_power_grid: { label: 'Launch a live power grid', money: 1800, happiness: 2 },
+  first_station: { label: 'Open the first train station', money: 2400, happiness: 3 },
+  first_civic_core: { label: 'Establish a civic core', money: 3200, happiness: 4 },
+  downtown_district: { label: 'Grow a connected downtown district', money: 4200, happiness: 5 },
+  park_network: { label: 'Create a connected park network', money: 3000, happiness: 5 },
+  tower_city: { label: 'Reach a true tower city', money: 5200, happiness: 6 }
+};
 
 const MAX_HISTORY = 10;
 const undoStack: StateSnapshot[] = [];
@@ -357,7 +375,9 @@ function cloneSnapshot(state: GameState): StateSnapshot {
     day: state.day,
     timeOfDay: state.timeOfDay,
     simSeconds: state.simSeconds,
-    nextBuildingId: state.nextBuildingId
+    nextBuildingId: state.nextBuildingId,
+    policies: { ...state.policies },
+    claimedMilestones: [...state.claimedMilestones]
   };
 }
 
@@ -383,6 +403,8 @@ function applySnapshot(state: GameState, snapshot: StateSnapshot): GameState {
     timeOfDay: snapshot.timeOfDay,
     simSeconds: snapshot.simSeconds,
     nextBuildingId: snapshot.nextBuildingId,
+    policies: { ...snapshot.policies },
+    claimedMilestones: [...snapshot.claimedMilestones],
     ...stackCounts()
   };
 }
@@ -742,6 +764,23 @@ function computeInfrastructureStatus(state: GameState): InfrastructureStatus {
   return { transportConnected, powerConnected, activeBuildings };
 }
 
+function activeBuildingCountInRange(
+  state: GameState,
+  infrastructure: InfrastructureStatus,
+  types: BuildType[],
+  building: Building,
+  range: number
+): number {
+  const cells = occupiedCellsForBuilding(building);
+  return state.buildings.filter(
+    (other) =>
+      other.id !== building.id &&
+      infrastructure.activeBuildings.has(other.id) &&
+      types.includes(other.type) &&
+      minDistanceToBuildingCells(cells, other) <= range
+  ).length;
+}
+
 function clampPercent(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
@@ -871,6 +910,81 @@ function residentialUpgradeRevenueBonus(state: GameState, infrastructure = compu
   return bonus;
 }
 
+export function serviceRadiusForType(type: BuildType): number {
+  if (type === 'park') return 3;
+  if (type === 'shop' || type === 'restaurant' || type === 'groceryStore' || type === 'cornerStore' || type === 'bank') {
+    return 3;
+  }
+  if (type === 'hospital' || type === 'policeStation' || type === 'fireStation' || type === 'trainStation') return 4;
+  if (type === 'cityHall') return 5;
+  if (type === 'substation') return 2;
+  return 1;
+}
+
+function policyModifiers(state: GameState): {
+  housing: number;
+  jobs: number;
+  commercial: number;
+  recreation: number;
+  essentials: number;
+  health: number;
+  safety: number;
+  happiness: number;
+  roadDemand: number;
+  powerDemand: number;
+  maintenance: number;
+  commercialIncome: number;
+} {
+  const policies = state.policies;
+  return {
+    housing: policies.transitFirst ? 8 : 0,
+    jobs: policies.businessIncentives ? 14 : 0,
+    commercial: (policies.businessIncentives ? 20 : 0) + (policies.transitFirst ? 8 : 0),
+    recreation: policies.greenStandards ? 16 : 0,
+    essentials: policies.businessIncentives ? 6 : 0,
+    health: policies.greenStandards ? 8 : 0,
+    safety: policies.civicPride ? 14 : 0,
+    happiness:
+      (policies.greenStandards ? 5 : 0) +
+      (policies.civicPride ? 6 : 0) +
+      (policies.transitFirst ? 3 : 0) -
+      (policies.businessIncentives ? 1 : 0),
+    roadDemand: policies.transitFirst ? -10 : 0,
+    powerDemand: policies.greenStandards ? -8 : 0,
+    maintenance: (policies.civicPride ? 0.18 : 0) + (policies.greenStandards ? 0.08 : 0),
+    commercialIncome: policies.businessIncentives ? 0.26 : 0
+  };
+}
+
+function evaluateMilestones(state: GameState, infrastructure = computeInfrastructureStatus(state)): MilestoneId[] {
+  const claimed = new Set(state.claimedMilestones);
+  const connectedBuildings = state.buildings.filter((building) => infrastructure.activeBuildings.has(building.id));
+  const activeTypeCount = (type: BuildType) =>
+    state.buildings.filter((building) => building.type === type && infrastructure.activeBuildings.has(building.id)).length;
+  const connectedParks = state.buildings.filter((building) => building.type === 'park' && infrastructure.activeBuildings.has(building.id));
+  const largestParkCluster = connectedParks.reduce((max, park) => Math.max(max, sameTypeConnectedCluster(state, park).length), 0);
+  const skylineHousing = state.buildings.filter(
+    (building) => building.type === 'house' && infrastructure.activeBuildings.has(building.id) && building.level >= 8
+  ).length;
+  const activeCommercial =
+    activeTypeCount('shop') +
+    activeTypeCount('restaurant') +
+    activeTypeCount('groceryStore') +
+    activeTypeCount('cornerStore') +
+    activeTypeCount('bank');
+  const activeCivic =
+    activeTypeCount('cityHall') + activeTypeCount('hospital') + activeTypeCount('policeStation') + activeTypeCount('fireStation');
+
+  const achieved: MilestoneId[] = [];
+  if (!claimed.has('first_power_grid') && activeTypeCount('powerPlant') >= 1 && connectedBuildings.length >= 4) achieved.push('first_power_grid');
+  if (!claimed.has('first_station') && activeTypeCount('trainStation') >= 1) achieved.push('first_station');
+  if (!claimed.has('first_civic_core') && activeTypeCount('cityHall') >= 1 && activeCivic >= 3) achieved.push('first_civic_core');
+  if (!claimed.has('downtown_district') && activeCommercial >= 8 && activeTypeCount('trainStation') >= 1) achieved.push('downtown_district');
+  if (!claimed.has('park_network') && (largestParkCluster >= 6 || connectedParks.length >= 10)) achieved.push('park_network');
+  if (!claimed.has('tower_city') && skylineHousing >= 4 && state.resources.population >= 300) achieved.push('tower_city');
+  return achieved;
+}
+
 function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happiness' | 'demand'> {
   const infrastructure = computeInfrastructureStatus(state);
   const roads = countType(state, 'road');
@@ -915,6 +1029,15 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
   }
 
   const clusterBoost = clusterBonuses(state, infrastructure);
+  const policy = policyModifiers(state);
+  const trainServiceBoost = state.buildings.reduce((sum, building) => {
+    if (!infrastructure.activeBuildings.has(building.id)) return sum;
+    return sum + activeBuildingCountInRange(state, infrastructure, ['trainStation'], building, 4);
+  }, 0);
+  const civicCoreBoost = state.buildings.reduce((sum, building) => {
+    if (!infrastructure.activeBuildings.has(building.id)) return sum;
+    return sum + activeBuildingCountInRange(state, infrastructure, ['cityHall'], building, 5);
+  }, 0);
   housingCapacity += residentialComboBonus(state);
   commercialCapacity += commercialComboBonus(state);
   housingCapacity += clusterBoost.housing;
@@ -924,6 +1047,18 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
   essentialsCapacity += clusterBoost.essentials;
   healthCapacity += clusterBoost.health;
   safetyCapacity += clusterBoost.safety;
+  housingCapacity += policy.housing;
+  jobCapacity += policy.jobs;
+  commercialCapacity += policy.commercial;
+  recreationCapacity += policy.recreation;
+  essentialsCapacity += policy.essentials;
+  healthCapacity += policy.health;
+  safetyCapacity += policy.safety;
+  housingCapacity += trainServiceBoost * 0.8 + civicCoreBoost * 0.6;
+  jobCapacity += trainServiceBoost * 1.6 + civicCoreBoost * 0.9;
+  commercialCapacity += trainServiceBoost * 1.9 + civicCoreBoost * 0.8;
+  recreationCapacity += civicCoreBoost * 0.6;
+  safetyCapacity += civicCoreBoost * 0.8;
 
   const servicedHomes = houses.filter((h) => infrastructure.activeBuildings.has(h.id)).length;
 
@@ -997,6 +1132,9 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
       Math.min(trainStations, 4) * 1.2 +
       Math.min(cityHalls, 2) * 3.4 +
       Math.min(substations, 6) * 0.4 +
+      Math.min(12, trainServiceBoost) * 0.35 +
+      Math.min(12, civicCoreBoost) * 0.5 +
+      policy.happiness +
       state.buildings.reduce((sum, building) => sum + (building.level - 1) * 0.75, 0) +
       commercialComboBonus(state) * 0.15 +
       residentialComboBonus(state) * 0.2 +
@@ -1030,9 +1168,11 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
       ) *
         7
   );
+  const demandRoadsAdjusted = clampPercent(demandRoads + policy.roadDemand);
   const demandPower = clampPercent(
     14 + Math.max(0, powerUsed - powerProduced) * 6 + Math.max(0, houses.length - (plants * 4 + substations * 2))
   );
+  const demandPowerAdjusted = clampPercent(demandPower + policy.powerDemand);
   const demandCommerce = clampPercent(
     28 +
       Math.max(0, blendedPopulation - commercialCapacity) * 2.8 -
@@ -1070,8 +1210,8 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
     happiness,
     demand: {
       housing: demandHousing,
-      roads: demandRoads,
-      power: demandPower,
+      roads: demandRoadsAdjusted,
+      power: demandPowerAdjusted,
       commerce: demandCommerce,
       recreation: demandRecreation,
       jobs: demandJobs,
@@ -1304,6 +1444,423 @@ export function buildStarterTown(): boolean {
   });
 
   return seeded;
+}
+
+function findTemplateOrigin(
+  state: GameState,
+  width: number,
+  depth: number
+): { x: number; z: number } | null {
+  const center = Math.floor(state.gridSize / 2);
+  const candidates: Array<{ x: number; z: number; score: number }> = [];
+
+  for (let z = 0; z <= state.gridSize - depth; z += 1) {
+    for (let x = 0; x <= state.gridSize - width; x += 1) {
+      let clear = true;
+      for (let dz = 0; dz < depth && clear; dz += 1) {
+        for (let dx = 0; dx < width; dx += 1) {
+          if (buildingAt(state, x + dx, z + dz)) {
+            clear = false;
+            break;
+          }
+        }
+      }
+      if (!clear) continue;
+      const score = Math.abs(x + width * 0.5 - center) + Math.abs(z + depth * 0.5 - center);
+      candidates.push({ x, z, score });
+    }
+  }
+
+  candidates.sort((a, b) => a.score - b.score);
+  return candidates[0] ? { x: candidates[0].x, z: candidates[0].z } : null;
+}
+
+function applyTemplate(
+  title: string,
+  footprint: { width: number; depth: number },
+  blueprint: Array<{ type: BuildType; x: number; z: number }>
+): boolean {
+  const state = gameStore.getState();
+  const origin = findTemplateOrigin(state, footprint.width, footprint.depth);
+  if (!origin) return false;
+
+  let placedAny = false;
+  gameStore.update((current) => {
+    pushUndo(current);
+    let working = {
+      ...current,
+      buildings: current.buildings.map((building) => ({ ...building })),
+      resources: { ...current.resources },
+      nextBuildingId: current.nextBuildingId
+    };
+
+    for (const entry of blueprint) {
+      const x = origin.x + entry.x;
+      const z = origin.z + entry.z;
+      if (!canPlaceBuilding(working, entry.type, x, z)) continue;
+      const building: Building = {
+        id: working.nextBuildingId,
+        type: entry.type,
+        x,
+        z,
+        createdAt: performance.now(),
+        level: 1,
+        upgradeProgress: 0,
+        lastUpgradeAt: performance.now(),
+        customImageUrl: null,
+        customStyleName: null,
+        customArtStyle: null
+      };
+      working = {
+        ...working,
+        nextBuildingId: working.nextBuildingId + 1,
+        selectedBuildingId: building.id,
+        buildings: [...working.buildings, building],
+        resources: {
+          ...working.resources,
+          money: working.resources.money - BUILDING_ECONOMY[entry.type].cost
+        }
+      };
+      placedAny = true;
+    }
+
+    if (!placedAny) return current;
+    const derived = deriveSimulation(working);
+    return {
+      ...working,
+      resources: {
+        ...derived.resources,
+        money: Math.round(working.resources.money * 100) / 100
+      },
+      happiness: derived.happiness,
+      demand: derived.demand,
+      aiLastAction: `${title} template placed`,
+      ...stackCounts()
+    };
+  });
+
+  return placedAny;
+}
+
+export function buildResidentialTemplate(): boolean {
+  return applyTemplate(
+    'Residential block',
+    { width: 6, depth: 6 },
+    [
+      { type: 'road', x: 1, z: 4 },
+      { type: 'road', x: 2, z: 4 },
+      { type: 'road', x: 3, z: 4 },
+      { type: 'road', x: 4, z: 4 },
+      { type: 'house', x: 1, z: 1 },
+      { type: 'house', x: 2, z: 1 },
+      { type: 'house', x: 1, z: 2 },
+      { type: 'house', x: 2, z: 2 },
+      { type: 'park', x: 4, z: 1 },
+      { type: 'park', x: 4, z: 2 },
+      { type: 'cornerStore', x: 3, z: 2 },
+      { type: 'powerLine', x: 0, z: 0 },
+      { type: 'powerLine', x: 0, z: 1 },
+      { type: 'powerLine', x: 0, z: 2 },
+      { type: 'powerLine', x: 0, z: 3 },
+      { type: 'powerLine', x: 0, z: 4 }
+    ]
+  );
+}
+
+export function buildMainStreetTemplate(): boolean {
+  return applyTemplate(
+    'Main street',
+    { width: 8, depth: 5 },
+    [
+      { type: 'road', x: 0, z: 2 },
+      { type: 'road', x: 1, z: 2 },
+      { type: 'road', x: 2, z: 2 },
+      { type: 'road', x: 3, z: 2 },
+      { type: 'road', x: 4, z: 2 },
+      { type: 'road', x: 5, z: 2 },
+      { type: 'shop', x: 1, z: 1 },
+      { type: 'restaurant', x: 2, z: 1 },
+      { type: 'groceryStore', x: 3, z: 1 },
+      { type: 'bank', x: 4, z: 1 },
+      { type: 'trainStation', x: 6, z: 1 },
+      { type: 'railLine', x: 6, z: 2 },
+      { type: 'railLine', x: 6, z: 3 },
+      { type: 'powerLine', x: 0, z: 0 },
+      { type: 'powerLine', x: 1, z: 0 },
+      { type: 'powerLine', x: 2, z: 0 },
+      { type: 'powerLine', x: 3, z: 0 },
+      { type: 'powerLine', x: 4, z: 0 },
+      { type: 'powerLine', x: 5, z: 0 }
+    ]
+  );
+}
+
+export function buildTransitHubTemplate(): boolean {
+  return applyTemplate(
+    'Transit hub',
+    { width: 8, depth: 8 },
+    [
+      { type: 'railLine', x: 0, z: 3 },
+      { type: 'railLine', x: 1, z: 3 },
+      { type: 'railLine', x: 2, z: 3 },
+      { type: 'trainStation', x: 3, z: 3 },
+      { type: 'railLine', x: 4, z: 3 },
+      { type: 'railLine', x: 5, z: 3 },
+      { type: 'railLine', x: 6, z: 3 },
+      { type: 'road', x: 3, z: 4 },
+      { type: 'road', x: 3, z: 5 },
+      { type: 'road', x: 3, z: 6 },
+      { type: 'cityHall', x: 2, z: 5 },
+      { type: 'shop', x: 4, z: 5 },
+      { type: 'restaurant', x: 5, z: 5 },
+      { type: 'substation', x: 1, z: 5 },
+      { type: 'powerLine', x: 1, z: 4 },
+      { type: 'powerLine', x: 1, z: 3 },
+      { type: 'park', x: 4, z: 6 },
+      { type: 'park', x: 5, z: 6 }
+    ]
+  );
+}
+
+export function toggleCityPolicy(policy: keyof CityPolicies): void {
+  gameStore.update((state) => ({
+    ...state,
+    policies: {
+      ...state.policies,
+      [policy]: !state.policies[policy]
+    }
+  }));
+}
+
+export function milestoneSummary(state: GameState): Array<{
+  id: MilestoneId;
+  label: string;
+  done: boolean;
+  reward: string;
+}> {
+  const done = new Set(state.claimedMilestones);
+  return (Object.keys(MILESTONE_REWARDS) as MilestoneId[]).map((id) => ({
+    id,
+    label: MILESTONE_REWARDS[id].label,
+    done: done.has(id),
+    reward: `$${MILESTONE_REWARDS[id].money} • +${MILESTONE_REWARDS[id].happiness}%`
+  }));
+}
+
+function routeBetween(a: { x: number; z: number }, b: { x: number; z: number }): Array<{ x: number; z: number }> {
+  const path: Array<{ x: number; z: number }> = [];
+  let x = a.x;
+  let z = a.z;
+
+  while (x !== b.x) {
+    x += x < b.x ? 1 : -1;
+    path.push({ x, z });
+  }
+  while (z !== b.z) {
+    z += z < b.z ? 1 : -1;
+    path.push({ x, z });
+  }
+
+  return path;
+}
+
+function uniqueCells(cells: Array<{ x: number; z: number }>): Array<{ x: number; z: number }> {
+  const seen = new Set<string>();
+  return cells.filter((cell) => {
+    const key = `${cell.x}:${cell.z}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function frontageCellsForBuilding(state: GameState, building: Building): Array<{ x: number; z: number }> {
+  const occupied = occupiedCellsForBuilding(building);
+  const occupiedKeys = new Set(occupied.map((cell) => `${cell.x}:${cell.z}`));
+  const frontage = occupied.flatMap((cell) => [
+    { x: cell.x + 1, z: cell.z },
+    { x: cell.x - 1, z: cell.z },
+    { x: cell.x, z: cell.z + 1 },
+    { x: cell.x, z: cell.z - 1 }
+  ]);
+
+  return uniqueCells(
+    frontage.filter(
+      (cell) => isInBounds(state, cell.x, cell.z) && !occupiedKeys.has(`${cell.x}:${cell.z}`)
+    )
+  );
+}
+
+function nearestPair(
+  sources: Array<{ x: number; z: number }>,
+  targets: Array<{ x: number; z: number }>
+): { source: { x: number; z: number }; target: { x: number; z: number } } | null {
+  let best:
+    | {
+        source: { x: number; z: number };
+        target: { x: number; z: number };
+        dist: number;
+      }
+    | null = null;
+
+  for (const source of sources) {
+    for (const target of targets) {
+      const dist = Math.abs(source.x - target.x) + Math.abs(source.z - target.z);
+      if (!best || dist < best.dist) {
+        best = { source, target, dist };
+      }
+    }
+  }
+
+  return best ? { source: best.source, target: best.target } : null;
+}
+
+function applyInfrastructurePath(
+  state: GameState,
+  type: 'road' | 'powerLine' | 'railLine',
+  path: Array<{ x: number; z: number }>
+): { state: GameState; placed: number } {
+  let working = state;
+  let placed = 0;
+
+  for (const cell of path) {
+    if (!canPlaceBuilding(working, type, cell.x, cell.z)) continue;
+    const building: Building = {
+      id: working.nextBuildingId,
+      type,
+      x: cell.x,
+      z: cell.z,
+      createdAt: performance.now(),
+      level: 1,
+      upgradeProgress: 0,
+      lastUpgradeAt: performance.now(),
+      customImageUrl: null,
+      customStyleName: null,
+      customArtStyle: null
+    };
+    working = {
+      ...working,
+      nextBuildingId: working.nextBuildingId + 1,
+      selectedBuildingId: building.id,
+      buildings: [...working.buildings, building],
+      resources: {
+        ...working.resources,
+        money: working.resources.money - BUILDING_ECONOMY[type].cost
+      }
+    };
+    placed += 1;
+  }
+
+  return { state: working, placed };
+}
+
+export function autoFixBuildingById(buildingId: number): boolean {
+  let fixed = false;
+
+  gameStore.update((state) => {
+    const target = state.buildings.find((building) => building.id === buildingId);
+    if (!target) return state;
+    const context = buildingContextSummary(state, target);
+    if (context.active) return state;
+    let working: GameState = {
+      ...state,
+      buildings: state.buildings.map((building) => ({ ...building })),
+      resources: { ...state.resources },
+      policies: { ...state.policies },
+      claimedMilestones: [...state.claimedMilestones]
+    };
+
+    if (!context.transportAccess) {
+      const sources = working.buildings.flatMap((building) =>
+        building.type === 'road' || building.type === 'railLine' || building.type === 'trainStation'
+          ? occupiedCellsForBuilding(building)
+          : []
+      );
+      const frontage = frontageCellsForBuilding(working, target).filter((cell) => canPlaceBuilding(working, 'road', cell.x, cell.z));
+      if (frontage.length) {
+        if (sources.length) {
+          const pair = nearestPair(sources, frontage);
+          if (pair) {
+            const result = applyInfrastructurePath(working, 'road', routeBetween(pair.source, pair.target));
+            working = result.state;
+            fixed ||= result.placed > 0;
+          }
+        } else {
+          const result = applyInfrastructurePath(working, 'road', [frontage[0]]);
+          working = result.state;
+          fixed ||= result.placed > 0;
+        }
+      }
+    }
+
+    const refreshedTarget = working.buildings.find((building) => building.id === buildingId) ?? target;
+    const refreshedContext = buildingContextSummary(working, refreshedTarget);
+
+    if (!refreshedContext.powerAccess) {
+      let sources = working.buildings.flatMap((building) => {
+        const summary = buildingContextSummary(working, building);
+        return summary.powerAccess || building.type === 'powerLine' || building.type === 'substation' || building.type === 'powerPlant'
+          ? occupiedCellsForBuilding(building)
+          : [];
+      });
+
+      if (!sources.length) {
+        const plantSpot = frontageCellsForBuilding(working, refreshedTarget).find((cell) => canPlaceBuilding(working, 'substation', cell.x, cell.z));
+        if (plantSpot) {
+          const substation: Building = {
+            id: working.nextBuildingId,
+            type: 'substation',
+            x: plantSpot.x,
+            z: plantSpot.z,
+            createdAt: performance.now(),
+            level: 1,
+            upgradeProgress: 0,
+            lastUpgradeAt: performance.now(),
+            customImageUrl: null,
+            customStyleName: null,
+            customArtStyle: null
+          };
+          working = {
+            ...working,
+            nextBuildingId: working.nextBuildingId + 1,
+            selectedBuildingId: substation.id,
+            buildings: [...working.buildings, substation],
+            resources: {
+              ...working.resources,
+              money: working.resources.money - BUILDING_ECONOMY.substation.cost
+            }
+          };
+          fixed = true;
+          sources = occupiedCellsForBuilding(substation);
+        }
+      }
+
+      const frontage = frontageCellsForBuilding(working, refreshedTarget).filter((cell) => canPlaceBuilding(working, 'powerLine', cell.x, cell.z));
+      const pair = nearestPair(sources, frontage);
+      if (pair) {
+        const result = applyInfrastructurePath(working, 'powerLine', routeBetween(pair.source, pair.target));
+        working = result.state;
+        fixed ||= result.placed > 0;
+      }
+    }
+
+    if (!fixed) return state;
+    pushUndo(state);
+    const derived = deriveSimulation(working);
+    return {
+      ...working,
+      resources: {
+        ...derived.resources,
+        money: Math.round(working.resources.money * 100) / 100
+      },
+      happiness: derived.happiness,
+      demand: derived.demand,
+      aiLastAction: `Auto-fixed ${BUILDING_ECONOMY[target.type].name}`,
+      ...stackCounts()
+    };
+  });
+
+  return fixed;
 }
 
 export function setHoverCell(cell: { x: number; z: number } | null): void {
@@ -1589,11 +2146,13 @@ export function economySummary(state: GameState): {
 } {
   const derived = deriveSimulation(state);
   const infrastructure = computeInfrastructureStatus(state);
+  const policy = policyModifiers(state);
 
   let maintenance = 0;
   for (const b of state.buildings) {
     maintenance += BUILDING_ECONOMY[b.type].maintenance;
   }
+  maintenance += policy.maintenance;
 
   const residentTax = derived.resources.population * ECONOMY_TUNING.residentTaxPerCitizen;
   const employmentTax =
@@ -1608,7 +2167,8 @@ export function economySummary(state: GameState): {
     activeCount('cornerStore') * ECONOMY_TUNING.cornerStoreRevenue +
     activeCount('bank') * ECONOMY_TUNING.bankRevenue +
     activeCount('trainStation') * 0.11 +
-    activeCount('cityHall') * 0.08;
+    activeCount('cityHall') * 0.08 +
+    policy.commercialIncome;
   const upgradedHousingRevenue = residentialUpgradeRevenueBonus(state, infrastructure);
   const powerPenalty =
     Math.max(0, derived.resources.powerUsed - derived.resources.powerProduced) * ECONOMY_TUNING.powerDeficitPenalty;
@@ -1669,11 +2229,13 @@ export function tickSimulation(dtSeconds: number): void {
     const evolvedState = evolveBuildings(state, dtSeconds);
     const derived = deriveSimulation(evolvedState);
     const infrastructure = computeInfrastructureStatus(evolvedState);
+    const policy = policyModifiers(evolvedState);
 
     let maintenancePerSecond = 0;
     for (const b of evolvedState.buildings) {
       maintenancePerSecond += BUILDING_ECONOMY[b.type].maintenance;
     }
+    maintenancePerSecond += policy.maintenance;
 
     const residentTax = derived.resources.population * ECONOMY_TUNING.residentTaxPerCitizen;
     const employmentTax =
@@ -1688,7 +2250,8 @@ export function tickSimulation(dtSeconds: number): void {
       activeCount('cornerStore') * ECONOMY_TUNING.cornerStoreRevenue +
       activeCount('bank') * ECONOMY_TUNING.bankRevenue +
       activeCount('trainStation') * 0.11 +
-      activeCount('cityHall') * 0.08;
+      activeCount('cityHall') * 0.08 +
+      policy.commercialIncome;
     const upgradedHousingRevenue = residentialUpgradeRevenueBonus(evolvedState, infrastructure);
     const powerPenalty =
       Math.max(0, derived.resources.powerUsed - derived.resources.powerProduced) * ECONOMY_TUNING.powerDeficitPenalty;
@@ -1708,6 +2271,23 @@ export function tickSimulation(dtSeconds: number): void {
     const simSeconds = evolvedState.simSeconds + dtSeconds;
     const day = Math.floor(simSeconds / DAY_LENGTH_SECONDS) + 1;
     const timeOfDay = ((simSeconds / DAY_LENGTH_SECONDS) * 24 + 8) % 24;
+    const unlockedMilestones = evaluateMilestones(
+      {
+        ...evolvedState,
+        resources: {
+          ...derived.resources,
+          money: Math.max(
+            ECONOMY_TUNING.minimumMoney,
+            Math.round((evolvedState.resources.money + deltaMoney) * 100) / 100
+          )
+        },
+        happiness: derived.happiness,
+        demand: derived.demand
+      },
+      infrastructure
+    );
+    const milestoneMoney = unlockedMilestones.reduce((sum, id) => sum + MILESTONE_REWARDS[id].money, 0);
+    const milestoneHappiness = unlockedMilestones.reduce((sum, id) => sum + MILESTONE_REWARDS[id].happiness, 0);
 
     return {
       ...evolvedState,
@@ -1718,11 +2298,16 @@ export function tickSimulation(dtSeconds: number): void {
         ...derived.resources,
         money: Math.max(
           ECONOMY_TUNING.minimumMoney,
-          Math.round((evolvedState.resources.money + deltaMoney) * 100) / 100
+          Math.round((evolvedState.resources.money + deltaMoney + milestoneMoney) * 100) / 100
         )
       },
-      happiness: derived.happiness,
-      demand: derived.demand
+      happiness: clampPercent(derived.happiness + milestoneHappiness),
+      demand: derived.demand,
+      claimedMilestones: [...evolvedState.claimedMilestones, ...unlockedMilestones],
+      aiLastAction:
+        unlockedMilestones.length > 0
+          ? `Milestone: ${MILESTONE_REWARDS[unlockedMilestones[0]].label}`
+          : evolvedState.aiLastAction
     };
   });
 }

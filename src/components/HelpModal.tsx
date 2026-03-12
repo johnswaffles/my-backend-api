@@ -29,6 +29,7 @@ export function HelpModal({ open, onClose }: HelpModalProps): JSX.Element | null
             <ul className="mt-3 space-y-2 text-sm text-slate-200">
               <li>Place roads, rail lines, power lines, homes, commerce, services, parks, workshops, and utilities.</li>
               <li>Watch money, happiness, power, jobs, and service demand in the top HUD.</li>
+              <li>Use overlays to inspect appeal, power, transport, services, tiers, and offline buildings directly on the map.</li>
               <li>Buildings only go live once they are connected to transport and power.</li>
               <li>Grouped buildings merge into larger structures and can be upgraded through ten tiers.</li>
               <li>High appeal, city hall influence, stations, and surrounding services accelerate growth.</li>
@@ -74,9 +75,19 @@ export function HelpModal({ open, onClose }: HelpModalProps): JSX.Element | null
             <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-100">Upgrades</h3>
             <ul className="mt-3 space-y-2 text-sm text-slate-200">
               <li>Select a building and upgrade it manually from the inspect panel.</li>
+              <li>If a building is offline, the inspect panel can auto-fix its transport and power links.</li>
               <li>Entire connected same-type clusters upgrade together.</li>
               <li>Tier 1-2 are neighborhood scale, Tier 3-5 are district scale, and Tier 6-10 become skyline and mega-district scale.</li>
               <li>Higher tiers bring more housing, jobs, services, power, revenue, and visual detail.</li>
+            </ul>
+          </section>
+
+          <section className="rounded-2xl border border-slate-300/20 bg-slate-950/35 p-4">
+            <h3 className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-100">Policies + Milestones</h3>
+            <ul className="mt-3 space-y-2 text-sm text-slate-200">
+              <li>Use the Town Progress panel to toggle city policies like transit-first growth, green standards, business incentives, and civic pride.</li>
+              <li>Policies shift demand, happiness, capacity, and maintenance across the whole city.</li>
+              <li>Milestones now pay cash and happiness rewards when your connected city reaches major goals.</li>
             </ul>
           </section>
 

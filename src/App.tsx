@@ -18,6 +18,7 @@ import { InputController } from './game/input';
 import { CitySoundtrack } from './game/music';
 import { GameRenderer } from './game/render';
 import { gameStore } from './game/state';
+import type { OverlayMode } from './game/state';
 
 function useGameState() {
   return useSyncExternalStore(
@@ -48,6 +49,7 @@ export default function App(): JSX.Element {
   const [mobileHudExpanded, setMobileHudExpanded] = useState(true);
   const [helpOpen, setHelpOpen] = useState(false);
   const [musicEnabled, setMusicEnabled] = useState(true);
+  const [overlayMode, setOverlayMode] = useState<OverlayMode>('base');
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -56,6 +58,7 @@ export default function App(): JSX.Element {
     const input = new InputController(renderer);
     rendererRef.current = renderer;
     renderer.setFrameHook((dt) => input.update(dt));
+    renderer.setOverlayMode(overlayMode);
 
     return () => {
       rendererRef.current = null;
@@ -63,6 +66,10 @@ export default function App(): JSX.Element {
       renderer.dispose();
     };
   }, []);
+
+  useEffect(() => {
+    rendererRef.current?.setOverlayMode(overlayMode);
+  }, [overlayMode]);
 
   useEffect(() => {
     const music = new CitySoundtrack();
@@ -203,10 +210,12 @@ export default function App(): JSX.Element {
         aiAutoplayEnabled={state.aiAutoplayEnabled}
         aiLastAction={state.aiLastAction}
         musicEnabled={musicEnabled}
+        overlayMode={overlayMode}
         isFullscreen={isFullscreen}
         mobile={isMobile}
         onOpenHelp={() => setHelpOpen(true)}
         onToggleMusic={toggleMusic}
+        onOverlayChange={setOverlayMode}
         onToggleMobileHud={() => setMobileHudExpanded((value) => !value)}
         mobileHudExpanded={mobileHudExpanded}
         onFocusHome={focusTownCenter}
@@ -313,7 +322,7 @@ export default function App(): JSX.Element {
                 {mobilePanel === 'build' ? <BuildMenu placementMode={state.placementMode} mobile /> : null}
                 {mobilePanel === 'info' ? <InfoPanel building={selected} onFocusBuilding={focusCell} /> : null}
                 {mobilePanel === 'progress' ? <TownProgressPanel state={state} /> : null}
-                {mobilePanel === 'map' ? <MiniMapPanel state={state} mobile onFocusCell={focusCell} /> : null}
+                {mobilePanel === 'map' ? <MiniMapPanel state={state} mobile onFocusCell={focusCell} mode={overlayMode} onModeChange={setOverlayMode} /> : null}
               </div>
             ) : null}
 
@@ -414,7 +423,7 @@ export default function App(): JSX.Element {
             </div>
             <div />
             <div className="flex min-h-0 flex-col gap-4 overflow-hidden">
-              <MiniMapPanel state={state} onFocusCell={focusCell} />
+              <MiniMapPanel state={state} onFocusCell={focusCell} mode={overlayMode} onModeChange={setOverlayMode} />
               <InfoPanel building={selected} onFocusBuilding={focusCell} />
             </div>
           </div>

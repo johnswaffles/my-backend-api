@@ -1,4 +1,5 @@
 import {
+  buildingContextSummary,
   bulldozeAt,
   canPlaceBuilding,
   cancelPlacement,
@@ -11,8 +12,8 @@ import {
   tickSimulation,
   undoAction
 } from './actions';
-import { gameStore, INFINITE_MONEY } from './state';
-import type { BuildType } from './state';
+import { gameStore, INFINITE_MONEY, occupiedCellsForBuilding } from './state';
+import type { BuildType, Building, GameState } from './state';
 import { GameRenderer } from './render';
 
 type AiAction =
@@ -177,18 +178,41 @@ export class InputController {
     if (state.gameSpeed === 0) return null;
 
     const roads = state.buildings.filter((b) => b.type === 'road').length;
+    const rails = state.buildings.filter((b) => b.type === 'railLine').length;
     const money = state.resources.money;
+    const offlineTarget = this.pickOfflineTarget();
 
     if (!INFINITE_MONEY && money < 300) {
       const bulldoze = this.pickBulldozeTarget();
       if (bulldoze) return bulldoze;
     }
 
+    if (offlineTarget) {
+      if (!offlineTarget.context.transportAccess) {
+        const transportFix = this.planTransportLinkFor(offlineTarget.building);
+        if (transportFix) return transportFix;
+      }
+
+      if (!offlineTarget.context.powerAccess) {
+        const powerFix = this.planPowerLinkFor(offlineTarget.building);
+        if (powerFix) return powerFix;
+      }
+    }
+
     const types: BuildType[] = [];
     const d = state.demand;
+    const activePowerPlants = state.buildings.filter((building) => building.type === 'powerPlant').length;
+    const trainStations = state.buildings.filter((building) => building.type === 'trainStation').length;
+    const cityHalls = state.buildings.filter((building) => building.type === 'cityHall').length;
+    const substations = state.buildings.filter((building) => building.type === 'substation').length;
+    const majorBuildings = state.buildings.filter((building) => !['road', 'railLine', 'powerLine'].includes(building.type)).length;
 
     if (d.power >= 60) types.push('powerPlant', 'powerPlant');
     if (d.roads >= 36 || roads < 10) types.push('road', 'road', 'road');
+    if (majorBuildings >= 8 && substations < Math.max(1, Math.floor(activePowerPlants / 2))) types.push('substation');
+    if (majorBuildings >= 10 && trainStations < 1) types.push('trainStation');
+    if (majorBuildings >= 14 && rails < 6) types.push('railLine', 'railLine');
+    if (majorBuildings >= 12 && cityHalls < 1) types.push('cityHall');
     if (d.housing >= 45) types.push('house', 'house');
     if (d.commerce >= 45) types.push('shop', 'restaurant', 'bank');
     if (d.recreation >= 45) types.push('park');
@@ -198,7 +222,7 @@ export class InputController {
     if (d.safety >= 40) types.push('policeStation', 'fireStation');
 
     if (!types.length) {
-      types.push('house', 'shop', 'cornerStore', 'park', 'road', 'road');
+      types.push('house', 'shop', 'cornerStore', 'park', 'road', 'road', 'substation');
     }
 
     if (d.roads >= 36 || roads < 10) {
@@ -220,6 +244,11 @@ export class InputController {
     const d = state.demand;
     if (type === 'powerPlant') return d.power * 1.3;
     if (type === 'road') return d.roads * 1.1;
+    if (type === 'railLine') return d.roads * 0.95 + state.buildings.length * 0.3;
+    if (type === 'powerLine') return d.power * 0.9;
+    if (type === 'substation') return d.power * 1.02 + d.housing * 0.22;
+    if (type === 'trainStation') return d.commerce * 0.76 + d.jobs * 0.52 + state.buildings.length * 0.2;
+    if (type === 'cityHall') return d.safety * 0.38 + d.health * 0.34 + d.commerce * 0.2 + state.buildings.length * 0.16;
     if (type === 'house') return d.housing;
     if (type === 'shop' || type === 'restaurant' || type === 'bank') return d.commerce * 1.05;
     if (type === 'groceryStore' || type === 'cornerStore') return d.essentials * 1.08;
@@ -233,6 +262,9 @@ export class InputController {
   private bestPlacementForType(type: BuildType): AiAction | null {
     if (type === 'road') {
       return this.planRoadExpansion();
+    }
+    if (type === 'railLine') {
+      return this.planRailExpansion();
     }
 
     const state = gameStore.getState();
@@ -315,6 +347,12 @@ export class InputController {
         score += nearRoad * 2.3 + distCenter * 0.04 - nearHouses * 2.4;
       } else if (type === 'powerPlant') {
         score += nearRoad * 1.9 + distCenter * 0.075 - nearHouses * 3.5 - nearCommerce * 2.2 - nearCivic * 2.4;
+      } else if (type === 'substation') {
+        score += nearRoad * 3.2 + nearHouses * 1.6 + nearCommerce * 1.1 + nearCivic * 0.9 - nearIndustry * 0.4;
+      } else if (type === 'trainStation') {
+        score += nearRoad * 3.7 + nearCommerce * 2.4 + nearHouses * 1.2 + nearbyIntersections * 1.2 - nearIndustry * 0.2;
+      } else if (type === 'cityHall') {
+        score += nearRoad * 3.1 + nearCommerce * 1.5 + nearParks * 1.8 + nearCivic * 1.4 - nearIndustry * 1.6 - distCenter * 0.01;
       }
 
       if (!best || score > best.score) {
@@ -342,6 +380,210 @@ export class InputController {
 
     cells.sort((a, b) => a.dist + a.tie - (b.dist + b.tie));
     return cells.map(({ x, z }) => ({ x, z }));
+  }
+
+  private pickOfflineTarget():
+    | {
+        building: Building;
+        context: ReturnType<typeof buildingContextSummary>;
+      }
+    | null {
+    const state = gameStore.getState();
+    const offline = state.buildings
+      .filter((building) => !['road', 'railLine', 'powerLine'].includes(building.type))
+      .map((building) => ({ building, context: buildingContextSummary(state, building) }))
+      .filter(({ context }) => !context.active);
+
+    offline.sort((a, b) => this.offlineUrgencyScore(b) - this.offlineUrgencyScore(a));
+    return offline[0] ?? null;
+  }
+
+  private offlineUrgencyScore(entry: {
+    building: Building;
+    context: ReturnType<typeof buildingContextSummary>;
+  }): number {
+    const typeWeight: Record<BuildType, number> = {
+      road: 0,
+      railLine: 0,
+      powerLine: 0,
+      house: 10,
+      restaurant: 7,
+      shop: 8,
+      park: 4,
+      workshop: 8,
+      powerPlant: 11,
+      substation: 8,
+      trainStation: 8,
+      cityHall: 9,
+      groceryStore: 8,
+      cornerStore: 6,
+      bank: 6,
+      policeStation: 7,
+      fireStation: 7,
+      hospital: 9
+    };
+
+    return (
+      typeWeight[entry.building.type] +
+      entry.context.clusterSize * 1.4 +
+      entry.building.level * 0.6 +
+      (entry.context.transportAccess ? 0 : 5) +
+      (entry.context.powerAccess ? 0 : 4) +
+      entry.context.appeal * 0.03
+    );
+  }
+
+  private uniqueCells(cells: Array<{ x: number; z: number }>): Array<{ x: number; z: number }> {
+    const seen = new Set<string>();
+    return cells.filter((cell) => {
+      const key = `${cell.x}:${cell.z}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  private buildingFrontageCells(building: Building): Array<{ x: number; z: number }> {
+    const state = gameStore.getState();
+    const occupied = occupiedCellsForBuilding(building);
+    const occupiedKeys = new Set(occupied.map((cell) => `${cell.x}:${cell.z}`));
+    const frontier: Array<{ x: number; z: number }> = [];
+
+    for (const cell of occupied) {
+      frontier.push(
+        { x: cell.x + 1, z: cell.z },
+        { x: cell.x - 1, z: cell.z },
+        { x: cell.x, z: cell.z + 1 },
+        { x: cell.x, z: cell.z - 1 }
+      );
+    }
+
+    return this.uniqueCells(
+      frontier.filter((cell) => {
+        if (cell.x < 0 || cell.z < 0 || cell.x >= state.gridSize || cell.z >= state.gridSize) return false;
+        return !occupiedKeys.has(`${cell.x}:${cell.z}`);
+      })
+    );
+  }
+
+  private networkCellsForTypes(types: BuildType[]): Array<{ x: number; z: number }> {
+    const state = gameStore.getState();
+    return state.buildings.flatMap((building) => (types.includes(building.type) ? occupiedCellsForBuilding(building) : []));
+  }
+
+  private distanceToTargets(x: number, z: number, targets: Array<{ x: number; z: number }>): number {
+    let min = Number.POSITIVE_INFINITY;
+    for (const target of targets) {
+      min = Math.min(min, Math.abs(target.x - x) + Math.abs(target.z - z));
+    }
+    return min;
+  }
+
+  private planLineStep(
+    type: 'road' | 'railLine' | 'powerLine',
+    sources: Array<{ x: number; z: number }>,
+    targets: Array<{ x: number; z: number }>
+  ): AiAction | null {
+    const state = gameStore.getState();
+    if (!targets.length) return null;
+
+    if (!sources.length) {
+      const direct = targets.find((cell) => canPlaceBuilding(state, type, cell.x, cell.z));
+      return direct ? { action: 'place', type, x: direct.x, z: direct.z } : null;
+    }
+
+    let best: { x: number; z: number; score: number } | null = null;
+    for (const source of sources) {
+      for (const neighbor of [
+        { x: source.x + 1, z: source.z },
+        { x: source.x - 1, z: source.z },
+        { x: source.x, z: source.z + 1 },
+        { x: source.x, z: source.z - 1 }
+      ]) {
+        if (!canPlaceBuilding(state, type, neighbor.x, neighbor.z)) continue;
+
+        const distance = this.distanceToTargets(neighbor.x, neighbor.z, targets);
+        const sameLineNeighbors =
+          Number(this.hasTypeAt(state, type, neighbor.x + 1, neighbor.z)) +
+          Number(this.hasTypeAt(state, type, neighbor.x - 1, neighbor.z)) +
+          Number(this.hasTypeAt(state, type, neighbor.x, neighbor.z + 1)) +
+          Number(this.hasTypeAt(state, type, neighbor.x, neighbor.z - 1));
+        const score =
+          (distance === 0 ? 12 : 0) +
+          (distance <= 1 ? 4 : 0) +
+          sameLineNeighbors * 0.6 -
+          distance * 1.45;
+
+        if (!best || score > best.score) {
+          best = { x: neighbor.x, z: neighbor.z, score };
+        }
+      }
+    }
+
+    return best ? { action: 'place', type, x: best.x, z: best.z } : null;
+  }
+
+  private hasTypeAt(state: GameState, type: BuildType, x: number, z: number): boolean {
+    return state.buildings.some((building) => building.type === type && building.x === x && building.z === z);
+  }
+
+  private planTransportLinkFor(building: Building): AiAction | null {
+    const state = gameStore.getState();
+    const targets = this.buildingFrontageCells(building).filter((cell) => canPlaceBuilding(state, 'road', cell.x, cell.z));
+    const sources = this.networkCellsForTypes(['road', 'railLine', 'trainStation']);
+
+    if (!sources.length) {
+      const direct = targets[0];
+      if (direct) return { action: 'place', type: 'road', x: direct.x, z: direct.z };
+      return this.pickStarterRoad();
+    }
+
+    return this.planLineStep('road', sources, targets) ?? this.planRoadExpansion();
+  }
+
+  private planPowerLinkFor(building: Building): AiAction | null {
+    const state = gameStore.getState();
+    const activePowerPlant = state.buildings.some((candidate) => {
+      if (candidate.type !== 'powerPlant') return false;
+      return buildingContextSummary(state, candidate).active;
+    });
+
+    if (!activePowerPlant) {
+      const offlinePlant = state.buildings.find((candidate) => candidate.type === 'powerPlant' && !buildingContextSummary(state, candidate).active);
+      if (offlinePlant) {
+        const offlinePlantContext = buildingContextSummary(state, offlinePlant);
+        if (!offlinePlantContext.transportAccess) {
+          return this.planTransportLinkFor(offlinePlant);
+        }
+      }
+      const plantPlacement = this.bestPlacementForType('powerPlant');
+      if (plantPlacement) return plantPlacement;
+    }
+
+    const frontage = this.buildingFrontageCells(building);
+    const offlineNeighbors = state.buildings.filter((candidate) => {
+      if (candidate.id === building.id) return false;
+      const context = buildingContextSummary(state, candidate);
+      if (context.active || context.powerAccess) return false;
+      return Math.abs(candidate.x - building.x) + Math.abs(candidate.z - building.z) <= 3;
+    }).length;
+
+    if (offlineNeighbors >= 2) {
+      const substationCell = frontage.find((cell) => canPlaceBuilding(state, 'substation', cell.x, cell.z));
+      if (substationCell) {
+        return { action: 'place', type: 'substation', x: substationCell.x, z: substationCell.z };
+      }
+    }
+
+    const targets = frontage.filter((cell) => canPlaceBuilding(state, 'powerLine', cell.x, cell.z));
+    const sources = state.buildings.flatMap((candidate) => {
+      const context = buildingContextSummary(state, candidate);
+      return context.powerAccess || candidate.type === 'powerPlant' || candidate.type === 'powerLine' || candidate.type === 'substation'
+        ? occupiedCellsForBuilding(candidate)
+        : [];
+    });
+
+    return this.planLineStep('powerLine', sources, targets);
   }
 
   private planRoadExpansion(): AiAction | null {
@@ -432,6 +674,30 @@ export class InputController {
     const chosen = best as { x: number; z: number; score: number } | null;
     if (!chosen) return null;
     return { action: 'place', type: 'road', x: chosen.x, z: chosen.z };
+  }
+
+  private planRailExpansion(): AiAction | null {
+    const state = gameStore.getState();
+    const center = Math.floor(state.gridSize / 2);
+    const railSources = this.networkCellsForTypes(['railLine', 'trainStation']);
+    if (!railSources.length) {
+      const starterBand = [
+        { x: center - 2, z: center + 4 },
+        { x: center - 1, z: center + 4 },
+        { x: center, z: center + 4 },
+        { x: center + 1, z: center + 4 },
+        { x: center + 2, z: center + 4 }
+      ];
+      const starter = starterBand.find((cell) => canPlaceBuilding(state, 'railLine', cell.x, cell.z));
+      return starter ? { action: 'place', type: 'railLine', x: starter.x, z: starter.z } : null;
+    }
+
+    const targets = state.buildings
+      .filter((building) => ['shop', 'restaurant', 'groceryStore', 'cornerStore', 'bank', 'trainStation', 'cityHall'].includes(building.type))
+      .flatMap((building) => this.buildingFrontageCells(building))
+      .filter((cell) => canPlaceBuilding(state, 'railLine', cell.x, cell.z));
+
+    return this.planLineStep('railLine', railSources, targets);
   }
 
   private pickStarterRoad(): AiAction | null {

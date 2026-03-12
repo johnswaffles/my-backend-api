@@ -1,5 +1,6 @@
 import {
   BUILDING_ECONOMY,
+  autoFixBuildingById,
   bulldozeAt,
   buildingContextSummary,
   canUpgradeBuilding,
@@ -120,6 +121,20 @@ export function InfoPanel({ building, onFocusBuilding }: InfoPanelProps): JSX.El
                   P{context.parkSupport} C{context.commerceSupport} S{context.civicSupport}
                 </div>
               </div>
+              <div>
+                <div className="text-xs uppercase tracking-[0.15em] text-slate-400">Influence</div>
+                <div className="text-sm text-slate-100">
+                  {['park', 'shop', 'restaurant', 'groceryStore', 'cornerStore', 'bank'].includes(building.type)
+                    ? 'Local radius'
+                    : ['hospital', 'policeStation', 'fireStation', 'trainStation'].includes(building.type)
+                      ? 'District radius'
+                      : building.type === 'cityHall'
+                        ? 'City-core radius'
+                        : building.type === 'substation'
+                          ? 'Grid radius'
+                          : 'Direct frontage'}
+                </div>
+              </div>
             </div>
           ) : null}
           <div>
@@ -146,6 +161,15 @@ export function InfoPanel({ building, onFocusBuilding }: InfoPanelProps): JSX.El
               className="w-full rounded-lg border border-cyan-300/60 bg-cyan-500/18 px-3 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-500/28 disabled:cursor-not-allowed disabled:opacity-45"
             >
               Upgrade to Tier {building.level + 1} (${upgradeCost})
+            </button>
+          ) : null}
+          {!context?.active ? (
+            <button
+              type="button"
+              onClick={() => autoFixBuildingById(building.id)}
+              className="w-full rounded-lg border border-amber-300/60 bg-amber-500/18 px-3 py-2 text-sm font-medium text-amber-100 transition hover:bg-amber-500/28"
+            >
+              Auto-Fix Connections
             </button>
           ) : null}
           <button

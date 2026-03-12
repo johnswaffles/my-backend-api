@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react';
 import { buildingContextSummary } from '../game/actions';
-import type { BuildType, GameState } from '../game/state';
-
-type OverlayMode = 'base' | 'appeal' | 'power' | 'services' | 'tiers';
+import type { BuildType, GameState, OverlayMode } from '../game/state';
 
 interface MiniMapPanelProps {
   state: GameState;
   mobile?: boolean;
   onFocusCell: (x: number, z: number) => void;
+  mode?: OverlayMode;
+  onModeChange?: (mode: OverlayMode) => void;
 }
 
 function buildingColor(type: BuildType): string {
@@ -48,8 +48,10 @@ function gradientColor(percent: number, low: [number, number, number], high: [nu
   return `rgb(${r}, ${g}, ${b})`;
 }
 
-export function MiniMapPanel({ state, mobile = false, onFocusCell }: MiniMapPanelProps): JSX.Element {
-  const [mode, setMode] = useState<OverlayMode>('base');
+export function MiniMapPanel({ state, mobile = false, onFocusCell, mode: controlledMode, onModeChange }: MiniMapPanelProps): JSX.Element {
+  const [internalMode, setInternalMode] = useState<OverlayMode>('base');
+  const mode = controlledMode ?? internalMode;
+  const setMode = onModeChange ?? setInternalMode;
 
   const buildingByCell = useMemo(() => {
     const map = new Map<string, typeof state.buildings[number]>();
@@ -90,11 +92,19 @@ export function MiniMapPanel({ state, mobile = false, onFocusCell }: MiniMapPane
             const context = buildingContextSummary(state, building);
             color = building.type === 'powerPlant' ? '#60a5fa' : context.powerAccess ? '#4ade80' : '#f87171';
             label = context.powerAccess ? 'Powered' : 'No power';
+          } else if (mode === 'transport') {
+            const context = buildingContextSummary(state, building);
+            color = context.transportAccess ? '#22c55e' : '#f97316';
+            label = context.transportAccess ? 'Connected' : 'No route';
           } else if (mode === 'services') {
             const context = buildingContextSummary(state, building);
             const supportScore = Math.min(100, context.commerceSupport * 10 + context.civicSupport * 18 + context.parkSupport * 12);
             color = gradientColor(supportScore, [148, 163, 184], [250, 204, 21]);
             label = `Support ${supportScore}`;
+          } else if (mode === 'offline') {
+            const context = buildingContextSummary(state, building);
+            color = context.active ? '#22c55e' : context.powerAccess ? '#f59e0b' : '#ef4444';
+            label = context.active ? 'Live' : context.powerAccess ? 'Transport issue' : 'Offline';
           }
         } else if (mode === 'base') {
           color = '#4f6f57';
@@ -118,8 +128,8 @@ export function MiniMapPanel({ state, mobile = false, onFocusCell }: MiniMapPane
         <div className="text-xs uppercase tracking-[0.18em] text-cyan-200">City Map</div>
         <div className="text-[10px] text-slate-300">Tap a cell to focus</div>
       </div>
-      <div className="mb-3 grid grid-cols-5 gap-1">
-        {(['base', 'appeal', 'power', 'services', 'tiers'] as OverlayMode[]).map((option) => (
+      <div className="mb-3 grid grid-cols-4 gap-1">
+        {(['base', 'appeal', 'power', 'transport', 'services', 'tiers', 'offline'] as OverlayMode[]).map((option) => (
           <button
             key={option}
             type="button"

@@ -73,6 +73,21 @@ export interface Demand {
   safety: number;
 }
 
+export interface CityPolicies {
+  transitFirst: boolean;
+  greenStandards: boolean;
+  businessIncentives: boolean;
+  civicPride: boolean;
+}
+
+export type MilestoneId =
+  | 'first_power_grid'
+  | 'first_station'
+  | 'first_civic_core'
+  | 'downtown_district'
+  | 'park_network'
+  | 'tower_city';
+
 export interface HoverCell {
   x: number;
   z: number;
@@ -99,11 +114,14 @@ export interface GameState {
   redoCount: number;
   nextBuildingId: number;
   pendingBuildAsset: AssetVariation | null;
+  policies: CityPolicies;
+  claimedMilestones: MilestoneId[];
 }
 
 const GRID_SIZE = 28;
 export type BuildingLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 export type GameSpeed = 0 | 1 | 2 | 10 | 100;
+export type OverlayMode = 'base' | 'appeal' | 'power' | 'transport' | 'services' | 'tiers' | 'offline';
 export const INFINITE_MONEY = false;
 export const MAX_BUILDING_LEVEL = 10;
 export const STARTING_MONEY = 200000;
@@ -227,7 +245,14 @@ export function createInitialGameState(): GameState {
     undoCount: 0,
     redoCount: 0,
     nextBuildingId: 1,
-    pendingBuildAsset: null
+    pendingBuildAsset: null,
+    policies: {
+      transitFirst: false,
+      greenStandards: false,
+      businessIncentives: false,
+      civicPride: false
+    },
+    claimedMilestones: []
   };
 }
 
