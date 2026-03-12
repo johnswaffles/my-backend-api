@@ -70,6 +70,7 @@ interface AmbientCarState {
   speed: number;
   direction: 1 | -1;
   lane: number;
+  length?: number;
 }
 
 interface SmokeAnimation {
@@ -123,6 +124,7 @@ export class GameRenderer {
 
   private readonly buildingMeshes = new Map<number, THREE.Object3D>();
   private readonly buildingRenderSignatures = new Map<number, string>();
+  private readonly cellBuildings = new Map<string, Building[]>();
 
   private readonly selectableMeshes = new Map<number, THREE.Mesh[]>();
 
@@ -588,33 +590,52 @@ export class GameRenderer {
 
     this.ambientTrains.forEach((group, index) => {
       const bodyMat = new THREE.MeshStandardMaterial({
-        color: index % 2 === 0 ? 0x5f7fa0 : 0xa05f5f,
-        roughness: 0.74,
-        metalness: 0.14
+        color: index % 2 === 0 ? 0x4f6f92 : 0x9b544f,
+        roughness: 0.68,
+        metalness: 0.18
       });
-      const engine = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.16, 0.62), bodyMat);
-      engine.position.y = 0.12;
+      const engine = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.18, 0.58), bodyMat);
+      engine.position.set(0, 0.12, -0.58);
       engine.castShadow = true;
       engine.receiveShadow = true;
       const cabin = new THREE.Mesh(
-        new THREE.BoxGeometry(0.18, 0.12, 0.2),
-        new THREE.MeshStandardMaterial({ color: 0xdfe8ef, roughness: 0.42, metalness: 0.08 })
+        new THREE.BoxGeometry(0.18, 0.12, 0.18),
+        new THREE.MeshStandardMaterial({ color: 0xdfe8ef, roughness: 0.32, metalness: 0.12 })
       );
-      cabin.position.set(0, 0.22, -0.1);
+      cabin.position.set(0, 0.22, -0.66);
       cabin.castShadow = true;
       cabin.receiveShadow = true;
-      const carA = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.14, 0.46), bodyMat.clone());
-      carA.position.set(0, 0.11, 0.62);
+      const noseLight = new THREE.Mesh(
+        new THREE.BoxGeometry(0.12, 0.05, 0.02),
+        new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.24, metalness: 0.08, emissive: 0xfff3c2, emissiveIntensity: 0.24 })
+      );
+      noseLight.position.set(0, 0.14, -0.88);
+      noseLight.castShadow = true;
+      noseLight.receiveShadow = true;
+      const carA = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.14, 0.44), bodyMat.clone());
+      carA.position.set(0, 0.11, -0.04);
       carA.castShadow = true;
       carA.receiveShadow = true;
       const carB = carA.clone();
-      carB.position.z = 1.12;
-      group.add(engine, cabin, carA, carB);
+      carB.position.z = 0.5;
+      const wheelMat = new THREE.MeshStandardMaterial({ color: 0x2a3138, roughness: 0.76, metalness: 0.2 });
+      [-0.1, 0.1].forEach((x) => {
+        [-0.66, -0.2, 0.16, 0.7].forEach((z) => {
+          const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.03, 10), wheelMat);
+          wheel.rotation.z = Math.PI / 2;
+          wheel.position.set(x, 0.04, z);
+          wheel.castShadow = true;
+          wheel.receiveShadow = true;
+          group.add(wheel);
+        });
+      });
+      group.add(engine, cabin, noseLight, carA, carB);
       group.userData.motion = {
-        progress: index * 1.8,
+        progress: index * 0.48,
         speed: 0.72 + index * 0.05,
         direction: index % 2 === 0 ? 1 : -1,
-        lane: 0
+        lane: 0,
+        length: 1.72
       } as AmbientCarState;
       group.visible = false;
       this.ambientRoot.add(group);
@@ -675,19 +696,23 @@ export class GameRenderer {
       }
 
       const motion = group.userData.motion as AmbientCarState;
-      motion.progress = (motion.progress + dtSeconds * motion.speed) % (run.end - run.start + 4.2);
+      const trainLength = motion.length ?? 1.76;
+      motion.progress = (motion.progress + dtSeconds * motion.speed) % (run.end - run.start + trainLength);
       const startWorld =
         run.axis === 'x'
           ? this.gridToWorld(run.start, run.fixed, state.gridSize)
           : this.gridToWorld(run.fixed, run.start, state.gridSize);
       const span = run.end - run.start + 1;
-      const along = motion.direction === 1 ? motion.progress : span + 2.6 - motion.progress;
+      const along =
+        motion.direction === 1
+          ? -trainLength * 0.5 + motion.progress
+          : span - 0.5 + trainLength * 0.5 - motion.progress;
 
       if (run.axis === 'x') {
-        group.position.set(startWorld.x - 0.45 + along, 0.03, startWorld.z);
+        group.position.set(startWorld.x + along, 0.03, startWorld.z);
         group.rotation.y = motion.direction === 1 ? Math.PI / 2 : -Math.PI / 2;
       } else {
-        group.position.set(startWorld.x, 0.03, startWorld.z - 0.45 + along);
+        group.position.set(startWorld.x, 0.03, startWorld.z + along);
         group.rotation.y = motion.direction === 1 ? 0 : Math.PI;
       }
       group.visible = true;
@@ -738,10 +763,24 @@ export class GameRenderer {
 
   private syncBuildingMaps(state: GameState): void {
     this.buildingByCell.clear();
+    this.cellBuildings.clear();
     state.buildings.forEach((b) => {
       occupiedCellsForBuilding(b).forEach((cell) => {
-        this.buildingByCell.set(`${cell.x}:${cell.z}`, b);
+        const key = `${cell.x}:${cell.z}`;
+        const stack = this.cellBuildings.get(key) ?? [];
+        stack.push(b);
+        this.cellBuildings.set(key, stack);
       });
+    });
+    this.cellBuildings.forEach((stack, key) => {
+      const priority = (type: BuildType): number => {
+        if (type !== 'road' && type !== 'railLine' && type !== 'powerLine') return 3;
+        if (type === 'road') return 2;
+        if (type === 'railLine') return 1;
+        return 0;
+      };
+      const primary = [...stack].sort((a, b) => priority(b.type) - priority(a.type))[0];
+      if (primary) this.buildingByCell.set(key, primary);
     });
 
     this.rebuildGroundDecor(state);
@@ -882,6 +921,7 @@ export class GameRenderer {
 
   private addLateTierEnhancements(object: THREE.Object3D, building: Building): void {
     if (building.type === 'road' || building.type === 'railLine' || building.type === 'powerLine' || building.level < 6) return;
+    if (building.type === 'powerPlant' || building.type === 'substation') return;
     if (building.type === 'house' && this.mergeModeForBuilding(building) === 'apartmentBlock') return;
 
     object.updateMatrixWorld(true);
@@ -926,9 +966,7 @@ export class GameRenderer {
           ? 'park'
           : building.type === 'workshop'
             ? 'industrial'
-            : building.type === 'powerPlant'
-              ? 'power'
-              : building.type === 'hospital' || building.type === 'policeStation' || building.type === 'fireStation'
+            : building.type === 'hospital' || building.type === 'policeStation' || building.type === 'fireStation'
                 ? 'civic'
                 : 'commercial';
 
@@ -939,11 +977,9 @@ export class GameRenderer {
           ? { body: 0xded7cc, accent: 0x7ebf7c, glow: 0x67e8f9, roof: 0x7b9459 }
           : family === 'civic'
             ? { body: 0xe4eaef, accent: 0x8fb4d5, glow: 0x7dd3fc, roof: 0x6f87a2 }
-            : family === 'power'
-              ? { body: 0x9da9b3, accent: 0xf3b34c, glow: 0xf59e0b, roof: 0x67737d }
-              : family === 'industrial'
-                ? { body: 0xa58d74, accent: 0xd8893a, glow: 0xf97316, roof: 0x6a747c }
-                : { body: 0xe0d6c8, accent: 0xaed4f6, glow: 0x38bdf8, roof: 0x5c6772 };
+            : family === 'industrial'
+              ? { body: 0xa58d74, accent: 0xd8893a, glow: 0xf97316, roof: 0x6a747c }
+              : { body: 0xe0d6c8, accent: 0xaed4f6, glow: 0x38bdf8, roof: 0x5c6772 };
 
     const bodyMat = new THREE.MeshStandardMaterial({ color: palette.body, roughness: 0.74, metalness: 0.04 });
     const accentMat = new THREE.MeshStandardMaterial({ color: palette.accent, roughness: 0.52, metalness: 0.08 });
@@ -1121,48 +1157,6 @@ export class GameRenderer {
         addGlowMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.1, 1.04, depth * 0.1), glowMat)).position.set(center.x, topY + 0.6, center.z);
       }
     } else {
-      if (building.type === 'powerPlant') {
-        if (building.level >= 6) {
-          addMesh(
-            new THREE.Mesh(
-              new THREE.BoxGeometry(width * 0.28, 0.52, depth * 0.2),
-              bodyMat
-            )
-          ).position.set(center.x + width * 0.28, baseY + 0.28, center.z + depth * 0.06);
-        }
-        if (building.level >= 7) {
-          addMesh(
-            new THREE.Mesh(
-              new THREE.CylinderGeometry(Math.max(width, depth) * 0.08, Math.max(width, depth) * 0.1, 1.42, 14),
-              roofMat
-            )
-          ).position.set(center.x - width * 0.24, baseY + 0.72, center.z - depth * 0.08);
-        }
-        if (building.level >= 8) {
-          addGlowMesh(
-            new THREE.Mesh(
-              new THREE.BoxGeometry(width * 0.32, 0.08, 0.06),
-              glowMat
-            )
-          ).position.set(center.x, baseY + 0.46, center.z + depth * 0.14);
-        }
-        if (building.level >= 9) {
-          addMesh(
-            new THREE.Mesh(
-              new THREE.BoxGeometry(width * 0.22, 0.84, depth * 0.16),
-              accentMat
-            )
-          ).position.set(center.x + width * 0.08, baseY + 0.44, center.z - depth * 0.24);
-        }
-        if (building.level >= 10) {
-          addGlowMesh(
-            new THREE.Mesh(
-              new THREE.CylinderGeometry(Math.max(width, depth) * 0.06, Math.max(width, depth) * 0.06, 0.52, 12),
-              glowMat
-            )
-          ).position.set(center.x + width * 0.02, topY + 0.26, center.z - depth * 0.02);
-        }
-      } else {
         if (building.level >= 6) {
           addMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.26, 0.52, depth * 0.18), bodyMat)).position.set(center.x + width * 0.28, baseY + 0.26, center.z + depth * 0.08);
         }
@@ -1178,7 +1172,6 @@ export class GameRenderer {
         if (building.level >= 10) {
           addGlowMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.12, 1.12, depth * 0.12), glowMat)).position.set(center.x - width * 0.02, topY + 0.48, center.z + depth * 0.04);
         }
-      }
     }
 
     if (merged && building.level >= 8) {
@@ -1201,10 +1194,10 @@ export class GameRenderer {
     for (const [id, roadData] of this.roadVisuals.entries()) {
       const building = this.findBuilding(id);
       if (!building) continue;
-      const north = this.buildingByCell.get(`${building.x}:${building.z - 1}`)?.type === 'road';
-      const east = this.buildingByCell.get(`${building.x + 1}:${building.z}`)?.type === 'road';
-      const south = this.buildingByCell.get(`${building.x}:${building.z + 1}`)?.type === 'road';
-      const west = this.buildingByCell.get(`${building.x - 1}:${building.z}`)?.type === 'road';
+      const north = this.cellHasType(building.x, building.z - 1, (type) => type === 'road');
+      const east = this.cellHasType(building.x + 1, building.z, (type) => type === 'road');
+      const south = this.cellHasType(building.x, building.z + 1, (type) => type === 'road');
+      const west = this.cellHasType(building.x - 1, building.z, (type) => type === 'road');
       const horizontalRun = this.straightRoadRunLength(building.x, building.z, 1, 0);
       const verticalRun = this.straightRoadRunLength(building.x, building.z, 0, 1);
       const boulevardX = east && west && horizontalRun >= 5;
@@ -1332,12 +1325,21 @@ export class GameRenderer {
     return runs;
   }
 
+  private cellHasType(x: number, z: number, predicate: (type: BuildType) => boolean): boolean {
+    const stack = this.cellBuildings.get(`${x}:${z}`);
+    return stack ? stack.some((building) => predicate(building.type)) : false;
+  }
+
+  private adjacentBuildingsAt(x: number, z: number): Building[] {
+    return this.cellBuildings.get(`${x}:${z}`) ?? [];
+  }
+
   private straightRoadRunLength(x: number, z: number, stepX: number, stepZ: number): number {
     let count = 1;
 
     let cx = x + stepX;
     let cz = z + stepZ;
-    while (this.buildingByCell.get(`${cx}:${cz}`)?.type === 'road') {
+    while (this.cellHasType(cx, cz, (type) => type === 'road')) {
       count += 1;
       cx += stepX;
       cz += stepZ;
@@ -1345,7 +1347,7 @@ export class GameRenderer {
 
     cx = x - stepX;
     cz = z - stepZ;
-    while (this.buildingByCell.get(`${cx}:${cz}`)?.type === 'road') {
+    while (this.cellHasType(cx, cz, (type) => type === 'road')) {
       count += 1;
       cx -= stepX;
       cz -= stepZ;
@@ -1389,10 +1391,10 @@ export class GameRenderer {
     const sides = { n: 0, e: 0, s: 0, w: 0 };
 
     for (const cell of cells) {
-      if (this.isTransportFrontageType(this.buildingByCell.get(`${cell.x}:${cell.z - 1}`)?.type)) sides.n += 1;
-      if (this.isTransportFrontageType(this.buildingByCell.get(`${cell.x + 1}:${cell.z}`)?.type)) sides.e += 1;
-      if (this.isTransportFrontageType(this.buildingByCell.get(`${cell.x}:${cell.z + 1}`)?.type)) sides.s += 1;
-      if (this.isTransportFrontageType(this.buildingByCell.get(`${cell.x - 1}:${cell.z}`)?.type)) sides.w += 1;
+      if (this.cellHasType(cell.x, cell.z - 1, (type) => this.isTransportFrontageType(type))) sides.n += 1;
+      if (this.cellHasType(cell.x + 1, cell.z, (type) => this.isTransportFrontageType(type))) sides.e += 1;
+      if (this.cellHasType(cell.x, cell.z + 1, (type) => this.isTransportFrontageType(type))) sides.s += 1;
+      if (this.cellHasType(cell.x - 1, cell.z, (type) => this.isTransportFrontageType(type))) sides.w += 1;
     }
 
     return sides;
@@ -1410,14 +1412,14 @@ export class GameRenderer {
     const sides = { n: false, e: false, s: false, w: false };
 
     for (const cell of cells) {
-      const north = this.buildingByCell.get(`${cell.x}:${cell.z - 1}`);
-      const east = this.buildingByCell.get(`${cell.x + 1}:${cell.z}`);
-      const south = this.buildingByCell.get(`${cell.x}:${cell.z + 1}`);
-      const west = this.buildingByCell.get(`${cell.x - 1}:${cell.z}`);
-      if (north && north.id !== building.id && predicate(north)) sides.n = true;
-      if (east && east.id !== building.id && predicate(east)) sides.e = true;
-      if (south && south.id !== building.id && predicate(south)) sides.s = true;
-      if (west && west.id !== building.id && predicate(west)) sides.w = true;
+      const north = this.adjacentBuildingsAt(cell.x, cell.z - 1);
+      const east = this.adjacentBuildingsAt(cell.x + 1, cell.z);
+      const south = this.adjacentBuildingsAt(cell.x, cell.z + 1);
+      const west = this.adjacentBuildingsAt(cell.x - 1, cell.z);
+      if (north.some((candidate) => candidate.id !== building.id && predicate(candidate))) sides.n = true;
+      if (east.some((candidate) => candidate.id !== building.id && predicate(candidate))) sides.e = true;
+      if (south.some((candidate) => candidate.id !== building.id && predicate(candidate))) sides.s = true;
+      if (west.some((candidate) => candidate.id !== building.id && predicate(candidate))) sides.w = true;
     }
 
     return sides;
@@ -1437,7 +1439,7 @@ export class GameRenderer {
     while (true) {
       cursorX += stepX * footprint.width;
       cursorZ += stepZ * footprint.depth;
-      const candidate = this.buildingByCell.get(`${cursorX}:${cursorZ}`);
+      const candidate = this.adjacentBuildingsAt(cursorX, cursorZ).find((entry) => entry.id !== building.id && predicate(entry));
       if (!candidate || candidate.id === building.id || !predicate(candidate)) break;
       count += 1;
     }
@@ -1452,13 +1454,13 @@ export class GameRenderer {
     const matches = new Map<number, Building>();
     for (const cell of occupiedCellsForBuilding(building)) {
       const neighbors = [
-        this.buildingByCell.get(`${cell.x}:${cell.z - 1}`),
-        this.buildingByCell.get(`${cell.x + 1}:${cell.z}`),
-        this.buildingByCell.get(`${cell.x}:${cell.z + 1}`),
-        this.buildingByCell.get(`${cell.x - 1}:${cell.z}`)
+        ...this.adjacentBuildingsAt(cell.x, cell.z - 1),
+        ...this.adjacentBuildingsAt(cell.x + 1, cell.z),
+        ...this.adjacentBuildingsAt(cell.x, cell.z + 1),
+        ...this.adjacentBuildingsAt(cell.x - 1, cell.z)
       ];
       for (const candidate of neighbors) {
-        if (!candidate || candidate.id === building.id || !predicate(candidate)) continue;
+        if (candidate.id === building.id || !predicate(candidate)) continue;
         matches.set(candidate.id, candidate);
       }
     }
@@ -1641,10 +1643,10 @@ export class GameRenderer {
   private railConnections(building: Building): { n: boolean; e: boolean; s: boolean; w: boolean } {
     const matchesRail = (type?: BuildType) => type === 'railLine' || type === 'trainStation';
     return {
-      n: matchesRail(this.buildingByCell.get(`${building.x}:${building.z - 1}`)?.type),
-      e: matchesRail(this.buildingByCell.get(`${building.x + 1}:${building.z}`)?.type),
-      s: matchesRail(this.buildingByCell.get(`${building.x}:${building.z + 1}`)?.type),
-      w: matchesRail(this.buildingByCell.get(`${building.x - 1}:${building.z}`)?.type)
+      n: this.cellHasType(building.x, building.z - 1, matchesRail),
+      e: this.cellHasType(building.x + 1, building.z, matchesRail),
+      s: this.cellHasType(building.x, building.z + 1, matchesRail),
+      w: this.cellHasType(building.x - 1, building.z, matchesRail)
     };
   }
 
@@ -1655,21 +1657,39 @@ export class GameRenderer {
       type === 'substation' ||
       (type !== undefined && !['road', 'railLine', 'park'].includes(type));
     return {
-      n: matchesPower(this.buildingByCell.get(`${building.x}:${building.z - 1}`)?.type),
-      e: matchesPower(this.buildingByCell.get(`${building.x + 1}:${building.z}`)?.type),
-      s: matchesPower(this.buildingByCell.get(`${building.x}:${building.z + 1}`)?.type),
-      w: matchesPower(this.buildingByCell.get(`${building.x - 1}:${building.z}`)?.type)
+      n: this.cellHasType(building.x, building.z - 1, matchesPower),
+      e: this.cellHasType(building.x + 1, building.z, matchesPower),
+      s: this.cellHasType(building.x, building.z + 1, matchesPower),
+      w: this.cellHasType(building.x - 1, building.z, matchesPower)
     };
   }
 
   private renderSignatureForBuilding(building: Building): string {
     if (building.type === 'railLine' || building.type === 'trainStation') {
       const rail = this.railConnections(building);
-      return [building.type, Number(rail.n), Number(rail.e), Number(rail.s), Number(rail.w), building.level].join(':');
+      return [
+        building.type,
+        Number(rail.n),
+        Number(rail.e),
+        Number(rail.s),
+        Number(rail.w),
+        Number(this.cellHasType(building.x, building.z, (type) => type === 'road')),
+        Number(this.cellHasType(building.x, building.z, (type) => type === 'powerLine')),
+        building.level
+      ].join(':');
     }
     if (building.type === 'powerLine' || building.type === 'substation') {
       const power = this.powerConnections(building);
-      return [building.type, Number(power.n), Number(power.e), Number(power.s), Number(power.w), building.level].join(':');
+      return [
+        building.type,
+        Number(power.n),
+        Number(power.e),
+        Number(power.s),
+        Number(power.w),
+        Number(this.cellHasType(building.x, building.z, (type) => type === 'road')),
+        Number(this.cellHasType(building.x, building.z, (type) => type === 'railLine' || type === 'trainStation')),
+        building.level
+      ].join(':');
     }
     const sameTypeSides = this.connectedSides(building, (candidate) => candidate.type === building.type);
     const sameTypeCluster = this.connectedCluster(building, (candidate) => candidate.type === building.type);
@@ -2374,47 +2394,103 @@ export class GameRenderer {
     if (building.type === 'railLine') {
       const group = new THREE.Group();
       const rail = this.railConnections(building);
-      const bedMat = new THREE.MeshStandardMaterial({ color: 0x8f938f, roughness: 0.96, metalness: 0.01 });
-      const sleeperMat = new THREE.MeshStandardMaterial({ color: 0x6c5846, roughness: 0.9, metalness: 0.02 });
-      const railMat = new THREE.MeshStandardMaterial({ color: 0xaeb8c0, roughness: 0.54, metalness: 0.42 });
+      const hasRoadCrossing = this.cellHasType(building.x, building.z, (type) => type === 'road');
+      const hasPowerCrossing = this.cellHasType(building.x, building.z, (type) => type === 'powerLine');
+      const baseMat = new THREE.MeshStandardMaterial({ color: 0xd7d2cb, roughness: 0.95, metalness: 0.01 });
+      const ballastMat = new THREE.MeshStandardMaterial({ color: 0x878c90, roughness: 0.94, metalness: 0.02 });
+      const shoulderMat = new THREE.MeshStandardMaterial({ color: 0xa3a7ab, roughness: 0.9, metalness: 0.02 });
+      const sleeperMat = new THREE.MeshStandardMaterial({ color: 0x6b5540, roughness: 0.88, metalness: 0.04 });
+      const railMat = new THREE.MeshStandardMaterial({ color: 0xb8c4cf, roughness: 0.34, metalness: 0.62 });
 
-      const bed = new THREE.Mesh(new THREE.BoxGeometry(1.02, 0.05, 1.02), bedMat);
-      bed.position.y = 0.02;
+      const base = new THREE.Mesh(new THREE.BoxGeometry(1.08, 0.03, 1.08), baseMat);
+      base.position.y = 0.012;
+      base.receiveShadow = true;
+      base.userData.buildingId = building.id;
+      group.add(base);
+
+      const bed = new THREE.Mesh(new THREE.BoxGeometry(0.94, 0.06, 0.94), ballastMat);
+      bed.position.y = 0.03;
       bed.receiveShadow = true;
       bed.userData.buildingId = building.id;
       group.add(bed);
 
+      const shoulder = new THREE.Mesh(new THREE.BoxGeometry(1, 0.014, 0.86), shoulderMat);
+      shoulder.position.y = 0.052;
+      shoulder.userData.buildingId = building.id;
+      group.add(shoulder);
+
       const addRailSegment = (rotationY = 0) => {
         const segment = new THREE.Group();
-        const sleeperGeom = new THREE.BoxGeometry(0.64, 0.03, 0.08);
-        for (let i = -3; i <= 3; i += 1) {
+        const sleeperGeom = new THREE.BoxGeometry(0.74, 0.03, 0.055);
+        for (let i = -6; i <= 6; i += 1) {
           const sleeper = new THREE.Mesh(sleeperGeom, sleeperMat);
-          sleeper.position.set(0, 0.045, i * 0.14);
+          sleeper.position.set(0, 0.05, i * 0.075);
           sleeper.castShadow = true;
           sleeper.receiveShadow = true;
           sleeper.userData.buildingId = building.id;
           segment.add(sleeper);
         }
-        [-0.12, 0.12].forEach((x) => {
-          const line = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.03, 1.06), railMat);
-          line.position.set(x, 0.07, 0);
+        [-0.18, 0.18].forEach((x) => {
+          const line = new THREE.Mesh(new THREE.BoxGeometry(0.042, 0.036, 1.02), railMat);
+          line.position.set(x, 0.075, 0);
           line.castShadow = true;
           line.receiveShadow = true;
           line.userData.buildingId = building.id;
           segment.add(line);
         });
+        const innerFill = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.012, 0.94), ballastMat.clone());
+        innerFill.position.set(0, 0.047, 0);
+        innerFill.userData.buildingId = building.id;
+        segment.add(innerFill);
         segment.rotation.y = rotationY;
         group.add(segment);
       };
 
+      const crossingDeck = new THREE.Mesh(
+        new THREE.BoxGeometry(0.44, 0.02, 1.02),
+        new THREE.MeshStandardMaterial({ color: 0xc5b7a0, roughness: 0.9, metalness: 0.02 })
+      );
+      crossingDeck.position.y = 0.048;
+      crossingDeck.userData.buildingId = building.id;
+      crossingDeck.visible = hasRoadCrossing;
+      if (rail.e || rail.w) {
+        crossingDeck.rotation.y = Math.PI / 2;
+      }
+      group.add(crossingDeck);
+
+      const cableTray = new THREE.Mesh(
+        new THREE.BoxGeometry(0.18, 0.04, 1.02),
+        new THREE.MeshStandardMaterial({ color: 0x5a6570, roughness: 0.74, metalness: 0.18 })
+      );
+      cableTray.position.y = 0.098;
+      cableTray.userData.buildingId = building.id;
+      cableTray.visible = hasPowerCrossing;
+      if (rail.e || rail.w) {
+        cableTray.rotation.y = Math.PI / 2;
+      }
+      group.add(cableTray);
+
       if (rail.e || rail.w || (!rail.n && !rail.s)) addRailSegment(Math.PI / 2);
       if (rail.n || rail.s) addRailSegment(0);
+
+      if ((rail.e || rail.w) && (rail.n || rail.s)) {
+        const switchCore = new THREE.Mesh(
+          new THREE.BoxGeometry(0.32, 0.025, 0.32),
+          new THREE.MeshStandardMaterial({ color: 0xaab3bc, roughness: 0.48, metalness: 0.34 })
+        );
+        switchCore.position.y = 0.078;
+        switchCore.userData.buildingId = building.id;
+        group.add(switchCore);
+      }
       return group;
     }
 
     if (building.type === 'powerLine') {
       const group = new THREE.Group();
       const power = this.powerConnections(building);
+      const hasRoadCrossing = this.cellHasType(building.x, building.z, (type) => type === 'road');
+      const hasRailCrossing = this.cellHasType(building.x, building.z, (type) => type === 'railLine' || type === 'trainStation');
+      const prefersEastWest = power.e || power.w || (!power.n && !power.s);
       const base = new THREE.Mesh(
         new THREE.BoxGeometry(0.44, 0.03, 0.44),
         new THREE.MeshStandardMaterial({ color: 0xc2c5c9, roughness: 0.94, metalness: 0.01 })
@@ -2437,13 +2513,15 @@ export class GameRenderer {
       pole.castShadow = true;
       pole.receiveShadow = true;
       pole.userData.buildingId = building.id;
-      group.add(pole);
       const crossarm = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.03, 0.03), poleMat);
       crossarm.position.set(0, 0.58, 0);
       crossarm.castShadow = true;
       crossarm.receiveShadow = true;
       crossarm.userData.buildingId = building.id;
-      group.add(crossarm);
+      if (!hasRoadCrossing && !hasRailCrossing) {
+        group.add(pole);
+        group.add(crossarm);
+      }
 
       const addWire = (x: number, z: number, width: number, depth: number) => {
         const wire = new THREE.Mesh(new THREE.BoxGeometry(width, 0.02, depth), wireMat);
@@ -2453,6 +2531,43 @@ export class GameRenderer {
         wire.receiveShadow = true;
         group.add(wire);
       };
+
+      if (hasRoadCrossing || hasRailCrossing) {
+        const poleOffsets = prefersEastWest
+          ? [
+              [0, -0.32],
+              [0, 0.32]
+            ]
+          : [
+              [-0.32, 0],
+              [0.32, 0]
+            ];
+        poleOffsets.forEach(([x, z]) => {
+          const sidePole = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.032, 0.78, 10), poleMat.clone());
+          sidePole.position.set(x, 0.4, z);
+          sidePole.castShadow = true;
+          sidePole.receiveShadow = true;
+          sidePole.userData.buildingId = building.id;
+          group.add(sidePole);
+        });
+        const overpass = new THREE.Mesh(
+          new THREE.BoxGeometry(prefersEastWest ? 0.72 : 0.06, 0.03, prefersEastWest ? 0.06 : 0.72),
+          poleMat.clone()
+        );
+        overpass.position.set(0, 0.67, 0);
+        overpass.castShadow = true;
+        overpass.receiveShadow = true;
+        overpass.userData.buildingId = building.id;
+        group.add(overpass);
+
+        const insulatorBeam = new THREE.Mesh(
+          new THREE.BoxGeometry(prefersEastWest ? 0.8 : 0.08, 0.02, prefersEastWest ? 0.08 : 0.8),
+          wireMat.clone()
+        );
+        insulatorBeam.position.set(0, 0.69, 0);
+        insulatorBeam.userData.buildingId = building.id;
+        group.add(insulatorBeam);
+      }
       if (power.n) addWire(0, -0.28, 0.03, 0.56);
       if (power.s) addWire(0, 0.28, 0.03, 0.56);
       if (power.e) addWire(0.28, 0, 0.56, 0.03);
@@ -2486,6 +2601,7 @@ export class GameRenderer {
 
     if (building.type === 'substation') {
       const group = new THREE.Group();
+      const level = building.level;
       const padMat = new THREE.MeshStandardMaterial({ color: 0xc9cbce, roughness: 0.94, metalness: 0.01 });
       const steelMat = new THREE.MeshStandardMaterial({ color: 0x9aa8b4, roughness: 0.56, metalness: 0.3 });
       const glowMat = new THREE.MeshStandardMaterial({
@@ -2520,6 +2636,79 @@ export class GameRenderer {
       transformer.castShadow = true;
       transformer.receiveShadow = true;
       group.add(transformer);
+
+      const relayHall = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.18, 0.22), steelMat.clone());
+      relayHall.position.set(0.22, 0.12, 0.22);
+      relayHall.userData.buildingId = building.id;
+      relayHall.castShadow = true;
+      relayHall.receiveShadow = true;
+      relayHall.visible = level >= 2;
+
+      const busRack = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.06, 0.08), steelMat.clone());
+      busRack.position.set(0, 0.42, -0.06);
+      busRack.userData.buildingId = building.id;
+      busRack.visible = level >= 3;
+
+      const batteryCabinet = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.28, 0.14), glowMat.clone());
+      batteryCabinet.position.set(-0.26, 0.18, 0.2);
+      batteryCabinet.userData.buildingId = building.id;
+      batteryCabinet.visible = level >= 4;
+
+      const latticeTower = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.82, 0.08), steelMat.clone());
+      latticeTower.position.set(0.3, 0.48, -0.26);
+      latticeTower.userData.buildingId = building.id;
+      latticeTower.visible = level >= 5;
+
+      const switchDeck = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.04, 0.22), padMat.clone());
+      switchDeck.position.set(0, 0.08, -0.28);
+      switchDeck.userData.buildingId = building.id;
+      switchDeck.visible = level >= 6;
+
+      const capacitorBank = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.22, 0.16), steelMat.clone());
+      capacitorBank.position.set(-0.02, 0.18, -0.3);
+      capacitorBank.userData.buildingId = building.id;
+      capacitorBank.visible = level >= 7;
+
+      const ringGlow = new THREE.Mesh(
+        new THREE.TorusGeometry(0.16, 0.025, 8, 18),
+        new THREE.MeshStandardMaterial({ color: 0xe7f7ff, roughness: 0.18, metalness: 0.08, emissive: 0x67e8f9, emissiveIntensity: 0.18 })
+      );
+      ringGlow.rotation.x = Math.PI / 2;
+      ringGlow.position.set(0, 0.46, 0);
+      ringGlow.userData.buildingId = building.id;
+      ringGlow.visible = level >= 8;
+
+      const gridSpine = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.04, 0.08), glowMat.clone());
+      gridSpine.position.set(-0.3, 0.58, -0.22);
+      gridSpine.userData.buildingId = building.id;
+      gridSpine.visible = level >= 9;
+
+      const crownBus = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.05, 0.05), glowMat.clone());
+      crownBus.position.set(0, 0.92, -0.12);
+      crownBus.userData.buildingId = building.id;
+      crownBus.visible = level >= 10;
+
+      group.add(relayHall, busRack, batteryCabinet, latticeTower, switchDeck, capacitorBank, ringGlow, gridSpine, crownBus);
+      this.utilityAnimations.set(building.id, {
+        smoke: [],
+        glow: [transformer, ringGlow, gridSpine, crownBus],
+        phase: building.id * 0.09
+      });
+      this.selectableMeshes.set(building.id, [
+        pad,
+        yard,
+        transformer,
+        relayHall,
+        busRack,
+        batteryCabinet,
+        latticeTower,
+        switchDeck,
+        capacitorBank,
+        ringGlow,
+        gridSpine,
+        crownBus,
+        ...this.collectMeshes(group).filter((mesh) => mesh.userData.buildingId === building.id)
+      ]);
       return group;
     }
 
@@ -6341,6 +6530,105 @@ export class GameRenderer {
     beaconSpire.userData.buildingId = building.id;
     beaconSpire.visible = level >= 5;
 
+    const containmentDome = new THREE.Mesh(
+      new THREE.SphereGeometry(0.42, 22, 16),
+      new THREE.MeshStandardMaterial({ color: 0xe4e8eb, roughness: 0.46, metalness: 0.08 })
+    );
+    containmentDome.position.set(0.24, 0.52, -0.18);
+    containmentDome.scale.y = 0.62;
+    containmentDome.castShadow = true;
+    containmentDome.receiveShadow = true;
+    containmentDome.userData.buildingId = building.id;
+    containmentDome.visible = level >= 6;
+
+    const reactorAnnex = new THREE.Mesh(
+      new THREE.BoxGeometry(0.76, 0.46, 0.48),
+      bodyMat.clone()
+    );
+    reactorAnnex.position.set(-0.58, 0.24, -0.22);
+    reactorAnnex.castShadow = true;
+    reactorAnnex.receiveShadow = true;
+    reactorAnnex.userData.buildingId = building.id;
+    reactorAnnex.visible = level >= 6;
+
+    const condenserBay = new THREE.Mesh(
+      new THREE.BoxGeometry(0.62, 0.28, 0.42),
+      accentMat.clone()
+    );
+    condenserBay.position.set(0.62, 0.18, 0.68);
+    condenserBay.castShadow = true;
+    condenserBay.receiveShadow = true;
+    condenserBay.userData.buildingId = building.id;
+    condenserBay.visible = level >= 7;
+
+    const coolingBasin = new THREE.Mesh(
+      new THREE.BoxGeometry(0.82, 0.05, 0.52),
+      new THREE.MeshStandardMaterial({ color: 0x93c5db, roughness: 0.24, metalness: 0.04, emissive: 0x67e8f9, emissiveIntensity: 0.08 })
+    );
+    coolingBasin.position.set(-0.56, 0.055, 0.44);
+    coolingBasin.userData.buildingId = building.id;
+    coolingBasin.visible = level >= 7;
+
+    const reactorStack = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.18, 0.18, 0.92, 16),
+      pipeMat.clone()
+    );
+    reactorStack.position.set(0.96, 0.52, -0.42);
+    reactorStack.castShadow = true;
+    reactorStack.receiveShadow = true;
+    reactorStack.userData.buildingId = building.id;
+    reactorStack.visible = level >= 8;
+
+    const reactorStackSmoke = this.createSmokePuffs(building.id, { x: reactorStack.position.x, y: 1.06, z: reactorStack.position.z }, 4, 0.84);
+
+    const turbineBlock = new THREE.Mesh(
+      new THREE.BoxGeometry(1.02, 0.54, 0.48),
+      bodyMat.clone()
+    );
+    turbineBlock.position.set(-0.22, 0.28, -0.56);
+    turbineBlock.castShadow = true;
+    turbineBlock.receiveShadow = true;
+    turbineBlock.userData.buildingId = building.id;
+    turbineBlock.visible = level >= 8;
+
+    const controlSpine = new THREE.Mesh(
+      new THREE.BoxGeometry(0.18, 0.88, 0.18),
+      new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.28, metalness: 0.08, emissive: 0x67e8f9, emissiveIntensity: 0.14 })
+    );
+    controlSpine.position.set(-0.18, 0.56, 0.92);
+    controlSpine.userData.buildingId = building.id;
+    controlSpine.visible = level >= 9;
+
+    const secondaryContainment = new THREE.Mesh(
+      new THREE.SphereGeometry(0.3, 20, 14),
+      new THREE.MeshStandardMaterial({ color: 0xdfe6eb, roughness: 0.42, metalness: 0.08 })
+    );
+    secondaryContainment.position.set(0.82, 0.34, 0.16);
+    secondaryContainment.scale.y = 0.66;
+    secondaryContainment.castShadow = true;
+    secondaryContainment.receiveShadow = true;
+    secondaryContainment.userData.buildingId = building.id;
+    secondaryContainment.visible = level >= 9;
+
+    const reactorRing = new THREE.Mesh(
+      new THREE.TorusGeometry(0.28, 0.04, 10, 22),
+      new THREE.MeshStandardMaterial({ color: 0xe0f2fe, roughness: 0.2, metalness: 0.08, emissive: 0x38bdf8, emissiveIntensity: 0.24 })
+    );
+    reactorRing.rotation.x = Math.PI / 2;
+    reactorRing.position.set(0.24, 0.88, -0.18);
+    reactorRing.userData.buildingId = building.id;
+    reactorRing.visible = level >= 10;
+
+    const spentFuelHall = new THREE.Mesh(
+      new THREE.BoxGeometry(0.74, 0.36, 0.34),
+      bodyMat.clone()
+    );
+    spentFuelHall.position.set(-0.72, 0.18, 0.72);
+    spentFuelHall.castShadow = true;
+    spentFuelHall.receiveShadow = true;
+    spentFuelHall.userData.buildingId = building.id;
+    spentFuelHall.visible = level >= 10;
+
     group.add(turbineHall);
     group.add(pipeRack);
     group.add(coolingTowerC);
@@ -6356,12 +6644,23 @@ export class GameRenderer {
     group.add(hyperReactor);
     group.add(reactorTower2);
     group.add(beaconSpire);
+    group.add(containmentDome);
+    group.add(reactorAnnex);
+    group.add(condenserBay);
+    group.add(coolingBasin);
+    group.add(reactorStack);
+    group.add(turbineBlock);
+    group.add(controlSpine);
+    group.add(secondaryContainment);
+    group.add(reactorRing);
+    group.add(spentFuelHall);
     towerSmoke.forEach((puff) => group.add(puff.mesh));
     megaSmoke.forEach((puff) => group.add(puff.mesh));
+    reactorStackSmoke.forEach((puff) => group.add(puff.mesh));
 
     this.utilityAnimations.set(building.id, {
-      smoke: [...stackSmoke, ...towerSmoke, ...megaSmoke],
-      glow: [powerCore, rearPowerCore, hyperReactor, beaconSpire],
+      smoke: [...stackSmoke, ...towerSmoke, ...megaSmoke, ...reactorStackSmoke],
+      glow: [powerCore, rearPowerCore, hyperReactor, beaconSpire, coolingBasin, controlSpine, reactorRing],
       phase: building.id * 0.11
     });
     this.selectableMeshes.set(building.id, [
@@ -6400,9 +6699,20 @@ export class GameRenderer {
       hyperReactor,
       reactorTower2,
       beaconSpire,
+      containmentDome,
+      reactorAnnex,
+      condenserBay,
+      coolingBasin,
+      reactorStack,
+      turbineBlock,
+      controlSpine,
+      secondaryContainment,
+      reactorRing,
+      spentFuelHall,
       ...stackSmoke.map((entry) => entry.mesh)
         .concat(towerSmoke.map((entry) => entry.mesh))
         .concat(megaSmoke.map((entry) => entry.mesh))
+        .concat(reactorStackSmoke.map((entry) => entry.mesh))
     ]);
     return group;
   }
@@ -11438,7 +11748,7 @@ export class GameRenderer {
     const roadDistance = (x: number, z: number) => {
       for (let dz = -1; dz <= 1; dz += 1) {
         for (let dx = -1; dx <= 1; dx += 1) {
-          if (this.isTransportFrontageType(this.buildingByCell.get(`${x + dx}:${z + dz}`)?.type)) return true;
+          if (this.cellHasType(x + dx, z + dz, (type) => this.isTransportFrontageType(type))) return true;
         }
       }
       return false;
@@ -11452,16 +11762,17 @@ export class GameRenderer {
         [x, z - 1]
       ] as const;
       coords.forEach(([cx, cz]) => {
-        const building = this.buildingByCell.get(`${cx}:${cz}`);
-        if (building && !['road', 'railLine', 'powerLine'].includes(building.type)) found.set(building.id, building);
+        this.adjacentBuildingsAt(cx, cz).forEach((building) => {
+          if (!['road', 'railLine', 'powerLine'].includes(building.type)) found.set(building.id, building);
+        });
       });
       return [...found.values()];
     };
     const roadSides = (x: number, z: number) => ({
-      n: this.isTransportFrontageType(this.buildingByCell.get(`${x}:${z - 1}`)?.type),
-      e: this.isTransportFrontageType(this.buildingByCell.get(`${x + 1}:${z}`)?.type),
-      s: this.isTransportFrontageType(this.buildingByCell.get(`${x}:${z + 1}`)?.type),
-      w: this.isTransportFrontageType(this.buildingByCell.get(`${x - 1}:${z}`)?.type)
+      n: this.cellHasType(x, z - 1, (type) => this.isTransportFrontageType(type)),
+      e: this.cellHasType(x + 1, z, (type) => this.isTransportFrontageType(type)),
+      s: this.cellHasType(x, z + 1, (type) => this.isTransportFrontageType(type)),
+      w: this.cellHasType(x - 1, z, (type) => this.isTransportFrontageType(type))
     });
     const addStreetTree = (wx: number, wz: number, scale = 1) => {
       const trunk = new THREE.Mesh(treeTrunk, trunkMat);

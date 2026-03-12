@@ -643,8 +643,20 @@ function placementTouchesCell(type: BuildType, x: number, z: number, targetX: nu
   return occupiedCellsForPlacement(type, x, z).some((cell) => cell.x === targetX && cell.z === targetZ);
 }
 
+function buildingsAt(state: GameState, x: number, z: number): Building[] {
+  return state.buildings.filter((b) => placementTouchesCell(b.type, b.x, b.z, x, z));
+}
+
 function buildingAt(state: GameState, x: number, z: number): Building | undefined {
-  return state.buildings.find((b) => placementTouchesCell(b.type, b.x, b.z, x, z));
+  const hits = buildingsAt(state, x, z);
+  if (!hits.length) return undefined;
+  const priority = (type: BuildType): number => {
+    if (type !== 'road' && type !== 'railLine' && type !== 'powerLine') return 3;
+    if (type === 'road') return 2;
+    if (type === 'railLine') return 1;
+    return 0;
+  };
+  return [...hits].sort((a, b) => priority(b.type) - priority(a.type))[0];
 }
 
 function minDistanceToBuildingCells(
@@ -692,8 +704,7 @@ function touchesTransportNetwork(state: GameState, building: Building): boolean 
       ];
       return neighbors.some((neighbor) => {
         if (occupiedKeys.has(`${neighbor.x}:${neighbor.z}`)) return false;
-        const hit = buildingAt(state, neighbor.x, neighbor.z);
-        return hit ? isTransportType(hit.type) : false;
+        return buildingsAt(state, neighbor.x, neighbor.z).some((hit) => isTransportType(hit.type));
       });
     });
   });
@@ -1230,7 +1241,21 @@ export function canPlaceBuilding(state: GameState, type: BuildType, x: number, z
   const occupied = occupiedCellsForPlacement(type, x, z);
   if (!occupied.length) return false;
   if (occupied.some((cell) => !isInBounds(state, cell.x, cell.z))) return false;
-  if (occupied.some((cell) => buildingAt(state, cell.x, cell.z))) return false;
+
+  const isSharedLine = type === 'powerLine' || type === 'road' || type === 'railLine';
+  for (const cell of occupied) {
+    const hits = buildingsAt(state, cell.x, cell.z);
+    if (!hits.length) continue;
+
+    if (!isSharedLine) return false;
+
+    const invalidOverlap = hits.some((building) => {
+      if (building.type === type) return true;
+      const otherIsSharedLine = building.type === 'powerLine' || building.type === 'road' || building.type === 'railLine';
+      return !otherIsSharedLine;
+    });
+    if (invalidOverlap) return false;
+  }
 
   if (type === 'house') {
     const nearWorkshop = state.buildings.some(
