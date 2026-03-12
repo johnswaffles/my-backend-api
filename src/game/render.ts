@@ -922,6 +922,7 @@ export class GameRenderer {
   private addLateTierEnhancements(object: THREE.Object3D, building: Building): void {
     if (building.type === 'road' || building.type === 'railLine' || building.type === 'powerLine' || building.level < 6) return;
     if (building.type === 'powerPlant' || building.type === 'substation') return;
+    if (building.type === 'park' || building.type === 'trainStation') return;
     if (building.type === 'house' && this.mergeModeForBuilding(building) === 'apartmentBlock') return;
 
     object.updateMatrixWorld(true);
@@ -962,9 +963,7 @@ export class GameRenderer {
     const family =
       building.type === 'house'
         ? 'residential'
-        : building.type === 'park'
-          ? 'park'
-          : building.type === 'workshop'
+        : building.type === 'workshop'
             ? 'industrial'
             : building.type === 'hospital' || building.type === 'policeStation' || building.type === 'fireStation'
                 ? 'civic'
@@ -973,9 +972,7 @@ export class GameRenderer {
     const palette =
       family === 'residential'
         ? { body: 0xd9d4ca, accent: 0x9cc5d6, glow: 0x8fd8f8, roof: 0x5f6770 }
-        : family === 'park'
-          ? { body: 0xded7cc, accent: 0x7ebf7c, glow: 0x67e8f9, roof: 0x7b9459 }
-          : family === 'civic'
+        : family === 'civic'
             ? { body: 0xe4eaef, accent: 0x8fb4d5, glow: 0x7dd3fc, roof: 0x6f87a2 }
             : family === 'industrial'
               ? { body: 0xa58d74, accent: 0xd8893a, glow: 0xf97316, roof: 0x6a747c }
@@ -1016,22 +1013,6 @@ export class GameRenderer {
         const halo = addGlowMesh(new THREE.Mesh(new THREE.TorusGeometry(Math.max(width, depth) * 0.16, 0.024, 8, 18), glowMat));
         halo.rotation.x = Math.PI / 2;
         halo.position.set(center.x, topY + 0.62, center.z);
-      }
-    } else if (family === 'park') {
-      if (building.level >= 6) {
-        addGlowMesh(new THREE.Mesh(new THREE.CylinderGeometry(Math.max(width, depth) * 0.08, Math.max(width, depth) * 0.1, 0.05, 18), glowMat)).position.set(center.x, topY + 0.06, center.z);
-      }
-      if (building.level >= 7) {
-        addMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.18, 0.22, depth * 0.14), accentMat)).position.set(center.x + width * 0.22, topY + 0.16, center.z - depth * 0.18);
-      }
-      if (building.level >= 8) {
-        addMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.1, 0.64, depth * 0.1), bodyMat)).position.set(center.x - width * 0.24, topY + 0.34, center.z + depth * 0.06);
-      }
-      if (building.level >= 9) {
-        addGlowMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.54, 0.04, 0.04), glowMat)).position.set(center.x, topY + 0.24, center.z);
-      }
-      if (building.level >= 10) {
-        addMesh(new THREE.Mesh(new THREE.BoxGeometry(width * 0.16, 0.96, depth * 0.16), roofMat)).position.set(center.x, topY + 0.52, center.z - depth * 0.24);
       }
     } else if (family === 'commercial') {
       const signColor =
@@ -1543,7 +1524,7 @@ export class GameRenderer {
   private mergeModeForBuilding(
     building: Building,
     cluster = this.connectedCluster(building, (candidate) => candidate.type === building.type)
-  ): 'none' | 'apartmentBlock' | 'parkSquare' | 'parkGreenway' | 'shopStrip' | 'restaurantHall' | 'superStore' | 'megaHospital' | 'megaPlant' | 'retailBlock' | 'serviceCampus' | 'workshopYard' {
+  ): 'none' | 'apartmentBlock' | 'parkSquare' | 'parkGreenway' | 'shopStrip' | 'restaurantHall' | 'superStore' | 'megaHospital' | 'megaPlant' | 'retailBlock' | 'serviceCampus' | 'workshopYard' | 'railHub' {
     if (
       building.type === 'house' &&
       cluster.filled &&
@@ -1636,6 +1617,14 @@ export class GameRenderer {
       cluster.originDepth >= 2
     ) {
       return 'megaPlant';
+    }
+    if (
+      building.type === 'trainStation' &&
+      cluster.filled &&
+      cluster.size >= 2 &&
+      (cluster.originWidth >= 2 || cluster.originDepth >= 2)
+    ) {
+      return 'railHub';
     }
     return 'none';
   }
@@ -2713,11 +2702,26 @@ export class GameRenderer {
     }
 
     if (building.type === 'trainStation') {
+      const sameTypeCluster = this.connectedCluster(building, (candidate) => candidate.type === 'trainStation');
+      if (this.mergeModeForBuilding(building, sameTypeCluster) === 'railHub') {
+        if (sameTypeCluster.anchorId === building.id) {
+          return this.createMergedRailHub(building, sameTypeCluster);
+        }
+        return this.createClusterSupportLot(building, 0xd7d1c5, 0xe4ddd3);
+      }
       const group = new THREE.Group();
+      const level = building.level;
       const baseMat = new THREE.MeshStandardMaterial({ color: 0xd7d1c5, roughness: 0.9, metalness: 0.02 });
       const roofMat = new THREE.MeshStandardMaterial({ color: 0x5f7386, roughness: 0.76, metalness: 0.08 });
       const glassMat = new THREE.MeshStandardMaterial({ color: 0xb4d8ec, roughness: 0.34, metalness: 0.06 });
       const glowMat = new THREE.MeshStandardMaterial({ color: 0xe6fbff, roughness: 0.2, metalness: 0.12, emissive: 0x67e8f9, emissiveIntensity: 0.12 });
+      const walkway = new THREE.Mesh(
+        new THREE.BoxGeometry(1.08, 0.025, 1.06),
+        new THREE.MeshStandardMaterial({ color: 0xe3ddd4, roughness: 0.96, metalness: 0.01 })
+      );
+      walkway.position.y = 0.03;
+      walkway.receiveShadow = true;
+      walkway.userData.buildingId = building.id;
       const base = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.12, 0.82), baseMat);
       base.position.y = 0.06;
       base.castShadow = true;
@@ -2743,7 +2747,140 @@ export class GameRenderer {
       sign.userData.buildingId = building.id;
       sign.castShadow = true;
       sign.receiveShadow = true;
-      group.add(base, hall, roof, canopy, sign);
+      const platform = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.06, 1.04), new THREE.MeshStandardMaterial({ color: 0xc8c6c2, roughness: 0.92, metalness: 0.02 }));
+      platform.position.set(-0.36, 0.08, 0);
+      platform.userData.buildingId = building.id;
+      platform.castShadow = true;
+      platform.receiveShadow = true;
+      const platformB = platform.clone();
+      platformB.position.x = 0.36;
+      platformB.userData.buildingId = building.id;
+      const trackGap = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.015, 0.82), new THREE.MeshStandardMaterial({ color: 0x8b8e92, roughness: 0.92, metalness: 0.02 }));
+      trackGap.position.set(0, 0.05, 0);
+      trackGap.userData.buildingId = building.id;
+
+      const secondCanopy = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.04, 1.02), roofMat.clone());
+      secondCanopy.position.set(-0.36, 0.34, 0);
+      secondCanopy.userData.buildingId = building.id;
+      secondCanopy.castShadow = true;
+      secondCanopy.receiveShadow = true;
+      secondCanopy.visible = level >= 2;
+      const secondCanopyB = secondCanopy.clone();
+      secondCanopyB.position.x = 0.36;
+      secondCanopyB.userData.buildingId = building.id;
+
+      const clockTower = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.52, 0.18), baseMat.clone());
+      clockTower.position.set(0.28, 0.5, -0.16);
+      clockTower.userData.buildingId = building.id;
+      clockTower.castShadow = true;
+      clockTower.receiveShadow = true;
+      clockTower.visible = level >= 3;
+      const towerCap = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.07, 0.24), roofMat.clone());
+      towerCap.position.set(0.28, 0.8, -0.16);
+      towerCap.userData.buildingId = building.id;
+      towerCap.castShadow = true;
+      towerCap.receiveShadow = true;
+      towerCap.visible = level >= 3;
+
+      const concourse = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.16, 0.22), glassMat.clone());
+      concourse.position.set(0, 0.24, -0.28);
+      concourse.userData.buildingId = building.id;
+      concourse.castShadow = true;
+      concourse.receiveShadow = true;
+      concourse.visible = level >= 4;
+
+      const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.08, 0.16), roofMat.clone());
+      bridge.position.set(0, 0.52, 0);
+      bridge.userData.buildingId = building.id;
+      bridge.castShadow = true;
+      bridge.receiveShadow = true;
+      bridge.visible = level >= 5;
+
+      const annex = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.26, 0.28), baseMat.clone());
+      annex.position.set(-0.28, 0.19, -0.24);
+      annex.userData.buildingId = building.id;
+      annex.castShadow = true;
+      annex.receiveShadow = true;
+      annex.visible = level >= 6;
+
+      const glassHall = new THREE.Mesh(
+        new THREE.BoxGeometry(0.48, 0.28, 0.34),
+        new THREE.MeshStandardMaterial({ color: 0xdaf2ff, roughness: 0.2, metalness: 0.08, transparent: true, opacity: 0.84, emissive: 0x67e8f9, emissiveIntensity: 0.12 })
+      );
+      glassHall.position.set(0, 0.38, 0.18);
+      glassHall.userData.buildingId = building.id;
+      glassHall.castShadow = true;
+      glassHall.receiveShadow = true;
+      glassHall.visible = level >= 7;
+
+      const signalMast = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.86, 0.05), roofMat.clone());
+      signalMast.position.set(-0.42, 0.48, -0.28);
+      signalMast.userData.buildingId = building.id;
+      signalMast.castShadow = true;
+      signalMast.receiveShadow = true;
+      signalMast.visible = level >= 8;
+
+      const entryArch = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.08, 0.08), glowMat.clone());
+      entryArch.position.set(0, 0.62, 0.34);
+      entryArch.userData.buildingId = building.id;
+      entryArch.visible = level >= 9;
+
+      const beacon = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.12, 12), glowMat.clone());
+      beacon.position.set(0.28, 0.95, -0.16);
+      beacon.userData.buildingId = building.id;
+      beacon.castShadow = true;
+      beacon.receiveShadow = true;
+      beacon.visible = level >= 10;
+
+      group.add(
+        walkway,
+        base,
+        hall,
+        roof,
+        canopy,
+        sign,
+        platform,
+        platformB,
+        trackGap,
+        secondCanopy,
+        secondCanopyB,
+        clockTower,
+        towerCap,
+        concourse,
+        bridge,
+        annex,
+        glassHall,
+        signalMast,
+        entryArch,
+        beacon
+      );
+      this.utilityAnimations.set(building.id, {
+        smoke: [],
+        glow: [sign, glassHall, entryArch, beacon].filter((mesh) => mesh.visible),
+        phase: building.id * 0.07
+      });
+      this.selectableMeshes.set(building.id, [
+        walkway,
+        base,
+        hall,
+        roof,
+        canopy,
+        sign,
+        platform,
+        platformB,
+        trackGap,
+        secondCanopy,
+        secondCanopyB,
+        clockTower,
+        towerCap,
+        concourse,
+        bridge,
+        annex,
+        glassHall,
+        signalMast,
+        entryArch,
+        beacon
+      ]);
       return group;
     }
 
@@ -5014,6 +5151,81 @@ export class GameRenderer {
       pergola.userData.buildingId = building.id;
       pergola.visible = level >= 3;
 
+      const merryBase = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.14, 0.16, 0.04, 18),
+        new THREE.MeshStandardMaterial({ color: 0xe9d6a8, roughness: 0.86, metalness: 0.02 })
+      );
+      merryBase.position.set(0.22, 0.08, 0.18);
+      merryBase.userData.buildingId = building.id;
+      merryBase.visible = level >= 6;
+
+      const merryTop = new THREE.Mesh(
+        new THREE.ConeGeometry(0.18, 0.12, 10),
+        new THREE.MeshStandardMaterial({ color: 0xf0b55c, roughness: 0.72, metalness: 0.03 })
+      );
+      merryTop.position.set(0.22, 0.24, 0.18);
+      merryTop.userData.buildingId = building.id;
+      merryTop.visible = level >= 6;
+
+      const swingFrame = new THREE.Mesh(
+        new THREE.BoxGeometry(0.24, 0.04, 0.04),
+        new THREE.MeshStandardMaterial({ color: 0x8fa3b5, roughness: 0.7, metalness: 0.14 })
+      );
+      swingFrame.position.set(-0.24, 0.34, 0.18);
+      swingFrame.userData.buildingId = building.id;
+      swingFrame.visible = level >= 7;
+
+      const swingLegA = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.28, 0.03), new THREE.MeshStandardMaterial({ color: 0x8fa3b5, roughness: 0.7, metalness: 0.14 }));
+      swingLegA.position.set(-0.34, 0.18, 0.18);
+      swingLegA.rotation.z = 0.18;
+      swingLegA.userData.buildingId = building.id;
+      swingLegA.visible = level >= 7;
+      const swingLegB = swingLegA.clone();
+      swingLegB.position.x = -0.14;
+      swingLegB.rotation.z = -0.18;
+      swingLegB.userData.buildingId = building.id;
+
+      const slideTower = new THREE.Mesh(
+        new THREE.BoxGeometry(0.14, 0.24, 0.14),
+        new THREE.MeshStandardMaterial({ color: 0xd4c2a8, roughness: 0.82, metalness: 0.02 })
+      );
+      slideTower.position.set(0.28, 0.18, -0.1);
+      slideTower.userData.buildingId = building.id;
+      slideTower.visible = level >= 8;
+
+      const slideRamp = new THREE.Mesh(
+        new THREE.BoxGeometry(0.22, 0.04, 0.08),
+        new THREE.MeshStandardMaterial({ color: 0xdf6d4d, roughness: 0.8, metalness: 0.02 })
+      );
+      slideRamp.position.set(0.16, 0.12, -0.02);
+      slideRamp.rotation.z = -0.48;
+      slideRamp.userData.buildingId = building.id;
+      slideRamp.visible = level >= 8;
+
+      const picnicPad = new THREE.Mesh(
+        new THREE.BoxGeometry(0.3, 0.025, 0.22),
+        new THREE.MeshStandardMaterial({ color: 0xe5d9c8, roughness: 0.9, metalness: 0.01 })
+      );
+      picnicPad.position.set(-0.02, 0.07, -0.28);
+      picnicPad.userData.buildingId = building.id;
+      picnicPad.visible = level >= 9;
+
+      const picnicRoof = new THREE.Mesh(
+        new THREE.BoxGeometry(0.34, 0.05, 0.26),
+        new THREE.MeshStandardMaterial({ color: 0x8f6a4d, roughness: 0.8, metalness: 0.03 })
+      );
+      picnicRoof.position.set(-0.02, 0.28, -0.28);
+      picnicRoof.userData.buildingId = building.id;
+      picnicRoof.visible = level >= 9;
+
+      const splashPad = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.18, 0.18, 0.025, 18),
+        new THREE.MeshStandardMaterial({ color: 0x9fdaf1, roughness: 0.18, metalness: 0.06, emissive: 0x38bdf8, emissiveIntensity: 0.1 })
+      );
+      splashPad.position.set(-0.22, 0.08, -0.02);
+      splashPad.userData.buildingId = building.id;
+      splashPad.visible = level >= 10;
+
       group.add(lawn);
       group.add(path);
       group.add(crossPath);
@@ -5037,6 +5249,21 @@ export class GameRenderer {
       group.add(conservatory);
       group.add(conservatoryRoof);
       group.add(pergola);
+      group.add(merryBase);
+      group.add(merryTop);
+      group.add(swingFrame);
+      group.add(swingLegA);
+      group.add(swingLegB);
+      group.add(slideTower);
+      group.add(slideRamp);
+      group.add(picnicPad);
+      group.add(picnicRoof);
+      group.add(splashPad);
+      this.utilityAnimations.set(building.id, {
+        smoke: [],
+        glow: [fountainWater, conservatory, splashPad].filter((mesh) => mesh.visible),
+        phase: building.id * 0.09
+      });
       this.selectableMeshes.set(building.id, [
         lawn,
         path,
@@ -5060,7 +5287,17 @@ export class GameRenderer {
         amphitheaterLawn,
         conservatory,
         conservatoryRoof,
-        pergola
+        pergola,
+        merryBase,
+        merryTop,
+        swingFrame,
+        swingLegA,
+        swingLegB,
+        slideTower,
+        slideRamp,
+        picnicPad,
+        picnicRoof,
+        splashPad
       ]);
       return group;
     }
@@ -8952,6 +9189,77 @@ export class GameRenderer {
     group.add(pergolaWalk);
     meshes.push(pergolaWalk);
 
+    const carouselBase = new THREE.Mesh(
+      new THREE.CylinderGeometry(Math.min(width, depth) * 0.08, Math.min(width, depth) * 0.09, 0.05, 18),
+      new THREE.MeshStandardMaterial({ color: 0xe8d6af, roughness: 0.86, metalness: 0.02 })
+    );
+    carouselBase.position.set(offset.x + width * 0.18, 0.09, offset.z + depth * 0.04);
+    carouselBase.userData.buildingId = building.id;
+    carouselBase.visible = level >= 6;
+    group.add(carouselBase);
+    meshes.push(carouselBase);
+
+    const carouselRoof = new THREE.Mesh(
+      new THREE.ConeGeometry(Math.min(width, depth) * 0.1, 0.16, 12),
+      new THREE.MeshStandardMaterial({ color: roofPalette[(variant + 3) % 5], roughness: 0.76, metalness: 0.03 })
+    );
+    carouselRoof.position.set(offset.x + width * 0.18, 0.28, offset.z + depth * 0.04);
+    carouselRoof.userData.buildingId = building.id;
+    carouselRoof.visible = level >= 6;
+    group.add(carouselRoof);
+    meshes.push(carouselRoof);
+
+    const swingGarden = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.18, 0.03, depth * 0.12),
+      new THREE.MeshStandardMaterial({ color: 0xdabf97, roughness: 0.9, metalness: 0.01 })
+    );
+    swingGarden.position.set(offset.x - width * 0.24, 0.07, offset.z - depth * 0.18);
+    swingGarden.userData.buildingId = building.id;
+    swingGarden.visible = level >= 7;
+    group.add(swingGarden);
+    meshes.push(swingGarden);
+
+    const slidePark = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.14, 0.22, depth * 0.12),
+      new THREE.MeshStandardMaterial({ color: 0xd8c8b0, roughness: 0.82, metalness: 0.02 })
+    );
+    slidePark.position.set(offset.x + width * 0.3, 0.18, offset.z - depth * 0.04);
+    slidePark.userData.buildingId = building.id;
+    slidePark.visible = level >= 8;
+    group.add(slidePark);
+    meshes.push(slidePark);
+
+    const playgroundSlide = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.14, 0.04, depth * 0.06),
+      new THREE.MeshStandardMaterial({ color: 0xe56f4e, roughness: 0.78, metalness: 0.02 })
+    );
+    playgroundSlide.position.set(offset.x + width * 0.22, 0.12, offset.z + depth * 0.02);
+    playgroundSlide.rotation.z = -0.5;
+    playgroundSlide.userData.buildingId = building.id;
+    playgroundSlide.visible = level >= 8;
+    group.add(playgroundSlide);
+    meshes.push(playgroundSlide);
+
+    const picnicPavilion = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.18, 0.2, depth * 0.14),
+      new THREE.MeshStandardMaterial({ color: roofPalette[(variant + 1) % 5], roughness: 0.78, metalness: 0.03 })
+    );
+    picnicPavilion.position.set(offset.x - width * 0.26, 0.18, offset.z + depth * 0.24);
+    picnicPavilion.userData.buildingId = building.id;
+    picnicPavilion.visible = level >= 9;
+    group.add(picnicPavilion);
+    meshes.push(picnicPavilion);
+
+    const splashCourt = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.22, 0.03, depth * 0.16),
+      new THREE.MeshStandardMaterial({ color: 0x9fdcf1, roughness: 0.18, metalness: 0.06, emissive: 0x38bdf8, emissiveIntensity: 0.1 })
+    );
+    splashCourt.position.set(offset.x, 0.07, offset.z - depth * 0.24);
+    splashCourt.userData.buildingId = building.id;
+    splashCourt.visible = level >= 10;
+    group.add(splashCourt);
+    meshes.push(splashCourt);
+
     group.add(flowerBedA);
     group.add(flowerBedB);
     group.add(lampA);
@@ -8970,7 +9278,8 @@ export class GameRenderer {
         stageCanopy,
         centralLake,
         grandGlasshouse,
-        grandMonument
+        grandMonument,
+        splashCourt
       ].filter((mesh) => mesh.visible),
       phase: building.id * 0.09
     });
@@ -9230,6 +9539,191 @@ export class GameRenderer {
       ...this.collectMeshes(benchB)
     ]);
 
+    return group;
+  }
+
+  private createMergedRailHub(building: Building, cluster: BuildingClusterData): THREE.Group {
+    const group = new THREE.Group();
+    const offset = this.clusterCenterOffset(building, cluster);
+    const width = cluster.tileWidth * 0.94;
+    const depth = cluster.tileDepth * 0.94;
+    const level = building.level;
+    const longAxisX = cluster.originWidth >= cluster.originDepth;
+    const theme = building.id % 5;
+    const wallPalette = [0xd8d1c5, 0xd5d7d9, 0xdacfc1, 0xcfd7cf, 0xd7d3c8];
+    const roofPalette = [0x5f7386, 0x6c7a88, 0x6b625b, 0x54777d, 0x706a82];
+    const accentPalette = [0xb4d8ec, 0xc8e2f1, 0xaed0df, 0xbbe2e5, 0xc2d8ef];
+    const glowPalette = [0x67e8f9, 0x93c5fd, 0xfacc15, 0x5eead4, 0xfda4af];
+    const wallMat = new THREE.MeshStandardMaterial({ color: wallPalette[theme], roughness: 0.82, metalness: 0.03 });
+    const roofMat = new THREE.MeshStandardMaterial({ color: roofPalette[theme], roughness: 0.74, metalness: 0.08 });
+    const glassMat = new THREE.MeshStandardMaterial({ color: accentPalette[theme], roughness: 0.22, metalness: 0.08, transparent: true, opacity: 0.84 });
+    const glowMat = new THREE.MeshStandardMaterial({ color: 0xe9fbff, roughness: 0.18, metalness: 0.08, emissive: glowPalette[theme], emissiveIntensity: 0.18 });
+    const meshes: THREE.Mesh[] = [];
+    const glowMeshes: THREE.Mesh[] = [];
+
+    const addMesh = (mesh: THREE.Mesh) => {
+      mesh.userData.buildingId = building.id;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      group.add(mesh);
+      meshes.push(mesh);
+      return mesh;
+    };
+    const addGlowMesh = (mesh: THREE.Mesh) => {
+      addMesh(mesh);
+      glowMeshes.push(mesh);
+      return mesh;
+    };
+
+    const plaza = addMesh(new THREE.Mesh(
+      new THREE.BoxGeometry(width + 0.14, 0.03, depth + 0.14),
+      new THREE.MeshStandardMaterial({ color: 0xe5dfd7, roughness: 0.96, metalness: 0.01 })
+    ));
+    plaza.position.set(offset.x, 0.03, offset.z);
+
+    const concourse = addMesh(new THREE.Mesh(
+      new THREE.BoxGeometry(longAxisX ? width * 0.48 : width * 0.72, 0.34, longAxisX ? depth * 0.72 : depth * 0.48),
+      wallMat
+    ));
+    concourse.position.set(offset.x, 0.2, offset.z);
+
+    const concourseRoof = addMesh(new THREE.Mesh(
+      new THREE.BoxGeometry(longAxisX ? width * 0.54 : width * 0.78, 0.08, longAxisX ? depth * 0.78 : depth * 0.54),
+      roofMat
+    ));
+    concourseRoof.position.set(offset.x, 0.42, offset.z);
+
+    const hallGlass = addMesh(new THREE.Mesh(
+      new THREE.BoxGeometry(longAxisX ? width * 0.4 : width * 0.64, 0.22, longAxisX ? depth * 0.3 : depth * 0.4),
+      glassMat
+    ));
+    hallGlass.position.set(offset.x, 0.28, offset.z + (longAxisX ? depth * 0.12 : 0));
+
+    const signBand = addGlowMesh(new THREE.Mesh(
+      new THREE.BoxGeometry(longAxisX ? width * 0.42 : width * 0.56, 0.1, 0.05),
+      glowMat
+    ));
+    signBand.position.set(offset.x, 0.38, offset.z + (longAxisX ? depth * 0.33 : depth * 0.24));
+
+    const platformRunA = addMesh(new THREE.Mesh(
+      new THREE.BoxGeometry(longAxisX ? width * 0.9 : width * 0.22, 0.06, longAxisX ? depth * 0.18 : depth * 0.9),
+      new THREE.MeshStandardMaterial({ color: 0xc8c6c2, roughness: 0.92, metalness: 0.02 })
+    ));
+    platformRunA.position.set(offset.x, 0.08, offset.z + (longAxisX ? -depth * 0.28 : 0));
+    const platformRunB = platformRunA.clone();
+    if (longAxisX) {
+      platformRunB.position.set(offset.x, 0.08, offset.z + depth * 0.28);
+    } else {
+      platformRunA.position.set(offset.x - width * 0.28, 0.08, offset.z);
+      platformRunB.position.set(offset.x + width * 0.28, 0.08, offset.z);
+    }
+    platformRunB.userData.buildingId = building.id;
+    group.add(platformRunA, platformRunB);
+    meshes.push(platformRunA, platformRunB);
+
+    const canopyA = addMesh(new THREE.Mesh(
+      new THREE.BoxGeometry(longAxisX ? width * 0.86 : width * 0.16, 0.04, longAxisX ? depth * 0.08 : depth * 0.86),
+      roofMat.clone()
+    ));
+    canopyA.position.copy(platformRunA.position).add(new THREE.Vector3(0, 0.22, 0));
+    const canopyB = canopyA.clone();
+    canopyB.position.copy(platformRunB.position).add(new THREE.Vector3(0, 0.22, 0));
+    canopyB.userData.buildingId = building.id;
+    group.add(canopyA, canopyB);
+    meshes.push(canopyB);
+
+    const footBridge = addMesh(new THREE.Mesh(
+      new THREE.BoxGeometry(longAxisX ? width * 0.18 : width * 0.7, 0.08, longAxisX ? depth * 0.7 : depth * 0.18),
+      roofMat.clone()
+    ));
+    footBridge.position.set(offset.x, 0.56, offset.z);
+    footBridge.visible = level >= 2;
+
+    const clockTower = addMesh(new THREE.Mesh(
+      new THREE.BoxGeometry(0.24, 0.72, 0.24),
+      wallMat.clone()
+    ));
+    clockTower.position.set(offset.x + (longAxisX ? width * 0.24 : width * 0.32), 0.5, offset.z - (longAxisX ? depth * 0.12 : depth * 0.22));
+    clockTower.visible = level >= 3;
+
+    const towerCap = addMesh(new THREE.Mesh(
+      new THREE.BoxGeometry(0.32, 0.08, 0.32),
+      roofMat.clone()
+    ));
+    towerCap.position.copy(clockTower.position).add(new THREE.Vector3(0, 0.42, 0));
+    towerCap.visible = level >= 3;
+
+    const secondHall = addMesh(new THREE.Mesh(
+      new THREE.BoxGeometry(longAxisX ? width * 0.32 : width * 0.52, 0.24, longAxisX ? depth * 0.52 : depth * 0.32),
+      wallMat.clone()
+    ));
+    secondHall.position.set(offset.x - (longAxisX ? width * 0.2 : 0), 0.22, offset.z - (longAxisX ? 0 : depth * 0.2));
+    secondHall.visible = level >= 4;
+
+    const roofArch = addGlowMesh(new THREE.Mesh(
+      new THREE.BoxGeometry(longAxisX ? width * 0.28 : width * 0.42, 0.08, 0.06),
+      glowMat.clone()
+    ));
+    roofArch.position.set(offset.x, 0.74, offset.z + (longAxisX ? depth * 0.04 : depth * 0.12));
+    roofArch.visible = level >= 5;
+
+    const stationTower = addMesh(new THREE.Mesh(
+      new THREE.BoxGeometry(0.28, 1.04, 0.28),
+      new THREE.MeshStandardMaterial({ color: wallPalette[(theme + 1) % 5], roughness: 0.74, metalness: 0.04 })
+    ));
+    stationTower.position.set(offset.x - (longAxisX ? width * 0.3 : width * 0.18), 0.72, offset.z + (longAxisX ? depth * 0.16 : depth * 0.3));
+    stationTower.visible = level >= 6;
+
+    const overpassHall = addMesh(new THREE.Mesh(
+      new THREE.BoxGeometry(longAxisX ? width * 0.16 : width * 0.64, 0.16, longAxisX ? depth * 0.64 : depth * 0.16),
+      glassMat.clone()
+    ));
+    overpassHall.position.set(offset.x, 0.72, offset.z);
+    overpassHall.visible = level >= 7;
+
+    const transitWing = addMesh(new THREE.Mesh(
+      new THREE.BoxGeometry(longAxisX ? width * 0.28 : width * 0.42, 0.28, longAxisX ? depth * 0.2 : depth * 0.28),
+      wallMat.clone()
+    ));
+    transitWing.position.set(offset.x + (longAxisX ? 0 : width * 0.26), 0.22, offset.z + (longAxisX ? depth * 0.26 : 0));
+    transitWing.visible = level >= 8;
+
+    const beaconMast = addGlowMesh(new THREE.Mesh(
+      new THREE.BoxGeometry(0.08, 1.18, 0.08),
+      glowMat.clone()
+    ));
+    beaconMast.position.set(offset.x, 1.02, offset.z - (longAxisX ? depth * 0.22 : depth * 0.18));
+    beaconMast.visible = level >= 9;
+
+    const grandArch = addGlowMesh(new THREE.Mesh(
+      new THREE.BoxGeometry(longAxisX ? width * 0.5 : width * 0.68, 0.1, 0.08),
+      glowMat.clone()
+    ));
+    grandArch.position.set(offset.x, 0.94, offset.z + (longAxisX ? depth * 0.36 : depth * 0.28));
+    grandArch.visible = level >= 10;
+
+    const lampA = this.createStreetLamp(offset.x - width * 0.34, 0.04, offset.z + depth * 0.38, building.id, 0xffefbf);
+    const lampB = this.createStreetLamp(offset.x + width * 0.34, 0.04, offset.z + depth * 0.38, building.id, 0xffefbf);
+    const benchA = this.createBench(offset.x - width * 0.18, 0.04, offset.z + depth * 0.3, 0, building.id);
+    const benchB = this.createBench(offset.x + width * 0.18, 0.04, offset.z + depth * 0.3, Math.PI, building.id);
+    const planterA = this.createPlanterBox(0x9b7a58, 0x7faa72, offset.x - width * 0.28, 0.04, offset.z + depth * 0.18, building.id, 0.2, 0.12);
+    const planterB = this.createPlanterBox(0x9b7a58, 0x86b67a, offset.x + width * 0.28, 0.04, offset.z + depth * 0.18, building.id, 0.2, 0.12);
+    group.add(lampA, lampB, benchA, benchB, planterA, planterB);
+
+    this.utilityAnimations.set(building.id, {
+      smoke: [],
+      glow: [signBand, roofArch, beaconMast, grandArch].filter((mesh) => mesh.visible),
+      phase: building.id * 0.08
+    });
+    this.selectableMeshes.set(building.id, [
+      ...meshes,
+      ...this.collectMeshes(lampA),
+      ...this.collectMeshes(lampB),
+      ...this.collectMeshes(benchA),
+      ...this.collectMeshes(benchB),
+      ...this.collectMeshes(planterA),
+      ...this.collectMeshes(planterB)
+    ]);
     return group;
   }
 
