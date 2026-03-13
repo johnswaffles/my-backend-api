@@ -8758,10 +8758,14 @@ export class GameRenderer {
     lanternSpire.position.set(offset.x, towerBaseY + primaryTowerHeight + 0.38, offset.z);
     lanternSpire.visible = level >= 10;
 
-    const frontTreeLeft = this.createTree(offset.x - width * 0.28, 0.04, offset.z + depth * 0.26, building.id, level >= 6 ? 0x5e8c58 : 0x6d9858);
-    const frontTreeRight = this.createTree(offset.x + width * 0.28, 0.04, offset.z + depth * 0.26, building.id, level >= 6 ? 0x5e8c58 : 0x6d9858);
-    const rearTreeLeft = this.createTree(offset.x - width * 0.24, 0.04, offset.z - depth * 0.26, building.id, 0x6d9858);
-    const rearTreeRight = this.createTree(offset.x + width * 0.24, 0.04, offset.z - depth * 0.26, building.id, 0x6d9858);
+    const frontTreeLeft = this.createTree(0.12, 0.03, 0.18, level >= 6 ? 0x5e8c58 : 0x6d9858, building.id);
+    frontTreeLeft.position.set(offset.x - width * 0.28, 0.04, offset.z + depth * 0.26);
+    const frontTreeRight = this.createTree(0.12, 0.03, 0.18, level >= 6 ? 0x5e8c58 : 0x6d9858, building.id);
+    frontTreeRight.position.set(offset.x + width * 0.28, 0.04, offset.z + depth * 0.26);
+    const rearTreeLeft = this.createTree(0.11, 0.028, 0.17, 0x6d9858, building.id);
+    rearTreeLeft.position.set(offset.x - width * 0.24, 0.04, offset.z - depth * 0.26);
+    const rearTreeRight = this.createTree(0.11, 0.028, 0.17, 0x6d9858, building.id);
+    rearTreeRight.position.set(offset.x + width * 0.24, 0.04, offset.z - depth * 0.26);
     const sharedBenchA = this.createBench(offset.x - width * 0.12, 0.03, offset.z, 0, building.id);
     const sharedBenchB = this.createBench(offset.x + width * 0.12, 0.03, offset.z, Math.PI, building.id);
     const entryTreeA = this.createPlanterBox(0x8d6846, 0x78a06c, offset.x - width * 0.12, 0.05, offset.z + depth * 0.18, building.id, 0.16, 0.14);
