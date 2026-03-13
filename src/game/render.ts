@@ -887,34 +887,8 @@ export class GameRenderer {
   }
 
   private syncStatusMarkers(state: GameState): void {
+    void state;
     this.clearGroup(this.statusRoot);
-
-    for (const building of state.buildings) {
-      if (building.type === 'road' || building.type === 'railLine' || building.type === 'powerLine') continue;
-      const context = buildingContextSummary(state, building);
-      if (context.active) continue;
-
-      const world = this.buildingOriginWorld(building, state.gridSize);
-      const ringColor = context.powerAccess ? 0xf59e0b : 0xef4444;
-      const poleColor = context.transportAccess ? 0xf59e0b : 0x38bdf8;
-      const ring = new THREE.Mesh(
-        new THREE.RingGeometry(0.14, 0.2, 18),
-        new THREE.MeshBasicMaterial({ color: ringColor, transparent: true, opacity: 0.72, side: THREE.DoubleSide })
-      );
-      ring.rotation.x = -Math.PI / 2;
-      ring.position.set(world.x, 0.08, world.z);
-      const pole = new THREE.Mesh(
-        new THREE.BoxGeometry(0.05, 0.34, 0.05),
-        new THREE.MeshStandardMaterial({ color: poleColor, roughness: 0.48, metalness: 0.12, emissive: poleColor, emissiveIntensity: 0.12 })
-      );
-      pole.position.set(world.x, 0.28, world.z);
-      const cap = new THREE.Mesh(
-        new THREE.BoxGeometry(0.16, 0.08, 0.04),
-        new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.22, metalness: 0.08, emissive: ringColor, emissiveIntensity: 0.16 })
-      );
-      cap.position.set(world.x, 0.46, world.z);
-      this.statusRoot.add(ring, pole, cap);
-    }
   }
 
   private addLateTierEnhancements(object: THREE.Object3D, building: Building): void {
@@ -8065,7 +8039,6 @@ export class GameRenderer {
     const depth = cluster.tileDepth * 0.94;
     const level = building.level;
     const variant = building.id % 5;
-    const tallCluster = cluster.size >= 6 || cluster.originWidth >= 3 || cluster.originDepth >= 3;
     const superblockMode = cluster.size >= 9 || (cluster.originWidth >= 3 && cluster.originDepth >= 3);
     const wallPalette = [0xd8c0a6, 0xd2c8bb, 0xcbb8a9, 0xd6c8bc, 0xc7cfc9, 0xc8d4c8];
     const trimPalette = [0xb8875f, 0xcab79a, 0xa47a5d, 0xd0ad95, 0x8ba19a, 0x7f9891];
@@ -8232,7 +8205,7 @@ export class GameRenderer {
       return { tower, cap, towerHeight };
     };
 
-    const baseFloorCount = level === 1 ? (tallCluster ? 4 : 3) : level === 2 ? 6 : level === 3 ? 10 : level === 4 ? 16 : 24;
+    const baseFloorCount = [2, 3, 4, 6, 8, 10, 12, 15, 18, 22][Math.max(0, Math.min(9, level - 1))];
     const podiumProfiles = [
       { width: width * 0.98, depth: depth * 0.62, lawn: 0x88ab7d },
       { width: width * 0.66, depth: depth * 0.4, lawn: 0x86aa7b },
@@ -8279,6 +8252,26 @@ export class GameRenderer {
     group.add(rearPlaza);
     meshes.push(rearPlaza);
 
+    const centralCourtyard = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.34, 0.018, depth * 0.24),
+      new THREE.MeshStandardMaterial({ color: 0x7faa72, roughness: 0.96, metalness: 0.01 })
+    );
+    centralCourtyard.position.set(offset.x, 0.058, offset.z);
+    centralCourtyard.userData.buildingId = building.id;
+    centralCourtyard.visible = level >= 2;
+    group.add(centralCourtyard);
+    meshes.push(centralCourtyard);
+
+    const sharedWalk = new THREE.Mesh(
+      new THREE.BoxGeometry(width * 0.18, 0.02, depth * 0.66),
+      new THREE.MeshStandardMaterial({ color: 0xe2d8ca, roughness: 0.94, metalness: 0.01 })
+    );
+    sharedWalk.position.set(offset.x, 0.056, offset.z);
+    sharedWalk.userData.buildingId = building.id;
+    sharedWalk.visible = level >= 2;
+    group.add(sharedWalk);
+    meshes.push(sharedWalk);
+
     addMesh(
       new THREE.Mesh(
         new THREE.BoxGeometry(podiumWidth, 0.18, podiumDepth + 0.06),
@@ -8316,6 +8309,7 @@ export class GameRenderer {
     group.add(rearCanopy);
     meshes.push(rearCanopy);
     let primaryTowerHeight = 0;
+    const lowRiseMode = level <= 3;
     let skyBridge: THREE.Mesh | null = null;
     let rooftopPool: THREE.Mesh | null = null;
     let solarCanopy: THREE.Mesh | null = null;
@@ -8327,19 +8321,19 @@ export class GameRenderer {
         const main = addResidentialTower({
           x: 0,
           z: 0,
-          width: width * 0.54,
-          depth: depth * 0.4,
-          floors: Math.round(baseFloorCount * (level >= 5 ? 0.84 : 0.76)),
+          width: width * (lowRiseMode ? 0.72 : 0.54),
+          depth: depth * (lowRiseMode ? 0.5 : 0.4),
+          floors: Math.round(baseFloorCount * (lowRiseMode ? 1 : level >= 5 ? 0.84 : 0.76)),
           wallColor: wallPalette[0],
           roofColor: roofPalette[0],
           glowColor: windowGlowPalette[0],
-          crown: level >= 5 ? "frame" : "flat",
+          crown: level >= 8 ? "frame" : "flat",
           sideWindows: true,
-          fins: level >= 4,
-          terrace: level >= 4
+          fins: level >= 6,
+          terrace: level >= 5
         });
         primaryTowerHeight = main.towerHeight;
-        if (level >= 5) {
+        if (level >= 6) {
           addResidentialTower({
             x: -width * 0.22,
             z: depth * 0.16,
@@ -8361,17 +8355,17 @@ export class GameRenderer {
           z: -depth * 0.05,
           width: width * 0.18,
           depth: depth * 0.14,
-          floors: Math.round(baseFloorCount * (level >= 5 ? 1.46 : 1.18)),
+          floors: Math.round(baseFloorCount * (lowRiseMode ? 0.94 : level >= 8 ? 1.42 : level >= 5 ? 1.2 : 1.02)),
           wallColor: wallPalette[1],
           roofColor: roofPalette[1],
           glowColor: windowGlowPalette[1],
-          crown: level >= 5 ? "ring" : "flat",
+          crown: level >= 8 ? "ring" : "flat",
           sideWindows: true,
           offsetCap: true
         });
         primaryTowerHeight = main.towerHeight;
         crownHalo = glowMeshes[glowMeshes.length - 1] ?? null;
-        if (level >= 4) {
+        if (level >= 5) {
           addResidentialTower({
             x: width * 0.18,
             z: depth * 0.1,
@@ -8391,9 +8385,9 @@ export class GameRenderer {
         const leftTower = addResidentialTower({
           x: -width * 0.16,
           z: 0,
-          width: width * 0.24,
-          depth: depth * 0.2,
-          floors: Math.round(baseFloorCount * (level >= 5 ? 0.96 : 0.82)),
+          width: width * (lowRiseMode ? 0.32 : 0.24),
+          depth: depth * (lowRiseMode ? 0.24 : 0.2),
+          floors: Math.round(baseFloorCount * (lowRiseMode ? 0.92 : level >= 5 ? 0.96 : 0.82)),
           wallColor: wallPalette[2],
           roofColor: roofPalette[2],
           glowColor: windowGlowPalette[2],
@@ -8403,17 +8397,17 @@ export class GameRenderer {
         const rightTower = addResidentialTower({
           x: width * 0.16,
           z: 0,
-          width: width * 0.24,
-          depth: depth * 0.2,
-          floors: Math.round(baseFloorCount * (level >= 5 ? 0.9 : 0.78)),
+          width: width * (lowRiseMode ? 0.32 : 0.24),
+          depth: depth * (lowRiseMode ? 0.24 : 0.2),
+          floors: Math.round(baseFloorCount * (lowRiseMode ? 0.88 : level >= 5 ? 0.9 : 0.78)),
           wallColor: wallPalette[3],
           roofColor: roofPalette[3],
           glowColor: windowGlowPalette[3],
-          crown: level >= 5 ? "frame" : "flat",
+          crown: level >= 8 ? "frame" : "flat",
           sideWindows: true
         });
         primaryTowerHeight = Math.max(leftTower.towerHeight, rightTower.towerHeight);
-        if (level >= 4) {
+        if (level >= 6) {
           skyBridge = addGlowMesh(
             new THREE.Mesh(
               new THREE.BoxGeometry(width * 0.28, 0.18, depth * 0.12),
@@ -8428,25 +8422,25 @@ export class GameRenderer {
         const main = addResidentialTower({
           x: width * 0.18,
           z: -depth * 0.04,
-          width: width * 0.28,
-          depth: depth * 0.18,
-          floors: Math.round(baseFloorCount * (level >= 5 ? 1.04 : 0.88)),
+          width: width * (lowRiseMode ? 0.44 : 0.28),
+          depth: depth * (lowRiseMode ? 0.24 : 0.18),
+          floors: Math.round(baseFloorCount * (lowRiseMode ? 0.98 : level >= 5 ? 1.04 : 0.88)),
           wallColor: wallPalette[3],
           roofColor: roofPalette[3],
           glowColor: windowGlowPalette[3],
-          crown: level >= 5 ? "spire" : "flat",
+          crown: level >= 9 ? "spire" : "flat",
           sideWindows: true,
-          fins: level >= 4
+          fins: level >= 7
         });
         primaryTowerHeight = main.towerHeight;
         const annex = addMesh(
           new THREE.Mesh(
-            new THREE.BoxGeometry(width * 0.36, level >= 5 ? 1.5 : 0.94, depth * 0.22),
+            new THREE.BoxGeometry(width * 0.36, level >= 7 ? 1.5 : 0.82, depth * 0.22),
             meshMat(wallPalette[0], 0.74, 0.03)
           )
         );
-        annex.position.set(offset.x - width * 0.22, level >= 5 ? 0.8 : 0.52, offset.z + depth * 0.16);
-        if (level >= 5) {
+        annex.position.set(offset.x - width * 0.22, level >= 7 ? 0.8 : 0.46, offset.z + depth * 0.16);
+        if (level >= 7) {
           const bridge = addGlowMesh(
             new THREE.Mesh(
               new THREE.BoxGeometry(width * 0.18, 0.14, depth * 0.1),
@@ -8462,18 +8456,18 @@ export class GameRenderer {
         const main = addResidentialTower({
           x: 0.02,
           z: -depth * 0.02,
-          width: width * 0.34,
-          depth: depth * 0.28,
-          floors: Math.round(baseFloorCount * (level >= 5 ? 1.02 : 0.86)),
+          width: width * (lowRiseMode ? 0.52 : 0.34),
+          depth: depth * (lowRiseMode ? 0.34 : 0.28),
+          floors: Math.round(baseFloorCount * (lowRiseMode ? 1 : level >= 5 ? 1.02 : 0.86)),
           wallColor: wallPalette[4],
           roofColor: roofPalette[4],
           glowColor: windowGlowPalette[4],
-          crown: level >= 5 ? "frame" : "flat",
+          crown: level >= 8 ? "frame" : "flat",
           sideWindows: true,
-          terrace: level >= 4
+          terrace: level >= 5
         });
         primaryTowerHeight = main.towerHeight;
-        if (level >= 4) {
+        if (level >= 6) {
           addResidentialTower({
             x: -width * 0.2,
             z: depth * 0.18,
@@ -8491,7 +8485,7 @@ export class GameRenderer {
       }
     }
 
-    const podiumWindowRows = level >= 2 ? 2 : 1;
+    const podiumWindowRows = level >= 4 ? 3 : level >= 2 ? 2 : 1;
     for (let row = 0; row < podiumWindowRows; row += 1) {
       const rowY = 0.24 + row * 0.14;
       const frontBand = new THREE.Mesh(
@@ -8523,18 +8517,20 @@ export class GameRenderer {
     group.add(lobbyRear);
     meshes.push(lobbyRear);
 
-    const signBand = addMesh(
+    const corniceBand = addMesh(
       new THREE.Mesh(
-        new THREE.BoxGeometry(podiumWidth * 0.48, 0.08, 0.03),
-        meshMat(trimPalette[variant], 0.62, 0.06, roofPalette[variant], 0.12)
+        new THREE.BoxGeometry(podiumWidth * 0.56, 0.06, 0.03),
+        meshMat(trimPalette[variant], 0.72, 0.04)
       )
     );
-    signBand.position.set(offset.x, 0.47, offset.z + podiumDepth * 0.48);
-    const signBandRear = signBand.clone();
-    signBandRear.position.set(offset.x, 0.47, offset.z - podiumDepth * 0.48);
-    signBandRear.userData.buildingId = building.id;
-    group.add(signBandRear);
-    meshes.push(signBandRear);
+    corniceBand.position.set(offset.x, 0.47, offset.z + podiumDepth * 0.48);
+    const corniceBandRear = corniceBand.clone();
+    corniceBandRear.position.set(offset.x, 0.47, offset.z - podiumDepth * 0.48);
+    corniceBandRear.userData.buildingId = building.id;
+    group.add(corniceBandRear);
+    meshes.push(corniceBandRear);
+    const signBand = corniceBand;
+    const signBandRear = corniceBandRear;
 
     const roofGardenA = addGlowMesh(
       new THREE.Mesh(
@@ -8762,11 +8758,14 @@ export class GameRenderer {
     lanternSpire.position.set(offset.x, towerBaseY + primaryTowerHeight + 0.38, offset.z);
     lanternSpire.visible = level >= 10;
 
-    const lampLeft = this.createStreetLamp(offset.x - width * 0.26, 0.055, offset.z + depth * 0.26, building.id, 0xffefbf);
-    const lampRight = this.createStreetLamp(offset.x + width * 0.26, 0.055, offset.z + depth * 0.26, building.id, 0xffefbf);
-    const planterLeft = this.createPlanterBox(0x8d6846, 0x78a06c, offset.x - width * 0.22, 0.05, offset.z + depth * 0.24, building.id, 0.18, 0.14);
-    const planterRight = this.createPlanterBox(0x8d6846, 0x78a06c, offset.x + width * 0.22, 0.05, offset.z + depth * 0.24, building.id, 0.18, 0.14);
-    const bike = this.createBike(offset.x - width * 0.18, 0.03, offset.z - depth * 0.24, 0.18, building.id, 0x587094);
+    const frontTreeLeft = this.createTree(offset.x - width * 0.28, 0.04, offset.z + depth * 0.26, building.id, level >= 6 ? 0x5e8c58 : 0x6d9858);
+    const frontTreeRight = this.createTree(offset.x + width * 0.28, 0.04, offset.z + depth * 0.26, building.id, level >= 6 ? 0x5e8c58 : 0x6d9858);
+    const rearTreeLeft = this.createTree(offset.x - width * 0.24, 0.04, offset.z - depth * 0.26, building.id, 0x6d9858);
+    const rearTreeRight = this.createTree(offset.x + width * 0.24, 0.04, offset.z - depth * 0.26, building.id, 0x6d9858);
+    const sharedBenchA = this.createBench(offset.x - width * 0.12, 0.03, offset.z, 0, building.id);
+    const sharedBenchB = this.createBench(offset.x + width * 0.12, 0.03, offset.z, Math.PI, building.id);
+    const entryTreeA = this.createPlanterBox(0x8d6846, 0x78a06c, offset.x - width * 0.12, 0.05, offset.z + depth * 0.18, building.id, 0.16, 0.14);
+    const entryTreeB = this.createPlanterBox(0x8d6846, 0x78a06c, offset.x + width * 0.12, 0.05, offset.z + depth * 0.18, building.id, 0.16, 0.14);
 
     const smokePuffs: SmokeAnimation[] = [];
     smokePuffs.forEach((puff) => {
@@ -8807,19 +8806,25 @@ export class GameRenderer {
       });
     }
 
-    group.add(lampLeft);
-    group.add(lampRight);
-    group.add(planterLeft);
-    group.add(planterRight);
-    group.add(bike);
+    group.add(frontTreeLeft);
+    group.add(frontTreeRight);
+    group.add(rearTreeLeft);
+    group.add(rearTreeRight);
+    group.add(sharedBenchA);
+    group.add(sharedBenchB);
+    group.add(entryTreeA);
+    group.add(entryTreeB);
 
     this.selectableMeshes.set(building.id, [
       ...meshes,
-      ...this.collectMeshes(lampLeft),
-      ...this.collectMeshes(lampRight),
-      ...this.collectMeshes(planterLeft),
-      ...this.collectMeshes(planterRight),
-      ...this.collectMeshes(bike)
+      ...this.collectMeshes(frontTreeLeft),
+      ...this.collectMeshes(frontTreeRight),
+      ...this.collectMeshes(rearTreeLeft),
+      ...this.collectMeshes(rearTreeRight),
+      ...this.collectMeshes(sharedBenchA),
+      ...this.collectMeshes(sharedBenchB),
+      ...this.collectMeshes(entryTreeA),
+      ...this.collectMeshes(entryTreeB)
     ]);
 
     return group;
