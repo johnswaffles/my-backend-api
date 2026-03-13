@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
-import { buildingContextSummary, serviceRadiusForType } from './actions';
+import { buildingContextSummary } from './actions';
 import { getAssetCardOptions, paintAssetCard, paintAssetSideCard, paintHeroAsset } from './assets';
 import type { BuildType, Building, GameState, OverlayMode } from './state';
 import {
@@ -120,7 +120,6 @@ export class GameRenderer {
   private readonly ambientRoot = new THREE.Group();
   private readonly overlayRoot = new THREE.Group();
   private readonly statusRoot = new THREE.Group();
-  private readonly selectionRangeRoot = new THREE.Group();
 
   private readonly buildingMeshes = new Map<number, THREE.Object3D>();
   private readonly buildingRenderSignatures = new Map<number, string>();
@@ -275,7 +274,6 @@ export class GameRenderer {
     this.scene.add(this.decorRoot);
     this.scene.add(this.overlayRoot);
     this.scene.add(this.statusRoot);
-    this.scene.add(this.selectionRangeRoot);
     this.scene.add(this.ambientRoot);
     this.rebuildGroundDecor(state);
     this.initAmbientActors();
@@ -1924,40 +1922,8 @@ export class GameRenderer {
       }
     }
 
-    this.clearGroup(this.selectionRangeRoot);
     const selectedBuilding = state.buildings.find((building) => building.id === state.selectedBuildingId);
     if (!selectedBuilding) return;
-
-    const radius = serviceRadiusForType(selectedBuilding.type);
-    if (radius <= 1) return;
-
-    const world = this.buildingOriginWorld(selectedBuilding, state.gridSize);
-    const baseColor =
-      selectedBuilding.type === 'park'
-        ? 0x4ade80
-        : selectedBuilding.type === 'hospital' || selectedBuilding.type === 'policeStation' || selectedBuilding.type === 'fireStation'
-          ? 0x38bdf8
-          : selectedBuilding.type === 'cityHall'
-            ? 0xfacc15
-            : selectedBuilding.type === 'substation'
-              ? 0xf59e0b
-              : 0xc084fc;
-
-    const disc = new THREE.Mesh(
-      new THREE.CircleGeometry(radius + 0.15, 48),
-      new THREE.MeshBasicMaterial({ color: baseColor, transparent: true, opacity: 0.08 })
-    );
-    disc.rotation.x = -Math.PI / 2;
-    disc.position.set(world.x, 0.05, world.z);
-
-    const ring = new THREE.Mesh(
-      new THREE.RingGeometry(radius + 0.05, radius + 0.15, 48),
-      new THREE.MeshBasicMaterial({ color: baseColor, transparent: true, opacity: 0.42, side: THREE.DoubleSide })
-    );
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.set(world.x, 0.055, world.z);
-
-    this.selectionRangeRoot.add(disc, ring);
   }
 
   private createBuildingObject(building: Building): THREE.Object3D {
