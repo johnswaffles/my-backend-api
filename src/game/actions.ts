@@ -25,6 +25,22 @@ interface BuildingEconomy {
   maintenance: number;
 }
 
+interface UpgradeCurve {
+  perLevel: number;
+  milestoneBonuses?: number[];
+}
+
+interface BuildingUpgradeProfile {
+  housing?: UpgradeCurve;
+  economy?: UpgradeCurve;
+  service?: UpgradeCurve;
+  powerUse?: UpgradeCurve;
+  powerProduce?: UpgradeCurve;
+  maintenance?: UpgradeCurve;
+  revenue?: UpgradeCurve;
+  nuisance?: UpgradeCurve;
+}
+
 export const ASSET_GENERATION_COST: Record<BuildType, number> = {
   road: 0,
   railLine: 0,
@@ -301,6 +317,197 @@ export const BUILDING_ECONOMY: Record<BuildType, BuildingEconomy> = {
   }
 };
 
+const UPGRADE_MILESTONES = [3, 5, 7, 9] as const;
+
+function curve(perLevel: number, milestoneBonuses: number[] = []): UpgradeCurve {
+  return { perLevel, milestoneBonuses };
+}
+
+const BUILDING_UPGRADE_PROFILES: Record<BuildType, BuildingUpgradeProfile> = {
+  road: {},
+  railLine: {},
+  powerLine: {},
+  house: {
+    housing: curve(0.34, [0.12, 0.18, 0.24, 0.3]),
+    powerUse: curve(0.09, [0.03, 0.04, 0.05, 0.06]),
+    maintenance: curve(0.12, [0.04, 0.05, 0.06, 0.08]),
+    revenue: curve(0.22, [0.08, 0.12, 0.18, 0.22])
+  },
+  restaurant: {
+    economy: curve(0.24, [0.08, 0.12, 0.16, 0.2]),
+    service: curve(0.26, [0.08, 0.12, 0.16, 0.2]),
+    powerUse: curve(0.11, [0.03, 0.04, 0.05, 0.06]),
+    maintenance: curve(0.12, [0.04, 0.05, 0.06, 0.08]),
+    revenue: curve(0.22, [0.08, 0.1, 0.14, 0.18])
+  },
+  shop: {
+    economy: curve(0.25, [0.08, 0.12, 0.16, 0.2]),
+    service: curve(0.2, [0.06, 0.08, 0.1, 0.12]),
+    powerUse: curve(0.1, [0.03, 0.04, 0.05, 0.06]),
+    maintenance: curve(0.11, [0.04, 0.05, 0.06, 0.08]),
+    revenue: curve(0.22, [0.08, 0.1, 0.14, 0.18])
+  },
+  park: {
+    economy: curve(0.1, [0.03, 0.04, 0.05, 0.06]),
+    service: curve(0.32, [0.1, 0.14, 0.18, 0.22]),
+    maintenance: curve(0.08, [0.02, 0.03, 0.04, 0.05]),
+    revenue: curve(0.06, [0.02, 0.03, 0.04, 0.05])
+  },
+  workshop: {
+    economy: curve(0.3, [0.08, 0.12, 0.18, 0.24]),
+    powerUse: curve(0.16, [0.04, 0.06, 0.08, 0.1]),
+    maintenance: curve(0.15, [0.05, 0.07, 0.09, 0.12]),
+    revenue: curve(0.2, [0.06, 0.08, 0.1, 0.12]),
+    nuisance: curve(0.12, [0.03, 0.05, 0.07, 0.09])
+  },
+  powerPlant: {
+    economy: curve(0.16, [0.04, 0.06, 0.08, 0.1]),
+    powerProduce: curve(0.38, [0.14, 0.22, 0.3, 0.38]),
+    maintenance: curve(0.18, [0.06, 0.08, 0.1, 0.12]),
+    revenue: curve(0.08, [0.02, 0.03, 0.04, 0.05]),
+    nuisance: curve(0.14, [0.04, 0.06, 0.08, 0.1])
+  },
+  substation: {
+    economy: curve(0.16, [0.04, 0.06, 0.08, 0.1]),
+    service: curve(0.2, [0.05, 0.07, 0.09, 0.12]),
+    powerUse: curve(0.08, [0.02, 0.03, 0.04, 0.05]),
+    maintenance: curve(0.1, [0.03, 0.04, 0.05, 0.06]),
+    revenue: curve(0.08, [0.02, 0.03, 0.04, 0.05])
+  },
+  trainStation: {
+    economy: curve(0.28, [0.08, 0.12, 0.16, 0.22]),
+    service: curve(0.24, [0.08, 0.12, 0.16, 0.2]),
+    powerUse: curve(0.12, [0.03, 0.04, 0.05, 0.06]),
+    maintenance: curve(0.13, [0.04, 0.05, 0.06, 0.08]),
+    revenue: curve(0.2, [0.06, 0.08, 0.1, 0.12])
+  },
+  cityHall: {
+    economy: curve(0.24, [0.08, 0.12, 0.16, 0.2]),
+    service: curve(0.32, [0.1, 0.14, 0.18, 0.24]),
+    powerUse: curve(0.1, [0.03, 0.04, 0.05, 0.06]),
+    maintenance: curve(0.15, [0.05, 0.07, 0.09, 0.12]),
+    revenue: curve(0.14, [0.04, 0.06, 0.08, 0.1])
+  },
+  groceryStore: {
+    economy: curve(0.24, [0.08, 0.12, 0.16, 0.2]),
+    service: curve(0.3, [0.08, 0.12, 0.16, 0.22]),
+    powerUse: curve(0.11, [0.03, 0.04, 0.05, 0.06]),
+    maintenance: curve(0.12, [0.04, 0.05, 0.06, 0.08]),
+    revenue: curve(0.22, [0.08, 0.1, 0.14, 0.18])
+  },
+  cornerStore: {
+    economy: curve(0.22, [0.07, 0.1, 0.14, 0.18]),
+    service: curve(0.24, [0.07, 0.1, 0.14, 0.18]),
+    powerUse: curve(0.1, [0.03, 0.04, 0.05, 0.06]),
+    maintenance: curve(0.1, [0.03, 0.04, 0.05, 0.06]),
+    revenue: curve(0.18, [0.06, 0.08, 0.1, 0.12])
+  },
+  bank: {
+    economy: curve(0.24, [0.08, 0.12, 0.16, 0.2]),
+    service: curve(0.24, [0.08, 0.12, 0.16, 0.2]),
+    powerUse: curve(0.1, [0.03, 0.04, 0.05, 0.06]),
+    maintenance: curve(0.13, [0.04, 0.05, 0.06, 0.08]),
+    revenue: curve(0.26, [0.08, 0.12, 0.16, 0.22])
+  },
+  policeStation: {
+    economy: curve(0.18, [0.05, 0.07, 0.09, 0.12]),
+    service: curve(0.34, [0.1, 0.14, 0.18, 0.24]),
+    powerUse: curve(0.11, [0.03, 0.04, 0.05, 0.06]),
+    maintenance: curve(0.14, [0.05, 0.07, 0.09, 0.12]),
+    revenue: curve(0.1, [0.02, 0.03, 0.04, 0.05])
+  },
+  fireStation: {
+    economy: curve(0.18, [0.05, 0.07, 0.09, 0.12]),
+    service: curve(0.32, [0.1, 0.14, 0.18, 0.22]),
+    powerUse: curve(0.11, [0.03, 0.04, 0.05, 0.06]),
+    maintenance: curve(0.14, [0.05, 0.07, 0.09, 0.12]),
+    revenue: curve(0.1, [0.02, 0.03, 0.04, 0.05])
+  },
+  hospital: {
+    economy: curve(0.2, [0.06, 0.08, 0.1, 0.14]),
+    service: curve(0.36, [0.12, 0.16, 0.22, 0.28]),
+    powerUse: curve(0.13, [0.03, 0.04, 0.05, 0.07]),
+    maintenance: curve(0.16, [0.05, 0.07, 0.09, 0.12]),
+    revenue: curve(0.12, [0.03, 0.04, 0.05, 0.07])
+  }
+};
+
+function multiplierFromCurve(level: number, statCurve?: UpgradeCurve): number {
+  if (!statCurve || level <= 1) return 1;
+  let multiplier = 1 + statCurve.perLevel * Math.max(0, level - 1);
+  UPGRADE_MILESTONES.forEach((milestone, index) => {
+    const bonus = statCurve.milestoneBonuses?.[index] ?? 0;
+    if (level >= milestone) multiplier += bonus;
+  });
+  return multiplier;
+}
+
+function statMultiplierForBuilding(
+  building: Pick<Building, 'type' | 'level'>,
+  stat: keyof Pick<BuildingEconomy, 'housing' | 'jobs' | 'commerce' | 'recreation' | 'essentials' | 'health' | 'safety' | 'powerUse' | 'powerProduce' | 'maintenance'>
+): number {
+  const profile = BUILDING_UPGRADE_PROFILES[building.type];
+  const base = BUILDING_ECONOMY[building.type][stat];
+  if (base === 0 || building.level <= 1) return 1;
+
+  if (stat === 'housing') {
+    return multiplierFromCurve(building.level, profile.housing ?? profile.economy);
+  }
+  if (stat === 'powerUse') {
+    return multiplierFromCurve(building.level, profile.powerUse ?? profile.economy);
+  }
+  if (stat === 'powerProduce') {
+    return multiplierFromCurve(building.level, profile.powerProduce ?? profile.economy);
+  }
+  if (stat === 'maintenance') {
+    return multiplierFromCurve(building.level, profile.maintenance ?? profile.economy);
+  }
+  if (stat === 'jobs' || stat === 'commerce') {
+    return multiplierFromCurve(building.level, profile.economy);
+  }
+  if (base < 0) {
+    return multiplierFromCurve(building.level, profile.nuisance ?? profile.service ?? profile.economy);
+  }
+  return multiplierFromCurve(building.level, profile.service ?? profile.economy);
+}
+
+function revenueMultiplierForBuilding(building: Pick<Building, 'type' | 'level'>): number {
+  return multiplierFromCurve(building.level, BUILDING_UPGRADE_PROFILES[building.type].revenue);
+}
+
+export function scaledEconomyForBuilding(building: Pick<Building, 'type' | 'level'>): BuildingEconomy {
+  const base = BUILDING_ECONOMY[building.type];
+  return {
+    ...base,
+    housing: base.housing * statMultiplierForBuilding(building, 'housing'),
+    jobs: base.jobs * statMultiplierForBuilding(building, 'jobs'),
+    commerce: base.commerce * statMultiplierForBuilding(building, 'commerce'),
+    recreation: base.recreation * statMultiplierForBuilding(building, 'recreation'),
+    essentials: base.essentials * statMultiplierForBuilding(building, 'essentials'),
+    health: base.health * statMultiplierForBuilding(building, 'health'),
+    safety: base.safety * statMultiplierForBuilding(building, 'safety'),
+    powerUse: base.powerUse * statMultiplierForBuilding(building, 'powerUse'),
+    powerProduce: base.powerProduce * statMultiplierForBuilding(building, 'powerProduce'),
+    maintenance: base.maintenance * statMultiplierForBuilding(building, 'maintenance')
+  };
+}
+
+function baseOperationalRevenueForType(type: BuildType): number {
+  if (type === 'shop') return ECONOMY_TUNING.shopRevenue;
+  if (type === 'restaurant') return ECONOMY_TUNING.restaurantRevenue;
+  if (type === 'workshop') return ECONOMY_TUNING.workshopRevenue;
+  if (type === 'groceryStore') return ECONOMY_TUNING.groceryRevenue;
+  if (type === 'cornerStore') return ECONOMY_TUNING.cornerStoreRevenue;
+  if (type === 'bank') return ECONOMY_TUNING.bankRevenue;
+  if (type === 'trainStation') return 0.11;
+  if (type === 'cityHall') return 0.08;
+  return 0;
+}
+
+function operationalRevenueForBuilding(building: Pick<Building, 'type' | 'level'>): number {
+  return baseOperationalRevenueForType(building.type) * revenueMultiplierForBuilding(building);
+}
+
 export const ECONOMY_TUNING = {
   residentTaxPerCitizen: 0.03,
   employmentTaxPerWorker: 0.024,
@@ -500,10 +707,6 @@ function residentialComboBonus(state: GameState): number {
     }
   }
   return bonus;
-}
-
-function buildingLevelFactor(building: Building): number {
-  return 1 + (building.level - 1) * 0.28;
 }
 
 function upgradeThresholdFor(building: Building): number {
@@ -891,29 +1094,34 @@ function residentialUpgradeRevenueBonus(state: GameState, infrastructure = compu
     const avgLevel = cluster.reduce((sum, member) => sum + member.level, 0) / cluster.length;
 
     if (cluster.length >= 4) {
+      const clusterRevenueLift = 1 + Math.max(0, avgLevel - 1) * 0.08;
       if (avgLevel >= 10) {
-        bonus += cluster.length * ECONOMY_TUNING.tier10ResidentialRevenuePerTile;
+        bonus += cluster.length * ECONOMY_TUNING.tier10ResidentialRevenuePerTile * clusterRevenueLift;
       } else if (avgLevel >= 9) {
-        bonus += cluster.length * ECONOMY_TUNING.tier9ResidentialRevenuePerTile;
+        bonus += cluster.length * ECONOMY_TUNING.tier9ResidentialRevenuePerTile * clusterRevenueLift;
       } else if (avgLevel >= 8) {
-        bonus += cluster.length * ECONOMY_TUNING.tier8ResidentialRevenuePerTile;
+        bonus += cluster.length * ECONOMY_TUNING.tier8ResidentialRevenuePerTile * clusterRevenueLift;
       } else if (avgLevel >= 7) {
-        bonus += cluster.length * ECONOMY_TUNING.tier7ResidentialRevenuePerTile;
+        bonus += cluster.length * ECONOMY_TUNING.tier7ResidentialRevenuePerTile * clusterRevenueLift;
       } else if (avgLevel >= 6) {
-        bonus += cluster.length * ECONOMY_TUNING.tier6ResidentialRevenuePerTile;
+        bonus += cluster.length * ECONOMY_TUNING.tier6ResidentialRevenuePerTile * clusterRevenueLift;
       } else if (avgLevel >= 5) {
-        bonus += cluster.length * ECONOMY_TUNING.tier5ResidentialRevenuePerTile;
+        bonus += cluster.length * ECONOMY_TUNING.tier5ResidentialRevenuePerTile * clusterRevenueLift;
       } else if (avgLevel >= 4) {
-        bonus += cluster.length * ECONOMY_TUNING.tier4ResidentialRevenuePerTile;
+        bonus += cluster.length * ECONOMY_TUNING.tier4ResidentialRevenuePerTile * clusterRevenueLift;
       } else if (avgLevel >= 3) {
-        bonus += cluster.length * ECONOMY_TUNING.highRiseRevenuePerTile;
+        bonus += cluster.length * ECONOMY_TUNING.highRiseRevenuePerTile * clusterRevenueLift;
       } else if (avgLevel >= 2) {
-        bonus += cluster.length * ECONOMY_TUNING.apartmentRevenuePerTile;
+        bonus += cluster.length * ECONOMY_TUNING.apartmentRevenuePerTile * clusterRevenueLift;
       }
     }
 
     bonus += cluster.reduce(
-      (sum, member) => sum + Math.max(0, member.level - 1) * ECONOMY_TUNING.upgradedHousingRevenuePerLevel,
+      (sum, member) =>
+        sum +
+        Math.max(0, member.level - 1) *
+          ECONOMY_TUNING.upgradedHousingRevenuePerLevel *
+          revenueMultiplierForBuilding(member),
       0
     );
   }
@@ -1028,15 +1236,14 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
   for (const building of state.buildings) {
     if (isInfrastructureLine(building.type)) continue;
     if (building.type !== 'powerPlant' && !infrastructure.activeBuildings.has(building.id)) continue;
-    const econ = BUILDING_ECONOMY[building.type];
-    const factor = buildingLevelFactor(building);
-    housingCapacity += econ.housing * factor;
-    jobCapacity += econ.jobs * factor;
-    commercialCapacity += econ.commerce * factor;
-    recreationCapacity += econ.recreation * factor;
-    essentialsCapacity += econ.essentials * factor;
-    healthCapacity += econ.health * factor;
-    safetyCapacity += econ.safety * factor;
+    const econ = scaledEconomyForBuilding(building);
+    housingCapacity += econ.housing;
+    jobCapacity += econ.jobs;
+    commercialCapacity += econ.commerce;
+    recreationCapacity += econ.recreation;
+    essentialsCapacity += econ.essentials;
+    healthCapacity += econ.health;
+    safetyCapacity += econ.safety;
   }
 
   const clusterBoost = clusterBonuses(state, infrastructure);
@@ -1096,10 +1303,9 @@ function deriveSimulation(state: GameState): Pick<GameState, 'resources' | 'happ
     if (isInfrastructureLine(building.type)) continue;
     const active = building.type === 'powerPlant' ? infrastructure.transportConnected.has(building.id) : infrastructure.activeBuildings.has(building.id);
     if (!active) continue;
-    const econ = BUILDING_ECONOMY[building.type];
-    const factor = buildingLevelFactor(building);
-    powerUsed += econ.powerUse * (building.type === 'house' ? factor : 1 + (building.level - 1) * 0.14);
-    powerProduced += econ.powerProduce * (building.type === 'powerPlant' ? 1 + (building.level - 1) * 0.18 : factor);
+    const econ = scaledEconomyForBuilding(building);
+    powerUsed += econ.powerUse;
+    powerProduced += econ.powerProduce;
   }
   powerProduced += clusterBoost.power;
 
@@ -2191,25 +2397,18 @@ export function economySummary(state: GameState): {
 
   let maintenance = 0;
   for (const b of state.buildings) {
-    maintenance += BUILDING_ECONOMY[b.type].maintenance;
+    maintenance += scaledEconomyForBuilding(b).maintenance;
   }
   maintenance += policy.maintenance;
 
   const residentTax = derived.resources.population * ECONOMY_TUNING.residentTaxPerCitizen;
   const employmentTax =
     Math.min(derived.resources.population, derived.resources.jobs) * ECONOMY_TUNING.employmentTaxPerWorker;
-  const activeCount = (type: BuildType) =>
-    state.buildings.filter((building) => building.type === type && infrastructure.activeBuildings.has(building.id)).length;
   const commercialTax =
-    activeCount('shop') * ECONOMY_TUNING.shopRevenue +
-    activeCount('restaurant') * ECONOMY_TUNING.restaurantRevenue +
-    activeCount('workshop') * ECONOMY_TUNING.workshopRevenue +
-    activeCount('groceryStore') * ECONOMY_TUNING.groceryRevenue +
-    activeCount('cornerStore') * ECONOMY_TUNING.cornerStoreRevenue +
-    activeCount('bank') * ECONOMY_TUNING.bankRevenue +
-    activeCount('trainStation') * 0.11 +
-    activeCount('cityHall') * 0.08 +
-    policy.commercialIncome;
+    state.buildings.reduce((sum, building) => {
+      if (!infrastructure.activeBuildings.has(building.id)) return sum;
+      return sum + operationalRevenueForBuilding(building);
+    }, 0) + policy.commercialIncome;
   const upgradedHousingRevenue = residentialUpgradeRevenueBonus(state, infrastructure);
   const powerPenalty =
     Math.max(0, derived.resources.powerUsed - derived.resources.powerProduced) * ECONOMY_TUNING.powerDeficitPenalty;
@@ -2274,25 +2473,18 @@ export function tickSimulation(dtSeconds: number): void {
 
     let maintenancePerSecond = 0;
     for (const b of evolvedState.buildings) {
-      maintenancePerSecond += BUILDING_ECONOMY[b.type].maintenance;
+      maintenancePerSecond += scaledEconomyForBuilding(b).maintenance;
     }
     maintenancePerSecond += policy.maintenance;
 
     const residentTax = derived.resources.population * ECONOMY_TUNING.residentTaxPerCitizen;
     const employmentTax =
       Math.min(derived.resources.population, derived.resources.jobs) * ECONOMY_TUNING.employmentTaxPerWorker;
-    const activeCount = (type: BuildType) =>
-      evolvedState.buildings.filter((building) => building.type === type && infrastructure.activeBuildings.has(building.id)).length;
     const commercialTax =
-      activeCount('shop') * ECONOMY_TUNING.shopRevenue +
-      activeCount('restaurant') * ECONOMY_TUNING.restaurantRevenue +
-      activeCount('workshop') * ECONOMY_TUNING.workshopRevenue +
-      activeCount('groceryStore') * ECONOMY_TUNING.groceryRevenue +
-      activeCount('cornerStore') * ECONOMY_TUNING.cornerStoreRevenue +
-      activeCount('bank') * ECONOMY_TUNING.bankRevenue +
-      activeCount('trainStation') * 0.11 +
-      activeCount('cityHall') * 0.08 +
-      policy.commercialIncome;
+      evolvedState.buildings.reduce((sum, building) => {
+        if (!infrastructure.activeBuildings.has(building.id)) return sum;
+        return sum + operationalRevenueForBuilding(building);
+      }, 0) + policy.commercialIncome;
     const upgradedHousingRevenue = residentialUpgradeRevenueBonus(evolvedState, infrastructure);
     const powerPenalty =
       Math.max(0, derived.resources.powerUsed - derived.resources.powerProduced) * ECONOMY_TUNING.powerDeficitPenalty;

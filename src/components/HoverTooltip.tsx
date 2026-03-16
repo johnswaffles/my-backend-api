@@ -1,4 +1,4 @@
-import { BUILDING_ECONOMY } from '../game/actions';
+import { BUILDING_ECONOMY, scaledEconomyForBuilding } from '../game/actions';
 import { occupiedCellsForBuilding } from '../game/state';
 import type { GameState } from '../game/state';
 
@@ -25,6 +25,7 @@ export function HoverTooltip({ state }: HoverTooltipProps): JSX.Element | null {
     state.buildings.find((b) =>
       occupiedCellsForBuilding(b).some((occupied) => occupied.x === cell.x && occupied.z === cell.z)
     ) ?? null;
+  const liveStats = building ? scaledEconomyForBuilding(building) : null;
 
   return (
     <div className="pointer-events-none absolute bottom-4 left-1/2 z-30 w-[20rem] -translate-x-1/2 rounded-xl border border-cyan-200/35 bg-slate-900/75 px-4 py-3 text-sm text-slate-100 backdrop-blur">
@@ -35,8 +36,8 @@ export function HoverTooltip({ state }: HoverTooltipProps): JSX.Element | null {
         <div className="mt-1">
           <div className="font-semibold">{typeLabel(building.type)}</div>
           <div className="text-xs text-slate-300">
-            Cost ${BUILDING_ECONOMY[building.type].cost} | Jobs {BUILDING_ECONOMY[building.type].jobs} | Housing{' '}
-            {BUILDING_ECONOMY[building.type].housing}
+            Tier {building.level} | Cost ${BUILDING_ECONOMY[building.type].cost} | Jobs {Math.round(liveStats?.jobs ?? 0)} | Housing{' '}
+            {Math.round(liveStats?.housing ?? 0)}
           </div>
         </div>
       ) : (

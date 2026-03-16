@@ -4,6 +4,7 @@ import {
   bulldozeAt,
   buildingContextSummary,
   canUpgradeBuilding,
+  scaledEconomyForBuilding,
   upgradeBuildingById,
   upgradeCostForSelection
 } from '../game/actions';
@@ -51,11 +52,22 @@ function iconForType(type: Building['type']): string {
   return 'RD';
 }
 
+function formatStat(value: number, digits = 0): string {
+  if (Math.abs(value) < 0.005) return '0';
+  const rounded = Number(value.toFixed(digits));
+  return digits > 0 ? rounded.toFixed(digits) : Math.round(rounded).toString();
+}
+
 export function InfoPanel({ building, onFocusBuilding }: InfoPanelProps): JSX.Element {
   const state = gameStore.getState();
   const context = building ? buildingContextSummary(state, building) : null;
   const canUpgrade = building ? canUpgradeBuilding(state, building) : false;
   const upgradeCost = building ? upgradeCostForSelection(state, building) : 0;
+  const liveStats = building ? scaledEconomyForBuilding(building) : null;
+  const nextTierStats =
+    building && building.level < MAX_BUILDING_LEVEL
+      ? scaledEconomyForBuilding({ type: building.type, level: (building.level + 1) as Building['level'] })
+      : null;
 
   return (
     <aside className="pointer-events-auto panel-glass rounded-2xl p-4 text-slate-100 shadow-glow">
@@ -146,13 +158,30 @@ export function InfoPanel({ building, onFocusBuilding }: InfoPanelProps): JSX.El
             <ul className="list-disc space-y-1 pl-5 text-sm text-slate-200">
               <li>Build Cost: ${BUILDING_ECONOMY[building.type].cost}</li>
               <li>Footprint: {footprintForType(building.type).width}x{footprintForType(building.type).depth}</li>
-              <li>Jobs: {BUILDING_ECONOMY[building.type].jobs}</li>
-              <li>Housing: {BUILDING_ECONOMY[building.type].housing}</li>
-              <li>Power: -{BUILDING_ECONOMY[building.type].powerUse} / +{BUILDING_ECONOMY[building.type].powerProduce}</li>
-              <li>Essentials: {BUILDING_ECONOMY[building.type].essentials}</li>
-              <li>Health / Safety: {BUILDING_ECONOMY[building.type].health} / {BUILDING_ECONOMY[building.type].safety}</li>
+              <li>Jobs: {formatStat(liveStats?.jobs ?? 0)}</li>
+              <li>Housing: {formatStat(liveStats?.housing ?? 0)}</li>
+              <li>Commerce / Leisure: {formatStat(liveStats?.commerce ?? 0)} / {formatStat(liveStats?.recreation ?? 0)}</li>
+              <li>Power: -{formatStat(liveStats?.powerUse ?? 0, 1)} / +{formatStat(liveStats?.powerProduce ?? 0, 1)}</li>
+              <li>Essentials: {formatStat(liveStats?.essentials ?? 0)}</li>
+              <li>Health / Safety: {formatStat(liveStats?.health ?? 0)} / {formatStat(liveStats?.safety ?? 0)}</li>
+              <li>Maintenance: ${formatStat(liveStats?.maintenance ?? 0, 2)}/s</li>
             </ul>
           </div>
+          {nextTierStats ? (
+            <div className="rounded-xl border border-cyan-300/20 bg-cyan-500/8 p-3">
+              <div className="text-xs uppercase tracking-[0.15em] text-cyan-200">Next Tier Gain</div>
+              <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-cyan-50">
+                <div>Jobs +{formatStat(nextTierStats.jobs - (liveStats?.jobs ?? 0))}</div>
+                <div>Housing +{formatStat(nextTierStats.housing - (liveStats?.housing ?? 0))}</div>
+                <div>Commerce +{formatStat(nextTierStats.commerce - (liveStats?.commerce ?? 0))}</div>
+                <div>Leisure +{formatStat(nextTierStats.recreation - (liveStats?.recreation ?? 0))}</div>
+                <div>Essentials +{formatStat(nextTierStats.essentials - (liveStats?.essentials ?? 0))}</div>
+                <div>Health +{formatStat(nextTierStats.health - (liveStats?.health ?? 0))}</div>
+                <div>Safety +{formatStat(nextTierStats.safety - (liveStats?.safety ?? 0))}</div>
+                <div>Power +{formatStat(nextTierStats.powerProduce - (liveStats?.powerProduce ?? 0), 1)}</div>
+              </div>
+            </div>
+          ) : null}
           {building.level < MAX_BUILDING_LEVEL ? (
             <button
               type="button"
