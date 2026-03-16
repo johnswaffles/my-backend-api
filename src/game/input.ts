@@ -527,18 +527,56 @@ export class InputController {
     return state.buildings.some((building) => building.type === type && building.x === x && building.z === z);
   }
 
+  private nearestLinkDistance(
+    sources: Array<{ x: number; z: number }>,
+    targets: Array<{ x: number; z: number }>
+  ): number {
+    let best = Number.POSITIVE_INFINITY;
+    for (const source of sources) {
+      for (const target of targets) {
+        const distance = Math.abs(source.x - target.x) + Math.abs(source.z - target.z);
+        if (distance < best) best = distance;
+      }
+    }
+    return best;
+  }
+
   private planTransportLinkFor(building: Building): AiAction | null {
     const state = gameStore.getState();
-    const targets = this.buildingFrontageCells(building).filter((cell) => canPlaceBuilding(state, 'road', cell.x, cell.z));
-    const sources = this.networkCellsForTypes(['road', 'railLine', 'trainStation']);
+    const frontage = this.buildingFrontageCells(building);
+    const roadTargets = frontage.filter((cell) => canPlaceBuilding(state, 'road', cell.x, cell.z));
+    const railTargets = frontage.filter((cell) => canPlaceBuilding(state, 'railLine', cell.x, cell.z));
+    const roadSources = this.networkCellsForTypes(['road']);
+    const railSources = this.networkCellsForTypes(['railLine', 'trainStation']);
+    const roadDistance =
+      roadSources.length && roadTargets.length ? this.nearestLinkDistance(roadSources, roadTargets) : Number.POSITIVE_INFINITY;
+    const railDistance =
+      railSources.length && railTargets.length ? this.nearestLinkDistance(railSources, railTargets) : Number.POSITIVE_INFINITY;
 
-    if (!sources.length) {
-      const direct = targets[0];
+    if (!roadSources.length && !railSources.length) {
+      const direct = roadTargets[0];
       if (direct) return { action: 'place', type: 'road', x: direct.x, z: direct.z };
+      const directRail = railTargets[0];
+      if (directRail) return { action: 'place', type: 'railLine', x: directRail.x, z: directRail.z };
       return this.pickStarterRoad();
     }
 
-    return this.planLineStep('road', sources, targets) ?? this.planRoadExpansion();
+    if (railDistance < roadDistance) {
+      return (
+        this.planLineStep('railLine', railSources, railTargets) ??
+        (railTargets[0] ? { action: 'place', type: 'railLine', x: railTargets[0].x, z: railTargets[0].z } : null) ??
+        this.planLineStep('road', roadSources, roadTargets) ??
+        this.planRoadExpansion()
+      );
+    }
+
+    return (
+      this.planLineStep('road', roadSources, roadTargets) ??
+      (roadTargets[0] ? { action: 'place', type: 'road', x: roadTargets[0].x, z: roadTargets[0].z } : null) ??
+      this.planLineStep('railLine', railSources, railTargets) ??
+      (railTargets[0] ? { action: 'place', type: 'railLine', x: railTargets[0].x, z: railTargets[0].z } : null) ??
+      this.planRoadExpansion()
+    );
   }
 
   private planPowerLinkFor(building: Building): AiAction | null {

@@ -1719,7 +1719,7 @@ function frontageCellsForBuilding(state: GameState, building: Building): Array<{
 function nearestPair(
   sources: Array<{ x: number; z: number }>,
   targets: Array<{ x: number; z: number }>
-): { source: { x: number; z: number }; target: { x: number; z: number } } | null {
+): { source: { x: number; z: number }; target: { x: number; z: number }; dist: number } | null {
   let best:
     | {
         source: { x: number; z: number };
@@ -1737,7 +1737,7 @@ function nearestPair(
     }
   }
 
-  return best ? { source: best.source, target: best.target } : null;
+  return best ? { source: best.source, target: best.target, dist: best.dist } : null;
 }
 
 function applyInfrastructurePath(
@@ -1796,25 +1796,41 @@ export function autoFixBuildingById(buildingId: number): boolean {
     };
 
     if (!context.transportAccess) {
-      const sources = working.buildings.flatMap((building) =>
-        building.type === 'road' || building.type === 'railLine' || building.type === 'trainStation'
-          ? occupiedCellsForBuilding(building)
-          : []
+      const frontage = frontageCellsForBuilding(working, target);
+      const roadFrontage = frontage.filter((cell) => canPlaceBuilding(working, 'road', cell.x, cell.z));
+      const railFrontage = frontage.filter((cell) => canPlaceBuilding(working, 'railLine', cell.x, cell.z));
+      const roadSources = working.buildings.flatMap((building) =>
+        building.type === 'road' ? occupiedCellsForBuilding(building) : []
       );
-      const frontage = frontageCellsForBuilding(working, target).filter((cell) => canPlaceBuilding(working, 'road', cell.x, cell.z));
-      if (frontage.length) {
-        if (sources.length) {
-          const pair = nearestPair(sources, frontage);
-          if (pair) {
-            const result = applyInfrastructurePath(working, 'road', routeBetween(pair.source, pair.target));
-            working = result.state;
-            fixed ||= result.placed > 0;
-          }
-        } else {
-          const result = applyInfrastructurePath(working, 'road', [frontage[0]]);
-          working = result.state;
-          fixed ||= result.placed > 0;
-        }
+      const railSources = working.buildings.flatMap((building) =>
+        building.type === 'railLine' || building.type === 'trainStation' ? occupiedCellsForBuilding(building) : []
+      );
+      const roadPair = roadSources.length && roadFrontage.length ? nearestPair(roadSources, roadFrontage) : null;
+      const railPair = railSources.length && railFrontage.length ? nearestPair(railSources, railFrontage) : null;
+      const shouldUseRail =
+        railPair !== null &&
+        (roadPair === null || railPair.dist < roadPair.dist || (railPair.dist === roadPair.dist && railSources.length > roadSources.length));
+
+      if (shouldUseRail && railPair) {
+        const result = applyInfrastructurePath(working, 'railLine', routeBetween(railPair.source, railPair.target));
+        working = result.state;
+        fixed ||= result.placed > 0;
+      } else if (roadPair) {
+        const result = applyInfrastructurePath(working, 'road', routeBetween(roadPair.source, roadPair.target));
+        working = result.state;
+        fixed ||= result.placed > 0;
+      } else if (railFrontage.length && railSources.length) {
+        const result = applyInfrastructurePath(working, 'railLine', [railFrontage[0]]);
+        working = result.state;
+        fixed ||= result.placed > 0;
+      } else if (roadFrontage.length) {
+        const result = applyInfrastructurePath(working, 'road', [roadFrontage[0]]);
+        working = result.state;
+        fixed ||= result.placed > 0;
+      } else if (railFrontage.length) {
+        const result = applyInfrastructurePath(working, 'railLine', [railFrontage[0]]);
+        working = result.state;
+        fixed ||= result.placed > 0;
       }
     }
 
