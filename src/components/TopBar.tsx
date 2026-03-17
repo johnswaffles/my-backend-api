@@ -85,14 +85,6 @@ function formatMoney(value: number): string {
   })}`;
 }
 
-function formatClock(timeOfDay: number): string {
-  const hours24 = Math.floor(timeOfDay) % 24;
-  const minutes = Math.floor((timeOfDay % 1) * 60);
-  const period = hours24 >= 12 ? 'PM' : 'AM';
-  const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
-  return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`;
-}
-
 export function TopBar({
   money,
   population,
@@ -100,7 +92,6 @@ export function TopBar({
   powerUsed,
   powerProduced,
   day,
-  timeOfDay,
   happiness,
   economy,
   counts,
@@ -128,9 +119,7 @@ export function TopBar({
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="text-lg font-semibold leading-tight text-white">Cozy Town Builder</div>
-              <div className="mt-1 text-[11px] text-slate-200">
-                Day {day} • {formatClock(timeOfDay)} • Happy {happiness}%
-              </div>
+              <div className="mt-1 text-[11px] text-slate-200">Day {day} • Happy {happiness}%</div>
             </div>
             <div className="flex max-w-[12.75rem] shrink-0 flex-wrap justify-end gap-2">
               <button
@@ -256,7 +245,7 @@ export function TopBar({
         <div className="panel-glass rounded-2xl px-5 py-4">
           <div className="text-2xl font-semibold leading-tight text-white">Cozy Town Builder</div>
           <div className="text-xs text-slate-300">Cozy block builder: storefronts, services, and neighborhood growth</div>
-          <div className="mt-1 text-xs text-slate-100">Day {day} | {formatClock(timeOfDay)} | Happiness {happiness}%</div>
+          <div className="mt-1 text-xs text-slate-100">Day {day} | Happiness {happiness}%</div>
         </div>
         <div className="grid shrink-0 grid-cols-[auto_auto] items-start gap-2">
           <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-300/55 bg-slate-900/68 p-2 shadow-[0_18px_32px_rgba(15,23,42,0.22)]">

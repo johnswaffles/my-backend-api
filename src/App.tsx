@@ -456,12 +456,11 @@ export default function App(): JSX.Element {
                       <div className="mx-auto h-1.5 w-14 rounded-full bg-slate-500/55" />
                       <button
                         type="button"
-                        onClick={() =>
-                          setMobileSheetMode((mode) => (mode === 'peek' ? 'half' : mode === 'half' ? 'full' : 'peek'))
-                        }
+                        onClick={() => setMobilePanel(null)}
                         className="rounded-lg border border-slate-300/35 bg-slate-800/45 px-2 py-1 text-[10px] font-medium text-slate-100"
+                        aria-label="Close options panel"
                       >
-                        {mobileSheetMode === 'peek' ? 'Half' : mobileSheetMode === 'half' ? 'Full' : 'Peek'}
+                        X
                       </button>
                     </div>
                   </div>
