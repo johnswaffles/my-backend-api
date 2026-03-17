@@ -139,25 +139,25 @@ export function TopBar({
               </div>
               <div className="mt-1 truncate text-[11px] text-cyan-100">AI: {aiLastAction}</div>
             </div>
-            <div className="flex shrink-0 flex-col gap-2">
+            <div className="flex max-w-[12.75rem] shrink-0 flex-wrap justify-end gap-2">
               <button
                 type="button"
                 onClick={onToggleMobileHud}
-                className="rounded-xl border border-slate-300/40 bg-slate-800/45 px-3 py-2 text-xs font-medium text-slate-100"
+                className="rounded-xl border border-slate-300/40 bg-slate-800/45 px-3 py-1.5 text-[11px] font-medium text-slate-100"
               >
                 {mobileHudExpanded ? 'Hide HUD' : 'Show HUD'}
               </button>
               <button
                 type="button"
                 onClick={() => cycleGameSpeed()}
-                className="rounded-xl border border-amber-300/60 bg-amber-400/20 px-3 py-2 text-xs font-medium text-amber-100"
+                className="rounded-xl border border-amber-300/60 bg-amber-400/20 px-3 py-1.5 text-[11px] font-medium text-amber-100"
               >
                 {speedLabel}
               </button>
               <button
                 type="button"
                 onClick={onToggleMusic}
-                className={`rounded-xl border px-3 py-2 text-xs font-medium ${
+                className={`rounded-xl border px-3 py-1.5 text-[11px] font-medium ${
                   musicEnabled
                     ? 'border-fuchsia-300/70 bg-fuchsia-400/18 text-fuchsia-100'
                     : 'border-slate-300/40 bg-slate-800/45 text-slate-100'
@@ -167,22 +167,15 @@ export function TopBar({
               </button>
               <button
                 type="button"
-                onClick={onToggleFullscreen}
-                className="rounded-xl border border-cyan-300/50 bg-cyan-400/12 px-3 py-2 text-xs font-medium text-cyan-100"
-              >
-                {isFullscreen ? 'Exit' : 'Full'}
-              </button>
-              <button
-                type="button"
                 onClick={onOpenHelp}
-                className="rounded-xl border border-slate-300/40 bg-slate-800/45 px-3 py-2 text-xs font-medium text-slate-100"
+                className="rounded-xl border border-slate-300/40 bg-slate-800/45 px-3 py-1.5 text-[11px] font-medium text-slate-100"
               >
                 Help
               </button>
               <button
                 type="button"
                 onClick={onFocusHome}
-                className="rounded-xl border border-slate-300/40 bg-slate-800/45 px-3 py-2 text-xs font-medium text-slate-100"
+                className="rounded-xl border border-slate-300/40 bg-slate-800/45 px-3 py-1.5 text-[11px] font-medium text-slate-100"
               >
                 Home
               </button>

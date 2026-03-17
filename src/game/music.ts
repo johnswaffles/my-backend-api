@@ -5,13 +5,13 @@ const FADE_SECONDS = 1.6;
 
 export class CitySoundtrack {
   private audio: HTMLAudioElement | null = null;
-  private enabled = true;
+  private enabled = false;
   private unlocked = false;
   private fadeFrame: number | null = null;
 
   constructor() {
     const stored = window.localStorage.getItem(MUSIC_STORAGE_KEY);
-    this.enabled = stored === null ? true : stored === 'true';
+    this.enabled = stored === 'true';
   }
 
   isEnabled(): boolean {

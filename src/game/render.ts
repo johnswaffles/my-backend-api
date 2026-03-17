@@ -82,6 +82,17 @@ interface SmokeAnimation {
   drift: number;
 }
 
+function shouldUseMobilePerformanceMode(): boolean {
+  if (typeof window === 'undefined') return false;
+  const mediaMatches =
+    typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 1024px), (pointer: coarse)').matches;
+  const touchPoints = navigator.maxTouchPoints ?? 0;
+  const isiPadLike =
+    /iPad/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && touchPoints > 1);
+  const touchTabletViewport = touchPoints > 1 && Math.max(window.innerWidth, window.innerHeight) <= 1400;
+  return mediaMatches || isiPadLike || touchTabletViewport;
+}
+
 export class GameRenderer {
   private readonly container: HTMLElement;
 
@@ -89,9 +100,15 @@ export class GameRenderer {
 
   private readonly camera = new THREE.PerspectiveCamera(45, 1, 0.1, 400);
 
-  private readonly renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  private readonly renderer: THREE.WebGLRenderer;
 
   private readonly composer: EffectComposer;
+
+  private readonly mobilePerfMode: boolean;
+
+  private readonly usePostProcessing: boolean;
+
+  private readonly pixelRatioCap: number;
 
   private readonly raycaster = new THREE.Raycaster();
 
@@ -184,28 +201,37 @@ export class GameRenderer {
 
   constructor(container: HTMLElement) {
     this.container = container;
+    this.mobilePerfMode = shouldUseMobilePerformanceMode();
+    this.usePostProcessing = !this.mobilePerfMode;
+    this.pixelRatioCap = this.mobilePerfMode ? 1.1 : 2;
+    this.renderer = new THREE.WebGLRenderer({
+      antialias: !this.mobilePerfMode,
+      powerPreference: 'high-performance'
+    });
     this.scene.background = new THREE.Color(0xdbeaf3);
     this.scene.fog = new THREE.Fog(0xdbeaf3, 12, 34);
 
     const state = gameStore.getState();
 
-    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.enabled = !this.mobilePerfMode;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.08;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.pixelRatioCap));
     this.renderer.domElement.className = 'h-full w-full';
     this.container.appendChild(this.renderer.domElement);
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    const bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.15, 0.55, 0.92);
-    this.composer.addPass(bloomPass);
+    if (this.usePostProcessing) {
+      const bloomPass = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.15, 0.55, 0.92);
+      this.composer.addPass(bloomPass);
+    }
 
     this.scene.add(this.ambient);
 
     this.directional.position.set(18, 28, 12);
-    this.directional.castShadow = true;
-    this.directional.shadow.mapSize.set(2048, 2048);
+    this.directional.castShadow = !this.mobilePerfMode;
+    this.directional.shadow.mapSize.set(this.mobilePerfMode ? 1024 : 2048, this.mobilePerfMode ? 1024 : 2048);
     this.directional.shadow.camera.near = 1;
     this.directional.shadow.camera.far = 120;
     this.directional.shadow.camera.left = -18;
@@ -227,7 +253,7 @@ export class GameRenderer {
     );
     terrainBase.rotation.x = -Math.PI / 2;
     terrainBase.position.y = -0.05;
-    terrainBase.receiveShadow = true;
+    terrainBase.receiveShadow = !this.mobilePerfMode;
     this.scene.add(terrainBase);
 
     const tileGeometry = new THREE.BoxGeometry(1.01, 0.07, 1.01);
@@ -238,7 +264,7 @@ export class GameRenderer {
     });
 
     this.tileMesh = new THREE.InstancedMesh(tileGeometry, tileMaterial, state.gridSize * state.gridSize);
-    this.tileMesh.receiveShadow = true;
+    this.tileMesh.receiveShadow = !this.mobilePerfMode;
     this.tileMesh.castShadow = false;
 
     const matrix = new THREE.Matrix4();
@@ -383,6 +409,20 @@ export class GameRenderer {
     this.clampCameraTarget();
   }
 
+  snapToMapCorner(corner: 'nw' | 'ne' | 'sw' | 'se' = 'nw'): void {
+    const state = gameStore.getState();
+    const half = (state.gridSize - 1) * 0.5;
+    const edgeOffset = 1.35;
+    const x = corner === 'ne' || corner === 'se' ? half + edgeOffset : -half - edgeOffset;
+    const z = corner === 'sw' || corner === 'se' ? half + edgeOffset : -half - edgeOffset;
+
+    this.cameraDesired.x = x;
+    this.cameraDesired.z = z;
+    this.cameraCurrent.x = x;
+    this.cameraCurrent.z = z;
+    this.clampCameraTarget();
+  }
+
   playPlacementPulse(x: number, z: number, type: BuildType = 'road'): void {
     void x;
     void z;
@@ -432,7 +472,7 @@ export class GameRenderer {
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height, false);
     this.composer.setSize(width, height);
-    this.composer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.composer.setPixelRatio(Math.min(window.devicePixelRatio, this.pixelRatioCap));
   };
 
   private readonly loop = (time: number): void => {
@@ -473,7 +513,11 @@ export class GameRenderer {
       removalMat.opacity *= 0.9;
     }
 
-    this.composer.render();
+    if (this.usePostProcessing) {
+      this.composer.render();
+    } else {
+      this.renderer.render(this.scene, this.camera);
+    }
   };
 
   private animateAmbientBuildings(timeSeconds: number, dtSeconds: number): void {
@@ -651,7 +695,15 @@ export class GameRenderer {
 
   private animateAmbientAgents(timeSeconds: number, dtSeconds: number): void {
     const state = gameStore.getState();
+    const activeCars = this.mobilePerfMode ? 3 : this.ambientCars.length;
+    const activeTrains = this.mobilePerfMode ? 1 : this.ambientTrains.length;
+    const activePedestrians = this.mobilePerfMode ? 4 : this.ambientPedestrians.length;
+
     this.ambientCars.forEach((group, index) => {
+      if (index >= activeCars) {
+        group.visible = false;
+        return;
+      }
       const preferredAxis: 'x' | 'z' = index % 2 === 0 ? 'x' : 'z';
       const runs = this.roadRuns.filter((run) => run.axis === preferredAxis && run.end - run.start >= 2);
       const run = runs[index % Math.max(1, runs.length)];
@@ -681,6 +733,10 @@ export class GameRenderer {
     });
 
     this.ambientTrains.forEach((group, index) => {
+      if (index >= activeTrains) {
+        group.visible = false;
+        return;
+      }
       const preferredAxis: 'x' | 'z' = index % 2 === 0 ? 'x' : 'z';
       const runs = this.railRuns.filter((run) => run.axis === preferredAxis && run.end - run.start >= 3);
       const run = runs[index % Math.max(1, runs.length)];
@@ -712,14 +768,20 @@ export class GameRenderer {
       group.visible = true;
     });
 
-    const frontageBuildings = state.buildings.filter(
-      (building) =>
-        !['road', 'railLine', 'powerLine'].includes(building.type) &&
-        building.type !== 'park' &&
-        this.roadFrontage(building).n + this.roadFrontage(building).e + this.roadFrontage(building).s + this.roadFrontage(building).w > 0
-    );
+    const frontageBuildings: Building[] = [];
+    state.buildings.forEach((building) => {
+      if (['road', 'railLine', 'powerLine', 'park'].includes(building.type)) return;
+      const frontage = this.roadFrontage(building);
+      if (frontage.n + frontage.e + frontage.s + frontage.w > 0) {
+        frontageBuildings.push(building);
+      }
+    });
 
     this.ambientPedestrians.forEach((group, index) => {
+      if (index >= activePedestrians) {
+        group.visible = false;
+        return;
+      }
       const building = frontageBuildings[index % frontageBuildings.length];
       if (!building) {
         group.visible = false;

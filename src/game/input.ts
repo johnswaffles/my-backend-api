@@ -901,6 +901,15 @@ export class InputController {
     cancelPlacement();
   };
 
+  private selectExistingBuildingAtPointer(): boolean {
+    const hitBuildingId = this.renderer.pickBuildingId();
+    if (hitBuildingId == null) return false;
+    cancelPlacement();
+    selectBuildingById(hitBuildingId);
+    this.sfx.beep(300, 0.03, 'triangle', 0.02);
+    return true;
+  }
+
   private readonly onPointerDown = (event: PointerEvent): void => {
     this.sfx.unlock();
     this.renderer.setPointerFromClient(event.clientX, event.clientY);
@@ -965,7 +974,9 @@ export class InputController {
           this.lastBrushCell = grid;
         }
       } else {
-        this.sfx.beep(150, 0.05, 'square', 0.022);
+        if (!this.selectExistingBuildingAtPointer()) {
+          this.sfx.beep(150, 0.05, 'square', 0.022);
+        }
       }
       return;
     }
@@ -1067,7 +1078,9 @@ export class InputController {
               this.renderer.playPlacementPulse(created.x, created.z, created.type);
               this.sfx.beep(520, 0.075, 'triangle', 0.03);
             } else {
-              this.sfx.beep(150, 0.05, 'square', 0.022);
+              if (!this.selectExistingBuildingAtPointer()) {
+                this.sfx.beep(150, 0.05, 'square', 0.022);
+              }
             }
           } else {
             const hitBuildingId = this.renderer.pickBuildingId();

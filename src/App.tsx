@@ -34,6 +34,17 @@ type LegacyMediaQueryList = MediaQueryList & {
   removeListener?: (listener: (event: MediaQueryListEvent) => void) => void;
 };
 
+function shouldUseMobileUi(): boolean {
+  if (typeof window === 'undefined') return false;
+  const mediaMatches =
+    typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 1024px), (pointer: coarse)').matches;
+  const touchPoints = navigator.maxTouchPoints ?? 0;
+  const isiPadLike =
+    /iPad/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && touchPoints > 1);
+  const touchTabletViewport = touchPoints > 1 && Math.max(window.innerWidth, window.innerHeight) <= 1400;
+  return mediaMatches || isiPadLike || touchTabletViewport;
+}
+
 export default function App(): JSX.Element {
   const state = useGameState();
   const selected = useMemo(() => selectedBuilding(state), [state]);
@@ -42,13 +53,15 @@ export default function App(): JSX.Element {
   const rendererRef = useRef<GameRenderer | null>(null);
   const musicRef = useRef<CitySoundtrack | null>(null);
   const previousSelectedIdRef = useRef<number | null>(null);
+  const mobileCornerFocusedRef = useRef(false);
+  const mobilePanIntervalRef = useRef<number | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>(null);
   const [mobileSheetMode, setMobileSheetMode] = useState<MobileSheetMode>('half');
   const [mobileHudExpanded, setMobileHudExpanded] = useState(true);
   const [helpOpen, setHelpOpen] = useState(false);
-  const [musicEnabled, setMusicEnabled] = useState(true);
+  const [musicEnabled, setMusicEnabled] = useState(false);
   const [overlayMode, setOverlayMode] = useState<OverlayMode>('base');
 
   useEffect(() => {
@@ -56,9 +69,14 @@ export default function App(): JSX.Element {
 
     const renderer = new GameRenderer(mountRef.current);
     const input = new InputController(renderer);
+    const mobileViewport = shouldUseMobileUi();
     rendererRef.current = renderer;
     renderer.setFrameHook((dt) => input.update(dt));
     renderer.setOverlayMode(overlayMode);
+    if (mobileViewport) {
+      renderer.snapToMapCorner('nw');
+      mobileCornerFocusedRef.current = true;
+    }
 
     return () => {
       rendererRef.current = null;
@@ -88,6 +106,25 @@ export default function App(): JSX.Element {
       window.removeEventListener('pointerdown', unlockMusic);
       window.removeEventListener('keydown', unlockMusic);
       music.dispose();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isMobile) {
+      mobileCornerFocusedRef.current = false;
+      return;
+    }
+    if (mobileCornerFocusedRef.current) return;
+
+    rendererRef.current?.snapToMapCorner('nw');
+    mobileCornerFocusedRef.current = true;
+  }, [isMobile]);
+
+  useEffect(() => {
+    return () => {
+      if (mobilePanIntervalRef.current != null) {
+        window.clearInterval(mobilePanIntervalRef.current);
+      }
     };
   }, []);
 
@@ -123,9 +160,8 @@ export default function App(): JSX.Element {
   }, []);
 
   useEffect(() => {
-    const media = window.matchMedia('(max-width: 1024px), (pointer: coarse)') as LegacyMediaQueryList;
     const sync = () => {
-      const nextMobile = media.matches;
+      const nextMobile = shouldUseMobileUi();
       setIsMobile(nextMobile);
       if (!nextMobile) {
         setMobilePanel(null);
@@ -134,6 +170,7 @@ export default function App(): JSX.Element {
     };
 
     sync();
+    const media = window.matchMedia('(max-width: 1024px), (pointer: coarse)') as LegacyMediaQueryList;
     if (typeof media.addEventListener === 'function') {
       media.addEventListener('change', sync);
     } else if (typeof media.addListener === 'function') {
@@ -175,6 +212,38 @@ export default function App(): JSX.Element {
   const focusTownCenter = (): void => {
     const center = Math.floor(state.gridSize / 2);
     rendererRef.current?.focusOnCell(center, center, 0.34, 'road');
+  };
+
+  const openBottomPanel = (): void => {
+    if (mobilePanel) return;
+    if (selected) {
+      setMobilePanel('info');
+      return;
+    }
+    setMobilePanel('build');
+  };
+
+  const panMobileView = (direction: 'up' | 'down' | 'left' | 'right'): void => {
+    const renderer = rendererRef.current;
+    if (!renderer) return;
+
+    const step = 0.32;
+    if (direction === 'up') renderer.panBy(-step, -step);
+    else if (direction === 'down') renderer.panBy(step, step);
+    else if (direction === 'left') renderer.panBy(-step, step);
+    else renderer.panBy(step, -step);
+  };
+
+  const stopMobilePan = (): void => {
+    if (mobilePanIntervalRef.current == null) return;
+    window.clearInterval(mobilePanIntervalRef.current);
+    mobilePanIntervalRef.current = null;
+  };
+
+  const startMobilePan = (direction: 'up' | 'down' | 'left' | 'right'): void => {
+    stopMobilePan();
+    panMobileView(direction);
+    mobilePanIntervalRef.current = window.setInterval(() => panMobileView(direction), 80);
   };
 
   const toggleMusic = (): void => {
@@ -236,20 +305,20 @@ export default function App(): JSX.Element {
         <div
           className="pointer-events-none absolute inset-0 z-20 px-3 pb-3 pt-40"
           style={{
-            paddingTop: mobileHudExpanded ? 'max(env(safe-area-inset-top), 10rem)' : 'max(env(safe-area-inset-top), 6rem)',
+            paddingTop: mobileHudExpanded ? 'max(env(safe-area-inset-top), 8.5rem)' : 'max(env(safe-area-inset-top), 4.75rem)',
             paddingBottom: 'max(env(safe-area-inset-bottom), 0.75rem)'
           }}
         >
           {state.placementMode ? (
-            <div className={`pointer-events-none absolute left-3 right-3 z-20 ${mobileHudExpanded ? 'top-[8.9rem]' : 'top-[5.1rem]'}`}>
+            <div className={`pointer-events-none absolute left-3 right-3 z-20 ${mobileHudExpanded ? 'top-[7.3rem]' : 'top-[3.95rem]'}`}>
               <div className="mx-auto w-fit rounded-full border border-cyan-200/40 bg-slate-950/70 px-4 py-2 text-xs text-cyan-100 backdrop-blur">
-                Placing {state.placementMode}. Tap a tile to build. Drag to pan. Pinch to zoom.
+                Placing {state.placementMode}. Tap to build. Tap an existing building to inspect or bulldoze it.
               </div>
             </div>
           ) : null}
 
           {(state.placementMode || selected) && mobilePanel !== 'help' ? (
-            <div className="pointer-events-auto absolute bottom-28 left-3 right-3 z-30">
+            <div className="pointer-events-auto absolute bottom-28 left-24 right-3 z-30">
               <div className="panel-glass rounded-2xl p-2 shadow-glow">
                 <div className="flex flex-wrap gap-2">
                   {state.placementMode ? (
@@ -297,6 +366,81 @@ export default function App(): JSX.Element {
                   ) : null}
                 </div>
               </div>
+            </div>
+          ) : null}
+
+          <div className="pointer-events-auto absolute bottom-28 left-3 z-30">
+            <div className="panel-glass rounded-2xl p-1.5 shadow-glow">
+              <div className="grid w-[4.75rem] grid-cols-3 gap-1">
+                <div />
+                <button
+                  type="button"
+                  onPointerDown={() => startMobilePan('up')}
+                  onPointerUp={stopMobilePan}
+                  onPointerLeave={stopMobilePan}
+                  onPointerCancel={stopMobilePan}
+                  className="rounded-lg bg-slate-900/55 px-0 py-2 text-base font-semibold text-slate-100"
+                  aria-label="Pan up"
+                >
+                  ↑
+                </button>
+                <div />
+                <button
+                  type="button"
+                  onPointerDown={() => startMobilePan('left')}
+                  onPointerUp={stopMobilePan}
+                  onPointerLeave={stopMobilePan}
+                  onPointerCancel={stopMobilePan}
+                  className="rounded-lg bg-slate-900/55 px-0 py-2 text-base font-semibold text-slate-100"
+                  aria-label="Pan left"
+                >
+                  ←
+                </button>
+                <button
+                  type="button"
+                  onClick={focusTownCenter}
+                  className="rounded-lg border border-cyan-300/35 bg-cyan-500/16 px-0 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-100"
+                  aria-label="Recenter map"
+                >
+                  Home
+                </button>
+                <button
+                  type="button"
+                  onPointerDown={() => startMobilePan('right')}
+                  onPointerUp={stopMobilePan}
+                  onPointerLeave={stopMobilePan}
+                  onPointerCancel={stopMobilePan}
+                  className="rounded-lg bg-slate-900/55 px-0 py-2 text-base font-semibold text-slate-100"
+                  aria-label="Pan right"
+                >
+                  →
+                </button>
+                <div />
+                <button
+                  type="button"
+                  onPointerDown={() => startMobilePan('down')}
+                  onPointerUp={stopMobilePan}
+                  onPointerLeave={stopMobilePan}
+                  onPointerCancel={stopMobilePan}
+                  className="rounded-lg bg-slate-900/55 px-0 py-2 text-base font-semibold text-slate-100"
+                  aria-label="Pan down"
+                >
+                  ↓
+                </button>
+                <div />
+              </div>
+            </div>
+          </div>
+
+          {!mobilePanel && !state.placementMode ? (
+            <div className="pointer-events-auto absolute bottom-[7.2rem] left-1/2 z-30 -translate-x-1/2">
+              <button
+                type="button"
+                onClick={openBottomPanel}
+                className="panel-glass rounded-full border border-cyan-300/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-100 shadow-glow"
+              >
+                {selected ? 'Show Inspect' : 'Show Build'}
+              </button>
             </div>
           ) : null}
 
