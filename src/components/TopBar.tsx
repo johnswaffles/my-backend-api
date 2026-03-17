@@ -6,7 +6,6 @@ import {
   cycleGameSpeed,
   redoAction,
   resetGame,
-  toggleAiAutoplay,
   undoAction
 } from '../game/actions';
 import type { GameSpeed, OverlayMode } from '../game/state';
@@ -109,15 +108,11 @@ export function TopBar({
   undoCount,
   redoCount,
   demand,
-  aiAutoplayEnabled,
-  aiLastAction,
   musicEnabled,
-  overlayMode,
   isFullscreen,
   onToggleFullscreen,
   onOpenHelp,
   onToggleMusic,
-  onOverlayChange,
   onToggleMobileHud,
   mobileHudExpanded = true,
   onFocusHome,
@@ -125,7 +120,6 @@ export function TopBar({
 }: TopBarProps): JSX.Element {
   const net = powerProduced - powerUsed;
   const speedLabel = gameSpeed === 0 ? 'Pause' : `${gameSpeed}x`;
-  const overlayOptions: OverlayMode[] = ['base', 'appeal', 'power', 'transport', 'services', 'tiers', 'offline'];
 
   if (mobile) {
     return (
@@ -137,30 +131,29 @@ export function TopBar({
               <div className="mt-1 text-[11px] text-slate-200">
                 Day {day} • {formatClock(timeOfDay)} • Happy {happiness}%
               </div>
-              <div className="mt-1 truncate text-[11px] text-cyan-100">AI: {aiLastAction}</div>
             </div>
             <div className="flex max-w-[12.75rem] shrink-0 flex-wrap justify-end gap-2">
               <button
                 type="button"
                 onClick={onToggleMobileHud}
-                className="rounded-xl border border-slate-300/40 bg-slate-800/45 px-3 py-1.5 text-[11px] font-medium text-slate-100"
+                className="rounded-xl border border-slate-200/70 bg-slate-800/82 px-3 py-1.5 text-[11px] font-semibold text-white shadow-[0_10px_24px_rgba(15,23,42,0.28)]"
               >
                 {mobileHudExpanded ? 'Hide HUD' : 'Show HUD'}
               </button>
               <button
                 type="button"
                 onClick={() => cycleGameSpeed()}
-                className="rounded-xl border border-amber-300/60 bg-amber-400/20 px-3 py-1.5 text-[11px] font-medium text-amber-100"
+                className="rounded-xl border border-amber-200/80 bg-amber-500/32 px-3 py-1.5 text-[11px] font-semibold text-amber-50 shadow-[0_10px_24px_rgba(120,53,15,0.22)]"
               >
                 {speedLabel}
               </button>
               <button
                 type="button"
                 onClick={onToggleMusic}
-                className={`rounded-xl border px-3 py-1.5 text-[11px] font-medium ${
+                className={`rounded-xl border px-3 py-1.5 text-[11px] font-semibold shadow-[0_10px_24px_rgba(30,41,59,0.24)] ${
                   musicEnabled
-                    ? 'border-fuchsia-300/70 bg-fuchsia-400/18 text-fuchsia-100'
-                    : 'border-slate-300/40 bg-slate-800/45 text-slate-100'
+                    ? 'border-fuchsia-200/80 bg-fuchsia-500/30 text-fuchsia-50'
+                    : 'border-slate-200/70 bg-slate-800/82 text-white'
                 }`}
               >
                 {musicEnabled ? 'Music On' : 'Music Off'}
@@ -168,14 +161,14 @@ export function TopBar({
               <button
                 type="button"
                 onClick={onOpenHelp}
-                className="rounded-xl border border-slate-300/40 bg-slate-800/45 px-3 py-1.5 text-[11px] font-medium text-slate-100"
+                className="rounded-xl border border-slate-200/70 bg-slate-800/82 px-3 py-1.5 text-[11px] font-semibold text-white shadow-[0_10px_24px_rgba(15,23,42,0.28)]"
               >
                 Help
               </button>
               <button
                 type="button"
                 onClick={onFocusHome}
-                className="rounded-xl border border-slate-300/40 bg-slate-800/45 px-3 py-1.5 text-[11px] font-medium text-slate-100"
+                className="rounded-xl border border-cyan-200/75 bg-cyan-500/24 px-3 py-1.5 text-[11px] font-semibold text-cyan-50 shadow-[0_10px_24px_rgba(8,145,178,0.22)]"
               >
                 Home
               </button>
@@ -201,40 +194,24 @@ export function TopBar({
           </div>
         ) : null}
         <div className="flex flex-wrap gap-2">
-          <div className="flex flex-wrap gap-1">
-            {overlayOptions.map((option) => (
-              <button
-                key={option}
-                type="button"
-                onClick={() => onOverlayChange(option)}
-                className={`rounded-xl border px-2.5 py-2 text-[10px] font-medium uppercase tracking-[0.12em] ${
-                  overlayMode === option
-                    ? 'border-cyan-300/70 bg-cyan-400/18 text-cyan-100'
-                    : 'border-slate-300/35 bg-slate-800/35 text-slate-200'
-                }`}
-              >
-                {option}
-              </button>
-            ))}
-          </div>
           <button
             type="button"
             onClick={() => buildResidentialTemplate()}
-            className="rounded-xl border border-cyan-300/55 bg-cyan-500/14 px-3 py-2 text-xs font-medium text-cyan-100"
+            className="rounded-xl border border-cyan-200/80 bg-cyan-500/28 px-3 py-2 text-xs font-semibold text-cyan-50 shadow-[0_10px_24px_rgba(8,145,178,0.2)]"
           >
             Resi
           </button>
           <button
             type="button"
             onClick={() => buildMainStreetTemplate()}
-            className="rounded-xl border border-amber-300/60 bg-amber-500/14 px-3 py-2 text-xs font-medium text-amber-100"
+            className="rounded-xl border border-amber-200/80 bg-amber-500/28 px-3 py-2 text-xs font-semibold text-amber-50 shadow-[0_10px_24px_rgba(180,83,9,0.2)]"
           >
             Street
           </button>
           <button
             type="button"
             onClick={() => buildTransitHubTemplate()}
-            className="rounded-xl border border-violet-300/60 bg-violet-500/14 px-3 py-2 text-xs font-medium text-violet-100"
+            className="rounded-xl border border-violet-200/80 bg-violet-500/28 px-3 py-2 text-xs font-semibold text-violet-50 shadow-[0_10px_24px_rgba(109,40,217,0.2)]"
           >
             Hub
           </button>
@@ -242,7 +219,7 @@ export function TopBar({
             type="button"
             onClick={() => undoAction()}
             disabled={undoCount === 0}
-            className="rounded-xl border border-slate-300/50 bg-slate-600/20 px-3 py-2 text-xs font-medium text-slate-100 disabled:opacity-45"
+            className="rounded-xl border border-slate-200/70 bg-slate-800/82 px-3 py-2 text-xs font-semibold text-white shadow-[0_10px_24px_rgba(15,23,42,0.28)] disabled:opacity-45"
           >
             Undo {undoCount}
           </button>
@@ -250,32 +227,21 @@ export function TopBar({
             type="button"
             onClick={() => redoAction()}
             disabled={redoCount === 0}
-            className="rounded-xl border border-slate-300/50 bg-slate-600/20 px-3 py-2 text-xs font-medium text-slate-100 disabled:opacity-45"
+            className="rounded-xl border border-slate-200/70 bg-slate-800/82 px-3 py-2 text-xs font-semibold text-white shadow-[0_10px_24px_rgba(15,23,42,0.28)] disabled:opacity-45"
           >
             Redo {redoCount}
           </button>
           <button
             type="button"
-            onClick={() => toggleAiAutoplay()}
-            className={`rounded-xl border px-3 py-2 text-xs font-medium ${
-              aiAutoplayEnabled
-                ? 'border-emerald-300/80 bg-emerald-400/25 text-emerald-100'
-                : 'border-slate-400/50 bg-slate-700/35 text-slate-100'
-            }`}
-          >
-            {aiAutoplayEnabled ? 'AI On' : 'AI Off'}
-          </button>
-          <button
-            type="button"
             onClick={() => buildStarterTown()}
-            className="rounded-xl border border-emerald-300/60 bg-emerald-500/18 px-3 py-2 text-xs font-medium text-emerald-100"
+            className="rounded-xl border border-emerald-200/80 bg-emerald-500/28 px-3 py-2 text-xs font-semibold text-emerald-50 shadow-[0_10px_24px_rgba(5,150,105,0.2)]"
           >
             Starter
           </button>
           <button
             type="button"
             onClick={() => resetGame()}
-            className="rounded-xl border border-rose-300/60 bg-rose-500/18 px-3 py-2 text-xs font-medium text-rose-100"
+            className="rounded-xl border border-rose-200/80 bg-rose-500/28 px-3 py-2 text-xs font-semibold text-rose-50 shadow-[0_10px_24px_rgba(225,29,72,0.2)]"
           >
             Restart
           </button>
@@ -291,15 +257,14 @@ export function TopBar({
           <div className="text-2xl font-semibold leading-tight text-white">Cozy Town Builder</div>
           <div className="text-xs text-slate-300">Cozy block builder: storefronts, services, and neighborhood growth</div>
           <div className="mt-1 text-xs text-slate-100">Day {day} | {formatClock(timeOfDay)} | Happiness {happiness}%</div>
-          <div className="mt-1 max-w-[42rem] truncate text-xs text-cyan-100">AI: {aiLastAction}</div>
         </div>
         <div className="grid shrink-0 grid-cols-[auto_auto] items-start gap-2">
-          <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-400/35 bg-slate-900/35 p-2">
+          <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-300/55 bg-slate-900/68 p-2 shadow-[0_18px_32px_rgba(15,23,42,0.22)]">
             <button
               type="button"
               onClick={() => undoAction()}
               disabled={undoCount === 0}
-              className="rounded-xl border border-slate-300/50 bg-slate-600/20 px-3 py-2 text-sm font-medium text-slate-100 transition enabled:hover:bg-slate-600/35 disabled:cursor-not-allowed disabled:opacity-45"
+              className="rounded-xl border border-slate-200/70 bg-slate-800/84 px-3 py-2 text-sm font-semibold text-white transition enabled:hover:bg-slate-700/90 disabled:cursor-not-allowed disabled:opacity-45"
             >
               Undo ({undoCount})
             </button>
@@ -307,7 +272,7 @@ export function TopBar({
               type="button"
               onClick={() => redoAction()}
               disabled={redoCount === 0}
-              className="rounded-xl border border-slate-300/50 bg-slate-600/20 px-3 py-2 text-sm font-medium text-slate-100 transition enabled:hover:bg-slate-600/35 disabled:cursor-not-allowed disabled:opacity-45"
+              className="rounded-xl border border-slate-200/70 bg-slate-800/84 px-3 py-2 text-sm font-semibold text-white transition enabled:hover:bg-slate-700/90 disabled:cursor-not-allowed disabled:opacity-45"
             >
               Redo ({redoCount})
             </button>
@@ -315,7 +280,7 @@ export function TopBar({
               type="button"
               onClick={() => undoAction()}
               disabled={undoCount === 0}
-              className="rounded-xl border border-slate-400/40 bg-slate-800/45 px-3 py-1.5 text-xs font-medium text-slate-200 transition enabled:hover:bg-slate-700/55 disabled:cursor-not-allowed disabled:opacity-45"
+              className="rounded-xl border border-slate-200/55 bg-slate-700/80 px-3 py-1.5 text-xs font-semibold text-slate-100 transition enabled:hover:bg-slate-600/90 disabled:cursor-not-allowed disabled:opacity-45"
             >
               ← Prev
             </button>
@@ -323,7 +288,7 @@ export function TopBar({
               type="button"
               onClick={() => redoAction()}
               disabled={redoCount === 0}
-              className="rounded-xl border border-slate-400/40 bg-slate-800/45 px-3 py-1.5 text-xs font-medium text-slate-200 transition enabled:hover:bg-slate-700/55 disabled:cursor-not-allowed disabled:opacity-45"
+              className="rounded-xl border border-slate-200/55 bg-slate-700/80 px-3 py-1.5 text-xs font-semibold text-slate-100 transition enabled:hover:bg-slate-600/90 disabled:cursor-not-allowed disabled:opacity-45"
             >
               Next →
             </button>
@@ -332,17 +297,17 @@ export function TopBar({
             <button
               type="button"
               onClick={() => cycleGameSpeed()}
-              className="rounded-xl border border-amber-300/60 bg-amber-400/20 px-3 py-2 text-sm font-medium text-amber-100 transition hover:bg-amber-400/30"
+              className="rounded-xl border border-amber-200/80 bg-amber-500/32 px-3 py-2 text-sm font-semibold text-amber-50 transition hover:bg-amber-500/42"
             >
               Speed: {speedLabel}
             </button>
             <button
               type="button"
               onClick={onToggleMusic}
-              className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
+              className={`rounded-xl border px-3 py-2 text-sm font-semibold transition ${
                 musicEnabled
-                  ? 'border-fuchsia-300/70 bg-fuchsia-400/18 text-fuchsia-100 hover:bg-fuchsia-400/28'
-                  : 'border-slate-300/50 bg-slate-700/35 text-slate-100 hover:border-fuchsia-300/60 hover:bg-slate-700/55'
+                  ? 'border-fuchsia-200/80 bg-fuchsia-500/30 text-fuchsia-50 hover:bg-fuchsia-500/40'
+                  : 'border-slate-200/70 bg-slate-800/84 text-white hover:border-fuchsia-200/70 hover:bg-slate-700/90'
               }`}
             >
               {musicEnabled ? 'Music: ON' : 'Music: OFF'}
@@ -350,81 +315,54 @@ export function TopBar({
             <button
               type="button"
               onClick={onOpenHelp}
-              className="rounded-xl border border-slate-300/50 bg-slate-700/35 px-3 py-2 text-sm font-medium text-slate-100 transition hover:border-cyan-300/60 hover:bg-slate-700/55"
+              className="rounded-xl border border-slate-200/70 bg-slate-800/84 px-3 py-2 text-sm font-semibold text-white transition hover:border-cyan-200/70 hover:bg-slate-700/90"
             >
               Help
             </button>
             <button
               type="button"
               onClick={() => buildStarterTown()}
-              className="rounded-xl border border-emerald-300/60 bg-emerald-400/20 px-3 py-2 text-sm font-medium text-emerald-100 transition hover:bg-emerald-400/30"
+              className="rounded-xl border border-emerald-200/80 bg-emerald-500/30 px-3 py-2 text-sm font-semibold text-emerald-50 transition hover:bg-emerald-500/40"
             >
               Starter Town
             </button>
             <button
               type="button"
               onClick={() => buildResidentialTemplate()}
-              className="rounded-xl border border-cyan-300/55 bg-cyan-500/14 px-3 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-500/24"
+              className="rounded-xl border border-cyan-200/80 bg-cyan-500/28 px-3 py-2 text-sm font-semibold text-cyan-50 transition hover:bg-cyan-500/38"
             >
               Resi Block
             </button>
             <button
               type="button"
               onClick={() => buildMainStreetTemplate()}
-              className="rounded-xl border border-amber-300/60 bg-amber-500/14 px-3 py-2 text-sm font-medium text-amber-100 transition hover:bg-amber-500/24"
+              className="rounded-xl border border-amber-200/80 bg-amber-500/28 px-3 py-2 text-sm font-semibold text-amber-50 transition hover:bg-amber-500/38"
             >
               Main Street
             </button>
             <button
               type="button"
               onClick={() => buildTransitHubTemplate()}
-              className="rounded-xl border border-violet-300/60 bg-violet-500/14 px-3 py-2 text-sm font-medium text-violet-100 transition hover:bg-violet-500/24"
+              className="rounded-xl border border-violet-200/80 bg-violet-500/28 px-3 py-2 text-sm font-semibold text-violet-50 transition hover:bg-violet-500/38"
             >
               Transit Hub
             </button>
             <button
               type="button"
               onClick={() => resetGame()}
-              className="rounded-xl border border-rose-300/60 bg-rose-500/18 px-3 py-2 text-sm font-medium text-rose-100 transition hover:bg-rose-500/28"
+              className="rounded-xl border border-rose-200/80 bg-rose-500/30 px-3 py-2 text-sm font-semibold text-rose-50 transition hover:bg-rose-500/40"
             >
               Restart Map
             </button>
             <button
               type="button"
-              onClick={() => toggleAiAutoplay()}
-              className={`rounded-xl border px-3 py-2 text-sm font-medium transition ${
-                aiAutoplayEnabled
-                  ? 'border-emerald-300/80 bg-emerald-400/25 text-emerald-100'
-                  : 'border-slate-400/50 bg-slate-700/35 text-slate-100 hover:border-cyan-300/60 hover:bg-slate-700/55'
-              }`}
-            >
-              {aiAutoplayEnabled ? 'AI Auto: ON' : 'AI Auto: OFF'}
-            </button>
-            <button
-              type="button"
               onClick={onToggleFullscreen}
-              className="rounded-xl border border-cyan-300/50 bg-cyan-400/12 px-3 py-2 text-sm font-medium text-cyan-100 transition hover:bg-cyan-400/22"
+              className="rounded-xl border border-cyan-200/80 bg-cyan-500/24 px-3 py-2 text-sm font-semibold text-cyan-50 transition hover:bg-cyan-500/34"
             >
               {isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
             </button>
           </div>
         </div>
-      </div>
-      <div className="flex flex-wrap gap-1">
-        {overlayOptions.map((option) => (
-          <button
-            key={option}
-            type="button"
-            onClick={() => onOverlayChange(option)}
-            className={`rounded-lg border px-2 py-1 text-[10px] font-medium uppercase tracking-[0.12em] transition ${
-              overlayMode === option
-                ? 'border-cyan-300/70 bg-cyan-400/18 text-cyan-100'
-                : 'border-slate-300/35 bg-slate-800/35 text-slate-200 hover:bg-slate-700/45'
-            }`}
-          >
-            {option}
-          </button>
-        ))}
       </div>
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-9">
         <Stat

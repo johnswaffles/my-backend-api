@@ -127,7 +127,9 @@ export function BuildMenu({ placementMode, mobile = false }: BuildMenuProps): JS
       <aside className="pointer-events-auto panel-glass rounded-2xl p-3 text-slate-100 shadow-glow">
         <div className="mb-3 flex items-end justify-between gap-2">
           <div className="text-xs uppercase tracking-[0.18em] text-cyan-300">Build</div>
-          <div className="text-[11px] text-slate-300">Tap a tool, then tap the map</div>
+          <div className="text-[11px] text-slate-300">
+            {placementMode ? `Tap another tool to switch from ${placementMode}` : 'Tap a tool, then tap the map'}
+          </div>
         </div>
         <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
           {[

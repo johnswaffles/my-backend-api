@@ -189,13 +189,13 @@ export default function App(): JSX.Element {
 
   useEffect(() => {
     if (!isMobile) return;
-    if (state.placementMode) {
+    if (state.placementMode && mobilePanel !== 'build') {
       setMobilePanel(null);
     } else if (selected && previousSelectedIdRef.current !== selected.id) {
       setMobilePanel('info');
     }
     previousSelectedIdRef.current = selected?.id ?? null;
-  }, [isMobile, selected, state.placementMode]);
+  }, [isMobile, mobilePanel, selected, state.placementMode]);
 
   const toggleFullscreen = async (): Promise<void> => {
     const host = appRef.current;
@@ -325,18 +325,21 @@ export default function App(): JSX.Element {
                     <>
                       <button
                         type="button"
+                        onClick={() => setMobilePanel('build')}
+                        className="rounded-xl border border-amber-300/60 bg-amber-500/16 px-3 py-2 text-xs font-medium text-amber-100"
+                      >
+                        Tools
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => cancelPlacement()}
                         className="rounded-xl border border-rose-300/60 bg-rose-500/18 px-3 py-2 text-xs font-medium text-rose-100"
                       >
                         Cancel Tool
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setMobilePanel('build')}
-                        className="rounded-xl border border-cyan-300/60 bg-cyan-500/18 px-3 py-2 text-xs font-medium text-cyan-100"
-                      >
-                        Change Tool
-                      </button>
+                      <div className="rounded-xl border border-cyan-300/35 bg-cyan-500/10 px-3 py-2 text-xs font-medium text-cyan-100">
+                        Tool: {state.placementMode}
+                      </div>
                     </>
                   ) : null}
                   {selected ? (
