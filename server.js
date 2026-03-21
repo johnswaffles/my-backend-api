@@ -7,9 +7,30 @@ const app = express();
 const port = process.env.PORT || 3000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const salesLeadsPath = path.join(__dirname, 'data', 'sales-leads.json');
 
 app.use(express.json({ limit: '1mb' }));
 app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
+app.use(
+  '/godot-playtest',
+  express.static(path.join(__dirname, 'public', 'godot-playtest'), {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.setHeader('Surrogate-Control', 'no-store');
+        return;
+      }
+
+      if (filePath.endsWith('.wasm')) {
+        res.setHeader('Content-Type', 'application/wasm');
+      }
+
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    }
+  })
+);
 app.use((req, res, next) => {
   if (req.path === '/' || req.path.endsWith('.html')) {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -118,6 +139,25 @@ function extractFirstJsonObject(text) {
   } catch {
     return null;
   }
+}
+
+function readSalesLeads() {
+  try {
+    if (!fs.existsSync(salesLeadsPath)) {
+      return [];
+    }
+
+    const raw = fs.readFileSync(salesLeadsPath, 'utf8');
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeSalesLeads(leads) {
+  fs.mkdirSync(path.dirname(salesLeadsPath), { recursive: true });
+  fs.writeFileSync(salesLeadsPath, JSON.stringify(leads, null, 2));
 }
 
 app.post('/api/ai/game-command', async (req, res) => {
@@ -277,6 +317,80 @@ app.post('/api/ai/generate-asset', async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ error: 'Unexpected server error', details: String(error.message || error) });
+  }
+});
+
+app.post('/api/sales-lead', (req, res) => {
+  try {
+    const {
+      businessName,
+      industry,
+      primaryGoal,
+      channels,
+      monthlyVolume,
+      contactName,
+      email,
+      phone,
+      notes,
+      recommendedPlan,
+      transcript
+    } = req.body || {};
+
+    if (!businessName || typeof businessName !== 'string') {
+      return res.status(400).json({ error: 'Business name is required.' });
+    }
+
+    if (!contactName || typeof contactName !== 'string') {
+      return res.status(400).json({ error: 'Contact name is required.' });
+    }
+
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({ error: 'Email is required.' });
+    }
+
+    const leads = readSalesLeads();
+    const record = {
+      id: `lead_${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      businessName: businessName.trim(),
+      industry: typeof industry === 'string' ? industry.trim() : '',
+      primaryGoal: typeof primaryGoal === 'string' ? primaryGoal.trim() : '',
+      channels: Array.isArray(channels)
+        ? channels.filter((item) => typeof item === 'string' && item.trim()).map((item) => item.trim())
+        : [],
+      monthlyVolume: typeof monthlyVolume === 'string' ? monthlyVolume.trim() : '',
+      contactName: contactName.trim(),
+      email: email.trim(),
+      phone: typeof phone === 'string' ? phone.trim() : '',
+      notes: typeof notes === 'string' ? notes.trim() : '',
+      recommendedPlan: typeof recommendedPlan === 'string' ? recommendedPlan.trim() : '',
+      transcript: Array.isArray(transcript)
+        ? transcript
+            .filter(
+              (entry) =>
+                entry &&
+                typeof entry.role === 'string' &&
+                typeof entry.text === 'string'
+            )
+            .map((entry) => ({
+              role: entry.role.trim(),
+              text: entry.text.trim()
+            }))
+        : []
+    };
+
+    leads.unshift(record);
+    writeSalesLeads(leads);
+
+    return res.json({
+      ok: true,
+      leadId: record.id
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: 'Unable to save sales lead.',
+      details: String(error.message || error)
+    });
   }
 });
 

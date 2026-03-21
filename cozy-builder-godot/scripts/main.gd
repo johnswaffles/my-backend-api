@@ -1,0 +1,919 @@
+extends Node3D
+
+const GRID_SIZE := 20
+const TILE_SIZE := 1.0
+const PAN_SPEED := 0.018
+const BUILD_TOOL_ROAD := "road"
+const BUILD_TOOL_HOUSE := "house"
+
+@onready var grid_root: Node3D = $GridRoot
+@onready var building_root: Node3D = $BuildingRoot
+@onready var camera_rig: Node3D = $CameraRig
+@onready var camera: Camera3D = $CameraRig/Camera3D
+
+var _focus := Vector3(0.0, 0.0, 0.0)
+var _target_focus := Vector3(0.0, 0.0, 0.0)
+var _zoom := 16.0
+var _target_zoom := 16.0
+var _dragging := false
+var _build_tool := BUILD_TOOL_ROAD
+var _hovered_cell := Vector2i(-1, -1)
+var _hover_active := false
+var _hover_can_build := false
+var _occupied_cells: Dictionary = {}
+var _reserved_cells: Dictionary = {}
+var _placed_nodes: Dictionary = {}
+
+var _ground_material_a: StandardMaterial3D
+var _ground_material_b: StandardMaterial3D
+var _ground_material_c: StandardMaterial3D
+var _soil_material: StandardMaterial3D
+var _stone_material: StandardMaterial3D
+var _water_material: StandardMaterial3D
+var _road_material: StandardMaterial3D
+var _road_mark_material: StandardMaterial3D
+var _sidewalk_material: StandardMaterial3D
+var _window_material: StandardMaterial3D
+var _leaf_material: StandardMaterial3D
+var _trunk_material: StandardMaterial3D
+var _flower_material_pink: StandardMaterial3D
+var _flower_material_blue: StandardMaterial3D
+var _meadow_material: StandardMaterial3D
+var _grass_blade_material: StandardMaterial3D
+var _hover_material_valid: StandardMaterial3D
+var _hover_material_invalid: StandardMaterial3D
+var _ghost_base_material: StandardMaterial3D
+var _ghost_accent_material: StandardMaterial3D
+
+var _clouds: Array[Node3D] = []
+var _window_bands: Array[MeshInstance3D] = []
+var _grass_clumps: Array[Node3D] = []
+var _hover_indicator: MeshInstance3D
+var _ghost_root: Node3D
+var _ghost_road: Node3D
+var _ghost_house: Node3D
+var _hud_layer: CanvasLayer
+var _hud_panel: Control
+var _tool_status_label: Label
+var _hint_label: Label
+var _road_button: Button
+var _house_button: Button
+var _fullscreen_button: Button
+var _place_button: Button
+var _zoom_in_button: Button
+var _zoom_out_button: Button
+
+
+func _ready() -> void:
+	_build_materials()
+	_build_world()
+	_register_reserved_cells()
+	_create_runtime_helpers()
+	_build_hud()
+	_refresh_tool_ui()
+	_update_hover_from_mouse()
+	_update_camera(true)
+
+
+func _process(delta: float) -> void:
+	_focus = _focus.lerp(_target_focus, min(1.0, delta * 7.0))
+	_zoom = lerp(_zoom, _target_zoom, min(1.0, delta * 6.5))
+	_animate_clouds(delta)
+	_animate_windows()
+	_animate_grass()
+	_update_keyboard_camera(delta)
+	_update_hover_from_mouse()
+	_update_camera()
+
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		match event.keycode:
+			KEY_1:
+				_set_build_tool(BUILD_TOOL_ROAD)
+			KEY_2:
+				_set_build_tool(BUILD_TOOL_HOUSE)
+			KEY_SPACE, KEY_ENTER:
+				_try_place_hovered_tile()
+			KEY_F:
+				_toggle_fullscreen()
+			KEY_ESCAPE:
+				_exit_fullscreen()
+				_clear_hover()
+	elif event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_MIDDLE or event.button_index == MOUSE_BUTTON_RIGHT:
+			_dragging = event.pressed
+		elif event.button_index == MOUSE_BUTTON_LEFT and event.pressed and not _is_pointer_over_hud():
+			_try_place_hovered_tile()
+		elif event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
+			_target_zoom = max(8.5, _target_zoom - 1.15)
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
+			_target_zoom = min(24.0, _target_zoom + 1.15)
+	elif event is InputEventMouseMotion and _dragging:
+		_target_focus.x -= event.relative.x * PAN_SPEED
+		_target_focus.z -= event.relative.y * PAN_SPEED
+		_target_focus.x = clamp(_target_focus.x, -8.5, 8.5)
+		_target_focus.z = clamp(_target_focus.z, -8.5, 8.5)
+
+
+func _build_materials() -> void:
+	_ground_material_a = _make_material("b7c89f", 0.98)
+	_ground_material_b = _make_material("a5bb8b", 0.98)
+	_ground_material_c = _make_material("cfcf9a", 0.98)
+	_soil_material = _make_material("6f7752", 0.99)
+	_stone_material = _make_material("c7d3db", 0.92)
+	_water_material = _make_material("5d9eb0", 0.22, 0.0, true, "9fdadf", 0.05)
+	_road_material = _make_material("526675", 0.94)
+	_road_mark_material = _make_material("dbe5ea", 0.55)
+	_sidewalk_material = _make_material("d9ddd1", 0.9)
+	_window_material = _make_material("f3e8c9", 0.3, 0.0, true, "ffd78e", 0.08)
+	_leaf_material = _make_material("87ae61", 0.97)
+	_trunk_material = _make_material("765439", 0.92)
+	_flower_material_pink = _make_material("eba9bf", 0.78)
+	_flower_material_blue = _make_material("a9c8f4", 0.78)
+	_meadow_material = _make_material("b9c986", 0.98)
+	_grass_blade_material = _make_material("8fb05c", 0.94)
+	_hover_material_valid = _make_transparent_material(Color("76e5c7"), 0.24, 0.34)
+	_hover_material_invalid = _make_transparent_material(Color("f29a8d"), 0.24, 0.34)
+	_ghost_base_material = _make_transparent_material(Color("f7f0d8"), 0.44, 0.52)
+	_ghost_accent_material = _make_transparent_material(Color("78d7c8"), 0.32, 0.5)
+
+
+func _build_world() -> void:
+	_build_water_ring()
+	_build_island_base()
+	_build_ground_tiles()
+	_build_meadow()
+	_build_town_center()
+	_build_clouds()
+
+
+func _register_reserved_cells() -> void:
+	for z in range(5, 15):
+		for x in range(5, 15):
+			_reserved_cells[_cell_key(Vector2i(x, z))] = true
+
+
+func _create_runtime_helpers() -> void:
+	_hover_indicator = MeshInstance3D.new()
+	var hover_mesh := BoxMesh.new()
+	hover_mesh.size = Vector3(0.92, 0.06, 0.92)
+	_hover_indicator.mesh = hover_mesh
+	_hover_indicator.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_hover_indicator.visible = false
+	grid_root.add_child(_hover_indicator)
+
+	_ghost_root = Node3D.new()
+	_ghost_root.visible = false
+	add_child(_ghost_root)
+
+	_ghost_road = _spawn_road_tile(Vector3.ZERO, true)
+	_ghost_root.add_child(_ghost_road)
+
+	_ghost_house = _spawn_house_tile(Vector3.ZERO, true)
+	_ghost_root.add_child(_ghost_house)
+
+
+func _build_hud() -> void:
+	_hud_layer = CanvasLayer.new()
+	add_child(_hud_layer)
+
+	var margin := MarginContainer.new()
+	margin.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	margin.offset_left = 18
+	margin.offset_top = 18
+	margin.offset_right = 420
+	margin.offset_bottom = 220
+	_hud_layer.add_child(margin)
+
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.05, 0.09, 0.12, 0.9), Color(0.31, 0.45, 0.49, 0.45)))
+	margin.add_child(panel)
+	_hud_panel = panel
+
+	var stack := VBoxContainer.new()
+	stack.add_theme_constant_override("separation", 8)
+	panel.add_child(stack)
+
+	var title := Label.new()
+	title.text = "Cozy Builder Prototype"
+	title.add_theme_color_override("font_color", Color("f7f2e6"))
+	title.add_theme_font_size_override("font_size", 18)
+	stack.add_child(title)
+
+	_tool_status_label = Label.new()
+	_tool_status_label.add_theme_color_override("font_color", Color("d3ebe4"))
+	_tool_status_label.add_theme_font_size_override("font_size", 13)
+	stack.add_child(_tool_status_label)
+
+	var button_row := HBoxContainer.new()
+	button_row.add_theme_constant_override("separation", 8)
+	stack.add_child(button_row)
+
+	_road_button = Button.new()
+	_road_button.text = "1 Road"
+	_road_button.custom_minimum_size = Vector2(112, 0)
+	_road_button.pressed.connect(_set_build_tool.bind(BUILD_TOOL_ROAD))
+	button_row.add_child(_road_button)
+
+	_house_button = Button.new()
+	_house_button.text = "2 House"
+	_house_button.custom_minimum_size = Vector2(112, 0)
+	_house_button.pressed.connect(_set_build_tool.bind(BUILD_TOOL_HOUSE))
+	button_row.add_child(_house_button)
+
+	_fullscreen_button = Button.new()
+	_fullscreen_button.text = "Exit Fullscreen"
+	_fullscreen_button.custom_minimum_size = Vector2(140, 0)
+	_fullscreen_button.pressed.connect(_exit_fullscreen)
+	button_row.add_child(_fullscreen_button)
+
+	var action_row := HBoxContainer.new()
+	action_row.add_theme_constant_override("separation", 8)
+	stack.add_child(action_row)
+
+	_place_button = Button.new()
+	_place_button.text = "Place Here"
+	_place_button.custom_minimum_size = Vector2(128, 0)
+	_place_button.pressed.connect(_try_place_hovered_tile)
+	action_row.add_child(_place_button)
+
+	_zoom_in_button = Button.new()
+	_zoom_in_button.text = "Zoom +"
+	_zoom_in_button.custom_minimum_size = Vector2(96, 0)
+	_zoom_in_button.pressed.connect(_adjust_zoom.bind(-1.6))
+	action_row.add_child(_zoom_in_button)
+
+	_zoom_out_button = Button.new()
+	_zoom_out_button.text = "Zoom -"
+	_zoom_out_button.custom_minimum_size = Vector2(96, 0)
+	_zoom_out_button.pressed.connect(_adjust_zoom.bind(1.6))
+	action_row.add_child(_zoom_out_button)
+
+	_hint_label = Label.new()
+	_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_hint_label.custom_minimum_size = Vector2(300, 0)
+	_hint_label.add_theme_color_override("font_color", Color("a9bec5"))
+	_hint_label.add_theme_font_size_override("font_size", 12)
+	_hint_label.text = "Use the buttons or press Space to place. Right drag pans. WASD or arrows move the camera. Zoom buttons are at the top."
+	stack.add_child(_hint_label)
+
+
+func _refresh_tool_ui() -> void:
+	if _tool_status_label:
+		var tool_name := "Road" if _build_tool == BUILD_TOOL_ROAD else "House"
+		_tool_status_label.text = "Tool: %s  |  Build on the open pasture around town." % [tool_name]
+	if _road_button:
+		_style_tool_button(_road_button, _build_tool == BUILD_TOOL_ROAD)
+	if _house_button:
+		_style_tool_button(_house_button, _build_tool == BUILD_TOOL_HOUSE)
+	if _fullscreen_button:
+		_style_tool_button(_fullscreen_button, false)
+	if _place_button:
+		_style_tool_button(_place_button, true)
+	if _zoom_in_button:
+		_style_tool_button(_zoom_in_button, false)
+	if _zoom_out_button:
+		_style_tool_button(_zoom_out_button, false)
+	if _ghost_root:
+		_ghost_road.visible = _build_tool == BUILD_TOOL_ROAD
+		_ghost_house.visible = _build_tool == BUILD_TOOL_HOUSE
+
+
+func _style_tool_button(button: Button, selected: bool) -> void:
+	button.add_theme_color_override("font_color", Color("f7f2e6"))
+	button.add_theme_color_override("font_hover_color", Color("ffffff"))
+	button.add_theme_color_override("font_pressed_color", Color("ffffff"))
+	var base_color := Color("16303b") if not selected else Color("2b7f74")
+	var border_color := Color("355a63") if not selected else Color("79dfcb")
+	button.add_theme_stylebox_override("normal", _make_panel_style(base_color, border_color))
+	button.add_theme_stylebox_override("hover", _make_panel_style(base_color.lightened(0.08), border_color.lightened(0.08)))
+	button.add_theme_stylebox_override("pressed", _make_panel_style(base_color.darkened(0.08), border_color))
+	button.add_theme_stylebox_override("focus", _make_panel_style(base_color, border_color.lightened(0.12)))
+
+
+func _set_build_tool(tool: String) -> void:
+	_build_tool = tool
+	_refresh_tool_ui()
+	_update_hover_from_mouse()
+
+
+func _update_hover_from_mouse() -> void:
+	if not is_instance_valid(camera):
+		return
+	var pick := _pick_grid_cell(get_viewport().get_mouse_position())
+	if pick.is_empty():
+		_clear_hover()
+		return
+
+	var cell: Vector2i = pick["cell"]
+	var world := _cell_to_world(cell)
+	var cell_key := _cell_key(cell)
+	var is_reserved := _reserved_cells.has(cell_key)
+	var is_occupied := _occupied_cells.has(cell_key)
+	var valid := not is_reserved and not is_occupied
+
+	_hovered_cell = cell
+	_hover_active = true
+	_hover_can_build = valid
+	_hover_indicator.visible = true
+	_hover_indicator.position = world + Vector3(0.0, 0.06, 0.0)
+	_hover_indicator.material_override = _hover_material_valid if valid else _hover_material_invalid
+	_ghost_root.visible = true
+	_ghost_root.position = world
+	_ghost_road.visible = _build_tool == BUILD_TOOL_ROAD
+	_ghost_house.visible = _build_tool == BUILD_TOOL_HOUSE
+
+	if _hint_label:
+		if valid:
+			_hint_label.text = "Cell %d, %d is open. Left click to place a %s." % [cell.x + 1, cell.y + 1, _build_tool]
+		elif is_reserved:
+			_hint_label.text = "This center area is part of the starter town. Build out into the surrounding pasture."
+		else:
+			_hint_label.text = "That tile is already occupied. Pick an open spot nearby."
+
+
+func _clear_hover() -> void:
+	_hover_active = false
+	_hover_can_build = false
+	_hover_indicator.visible = false
+	if _ghost_root:
+		_ghost_root.visible = false
+	if _hint_label:
+		_hint_label.text = "Use the buttons or press Space to place. Right drag pans. WASD or arrows move the camera. Zoom buttons are at the top."
+
+
+func _pick_grid_cell(mouse_position: Vector2) -> Dictionary:
+	var ground_plane := Plane(Vector3.UP, 0.0)
+	var ray_origin := camera.project_ray_origin(mouse_position)
+	var ray_direction := camera.project_ray_normal(mouse_position)
+	var hit: Variant = ground_plane.intersects_ray(ray_origin, ray_direction)
+	if hit == null:
+		return {}
+
+	var world_hit := hit as Vector3
+	var grid_half := float(GRID_SIZE) * 0.5
+	var cell_x := int(floor(world_hit.x + grid_half))
+	var cell_z := int(floor(world_hit.z + grid_half))
+	if cell_x < 0 or cell_x >= GRID_SIZE or cell_z < 0 or cell_z >= GRID_SIZE:
+		return {}
+
+	return {
+		"cell": Vector2i(cell_x, cell_z),
+		"world": world_hit,
+	}
+
+
+func _cell_to_world(cell: Vector2i) -> Vector3:
+	var grid_half := float(GRID_SIZE) * 0.5
+	return Vector3(float(cell.x) - grid_half + 0.5, 0.0, float(cell.y) - grid_half + 0.5)
+
+
+func _cell_key(cell: Vector2i) -> String:
+	return "%d:%d" % [cell.x, cell.y]
+
+
+func _try_place_hovered_tile() -> void:
+	if not _hover_active or not _hover_can_build:
+		return
+
+	var world := _cell_to_world(_hovered_cell)
+	var key := _cell_key(_hovered_cell)
+	var placed: Node3D
+	if _build_tool == BUILD_TOOL_ROAD:
+		placed = _spawn_road_tile(world, false)
+		grid_root.add_child(placed)
+	else:
+		placed = _spawn_house_tile(world, false)
+		building_root.add_child(placed)
+
+	_occupied_cells[key] = _build_tool
+	_placed_nodes[key] = placed
+	_update_hover_from_mouse()
+
+
+func _adjust_zoom(delta_amount: float) -> void:
+	_target_zoom = clamp(_target_zoom + delta_amount, 8.5, 24.0)
+
+
+func _update_keyboard_camera(delta: float) -> void:
+	var move := Vector2.ZERO
+	if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
+		move.x -= 1.0
+	if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
+		move.x += 1.0
+	if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
+		move.y -= 1.0
+	if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
+		move.y += 1.0
+	if move != Vector2.ZERO:
+		move = move.normalized()
+		_target_focus.x = clamp(_target_focus.x + move.x * delta * 8.0, -8.5, 8.5)
+		_target_focus.z = clamp(_target_focus.z + move.y * delta * 8.0, -8.5, 8.5)
+
+	if Input.is_key_pressed(KEY_EQUAL) or Input.is_key_pressed(KEY_KP_ADD):
+		_target_zoom = max(8.5, _target_zoom - delta * 10.0)
+	elif Input.is_key_pressed(KEY_MINUS) or Input.is_key_pressed(KEY_KP_SUBTRACT):
+		_target_zoom = min(24.0, _target_zoom + delta * 10.0)
+
+
+func _is_pointer_over_hud() -> bool:
+	var hovered := get_viewport().gui_get_hovered_control()
+	if hovered == null or _hud_panel == null:
+		return false
+	return _hud_panel == hovered or _hud_panel.is_ancestor_of(hovered)
+
+
+func _toggle_fullscreen() -> void:
+	var current_mode := DisplayServer.window_get_mode()
+	if current_mode == DisplayServer.WINDOW_MODE_FULLSCREEN or current_mode == DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN:
+		_exit_fullscreen()
+	else:
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+
+
+func _exit_fullscreen() -> void:
+	if OS.has_feature("web"):
+		if Engine.has_singleton("JavaScriptBridge"):
+			JavaScriptBridge.eval("if (document.fullscreenElement) { document.exitFullscreen(); }", true)
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+
+
+func _spawn_road_tile(world_position: Vector3, preview: bool) -> Node3D:
+	var root := Node3D.new()
+	root.position = world_position
+	var curb_material: Material = _ghost_base_material if preview else _sidewalk_material
+	var road_material: Material = _ghost_accent_material if preview else _road_material
+	var lane_material: Material = _ghost_base_material if preview else _road_mark_material
+
+	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(1.02, 0.03, 1.02), curb_material, root)
+	_add_box(Vector3(0.0, 0.04, 0.0), Vector3(0.9, 0.05, 0.9), road_material, root)
+	_add_box(Vector3(0.0, 0.075, 0.0), Vector3(0.08, 0.02, 0.38), lane_material, root)
+	return root
+
+
+func _spawn_house_tile(world_position: Vector3, preview: bool) -> Node3D:
+	var root := Node3D.new()
+	root.position = world_position
+	var wall_material: Material = _ghost_base_material if preview else _make_material("f1e6d4", 0.86)
+	var roof_material: Material = _ghost_accent_material if preview else _make_material("b97554", 0.74)
+	var pad_material: Material = _ghost_base_material if preview else _make_material("d7d8cf", 0.88)
+
+	_add_box(Vector3(0.0, 0.02, 0.0), Vector3(0.98, 0.04, 0.98), pad_material, root)
+	_add_box(Vector3(0.0, 0.42, 0.02), Vector3(0.68, 0.74, 0.64), wall_material, root)
+	var roof_a := _add_box(Vector3(0.0, 0.86, 0.12), Vector3(0.76, 0.14, 0.42), roof_material, root)
+	var roof_b := _add_box(Vector3(0.0, 0.86, -0.08), Vector3(0.76, 0.14, 0.42), roof_material, root)
+	roof_a.rotation_degrees = Vector3(0.0, 0.0, -7.0)
+	roof_b.rotation_degrees = Vector3(0.0, 0.0, 7.0)
+	_add_box(Vector3(0.0, 0.18, 0.39), Vector3(0.24, 0.26, 0.06), _ghost_accent_material if preview else _window_material, root)
+	_add_box(Vector3(0.0, 0.07, 0.42), Vector3(0.34, 0.08, 0.18), pad_material, root)
+	return root
+
+
+func _make_panel_style(fill: Color, border: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = fill
+	style.border_color = border
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.corner_radius_top_left = 14
+	style.corner_radius_top_right = 14
+	style.corner_radius_bottom_right = 14
+	style.corner_radius_bottom_left = 14
+	style.content_margin_left = 14
+	style.content_margin_top = 12
+	style.content_margin_right = 14
+	style.content_margin_bottom = 12
+	return style
+
+
+func _build_water_ring() -> void:
+	var water := MeshInstance3D.new()
+	var water_mesh := CylinderMesh.new()
+	water_mesh.top_radius = 16.5
+	water_mesh.bottom_radius = 18.0
+	water_mesh.height = 0.16
+	water.mesh = water_mesh
+	water.material_override = _water_material
+	water.position = Vector3(0.0, -0.62, 0.0)
+	grid_root.add_child(water)
+
+
+func _build_island_base() -> void:
+	var base := MeshInstance3D.new()
+	var base_mesh := BoxMesh.new()
+	base_mesh.size = Vector3(GRID_SIZE + 4.6, 1.1, GRID_SIZE + 4.6)
+	base.mesh = base_mesh
+	base.material_override = _soil_material
+	base.position = Vector3(0.0, -0.66, 0.0)
+	grid_root.add_child(base)
+
+	var lip := MeshInstance3D.new()
+	var lip_mesh := BoxMesh.new()
+	lip_mesh.size = Vector3(GRID_SIZE + 1.4, 0.28, GRID_SIZE + 1.4)
+	lip.mesh = lip_mesh
+	lip.material_override = _stone_material
+	lip.position = Vector3(0.0, -0.11, 0.0)
+	grid_root.add_child(lip)
+
+
+func _build_ground_tiles() -> void:
+	var half := (GRID_SIZE - 1) * TILE_SIZE * 0.5
+
+	for z in range(GRID_SIZE):
+		for x in range(GRID_SIZE):
+			var tile := MeshInstance3D.new()
+			var mesh := BoxMesh.new()
+			var height_variation := 0.1 + sin(float(x) * 0.35) * 0.01 + cos(float(z) * 0.27) * 0.01
+			mesh.size = Vector3(0.94, height_variation, 0.94)
+			tile.mesh = mesh
+			var material := _ground_material_a
+			if (x + z) % 3 == 0:
+				material = _ground_material_b
+			elif (x * 3 + z * 5) % 4 == 0:
+				material = _ground_material_c
+			tile.material_override = material
+			tile.position = Vector3(x - half, -0.05, z - half)
+			grid_root.add_child(tile)
+
+	for edge in range(GRID_SIZE):
+		_add_edge_post(Vector3(-half - 0.9, 0.12, edge - half))
+		_add_edge_post(Vector3(half + 0.9, 0.12, edge - half))
+		_add_edge_post(Vector3(edge - half, 0.12, -half - 0.9))
+		_add_edge_post(Vector3(edge - half, 0.12, half + 0.9))
+
+
+func _build_meadow() -> void:
+	for patch in [
+		{"center": Vector3(-6.2, 0.02, -5.2), "size": Vector2(3.4, 2.2), "clumps": 9},
+		{"center": Vector3(5.9, 0.02, -5.4), "size": Vector2(3.0, 2.0), "clumps": 8},
+		{"center": Vector3(-6.1, 0.02, 5.3), "size": Vector2(3.2, 2.4), "clumps": 10},
+		{"center": Vector3(5.8, 0.02, 5.1), "size": Vector2(2.8, 2.0), "clumps": 8},
+		{"center": Vector3(-0.7, 0.02, 6.2), "size": Vector2(2.8, 1.7), "clumps": 6}
+	]:
+		_add_meadow_patch(patch.center, patch.size, patch.clumps)
+
+	for tuft in [
+		Vector3(-3.9, 0.06, 1.35),
+		Vector3(-2.85, 0.06, 2.55),
+		Vector3(-1.25, 0.06, 4.35),
+		Vector3(2.35, 0.06, 4.65),
+		Vector3(3.85, 0.06, 2.35),
+		Vector3(4.55, 0.06, -0.45)
+	]:
+		_add_grass_clump(tuft, 1.0)
+
+
+func _build_town_center() -> void:
+	_place_road_strip(Vector3(0.0, 0.0, 0.0), 12, true)
+	_place_road_strip(Vector3(0.0, 0.0, 0.0), 10, false)
+	_add_plaza(Vector3(0.0, 0.02, 0.0), Vector2(3.2, 3.2))
+
+	_add_house(Vector3(-4.25, 0.34, -3.55), Vector3(1.35, 0.92, 1.2), Color("f6ddbb"), Color("ba744e"))
+	_add_house(Vector3(-2.35, 0.36, -3.1), Vector3(1.12, 1.02, 1.18), Color("efe6dc"), Color("7d7cb9"))
+	_add_shop(Vector3(0.3, 0.41, -3.08), Vector3(1.92, 1.04, 1.28), Color("f4c898"), Color("c06d4c"), Color("76d9c4"))
+	_add_house(Vector3(3.25, 0.35, -3.15), Vector3(1.34, 0.9, 1.16), Color("dbe9f6"), Color("5b84b8"))
+	_add_house(Vector3(4.7, 0.32, -1.8), Vector3(1.05, 0.78, 1.02), Color("f1e4cf"), Color("a76e46"))
+
+	_add_landmark(Vector3(1.55, 0.5, 2.9))
+	_add_park_corner(Vector3(-4.5, 0.04, 3.4))
+	_add_park_corner(Vector3(4.8, 0.04, 2.9))
+	_add_flower_patch(Vector3(-1.8, 0.08, 2.95), 6, _flower_material_blue)
+	_add_flower_patch(Vector3(3.9, 0.08, 0.6), 5, _flower_material_pink)
+
+	for tree_pos in [
+		Vector3(-5.0, 0.18, 2.4),
+		Vector3(-3.7, 0.18, 2.1),
+		Vector3(-5.2, 0.18, 4.2),
+		Vector3(4.4, 0.18, 1.7),
+		Vector3(5.2, 0.18, 3.8),
+		Vector3(2.9, 0.18, 4.8)
+	]:
+		_add_tree(tree_pos)
+
+	for lamp_pos in [
+		Vector3(-2.0, 0.08, 0.95),
+		Vector3(2.05, 0.08, 0.95),
+		Vector3(-0.95, 0.08, -1.95),
+		Vector3(0.95, 0.08, -1.95)
+	]:
+		_add_lamp(lamp_pos)
+
+
+func _build_clouds() -> void:
+	for i in range(4):
+		var cloud := Node3D.new()
+		cloud.position = Vector3(-9.5 + i * 5.5, 6.4 + float(i % 2) * 0.4, -7.5 + i * 1.3)
+		cloud.set_meta("speed", 0.12 + float(i) * 0.03)
+		cloud.set_meta("base_z", cloud.position.z)
+		building_root.add_child(cloud)
+		_clouds.append(cloud)
+
+		for puff_index in range(3):
+			var puff := MeshInstance3D.new()
+			var puff_mesh := SphereMesh.new()
+			puff_mesh.radius = 0.55 + puff_index * 0.08
+			puff_mesh.height = 0.7 + puff_index * 0.06
+			puff.mesh = puff_mesh
+			var puff_material := _make_material("ffffff", 0.08)
+			puff_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			puff_material.albedo_color.a = 0.86
+			puff.material_override = puff_material
+			puff.position = Vector3(puff_index * 0.55, 0.0 if puff_index != 1 else 0.18, randf_range(-0.15, 0.15))
+			cloud.add_child(puff)
+
+
+func _add_meadow_patch(center: Vector3, size: Vector2, clump_count: int) -> void:
+	var patch := MeshInstance3D.new()
+	var patch_mesh := CylinderMesh.new()
+	patch_mesh.top_radius = max(size.x, size.y) * 0.52
+	patch_mesh.bottom_radius = patch_mesh.top_radius * 1.04
+	patch_mesh.height = 0.04
+	patch.mesh = patch_mesh
+	patch.material_override = _meadow_material
+	patch.scale = Vector3(size.x / max(size.x, size.y), 1.0, size.y / max(size.x, size.y))
+	patch.position = center
+	grid_root.add_child(patch)
+
+	for i in range(clump_count):
+		var t: float = float(i) / maxf(1.0, float(clump_count))
+		var local_x: float = (sin(t * TAU * 1.7) * 0.5 + randf_range(-0.22, 0.22)) * size.x * 0.38
+		var local_z: float = (cos(t * TAU * 1.3) * 0.5 + randf_range(-0.22, 0.22)) * size.y * 0.38
+		_add_grass_clump(center + Vector3(local_x, 0.05, local_z), randf_range(0.85, 1.25))
+
+
+func _place_road_strip(origin: Vector3, count: int, horizontal: bool) -> void:
+	for i in range(count):
+		var offset := float(i) - float(count - 1) * 0.5
+
+		var sidewalk := MeshInstance3D.new()
+		var sidewalk_mesh := BoxMesh.new()
+		sidewalk_mesh.size = Vector3(1.08, 0.03, 1.08)
+		sidewalk.mesh = sidewalk_mesh
+		sidewalk.material_override = _sidewalk_material
+		sidewalk.position = origin + (Vector3(offset, 0.008, 0.0) if horizontal else Vector3(0.0, 0.008, offset))
+		grid_root.add_child(sidewalk)
+
+		var road := MeshInstance3D.new()
+		var road_mesh := BoxMesh.new()
+		road_mesh.size = Vector3(0.92, 0.05, 0.92)
+		road.mesh = road_mesh
+		road.material_override = _road_material
+		road.position = origin + (Vector3(offset, 0.03, 0.0) if horizontal else Vector3(0.0, 0.03, offset))
+		grid_root.add_child(road)
+
+		if i < count - 1:
+			var mark := MeshInstance3D.new()
+			var mark_mesh := BoxMesh.new()
+			mark_mesh.size = Vector3(0.08, 0.02, 0.38) if horizontal else Vector3(0.38, 0.02, 0.08)
+			mark.mesh = mark_mesh
+			mark.material_override = _road_mark_material
+			mark.position = road.position + Vector3(0.0, 0.035, 0.0)
+			grid_root.add_child(mark)
+
+
+func _add_house(center: Vector3, size: Vector3, wall_color: Color, roof_color: Color) -> void:
+	var shell_material := _make_material_from_color(wall_color, 0.88)
+	var roof_material := _make_material_from_color(roof_color, 0.76)
+
+	var shell := _add_box(center, size, shell_material, building_root)
+	var shell_top := center.y + size.y * 0.5
+
+	var roof_a := _add_box(center + Vector3(0.0, size.y * 0.55 + 0.08, 0.12), Vector3(size.x + 0.1, 0.16, size.z * 0.52), roof_material, building_root)
+	var roof_b := _add_box(center + Vector3(0.0, size.y * 0.55 + 0.08, -0.12), Vector3(size.x + 0.1, 0.16, size.z * 0.52), roof_material, building_root)
+	roof_a.rotation_degrees = Vector3(0.0, 0.0, -6.0)
+	roof_b.rotation_degrees = Vector3(0.0, 0.0, 6.0)
+
+	var porch := _add_box(center + Vector3(0.0, -size.y * 0.32, size.z * 0.55), Vector3(size.x * 0.48, 0.12, 0.38), _sidewalk_material, building_root)
+	porch.position.y = max(0.1, porch.position.y)
+	_add_window_band(center + Vector3(0.0, 0.12, size.z * 0.52), Vector3(size.x * 0.58, 0.16, 0.05))
+	_add_window_band(center + Vector3(size.x * 0.51, 0.16, 0.0), Vector3(0.05, 0.16, size.z * 0.32))
+	_add_chimney(center + Vector3(size.x * 0.24, shell_top + 0.36, -size.z * 0.15))
+	_add_planter(center + Vector3(size.x * 0.24, 0.1, size.z * 0.78))
+	_add_planter(center + Vector3(-size.x * 0.24, 0.1, size.z * 0.78))
+
+	shell.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+
+
+func _add_shop(center: Vector3, size: Vector3, wall_color: Color, roof_color: Color, awning_color: Color) -> void:
+	var shell_material := _make_material_from_color(wall_color, 0.84)
+	var roof_material := _make_material_from_color(roof_color, 0.74)
+	var awning_material := _make_material_from_color(awning_color, 0.48)
+
+	_add_box(center, size, shell_material, building_root)
+	_add_box(center + Vector3(0.0, size.y * 0.55 + 0.1, 0.0), Vector3(size.x + 0.08, 0.2, size.z + 0.08), roof_material, building_root)
+	_add_box(center + Vector3(0.0, 0.18, size.z * 0.58), Vector3(size.x * 0.88, 0.08, 0.44), awning_material, building_root)
+	_add_window_band(center + Vector3(0.0, 0.2, size.z * 0.54), Vector3(size.x * 0.7, 0.2, 0.05))
+	_add_window_band(center + Vector3(-size.x * 0.34, 0.16, size.z * 0.54), Vector3(0.05, 0.26, 0.05))
+	_add_window_band(center + Vector3(size.x * 0.34, 0.16, size.z * 0.54), Vector3(0.05, 0.26, 0.05))
+	_add_sign(center + Vector3(0.0, 0.74, size.z * 0.58), Vector3(0.9, 0.18, 0.05))
+	_add_planter(center + Vector3(-size.x * 0.32, 0.1, size.z * 0.82))
+	_add_planter(center + Vector3(size.x * 0.32, 0.1, size.z * 0.82))
+
+
+func _add_landmark(position_3d: Vector3) -> void:
+	var base_material := _make_material("e5ebf1", 0.86)
+	var roof_material := _make_material("5a7596", 0.76)
+
+	_add_box(position_3d, Vector3(1.85, 1.24, 1.5), base_material, building_root)
+	_add_box(position_3d + Vector3(0.0, 0.76, 0.0), Vector3(1.98, 0.22, 1.64), roof_material, building_root)
+	_add_box(position_3d + Vector3(0.0, 1.28, 0.0), Vector3(0.5, 1.95, 0.5), base_material, building_root)
+
+	var steeple := MeshInstance3D.new()
+	var steeple_mesh := PrismMesh.new()
+	steeple_mesh.left_to_right = 0.0
+	steeple_mesh.size = Vector3(0.56, 0.85, 0.56)
+	steeple.mesh = steeple_mesh
+	steeple.material_override = roof_material
+	steeple.position = position_3d + Vector3(0.0, 2.58, 0.0)
+	steeple.rotation_degrees = Vector3(0.0, 45.0, 0.0)
+	building_root.add_child(steeple)
+
+	_add_window_band(position_3d + Vector3(0.0, 0.24, 0.78), Vector3(0.26, 0.5, 0.05))
+	_add_window_band(position_3d + Vector3(-0.48, 0.16, 0.78), Vector3(0.18, 0.24, 0.05))
+	_add_window_band(position_3d + Vector3(0.48, 0.16, 0.78), Vector3(0.18, 0.24, 0.05))
+	_add_plaza(position_3d + Vector3(0.0, -0.44, 0.24), Vector2(2.5, 2.2))
+	_add_planter(position_3d + Vector3(-0.82, 0.08, 0.86))
+	_add_planter(position_3d + Vector3(0.82, 0.08, 0.86))
+
+
+func _add_plaza(center: Vector3, size: Vector2) -> void:
+	var plaza_material := _make_material("eef4f5", 0.84)
+	_add_box(center, Vector3(size.x, 0.05, size.y), plaza_material, grid_root)
+
+
+func _add_tree(position_3d: Vector3) -> void:
+	_add_cylinder(position_3d + Vector3(0.0, 0.34, 0.0), 0.11, 0.08, 0.68, _trunk_material)
+	_add_sphere(position_3d + Vector3(0.0, 0.92, 0.02), 0.52, 0.86, _leaf_material)
+	_add_sphere(position_3d + Vector3(-0.2, 0.84, 0.0), 0.34, 0.66, _leaf_material)
+	_add_sphere(position_3d + Vector3(0.22, 0.84, -0.08), 0.3, 0.58, _leaf_material)
+
+
+func _add_grass_clump(position_3d: Vector3, scale_factor: float) -> void:
+	var clump := Node3D.new()
+	clump.position = position_3d
+	clump.rotation_degrees.y = randf_range(0.0, 180.0)
+	clump.set_meta("phase", randf_range(0.0, TAU))
+	clump.set_meta("sway", randf_range(0.8, 1.3))
+	building_root.add_child(clump)
+	_grass_clumps.append(clump)
+
+	for blade_data in [
+		{"pos": Vector3(-0.08, 0.17, 0.0), "rot": -10.0, "size": Vector3(0.06, 0.38, 0.02)},
+		{"pos": Vector3(0.02, 0.2, 0.03), "rot": 7.0, "size": Vector3(0.06, 0.44, 0.02)},
+		{"pos": Vector3(0.1, 0.15, -0.02), "rot": 14.0, "size": Vector3(0.05, 0.32, 0.02)},
+		{"pos": Vector3(-0.02, 0.16, -0.08), "rot": -18.0, "size": Vector3(0.05, 0.3, 0.02)}
+	]:
+		var blade := _add_box(blade_data.pos * scale_factor, blade_data.size * scale_factor, _grass_blade_material, clump)
+		blade.rotation_degrees.z = blade_data.rot
+
+
+func _add_park_corner(position_3d: Vector3) -> void:
+	_add_plaza(position_3d, Vector2(1.8, 1.8))
+	_add_tree(position_3d + Vector3(-0.55, 0.0, -0.1))
+	_add_tree(position_3d + Vector3(0.52, 0.0, 0.28))
+	_add_bench(position_3d + Vector3(0.0, 0.06, -0.58), 0.0)
+	_add_flower_patch(position_3d + Vector3(0.58, 0.08, -0.55), 4, _flower_material_pink)
+
+
+func _add_planter(position_3d: Vector3) -> void:
+	_add_box(position_3d, Vector3(0.22, 0.14, 0.22), _stone_material, building_root)
+	_add_sphere(position_3d + Vector3(0.0, 0.18, 0.0), 0.14, 0.2, _leaf_material)
+
+
+func _add_flower_patch(center: Vector3, count: int, material: StandardMaterial3D) -> void:
+	for i in range(count):
+		var offset_x := (float(i % 3) - 1.0) * 0.14
+		var offset_z := (float(i / 3) - 0.5) * 0.14
+		_add_box(center + Vector3(offset_x, 0.05, offset_z), Vector3(0.08, 0.08, 0.08), material, building_root)
+
+
+func _add_lamp(position_3d: Vector3) -> void:
+	_add_cylinder(position_3d + Vector3(0.0, 0.54, 0.0), 0.04, 0.04, 1.08, _road_material)
+	_add_box(position_3d + Vector3(0.0, 1.12, 0.0), Vector3(0.18, 0.1, 0.18), _window_material, building_root)
+
+
+func _add_bench(position_3d: Vector3, rotation_y: float) -> void:
+	var seat_material := _make_material("a57649", 0.72)
+	var bench := _add_box(position_3d + Vector3(0.0, 0.14, 0.0), Vector3(0.48, 0.08, 0.18), seat_material, building_root)
+	bench.rotation_degrees.y = rotation_y
+	var back := _add_box(position_3d + Vector3(0.0, 0.28, -0.07), Vector3(0.48, 0.18, 0.06), seat_material, building_root)
+	back.rotation_degrees.y = rotation_y
+
+
+func _add_chimney(position_3d: Vector3) -> void:
+	_add_box(position_3d, Vector3(0.16, 0.44, 0.16), _stone_material, building_root)
+
+
+func _add_sign(position_3d: Vector3, size: Vector3) -> void:
+	var sign_material := _make_material("163140", 0.44, 0.0, true, "77f2dc", 0.08)
+	_add_box(position_3d, size, sign_material, building_root)
+
+
+func _add_window_band(position_3d: Vector3, size: Vector3) -> void:
+	var band := _add_box(position_3d, size, _window_material, building_root)
+	_window_bands.append(band)
+
+
+func _add_edge_post(position_3d: Vector3) -> void:
+	_add_cylinder(position_3d + Vector3(0.0, 0.16, 0.0), 0.03, 0.03, 0.34, _stone_material)
+
+
+func _add_box(position_3d: Vector3, size: Vector3, material: Material, parent: Node) -> MeshInstance3D:
+	var mesh_instance := MeshInstance3D.new()
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	mesh_instance.mesh = mesh
+	mesh_instance.material_override = material
+	mesh_instance.position = position_3d
+	parent.add_child(mesh_instance)
+	return mesh_instance
+
+
+func _add_cylinder(position_3d: Vector3, top_radius: float, bottom_radius: float, height: float, material: Material) -> MeshInstance3D:
+	var mesh_instance := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = top_radius
+	mesh.bottom_radius = bottom_radius
+	mesh.height = height
+	mesh_instance.mesh = mesh
+	mesh_instance.material_override = material
+	mesh_instance.position = position_3d
+	building_root.add_child(mesh_instance)
+	return mesh_instance
+
+
+func _add_sphere(position_3d: Vector3, radius: float, height: float, material: Material) -> MeshInstance3D:
+	var mesh_instance := MeshInstance3D.new()
+	var mesh := SphereMesh.new()
+	mesh.radius = radius
+	mesh.height = height
+	mesh_instance.mesh = mesh
+	mesh_instance.material_override = material
+	mesh_instance.position = position_3d
+	building_root.add_child(mesh_instance)
+	return mesh_instance
+
+
+func _make_material(color_hex: String, roughness: float, metallic: float = 0.0, emission_enabled: bool = false, emission_color_hex: String = "ffffff", emission_energy: float = 0.0) -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = Color(color_hex)
+	material.roughness = roughness
+	material.metallic = metallic
+	material.emission_enabled = emission_enabled
+	if emission_enabled:
+		material.emission = Color(emission_color_hex)
+		material.emission_energy_multiplier = emission_energy
+	return material
+
+
+func _make_material_from_color(color: Color, roughness: float) -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.roughness = roughness
+	return material
+
+
+func _make_transparent_material(color: Color, roughness: float, alpha: float) -> StandardMaterial3D:
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.albedo_color.a = alpha
+	material.roughness = roughness
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	return material
+
+
+func _animate_clouds(delta: float) -> void:
+	for cloud in _clouds:
+		var speed: float = float(cloud.get_meta("speed", 0.15))
+		var base_z: float = float(cloud.get_meta("base_z", cloud.position.z))
+		cloud.position.x += delta * speed
+		cloud.position.z = base_z + sin(Time.get_ticks_msec() * 0.0004 + cloud.position.x) * 0.18
+		if cloud.position.x > 12.0:
+			cloud.position.x = -12.0
+
+
+func _animate_windows() -> void:
+	var time := Time.get_ticks_msec() * 0.001
+	for i in range(_window_bands.size()):
+		var window_band := _window_bands[i]
+		var material := window_band.material_override as StandardMaterial3D
+		if material:
+			material.emission_energy_multiplier = 0.26 + (sin(time * 1.2 + i * 0.7) * 0.5 + 0.5) * 0.2
+
+
+func _animate_grass() -> void:
+	var time := Time.get_ticks_msec() * 0.001
+	for clump in _grass_clumps:
+		var phase: float = float(clump.get_meta("phase", 0.0))
+		var sway: float = float(clump.get_meta("sway", 1.0))
+		clump.rotation_degrees.z = sin(time * 1.6 * sway + phase) * 4.5
+
+
+func _update_camera(force := false) -> void:
+	var orbit := Vector3(_zoom * 0.92, _zoom * 0.74, _zoom * 0.86)
+	camera_rig.position = _focus
+	camera.position = orbit
+	camera.look_at(_focus + Vector3(0.0, 0.55, 0.0), Vector3.UP)

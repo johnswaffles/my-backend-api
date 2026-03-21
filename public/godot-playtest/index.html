@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cozy Builder Godot Playtest</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        font-family: "Avenir Next", "Segoe UI", sans-serif;
+        background:
+          radial-gradient(circle at top, rgba(118, 229, 199, 0.16), transparent 34%),
+          linear-gradient(160deg, #08131d 0%, #0c1b29 100%);
+        color: #ecf6fb;
+      }
+
+      main {
+        width: min(760px, calc(100vw - 32px));
+        padding: 32px;
+        border-radius: 28px;
+        background: rgba(10, 23, 34, 0.88);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+      }
+
+      .eyebrow {
+        margin: 0 0 10px;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #46d8b4;
+      }
+
+      h1 {
+        margin: 0 0 12px;
+        font-size: clamp(32px, 6vw, 52px);
+        line-height: 1.02;
+      }
+
+      p {
+        margin: 0 0 14px;
+        font-size: 18px;
+        line-height: 1.6;
+        color: #a9c0cf;
+      }
+
+      code {
+        padding: 2px 6px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.08);
+        color: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="eyebrow">Cozy Builder Godot</p>
+      <h1>Playtest export is not live yet.</h1>
+      <p>
+        The hosting route is ready. The Godot HTML5 export files need to be placed in
+        <code>public/godot-playtest/</code> so this page can run the game in the browser.
+      </p>
+      <p>
+        Once the web export is added and deployed, this page will become the live playtest URL.
+      </p>
+    </main>
+  </body>
+</html>
