@@ -1,2 +1,12 @@
 .godot/
 export_presets.cfg
+index.html
+index.js
+index.pck
+index.wasm
+index.png
+index.icon.png
+index.apple-touch-icon.png
+index.audio.worklet.js
+index.audio.position.worklet.js
+*.import
