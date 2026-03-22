@@ -11,6 +11,8 @@ const BUILD_TOOL_BANK := "bank"
 const BUILD_TOOL_GROCERY := "grocery"
 const BUILD_TOOL_RESTAURANT := "restaurant"
 const BUILD_TOOL_CORNER_STORE := "corner_store"
+const BUILD_TOOL_INSPECT := "inspect"
+const BUILD_TOOL_BULLDOZE := "bulldoze"
 const BUILD_TOOL_SEQUENCE := [
 	BUILD_TOOL_ROAD,
 	BUILD_TOOL_HOUSE,
@@ -20,6 +22,8 @@ const BUILD_TOOL_SEQUENCE := [
 	BUILD_TOOL_GROCERY,
 	BUILD_TOOL_RESTAURANT,
 	BUILD_TOOL_CORNER_STORE,
+	BUILD_TOOL_INSPECT,
+	BUILD_TOOL_BULLDOZE,
 ]
 const BUILD_TOOL_LABELS := {
 	BUILD_TOOL_ROAD: "Road",
@@ -30,6 +34,18 @@ const BUILD_TOOL_LABELS := {
 	BUILD_TOOL_GROCERY: "Grocery",
 	BUILD_TOOL_RESTAURANT: "Restaurant",
 	BUILD_TOOL_CORNER_STORE: "Corner Store",
+	BUILD_TOOL_INSPECT: "Inspect",
+	BUILD_TOOL_BULLDOZE: "Bulldoze",
+}
+const BUILD_TOOL_COSTS := {
+	BUILD_TOOL_ROAD: 20,
+	BUILD_TOOL_HOUSE: 180,
+	BUILD_TOOL_POLICE: 520,
+	BUILD_TOOL_FIRE: 560,
+	BUILD_TOOL_BANK: 420,
+	BUILD_TOOL_GROCERY: 300,
+	BUILD_TOOL_RESTAURANT: 320,
+	BUILD_TOOL_CORNER_STORE: 260,
 }
 
 @onready var grid_root: Node3D = $GridRoot
@@ -50,11 +66,17 @@ var _hover_anchor := Vector2i(-1, -1)
 var _hover_cells: Array[Vector2i] = []
 var _hover_active := false
 var _hover_can_build := false
+var _selected_anchor_key := ""
+var _selection_cells: Array[Vector2i] = []
+var _money := 25000
 var _occupied_cells: Dictionary = {}
 var _reserved_cells: Dictionary = {}
 var _placed_nodes: Dictionary = {}
+var _placements: Dictionary = {}
+var _cell_anchor_lookup: Dictionary = {}
 var _road_cells: Dictionary = {}
 var _road_nodes: Dictionary = {}
+var _action_history: Array[Dictionary] = []
 
 var _ground_material_a: StandardMaterial3D
 var _ground_material_b: StandardMaterial3D
@@ -88,11 +110,14 @@ var _hud_layer: CanvasLayer
 var _hud_panel: Control
 var _tool_status_label: Label
 var _hint_label: Label
+var _stats_label: Label
+var _selection_label: Label
 var _tool_buttons: Dictionary = {}
 var _fullscreen_button: Button
 var _rotate_left_button: Button
 var _rotate_right_button: Button
 var _place_button: Button
+var _undo_button: Button
 var _zoom_in_button: Button
 var _zoom_out_button: Button
 
@@ -138,10 +163,17 @@ func _input(event: InputEvent) -> void:
 				_set_build_tool(BUILD_TOOL_RESTAURANT)
 			KEY_8:
 				_set_build_tool(BUILD_TOOL_CORNER_STORE)
+			KEY_9:
+				_set_build_tool(BUILD_TOOL_INSPECT)
+			KEY_0:
+				_set_build_tool(BUILD_TOOL_BULLDOZE)
 			KEY_Q:
 				_rotate_camera(-PI * 0.5)
 			KEY_E:
 				_rotate_camera(PI * 0.5)
+			KEY_Z:
+				if Input.is_key_pressed(KEY_META) or Input.is_key_pressed(KEY_CTRL):
+					_undo_last_action()
 			KEY_SPACE, KEY_ENTER:
 				_try_place_hovered_tile()
 			KEY_F:
@@ -161,7 +193,7 @@ func _input(event: InputEvent) -> void:
 	elif event is InputEventMouseMotion and _dragging:
 		var right := Vector3.RIGHT.rotated(Vector3.UP, _target_camera_yaw)
 		var forward := Vector3.FORWARD.rotated(Vector3.UP, _target_camera_yaw)
-		var pan_delta := (-right * event.relative.x + forward * event.relative.y) * PAN_SPEED
+		var pan_delta: Vector3 = (-right * event.relative.x + forward * event.relative.y) * PAN_SPEED
 		_target_focus += Vector3(pan_delta.x, 0.0, pan_delta.z)
 		_target_focus.x = clamp(_target_focus.x, -8.5, 8.5)
 		_target_focus.z = clamp(_target_focus.z, -8.5, 8.5)
@@ -251,6 +283,11 @@ func _build_hud() -> void:
 	_tool_status_label.add_theme_font_size_override("font_size", 13)
 	stack.add_child(_tool_status_label)
 
+	_stats_label = Label.new()
+	_stats_label.add_theme_color_override("font_color", Color("f7f2e6"))
+	_stats_label.add_theme_font_size_override("font_size", 13)
+	stack.add_child(_stats_label)
+
 	var civic_row := HBoxContainer.new()
 	civic_row.add_theme_constant_override("separation", 8)
 	stack.add_child(civic_row)
@@ -274,6 +311,13 @@ func _build_hud() -> void:
 	_add_tool_button(service_row, BUILD_TOOL_CORNER_STORE, "8 Corner", 96)
 	_add_tool_button(service_row, BUILD_TOOL_POLICE, "3 Police", 96)
 	_add_tool_button(service_row, BUILD_TOOL_FIRE, "4 Fire", 92)
+
+	var utility_row := HBoxContainer.new()
+	utility_row.add_theme_constant_override("separation", 8)
+	stack.add_child(utility_row)
+
+	_add_tool_button(utility_row, BUILD_TOOL_INSPECT, "9 Inspect", 94)
+	_add_tool_button(utility_row, BUILD_TOOL_BULLDOZE, "0 Bulldoze", 108)
 
 	var action_row := HBoxContainer.new()
 	action_row.add_theme_constant_override("separation", 8)
@@ -309,19 +353,37 @@ func _build_hud() -> void:
 	_rotate_right_button.pressed.connect(_rotate_camera.bind(PI * 0.5))
 	action_row.add_child(_rotate_right_button)
 
+	_undo_button = Button.new()
+	_undo_button.text = "Undo"
+	_undo_button.custom_minimum_size = Vector2(92, 0)
+	_undo_button.pressed.connect(_undo_last_action)
+	action_row.add_child(_undo_button)
+
+	_selection_label = Label.new()
+	_selection_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_selection_label.custom_minimum_size = Vector2(460, 0)
+	_selection_label.add_theme_color_override("font_color", Color("d7e7ef"))
+	_selection_label.add_theme_font_size_override("font_size", 12)
+	stack.add_child(_selection_label)
+
 	_hint_label = Label.new()
 	_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hint_label.custom_minimum_size = Vector2(460, 0)
 	_hint_label.add_theme_color_override("font_color", Color("a9bec5"))
 	_hint_label.add_theme_font_size_override("font_size", 12)
-	_hint_label.text = "Use the build buttons or keys 1-8, then click or press Space to place. Q/E rotates. Right drag pans. WASD or arrows move the camera."
+	_hint_label.text = "Use the build buttons or keys 1-0, then click or press Space to place. Q/E rotates. Cmd/Ctrl+Z undoes. Right drag pans."
 	stack.add_child(_hint_label)
 
 
 func _refresh_tool_ui() -> void:
 	if _tool_status_label:
 		var tool_name := _tool_name(_build_tool)
-		_tool_status_label.text = "Tool: %s  |  Build on the open pasture around town." % [tool_name]
+		var cost_text := ""
+		if BUILD_TOOL_COSTS.has(_build_tool):
+			cost_text = "  |  Cost: $%d" % int(BUILD_TOOL_COSTS[_build_tool])
+		_tool_status_label.text = "Tool: %s%s" % [tool_name, cost_text]
+	if _stats_label:
+		_stats_label.text = _build_stats_text()
 	for tool in _tool_buttons.keys():
 		_style_tool_button(_tool_buttons[tool], _build_tool == tool)
 	if _fullscreen_button:
@@ -336,9 +398,14 @@ func _refresh_tool_ui() -> void:
 		_style_tool_button(_rotate_left_button, false)
 	if _rotate_right_button:
 		_style_tool_button(_rotate_right_button, false)
+	if _undo_button:
+		_style_tool_button(_undo_button, _action_history.size() > 0)
+		_undo_button.disabled = _action_history.is_empty()
+	if _selection_label:
+		_selection_label.text = _selection_text()
 	if _ghost_root:
 		for tool in _ghost_nodes.keys():
-			_ghost_nodes[tool].visible = _build_tool == tool
+			_ghost_nodes[tool].visible = _build_tool == tool and BUILD_TOOL_COSTS.has(tool)
 
 
 func _style_tool_button(button: Button, selected: bool) -> void:
@@ -372,7 +439,23 @@ func _update_hover_from_mouse() -> void:
 	var anchor := _anchor_for_hover_cell(cell, footprint)
 	var cells := _cells_for_anchor(anchor, footprint)
 	var world := _anchor_to_world(anchor, footprint)
-	var valid := _cells_are_buildable(cells)
+	var valid := false
+	var inspect_mode := _build_tool == BUILD_TOOL_INSPECT or _build_tool == BUILD_TOOL_BULLDOZE
+	if inspect_mode:
+		var found_anchor := _find_anchor_for_cell(cell)
+		if found_anchor != "":
+			anchor = _anchor_key_to_cell(found_anchor)
+			cells = _placement_cells(found_anchor)
+			footprint = _footprint_from_cells(cells)
+			world = _anchor_to_world(anchor, footprint)
+			valid = true
+			_set_selected_anchor(found_anchor)
+		else:
+			_clear_selected_anchor()
+	else:
+		valid = _cells_are_buildable(cells)
+		if BUILD_TOOL_COSTS.has(_build_tool) and _money < int(BUILD_TOOL_COSTS[_build_tool]):
+			valid = false
 
 	_hovered_cell = cell
 	_hover_anchor = anchor
@@ -384,12 +467,17 @@ func _update_hover_from_mouse() -> void:
 	_ghost_root.position = world
 	_ghost_root.rotation_degrees.y = rad_to_deg(_tool_rotation_y(_build_tool, anchor, footprint))
 	for tool in _ghost_nodes.keys():
-		_ghost_nodes[tool].visible = _build_tool == tool
+		_ghost_nodes[tool].visible = _build_tool == tool and BUILD_TOOL_COSTS.has(tool)
 
 	if _hint_label:
 		if valid:
-			var size_label := "%dx%d" % [footprint.x, footprint.y]
-			_hint_label.text = "Footprint %s at %d, %d is open. Left click to place a %s." % [size_label, anchor.x + 1, anchor.y + 1, _tool_name(_build_tool).to_lower()]
+			if inspect_mode:
+				_hint_label.text = "Selected %s. Click or press Space to %s it." % [_selection_name(), "inspect" if _build_tool == BUILD_TOOL_INSPECT else "remove"]
+			else:
+				var size_label := "%dx%d" % [footprint.x, footprint.y]
+				_hint_label.text = "Footprint %s at %d, %d is open. Left click to place a %s." % [size_label, anchor.x + 1, anchor.y + 1, _tool_name(_build_tool).to_lower()]
+		elif BUILD_TOOL_COSTS.has(_build_tool) and _money < int(BUILD_TOOL_COSTS[_build_tool]):
+			_hint_label.text = "Not enough money for %s. You need $%d." % [_tool_name(_build_tool).to_lower(), int(BUILD_TOOL_COSTS[_build_tool])]
 		elif _cells_touch_reserved(cells):
 			_hint_label.text = "This center area is part of the starter town. Build out into the surrounding pasture."
 		else:
@@ -405,7 +493,7 @@ func _clear_hover() -> void:
 	if _ghost_root:
 		_ghost_root.visible = false
 	if _hint_label:
-		_hint_label.text = "Use the build buttons or keys 1-8, then click or press Space to place. Q/E rotates. Right drag pans. WASD or arrows move the camera."
+		_hint_label.text = "Use the build buttons or keys 1-0, then click or press Space to place. Q/E rotates. Cmd/Ctrl+Z undoes. Right drag pans."
 
 
 func _pick_grid_cell(mouse_position: Vector2) -> Dictionary:
@@ -442,8 +530,19 @@ func _try_place_hovered_tile() -> void:
 	if not _hover_active or not _hover_can_build:
 		return
 
+	if _build_tool == BUILD_TOOL_INSPECT:
+		_refresh_tool_ui()
+		return
+
+	if _build_tool == BUILD_TOOL_BULLDOZE:
+		_remove_selected_placement(true)
+		return
+
 	var footprint := _tool_footprint(_build_tool)
 	var world := _anchor_to_world(_hover_anchor, footprint)
+	var cost := int(BUILD_TOOL_COSTS.get(_build_tool, 0))
+	if _money < cost:
+		return
 	var placed: Node3D
 	if _build_tool == BUILD_TOOL_ROAD:
 		_mark_road_cell(_hover_anchor)
@@ -455,8 +554,10 @@ func _try_place_hovered_tile() -> void:
 	else:
 		placed = _spawn_building_for_tool(_build_tool, world, _tool_rotation_y(_build_tool, _hover_anchor, footprint))
 
-	_mark_cells(_hover_cells, _build_tool, placed)
+	_money -= cost
+	_register_placement(_hover_anchor, _hover_cells, _build_tool, placed, cost)
 	_update_hover_from_mouse()
+	_refresh_tool_ui()
 
 
 func _tool_name(tool: String) -> String:
@@ -464,7 +565,7 @@ func _tool_name(tool: String) -> String:
 
 
 func _tool_footprint(tool: String) -> Vector2i:
-	if tool == BUILD_TOOL_ROAD:
+	if tool == BUILD_TOOL_ROAD or tool == BUILD_TOOL_INSPECT or tool == BUILD_TOOL_BULLDOZE:
 		return Vector2i(1, 1)
 	return Vector2i(2, 2)
 
@@ -535,6 +636,181 @@ func _mark_cells(cells: Array[Vector2i], tool: String, node: Node3D) -> void:
 		_placed_nodes[key] = node
 
 
+func _register_placement(anchor: Vector2i, cells: Array[Vector2i], tool: String, node: Node3D, cost: int) -> void:
+	var anchor_key := _cell_key(anchor)
+	_placements[anchor_key] = {
+		"anchor": anchor,
+		"cells": cells.duplicate(),
+		"tool": tool,
+		"node": node,
+		"cost": cost,
+	}
+	for cell in cells:
+		var key := _cell_key(cell)
+		_occupied_cells[key] = tool
+		_placed_nodes[key] = node
+		_cell_anchor_lookup[key] = anchor_key
+	_action_history.append({
+		"type": "place",
+		"anchor_key": anchor_key,
+		"money": cost,
+	})
+	_set_selected_anchor(anchor_key)
+
+
+func _find_anchor_for_cell(cell: Vector2i) -> String:
+	return _cell_anchor_lookup.get(_cell_key(cell), "")
+
+
+func _anchor_key_to_cell(anchor_key: String) -> Vector2i:
+	var parts := anchor_key.split(":")
+	return Vector2i(parts[0].to_int(), parts[1].to_int())
+
+
+func _placement_cells(anchor_key: String) -> Array[Vector2i]:
+	if not _placements.has(anchor_key):
+		return []
+	return _placements[anchor_key]["cells"]
+
+
+func _footprint_from_cells(cells: Array[Vector2i]) -> Vector2i:
+	if cells.is_empty():
+		return Vector2i(1, 1)
+	var min_x := cells[0].x
+	var max_x := cells[0].x
+	var min_y := cells[0].y
+	var max_y := cells[0].y
+	for cell in cells:
+		min_x = mini(min_x, cell.x)
+		max_x = maxi(max_x, cell.x)
+		min_y = mini(min_y, cell.y)
+		max_y = maxi(max_y, cell.y)
+	return Vector2i(max_x - min_x + 1, max_y - min_y + 1)
+
+
+func _set_selected_anchor(anchor_key: String) -> void:
+	_selected_anchor_key = anchor_key
+	_selection_cells = _placement_cells(anchor_key)
+
+
+func _clear_selected_anchor() -> void:
+	_selected_anchor_key = ""
+	_selection_cells.clear()
+
+
+func _selection_name() -> String:
+	if _selected_anchor_key == "" or not _placements.has(_selected_anchor_key):
+		return "nothing"
+	return _tool_name(_placements[_selected_anchor_key]["tool"]).to_lower()
+
+
+func _selection_text() -> String:
+	if _selected_anchor_key == "" or not _placements.has(_selected_anchor_key):
+		return "Selection: none"
+	var placement = _placements[_selected_anchor_key]
+	var cells: Array[Vector2i] = placement["cells"]
+	var footprint := _footprint_from_cells(cells)
+	return "Selection: %s  |  Footprint: %dx%d  |  Build Cost: $%d" % [
+		_tool_name(placement["tool"]),
+		footprint.x,
+		footprint.y,
+		int(placement["cost"])
+	]
+
+
+func _build_stats_text() -> String:
+	var homes := 0
+	var shops := 0
+	var civics := 0
+	for anchor_key in _placements.keys():
+		var tool: String = _placements[anchor_key]["tool"]
+		if tool == BUILD_TOOL_HOUSE:
+			homes += 1
+		elif tool in [BUILD_TOOL_BANK, BUILD_TOOL_GROCERY, BUILD_TOOL_RESTAURANT, BUILD_TOOL_CORNER_STORE]:
+			shops += 1
+		elif tool in [BUILD_TOOL_POLICE, BUILD_TOOL_FIRE]:
+			civics += 1
+	return "Money: $%d  |  Homes: %d  |  Shops: %d  |  Civic: %d  |  Roads: %d" % [_money, homes, shops, civics, _road_cells.size()]
+
+
+func _remove_selected_placement(refund: bool, record_action: bool = true) -> void:
+	if _selected_anchor_key == "" or not _placements.has(_selected_anchor_key):
+		return
+	var anchor_key := _selected_anchor_key
+	var placement = _placements[anchor_key]
+	var tool: String = placement["tool"]
+	var cells: Array[Vector2i] = placement["cells"]
+	var node: Node3D = placement["node"]
+	var refund_amount := int(round(float(placement["cost"]) * 0.7)) if refund else 0
+	if refund:
+		_money += refund_amount
+	if tool == BUILD_TOOL_ROAD:
+		for cell in cells:
+			var road_key := _cell_key(cell)
+			_road_cells.erase(road_key)
+			if _road_nodes.has(road_key):
+				var road_node: Node3D = _road_nodes[road_key]
+				if is_instance_valid(road_node):
+					road_node.queue_free()
+				_road_nodes.erase(road_key)
+	else:
+		if is_instance_valid(node):
+			node.queue_free()
+	for cell in cells:
+		var key := _cell_key(cell)
+		_occupied_cells.erase(key)
+		_placed_nodes.erase(key)
+		_cell_anchor_lookup.erase(key)
+	_placements.erase(anchor_key)
+	if record_action:
+		_action_history.append({
+			"type": "remove",
+			"anchor_key": anchor_key,
+			"tool": tool,
+			"cells": cells.duplicate(),
+			"cost": int(placement["cost"]),
+			"refund": refund_amount,
+		})
+	if tool == BUILD_TOOL_ROAD:
+		for cell in cells:
+			for neighbor in _neighbor_cells(cell):
+				if _road_cells.has(_cell_key(neighbor)):
+					_rebuild_road_at(neighbor)
+	_clear_selected_anchor()
+	_refresh_tool_ui()
+	_update_hover_from_mouse()
+
+
+func _undo_last_action() -> void:
+	if _action_history.is_empty():
+		return
+	var action = _action_history.pop_back()
+	if action["type"] == "place":
+		var anchor_key: String = action["anchor_key"]
+		if _placements.has(anchor_key):
+			_selected_anchor_key = anchor_key
+			_remove_selected_placement(false, false)
+			_money += int(action["money"])
+	elif action["type"] == "remove":
+		_money -= int(action["refund"])
+		var anchor: Vector2i = _anchor_key_to_cell(action["anchor_key"])
+		var cells: Array[Vector2i] = action["cells"]
+		if action["tool"] == BUILD_TOOL_ROAD:
+			for cell in cells:
+				_mark_road_cell(cell)
+				_rebuild_road_at(cell)
+				for neighbor in _neighbor_cells(cell):
+					if _road_cells.has(_cell_key(neighbor)):
+						_rebuild_road_at(neighbor)
+			_register_placement(anchor, cells, action["tool"], _road_nodes.get(_cell_key(anchor)), int(action["cost"]))
+		else:
+			var node := _spawn_building_for_tool(action["tool"], _anchor_to_world(anchor, _footprint_from_cells(cells)), _tool_rotation_y(action["tool"], anchor, _footprint_from_cells(cells)))
+			_register_placement(anchor, cells, action["tool"], node, int(action["cost"]))
+		if not _action_history.is_empty():
+			_action_history.pop_back()
+	_refresh_tool_ui()
+
+
 func _mark_road_cell(cell: Vector2i) -> void:
 	var key := _cell_key(cell)
 	_road_cells[key] = true
@@ -560,6 +836,8 @@ func _add_tool_button(container: HBoxContainer, tool: String, label: String, wid
 
 
 func _spawn_tool_preview(tool: String) -> Node3D:
+	if tool == BUILD_TOOL_INSPECT or tool == BUILD_TOOL_BULLDOZE:
+		return Node3D.new()
 	if tool == BUILD_TOOL_ROAD:
 		return _build_road_tile_mesh(Vector2i.ZERO, true, [Vector2i(0, 0)])
 	if tool == BUILD_TOOL_HOUSE:
@@ -1237,7 +1515,7 @@ func _tool_rotation_y(tool: String, anchor: Vector2i, footprint: Vector2i) -> fl
 		if _road_cells.has(_cell_key(Vector2i(anchor.x + footprint.x, anchor.y + dz))):
 			east_score += 1
 
-	var best := max(max(north_score, south_score), max(east_score, west_score))
+	var best: int = maxi(maxi(north_score, south_score), maxi(east_score, west_score))
 	if best > 0:
 		if south_score == best:
 			return 0.0
