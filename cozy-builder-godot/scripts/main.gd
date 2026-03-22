@@ -11,6 +11,7 @@ const BUILD_TOOL_BANK := "bank"
 const BUILD_TOOL_GROCERY := "grocery"
 const BUILD_TOOL_RESTAURANT := "restaurant"
 const BUILD_TOOL_CORNER_STORE := "corner_store"
+const BUILD_TOOL_PARK := "park"
 const BUILD_TOOL_INSPECT := "inspect"
 const BUILD_TOOL_BULLDOZE := "bulldoze"
 const BUILD_TOOL_SEQUENCE := [
@@ -22,6 +23,7 @@ const BUILD_TOOL_SEQUENCE := [
 	BUILD_TOOL_GROCERY,
 	BUILD_TOOL_RESTAURANT,
 	BUILD_TOOL_CORNER_STORE,
+	BUILD_TOOL_PARK,
 	BUILD_TOOL_INSPECT,
 	BUILD_TOOL_BULLDOZE,
 ]
@@ -34,6 +36,7 @@ const BUILD_TOOL_LABELS := {
 	BUILD_TOOL_GROCERY: "Grocery",
 	BUILD_TOOL_RESTAURANT: "Restaurant",
 	BUILD_TOOL_CORNER_STORE: "Corner Store",
+	BUILD_TOOL_PARK: "Park",
 	BUILD_TOOL_INSPECT: "Inspect",
 	BUILD_TOOL_BULLDOZE: "Bulldoze",
 }
@@ -46,12 +49,17 @@ const BUILD_TOOL_COSTS := {
 	BUILD_TOOL_GROCERY: 300,
 	BUILD_TOOL_RESTAURANT: 320,
 	BUILD_TOOL_CORNER_STORE: 260,
+	BUILD_TOOL_PARK: 140,
 }
+const SAVE_PATH := "user://cozy_builder_save.json"
 
 @onready var grid_root: Node3D = $GridRoot
 @onready var building_root: Node3D = $BuildingRoot
 @onready var camera_rig: Node3D = $CameraRig
 @onready var camera: Camera3D = $CameraRig/Camera3D
+@onready var world_environment: WorldEnvironment = $WorldEnvironment
+@onready var sun: DirectionalLight3D = $Sun
+@onready var fill_light: DirectionalLight3D = $FillLight
 
 var _focus := Vector3(0.0, 0.0, 0.0)
 var _target_focus := Vector3(0.0, 0.0, 0.0)
@@ -60,6 +68,7 @@ var _target_zoom := 16.0
 var _camera_yaw := deg_to_rad(45.0)
 var _target_camera_yaw := deg_to_rad(45.0)
 var _dragging := false
+var _painting_roads := false
 var _build_tool := BUILD_TOOL_ROAD
 var _hovered_cell := Vector2i(-1, -1)
 var _hover_anchor := Vector2i(-1, -1)
@@ -80,6 +89,7 @@ var _cell_anchor_lookup: Dictionary = {}
 var _road_cells: Dictionary = {}
 var _road_nodes: Dictionary = {}
 var _action_history: Array[Dictionary] = []
+var _loaded_save := false
 
 var _ground_material_a: StandardMaterial3D
 var _ground_material_b: StandardMaterial3D
@@ -117,12 +127,17 @@ var _stats_label: Label
 var _selection_label: Label
 var _tool_buttons: Dictionary = {}
 var _fullscreen_button: Button
+var _save_button: Button
+var _load_button: Button
+var _clear_button: Button
+var _home_button: Button
 var _rotate_left_button: Button
 var _rotate_right_button: Button
 var _place_button: Button
 var _undo_button: Button
 var _zoom_in_button: Button
 var _zoom_out_button: Button
+var _nature_root: Node3D
 
 
 func _ready() -> void:
@@ -130,6 +145,8 @@ func _ready() -> void:
 	_build_world()
 	_create_runtime_helpers()
 	_build_hud()
+	_try_load_game()
+	_recalculate_cashflow()
 	_refresh_tool_ui()
 	_update_hover_from_mouse()
 	_update_camera(true)
@@ -143,6 +160,7 @@ func _process(delta: float) -> void:
 	_animate_grass()
 	_update_keyboard_camera(delta)
 	_update_hover_from_mouse()
+	_update_day_night_visuals()
 	_update_camera()
 	_update_simulation(delta)
 
@@ -166,6 +184,8 @@ func _input(event: InputEvent) -> void:
 				_set_build_tool(BUILD_TOOL_RESTAURANT)
 			KEY_8:
 				_set_build_tool(BUILD_TOOL_CORNER_STORE)
+			KEY_P:
+				_set_build_tool(BUILD_TOOL_PARK)
 			KEY_9:
 				_set_build_tool(BUILD_TOOL_INSPECT)
 			KEY_0:
@@ -187,8 +207,13 @@ func _input(event: InputEvent) -> void:
 	elif event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_MIDDLE or event.button_index == MOUSE_BUTTON_RIGHT:
 			_dragging = event.pressed
-		elif event.button_index == MOUSE_BUTTON_LEFT and event.pressed and not _is_pointer_over_hud():
-			_try_place_hovered_tile()
+		elif event.button_index == MOUSE_BUTTON_LEFT:
+			if event.pressed and not _is_pointer_over_hud():
+				if _build_tool == BUILD_TOOL_ROAD:
+					_painting_roads = true
+				_try_place_hovered_tile()
+			else:
+				_painting_roads = false
 		elif event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
 			_target_zoom = max(8.5, _target_zoom - 1.15)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
@@ -200,6 +225,8 @@ func _input(event: InputEvent) -> void:
 		_target_focus += Vector3(pan_delta.x, 0.0, pan_delta.z)
 		_target_focus.x = clamp(_target_focus.x, -8.5, 8.5)
 		_target_focus.z = clamp(_target_focus.z, -8.5, 8.5)
+	elif event is InputEventMouseMotion and _painting_roads and _build_tool == BUILD_TOOL_ROAD and not _is_pointer_over_hud():
+		_try_place_hovered_tile()
 
 
 func _build_materials() -> void:
@@ -226,6 +253,8 @@ func _build_materials() -> void:
 
 
 func _build_world() -> void:
+	_nature_root = Node3D.new()
+	building_root.add_child(_nature_root)
 	_build_water_ring()
 	_build_island_base()
 	_build_ground_tiles()
@@ -313,6 +342,7 @@ func _build_hud() -> void:
 	utility_row.add_theme_constant_override("separation", 8)
 	stack.add_child(utility_row)
 
+	_add_tool_button(utility_row, BUILD_TOOL_PARK, "P Park", 90)
 	_add_tool_button(utility_row, BUILD_TOOL_INSPECT, "9 Inspect", 94)
 	_add_tool_button(utility_row, BUILD_TOOL_BULLDOZE, "0 Bulldoze", 108)
 
@@ -356,6 +386,34 @@ func _build_hud() -> void:
 	_undo_button.pressed.connect(_undo_last_action)
 	action_row.add_child(_undo_button)
 
+	_home_button = Button.new()
+	_home_button.text = "Home View"
+	_home_button.custom_minimum_size = Vector2(104, 0)
+	_home_button.pressed.connect(_reset_camera_view)
+	action_row.add_child(_home_button)
+
+	var save_row := HBoxContainer.new()
+	save_row.add_theme_constant_override("separation", 8)
+	stack.add_child(save_row)
+
+	_save_button = Button.new()
+	_save_button.text = "Save Town"
+	_save_button.custom_minimum_size = Vector2(108, 0)
+	_save_button.pressed.connect(_save_game)
+	save_row.add_child(_save_button)
+
+	_load_button = Button.new()
+	_load_button.text = "Load Save"
+	_load_button.custom_minimum_size = Vector2(108, 0)
+	_load_button.pressed.connect(_load_game)
+	save_row.add_child(_load_button)
+
+	_clear_button = Button.new()
+	_clear_button.text = "New Map"
+	_clear_button.custom_minimum_size = Vector2(104, 0)
+	_clear_button.pressed.connect(_new_map)
+	save_row.add_child(_clear_button)
+
 	_selection_label = Label.new()
 	_selection_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_selection_label.custom_minimum_size = Vector2(460, 0)
@@ -368,7 +426,7 @@ func _build_hud() -> void:
 	_hint_label.custom_minimum_size = Vector2(460, 0)
 	_hint_label.add_theme_color_override("font_color", Color("a9bec5"))
 	_hint_label.add_theme_font_size_override("font_size", 12)
-	_hint_label.text = "Use the build buttons or keys 1-0, then click or press Space to place. Q/E rotates. Cmd/Ctrl+Z undoes. Right drag pans."
+	_hint_label.text = "Use the build buttons or keys 1-0 and P, then click or press Space to place. Q/E rotates. Cmd/Ctrl+Z undoes. Right drag pans."
 	stack.add_child(_hint_label)
 
 
@@ -399,6 +457,14 @@ func _refresh_tool_ui() -> void:
 	if _undo_button:
 		_style_tool_button(_undo_button, _action_history.size() > 0)
 		_undo_button.disabled = _action_history.is_empty()
+	if _home_button:
+		_style_tool_button(_home_button, false)
+	if _save_button:
+		_style_tool_button(_save_button, false)
+	if _load_button:
+		_style_tool_button(_load_button, false)
+	if _clear_button:
+		_style_tool_button(_clear_button, false)
 	if _selection_label:
 		_selection_label.text = _selection_text()
 	if _ghost_root:
@@ -452,6 +518,8 @@ func _update_hover_from_mouse() -> void:
 			_clear_selected_anchor()
 	else:
 		valid = _cells_are_buildable(cells)
+		if valid and _tool_requires_road(_build_tool) and not _cells_touch_road(cells):
+			valid = false
 		if BUILD_TOOL_COSTS.has(_build_tool) and _money < int(BUILD_TOOL_COSTS[_build_tool]):
 			valid = false
 
@@ -476,6 +544,8 @@ func _update_hover_from_mouse() -> void:
 				_hint_label.text = "Footprint %s at %d, %d is open. Left click to place a %s." % [size_label, anchor.x + 1, anchor.y + 1, _tool_name(_build_tool).to_lower()]
 		elif BUILD_TOOL_COSTS.has(_build_tool) and _money < int(BUILD_TOOL_COSTS[_build_tool]):
 			_hint_label.text = "Not enough money for %s. You need $%d." % [_tool_name(_build_tool).to_lower(), int(BUILD_TOOL_COSTS[_build_tool])]
+		elif _tool_requires_road(_build_tool) and not _cells_touch_road(cells):
+			_hint_label.text = "%s needs to touch a road so townspeople can reach it." % _tool_name(_build_tool)
 		else:
 			_hint_label.text = "That footprint collides with something already placed. Pick a clearer spot nearby."
 
@@ -489,7 +559,7 @@ func _clear_hover() -> void:
 	if _ghost_root:
 		_ghost_root.visible = false
 	if _hint_label:
-		_hint_label.text = "Use the build buttons or keys 1-0, then click or press Space to place. Q/E rotates. Cmd/Ctrl+Z undoes. Right drag pans."
+		_hint_label.text = "Use the build buttons or keys 1-0 and P, then click or press Space to place. Q/E rotates. Cmd/Ctrl+Z undoes. Right drag pans."
 
 
 func _pick_grid_cell(mouse_position: Vector2) -> Dictionary:
@@ -595,6 +665,26 @@ func _cells_touch_reserved(cells: Array[Vector2i]) -> bool:
 		if _reserved_cells.has(_cell_key(cell)):
 			return true
 	return false
+
+
+func _cells_touch_road(cells: Array[Vector2i]) -> bool:
+	for cell in cells:
+		for neighbor in _neighbor_cells(cell):
+			if _road_cells.has(_cell_key(neighbor)):
+				return true
+	return false
+
+
+func _tool_requires_road(tool: String) -> bool:
+	return tool in [
+		BUILD_TOOL_HOUSE,
+		BUILD_TOOL_POLICE,
+		BUILD_TOOL_FIRE,
+		BUILD_TOOL_BANK,
+		BUILD_TOOL_GROCERY,
+		BUILD_TOOL_RESTAURANT,
+		BUILD_TOOL_CORNER_STORE,
+	]
 
 
 func _anchor_to_world(anchor: Vector2i, footprint: Vector2i) -> Vector3:
@@ -703,15 +793,17 @@ func _selection_name() -> String:
 
 func _selection_text() -> String:
 	if _selected_anchor_key == "" or not _placements.has(_selected_anchor_key):
-		return "Selection: none"
+		return "Selection: none  |  Start with roads, then place homes and town buildings off the road network."
 	var placement = _placements[_selected_anchor_key]
 	var cells: Array[Vector2i] = placement["cells"]
 	var footprint := _footprint_from_cells(cells)
-	return "Selection: %s  |  Footprint: %dx%d  |  Build Cost: $%d" % [
+	var road_status := "Road Access: yes" if _cells_touch_road(cells) else "Road Access: no"
+	return "Selection: %s  |  Footprint: %dx%d  |  Build Cost: $%d  |  %s" % [
 		_tool_name(placement["tool"]),
 		footprint.x,
 		footprint.y,
-		int(placement["cost"])
+		int(placement["cost"]),
+		road_status
 	]
 
 
@@ -719,6 +811,7 @@ func _build_stats_text() -> String:
 	var homes := 0
 	var shops := 0
 	var civics := 0
+	var parks := 0
 	for anchor_key in _placements.keys():
 		var tool: String = _placements[anchor_key]["tool"]
 		if tool == BUILD_TOOL_HOUSE:
@@ -727,13 +820,19 @@ func _build_stats_text() -> String:
 			shops += 1
 		elif tool in [BUILD_TOOL_POLICE, BUILD_TOOL_FIRE]:
 			civics += 1
-	return "Day %d  |  Money: $%d  |  +$%d/day  |  Homes: %d  |  Shops: %d  |  Civic: %d  |  Roads: %d" % [_day, _money, _cashflow_per_day, homes, shops, civics, _road_cells.size()]
+		elif tool == BUILD_TOOL_PARK:
+			parks += 1
+	var population := homes * 6
+	var jobs := shops * 10 + civics * 6
+	var appeal := parks * 14 + shops * 4 + homes * 2
+	return "Day %d  |  Money: $%d  |  +$%d/day  |  Pop: %d  |  Jobs: %d  |  Homes: %d  |  Shops: %d  |  Civic: %d  |  Parks: %d  |  Appeal: %d  |  Roads: %d" % [_day, _money, _cashflow_per_day, population, jobs, homes, shops, civics, parks, appeal, _road_cells.size()]
 
 
 func _recalculate_cashflow() -> void:
 	var homes := 0
 	var shops := 0
 	var civics := 0
+	var parks := 0
 	for anchor_key in _placements.keys():
 		var tool: String = _placements[anchor_key]["tool"]
 		if tool == BUILD_TOOL_HOUSE:
@@ -742,7 +841,9 @@ func _recalculate_cashflow() -> void:
 			shops += 1
 		elif tool in [BUILD_TOOL_POLICE, BUILD_TOOL_FIRE]:
 			civics += 1
-	_cashflow_per_day = homes * 45 + shops * 110 - civics * 18 - _road_cells.size() * 2
+		elif tool == BUILD_TOOL_PARK:
+			parks += 1
+	_cashflow_per_day = homes * 48 + shops * 112 - civics * 20 - parks * 8 - _road_cells.size() * 2
 
 
 func _update_simulation(delta: float) -> void:
@@ -871,8 +972,22 @@ func _spawn_tool_preview(tool: String) -> Node3D:
 		return _build_road_tile_mesh(Vector2i.ZERO, true, [Vector2i(0, 0)])
 	if tool == BUILD_TOOL_HOUSE:
 		return _spawn_house_tile(Vector3.ZERO, true)
+	if tool == BUILD_TOOL_PARK:
+		return _spawn_park_preview()
 
 	return _spawn_generic_building_preview(tool)
+
+
+func _spawn_park_preview() -> Node3D:
+	var root := Node3D.new()
+	var lawn_material := _ghost_base_material
+	var path_material := _ghost_accent_material
+	_add_box(Vector3(0.0, 0.02, 0.0), Vector3(1.82, 0.04, 1.82), lawn_material, root)
+	_add_box(Vector3(0.0, 0.04, 0.0), Vector3(1.54, 0.03, 0.26), path_material, root)
+	_add_box(Vector3(0.0, 0.04, 0.0), Vector3(0.26, 0.03, 1.54), path_material, root)
+	_add_local_sphere(Vector3(-0.42, 0.22, -0.32), 0.18, 0.22, _ghost_accent_material, root)
+	_add_local_sphere(Vector3(0.42, 0.22, 0.32), 0.18, 0.22, _ghost_accent_material, root)
+	return root
 
 
 func _spawn_generic_building_preview(tool: String) -> Node3D:
@@ -928,6 +1043,8 @@ func _spawn_building_for_tool(tool: String, world_position: Vector3, rotation_y:
 			node = _add_restaurant_variant(world_position, variant)
 		BUILD_TOOL_CORNER_STORE:
 			node = _add_corner_store_variant(world_position, variant)
+		BUILD_TOOL_PARK:
+			node = _add_park_variant(world_position, variant)
 		_:
 			node = _spawn_house_tile(world_position, false)
 	node.rotation_degrees.y = rad_to_deg(rotation_y)
@@ -986,6 +1103,194 @@ func _exit_fullscreen() -> void:
 		if Engine.has_singleton("JavaScriptBridge"):
 			JavaScriptBridge.eval("if (document.fullscreenElement) { document.exitFullscreen(); }", true)
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+
+
+func _reset_camera_view() -> void:
+	_target_focus = Vector3.ZERO
+	_focus = _target_focus
+	_target_zoom = 16.0
+	_zoom = _target_zoom
+	_target_camera_yaw = deg_to_rad(45.0)
+	_camera_yaw = _target_camera_yaw
+	_update_camera(true)
+
+
+func _save_game() -> void:
+	var save_data := {
+		"money": _money,
+		"day": _day,
+		"clock": _simulation_clock,
+		"build_tool": _build_tool,
+		"focus": [_target_focus.x, _target_focus.y, _target_focus.z],
+		"zoom": _target_zoom,
+		"yaw": _target_camera_yaw,
+		"placements": []
+	}
+	var placement_list: Array = []
+	for anchor_key in _placements.keys():
+		var placement = _placements[anchor_key]
+		var anchor: Vector2i = placement["anchor"]
+		placement_list.append({
+			"tool": placement["tool"],
+			"anchor": [anchor.x, anchor.y],
+			"cost": int(placement["cost"]),
+		})
+	save_data["placements"] = placement_list
+
+	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	if file == null:
+		if _hint_label:
+			_hint_label.text = "Could not save the town right now."
+		return
+	file.store_string(JSON.stringify(save_data))
+	file.close()
+	if _hint_label:
+		_hint_label.text = "Town saved. You can reload it anytime from this device."
+
+
+func _load_game() -> void:
+	if not FileAccess.file_exists(SAVE_PATH):
+		if _hint_label:
+			_hint_label.text = "No saved town yet. Build something first, then use Save Town."
+		return
+	_try_load_game(true)
+
+
+func _try_load_game(force_feedback: bool = false) -> void:
+	if not FileAccess.file_exists(SAVE_PATH):
+		if force_feedback and _hint_label:
+			_hint_label.text = "No saved town found on this device."
+		return
+	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	if file == null:
+		if force_feedback and _hint_label:
+			_hint_label.text = "Saved town could not be opened."
+		return
+	var text := file.get_as_text()
+	file.close()
+	var json := JSON.new()
+	var parse_result := json.parse(text)
+	if parse_result != OK or typeof(json.data) != TYPE_DICTIONARY:
+		if force_feedback and _hint_label:
+			_hint_label.text = "Saved town is corrupted or unreadable."
+		return
+	var data: Dictionary = json.data
+	_clear_map_data()
+	_money = int(data.get("money", 25000))
+	_day = int(data.get("day", 1))
+	_simulation_clock = float(data.get("clock", 0.0))
+	_build_tool = str(data.get("build_tool", BUILD_TOOL_ROAD))
+	var focus_data: Array = data.get("focus", [0.0, 0.0, 0.0])
+	if focus_data.size() == 3:
+		_target_focus = Vector3(float(focus_data[0]), float(focus_data[1]), float(focus_data[2]))
+		_focus = _target_focus
+	_target_zoom = float(data.get("zoom", 16.0))
+	_zoom = _target_zoom
+	_target_camera_yaw = float(data.get("yaw", deg_to_rad(45.0)))
+	_camera_yaw = _target_camera_yaw
+	var placements: Array = data.get("placements", [])
+	for entry_variant in placements:
+		if typeof(entry_variant) != TYPE_DICTIONARY:
+			continue
+		var entry: Dictionary = entry_variant
+		var tool := str(entry.get("tool", ""))
+		if tool == "" or not BUILD_TOOL_LABELS.has(tool):
+			continue
+		var anchor_data: Array = entry.get("anchor", [])
+		if anchor_data.size() != 2:
+			continue
+		var anchor := Vector2i(int(anchor_data[0]), int(anchor_data[1]))
+		if tool == BUILD_TOOL_ROAD:
+			_mark_road_cell(anchor)
+		else:
+			var footprint := _tool_footprint(tool)
+			var cells := _cells_for_anchor(anchor, footprint)
+			var node := _spawn_building_for_tool(tool, _anchor_to_world(anchor, footprint), _tool_rotation_y(tool, anchor, footprint))
+			_register_placement(anchor, cells, tool, node, int(entry.get("cost", BUILD_TOOL_COSTS.get(tool, 0))))
+			if not _action_history.is_empty():
+				_action_history.pop_back()
+	for road_key in _road_cells.keys():
+		var cell := _anchor_key_to_cell(road_key)
+		_rebuild_road_at(cell)
+		_register_placement(cell, [cell], BUILD_TOOL_ROAD, _road_nodes.get(road_key), int(BUILD_TOOL_COSTS[BUILD_TOOL_ROAD]))
+		if not _action_history.is_empty():
+			_action_history.pop_back()
+	_loaded_save = true
+	_clear_selected_anchor()
+	_recalculate_cashflow()
+	_refresh_tool_ui()
+	_update_hover_from_mouse()
+	_update_camera(true)
+	if _hint_label:
+		_hint_label.text = "Saved town loaded."
+
+
+func _new_map() -> void:
+	_clear_map_data()
+	_money = 25000
+	_day = 1
+	_simulation_clock = 0.0
+	_build_tool = BUILD_TOOL_ROAD
+	_loaded_save = false
+	_reset_camera_view()
+	_recalculate_cashflow()
+	_refresh_tool_ui()
+	_update_hover_from_mouse()
+	if _hint_label:
+		_hint_label.text = "Fresh map ready. Start with roads, then place homes and town buildings."
+
+
+func _clear_map_data() -> void:
+	for node_variant in _road_nodes.values():
+		var node: Node3D = node_variant
+		if is_instance_valid(node):
+			node.queue_free()
+	for placement_variant in _placements.values():
+		var placement: Dictionary = placement_variant
+		if placement["tool"] == BUILD_TOOL_ROAD:
+			continue
+		var building: Node3D = placement["node"]
+		if is_instance_valid(building):
+			building.queue_free()
+	_occupied_cells.clear()
+	_placed_nodes.clear()
+	_placements.clear()
+	_cell_anchor_lookup.clear()
+	_road_cells.clear()
+	_road_nodes.clear()
+	_action_history.clear()
+	_clear_selected_anchor()
+
+
+func _update_day_night_visuals() -> void:
+	var cycle := fmod(float(_day - 1) + _simulation_clock / 7.5, 6.0) / 6.0
+	var sun_wave := sin(cycle * TAU)
+	var warm_strength: float = clampf(0.52 + sun_wave * 0.34, 0.18, 0.92)
+	var sky_top: Color = Color(0.22, 0.36, 0.52).lerp(Color(0.93, 0.62, 0.35), warm_strength * 0.75)
+	var sky_horizon: Color = Color(0.74, 0.82, 0.88).lerp(Color(0.98, 0.8, 0.55), warm_strength * 0.82)
+	if world_environment and world_environment.environment:
+		var env: Environment = world_environment.environment
+		env.background_mode = Environment.BG_COLOR
+		env.background_color = sky_horizon
+		env.ambient_light_color = sky_top.lerp(Color(1.0, 0.92, 0.82), 0.38)
+		env.ambient_light_energy = 0.6 + warm_strength * 0.36
+		env.fog_enabled = true
+		env.fog_light_color = sky_horizon
+		env.fog_light_energy = 0.45 + warm_strength * 0.32
+		env.fog_density = 0.005
+	if sun:
+		sun.light_color = Color(1.0, 0.84, 0.66).lerp(Color(1.0, 0.66, 0.42), warm_strength * 0.7)
+		sun.light_energy = 0.85 + warm_strength * 0.85
+		sun.rotation_degrees = Vector3(-48.0 - warm_strength * 18.0, -32.0, 0.0)
+	if fill_light:
+		fill_light.light_color = Color(0.78, 0.88, 1.0).lerp(Color(1.0, 0.78, 0.58), warm_strength * 0.5)
+		fill_light.light_energy = 0.35 + warm_strength * 0.4
+
+	for band in _window_bands:
+		if is_instance_valid(band):
+			var material := band.material_override as StandardMaterial3D
+			if material:
+				material.emission_energy_multiplier = 0.1 + (1.0 - warm_strength) * 0.75
 
 
 func _spawn_road_tile(world_position: Vector3, preview: bool) -> Node3D:
@@ -1365,6 +1670,24 @@ func _add_corner_store_variant(position_3d: Vector3, variant: int) -> Node3D:
 	return root
 
 
+func _add_park_variant(position_3d: Vector3, variant: int) -> Node3D:
+	var palette := _cozy_palette("grocery", variant)
+	var root := Node3D.new()
+	root.position = position_3d
+	building_root.add_child(root)
+
+	_add_box(Vector3(0.0, 0.02, 0.0), Vector3(1.86, 0.05, 1.86), _make_material("86a65c", 0.96), root)
+	_add_box(Vector3(0.0, 0.04, 0.0), Vector3(1.54, 0.03, 0.24), _make_material("d8c7ab", 0.9), root)
+	_add_box(Vector3(0.0, 0.04, 0.0), Vector3(0.24, 0.03, 1.54), _make_material("d8c7ab", 0.9), root)
+	_add_local_sphere(Vector3(0.0, 0.08, 0.0), 0.17, 0.08, _make_material_from_color(palette.accent, 0.44), root)
+	_add_bench_local(Vector3(-0.42, 0.0, 0.0), PI * 0.5, root)
+	_add_bench_local(Vector3(0.42, 0.0, 0.0), -PI * 0.5, root)
+	_add_local_tree(Vector3(-0.54, 0.0, -0.52), root)
+	_add_local_tree(Vector3(0.56, 0.0, 0.5), root)
+	_add_local_flower_patch(Vector3(0.48, 0.05, -0.44), 4, _make_material_from_color(palette.trim, 0.8), root)
+	return root
+
+
 func _add_town_path(center: Vector3, size: Vector2, parent: Node = null) -> void:
 	var path_material := _make_material("d9cbb7", 0.9)
 	var path_parent := parent if parent != null else grid_root
@@ -1654,6 +1977,28 @@ func _add_bench(position_3d: Vector3, rotation_y: float) -> void:
 	bench.rotation_degrees.y = rotation_y
 	var back := _add_box(position_3d + Vector3(0.0, 0.28, -0.07), Vector3(0.48, 0.18, 0.06), seat_material, building_root)
 	back.rotation_degrees.y = rotation_y
+
+
+func _add_bench_local(position_3d: Vector3, rotation_y: float, parent: Node) -> void:
+	var seat_material := _make_material("a57649", 0.72)
+	var bench := _add_box(position_3d + Vector3(0.0, 0.14, 0.0), Vector3(0.48, 0.08, 0.18), seat_material, parent)
+	bench.rotation_degrees.y = rotation_y
+	var back := _add_box(position_3d + Vector3(0.0, 0.28, -0.07), Vector3(0.48, 0.18, 0.06), seat_material, parent)
+	back.rotation_degrees.y = rotation_y
+
+
+func _add_local_tree(position_3d: Vector3, parent: Node) -> void:
+	_add_local_cylinder(position_3d + Vector3(0.0, 0.34, 0.0), 0.11, 0.08, 0.68, _trunk_material, parent)
+	_add_local_sphere(position_3d + Vector3(0.0, 0.92, 0.02), 0.52, 0.86, _leaf_material, parent)
+	_add_local_sphere(position_3d + Vector3(-0.2, 0.84, 0.0), 0.34, 0.66, _leaf_material, parent)
+	_add_local_sphere(position_3d + Vector3(0.22, 0.84, -0.08), 0.3, 0.58, _leaf_material, parent)
+
+
+func _add_local_flower_patch(center: Vector3, count: int, material: StandardMaterial3D, parent: Node) -> void:
+	for i in range(count):
+		var offset_x := (float(i % 3) - 1.0) * 0.14
+		var offset_z := (float(i / 3) - 0.5) * 0.14
+		_add_box(center + Vector3(offset_x, 0.05, offset_z), Vector3(0.08, 0.08, 0.08), material, parent)
 
 
 func _add_chimney(position_3d: Vector3) -> void:
