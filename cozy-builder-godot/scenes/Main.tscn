@@ -18,20 +18,20 @@ background_mode = 2
 sky = SubResource("2")
 ambient_light_source = 3
 ambient_light_color = Color(0.878431, 0.780392, 0.643137, 1)
-ambient_light_energy = 0.4
+ambient_light_energy = 0.3
 reflected_light_source = 1
 tonemap_mode = 2
 glow_enabled = true
-glow_bloom = 0.04
-glow_intensity = 0.09
+glow_bloom = 0.02
+glow_intensity = 0.04
 fog_enabled = true
 fog_light_color = Color(0.952941, 0.760784, 0.556863, 1)
-fog_light_energy = 0.08
-fog_density = 0.0038
+fog_light_energy = 0.06
+fog_density = 0.0024
 adjustment_enabled = true
-adjustment_brightness = 0.95
-adjustment_contrast = 1.05
-adjustment_saturation = 1.03
+adjustment_brightness = 0.9
+adjustment_contrast = 1.12
+adjustment_saturation = 1.05
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1")
@@ -42,13 +42,13 @@ environment = SubResource("3")
 [node name="Sun" type="DirectionalLight3D" parent="."]
 rotation_degrees = Vector3(-52, 20, 0)
 light_color = Color(1, 0.815686, 0.584314, 1)
-light_energy = 1.32
+light_energy = 1.16
 shadow_enabled = true
 
 [node name="FillLight" type="DirectionalLight3D" parent="."]
 rotation_degrees = Vector3(-18, -124, 0)
 light_color = Color(0.356863, 0.45098, 0.603922, 1)
-light_energy = 0.08
+light_energy = 0.12
 shadow_enabled = false
 
 [node name="GridRoot" type="Node3D" parent="."]
