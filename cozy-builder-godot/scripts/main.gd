@@ -69,6 +69,9 @@ var _hover_can_build := false
 var _selected_anchor_key := ""
 var _selection_cells: Array[Vector2i] = []
 var _money := 25000
+var _day := 1
+var _simulation_clock := 0.0
+var _cashflow_per_day := 0
 var _occupied_cells: Dictionary = {}
 var _reserved_cells: Dictionary = {}
 var _placed_nodes: Dictionary = {}
@@ -125,7 +128,6 @@ var _zoom_out_button: Button
 func _ready() -> void:
 	_build_materials()
 	_build_world()
-	_register_reserved_cells()
 	_create_runtime_helpers()
 	_build_hud()
 	_refresh_tool_ui()
@@ -142,6 +144,7 @@ func _process(delta: float) -> void:
 	_update_keyboard_camera(delta)
 	_update_hover_from_mouse()
 	_update_camera()
+	_update_simulation(delta)
 
 
 func _input(event: InputEvent) -> void:
@@ -227,14 +230,8 @@ func _build_world() -> void:
 	_build_island_base()
 	_build_ground_tiles()
 	_build_meadow()
-	_build_town_center()
+	_build_nature()
 	_build_clouds()
-
-
-func _register_reserved_cells() -> void:
-	for z in range(3, 17):
-		for x in range(3, 17):
-			_reserved_cells[_cell_key(Vector2i(x, z))] = true
 
 
 func _create_runtime_helpers() -> void:
@@ -298,9 +295,9 @@ func _build_hud() -> void:
 	_add_tool_button(civic_row, BUILD_TOOL_GROCERY, "6 Grocery", 104)
 
 	_fullscreen_button = Button.new()
-	_fullscreen_button.text = "Exit Fullscreen"
+	_fullscreen_button.text = "Fullscreen"
 	_fullscreen_button.custom_minimum_size = Vector2(140, 0)
-	_fullscreen_button.pressed.connect(_exit_fullscreen)
+	_fullscreen_button.pressed.connect(_toggle_fullscreen)
 	civic_row.add_child(_fullscreen_button)
 
 	var service_row := HBoxContainer.new()
@@ -388,6 +385,7 @@ func _refresh_tool_ui() -> void:
 		_style_tool_button(_tool_buttons[tool], _build_tool == tool)
 	if _fullscreen_button:
 		_style_tool_button(_fullscreen_button, false)
+		_fullscreen_button.text = "Exit Fullscreen" if _is_fullscreen() else "Fullscreen"
 	if _place_button:
 		_style_tool_button(_place_button, true)
 	if _zoom_in_button:
@@ -478,8 +476,6 @@ func _update_hover_from_mouse() -> void:
 				_hint_label.text = "Footprint %s at %d, %d is open. Left click to place a %s." % [size_label, anchor.x + 1, anchor.y + 1, _tool_name(_build_tool).to_lower()]
 		elif BUILD_TOOL_COSTS.has(_build_tool) and _money < int(BUILD_TOOL_COSTS[_build_tool]):
 			_hint_label.text = "Not enough money for %s. You need $%d." % [_tool_name(_build_tool).to_lower(), int(BUILD_TOOL_COSTS[_build_tool])]
-		elif _cells_touch_reserved(cells):
-			_hint_label.text = "This center area is part of the starter town. Build out into the surrounding pasture."
 		else:
 			_hint_label.text = "That footprint collides with something already placed. Pick a clearer spot nearby."
 
@@ -556,6 +552,7 @@ func _try_place_hovered_tile() -> void:
 
 	_money -= cost
 	_register_placement(_hover_anchor, _hover_cells, _build_tool, placed, cost)
+	_recalculate_cashflow()
 	_update_hover_from_mouse()
 	_refresh_tool_ui()
 
@@ -730,7 +727,37 @@ func _build_stats_text() -> String:
 			shops += 1
 		elif tool in [BUILD_TOOL_POLICE, BUILD_TOOL_FIRE]:
 			civics += 1
-	return "Money: $%d  |  Homes: %d  |  Shops: %d  |  Civic: %d  |  Roads: %d" % [_money, homes, shops, civics, _road_cells.size()]
+	return "Day %d  |  Money: $%d  |  +$%d/day  |  Homes: %d  |  Shops: %d  |  Civic: %d  |  Roads: %d" % [_day, _money, _cashflow_per_day, homes, shops, civics, _road_cells.size()]
+
+
+func _recalculate_cashflow() -> void:
+	var homes := 0
+	var shops := 0
+	var civics := 0
+	for anchor_key in _placements.keys():
+		var tool: String = _placements[anchor_key]["tool"]
+		if tool == BUILD_TOOL_HOUSE:
+			homes += 1
+		elif tool in [BUILD_TOOL_BANK, BUILD_TOOL_GROCERY, BUILD_TOOL_RESTAURANT, BUILD_TOOL_CORNER_STORE]:
+			shops += 1
+		elif tool in [BUILD_TOOL_POLICE, BUILD_TOOL_FIRE]:
+			civics += 1
+	_cashflow_per_day = homes * 45 + shops * 110 - civics * 18 - _road_cells.size() * 2
+
+
+func _update_simulation(delta: float) -> void:
+	_simulation_clock += delta
+	if _simulation_clock >= 7.5:
+		_simulation_clock = 0.0
+		_day += 1
+		_recalculate_cashflow()
+		_money = max(0, _money + _cashflow_per_day)
+		_refresh_tool_ui()
+
+
+func _is_fullscreen() -> bool:
+	var current_mode := DisplayServer.window_get_mode()
+	return current_mode == DisplayServer.WINDOW_MODE_FULLSCREEN or current_mode == DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN
 
 
 func _remove_selected_placement(refund: bool, record_action: bool = true) -> void:
@@ -777,6 +804,7 @@ func _remove_selected_placement(refund: bool, record_action: bool = true) -> voi
 				if _road_cells.has(_cell_key(neighbor)):
 					_rebuild_road_at(neighbor)
 	_clear_selected_anchor()
+	_recalculate_cashflow()
 	_refresh_tool_ui()
 	_update_hover_from_mouse()
 
@@ -808,6 +836,7 @@ func _undo_last_action() -> void:
 			_register_placement(anchor, cells, action["tool"], node, int(action["cost"]))
 		if not _action_history.is_empty():
 			_action_history.pop_back()
+	_recalculate_cashflow()
 	_refresh_tool_ui()
 
 
@@ -1084,48 +1113,7 @@ func _build_meadow() -> void:
 		_add_grass_clump(tuft, 1.0)
 
 
-func _build_town_center() -> void:
-	_place_road_strip(Vector3(0.0, 0.0, -2.0), 14, true)
-	_place_road_strip(Vector3(0.0, 0.0, 2.0), 12, true)
-	_place_road_strip(Vector3(-3.0, 0.0, 0.0), 10, false)
-	_place_road_strip(Vector3(3.0, 0.0, 0.0), 10, false)
-	_add_plaza(Vector3(0.0, 0.02, 0.1), Vector2(4.2, 4.0))
-
-	_add_landmark(Vector3(0.3, 0.5, 4.2))
-	_add_bank_variant(Vector3(-5.35, 0.0, -4.15), 2)
-	_add_grocery_variant(Vector3(-1.9, 0.0, -4.0), 4)
-	_add_restaurant_variant(Vector3(1.95, 0.0, -4.05), 7)
-	_add_corner_store_variant(Vector3(5.35, 0.0, -4.0), 1)
-	_add_police_station_variant(Vector3(-5.1, 0.0, 4.0), 6)
-	_add_fire_station_variant(Vector3(5.15, 0.0, 4.05), 3)
-
-	for home_data in [
-		{"pos": Vector3(-6.4, 0.0, -0.95), "variant": 0},
-		{"pos": Vector3(-4.85, 0.0, -0.55), "variant": 3},
-		{"pos": Vector3(-6.25, 0.0, 1.55), "variant": 7},
-		{"pos": Vector3(6.15, 0.0, -0.6), "variant": 1},
-		{"pos": Vector3(4.75, 0.0, 0.1), "variant": 5},
-		{"pos": Vector3(6.15, 0.0, 1.7), "variant": 8},
-		{"pos": Vector3(-1.45, 0.0, 6.0), "variant": 4},
-		{"pos": Vector3(2.15, 0.0, 6.0), "variant": 9}
-	]:
-		_add_village_house_variant(home_data.pos, home_data.variant)
-
-	for path_data in [
-		{"pos": Vector3(-5.2, 0.02, -2.98), "size": Vector2(1.5, 0.8)},
-		{"pos": Vector3(-1.9, 0.02, -2.95), "size": Vector2(1.4, 0.8)},
-		{"pos": Vector3(1.95, 0.02, -2.95), "size": Vector2(1.4, 0.8)},
-		{"pos": Vector3(5.2, 0.02, -2.95), "size": Vector2(1.3, 0.8)},
-		{"pos": Vector3(-5.0, 0.02, 2.95), "size": Vector2(1.6, 0.8)},
-		{"pos": Vector3(5.1, 0.02, 2.95), "size": Vector2(1.8, 0.8)}
-	]:
-		_add_town_path(path_data.pos, path_data.size)
-
-	_add_park_corner(Vector3(-0.8, 0.04, 5.0))
-	_add_park_corner(Vector3(3.1, 0.04, 5.0))
-	_add_flower_patch(Vector3(-2.25, 0.08, 3.55), 7, _flower_material_blue)
-	_add_flower_patch(Vector3(2.55, 0.08, 3.45), 7, _flower_material_pink)
-
+func _build_nature() -> void:
 	for tree_pos in [
 		Vector3(-6.7, 0.18, -5.5),
 		Vector3(-6.4, 0.18, 5.8),
@@ -1134,19 +1122,26 @@ func _build_town_center() -> void:
 		Vector3(-2.8, 0.18, 5.7),
 		Vector3(4.5, 0.18, 5.8),
 		Vector3(-3.9, 0.18, -5.95),
-		Vector3(3.9, 0.18, -5.95)
+		Vector3(3.9, 0.18, -5.95),
+		Vector3(-7.1, 0.18, -1.2),
+		Vector3(7.0, 0.18, 1.3)
 	]:
 		_add_tree(tree_pos)
 
-	for lamp_pos in [
-		Vector3(-2.0, 0.08, -1.0),
-		Vector3(2.0, 0.08, -1.0),
-		Vector3(-2.0, 0.08, 1.0),
-		Vector3(2.0, 0.08, 1.0),
-		Vector3(-3.0, 0.08, 3.0),
-		Vector3(3.0, 0.08, 3.0)
+	for park_pos in [
+		Vector3(-5.2, 0.04, -1.4),
+		Vector3(5.0, 0.04, 1.8),
+		Vector3(0.0, 0.04, 4.9)
 	]:
-		_add_lamp(lamp_pos)
+		_add_park_corner(park_pos)
+
+	for flower_pos in [
+		Vector3(-2.25, 0.08, 3.55),
+		Vector3(2.55, 0.08, 3.45),
+		Vector3(-4.9, 0.08, -4.0),
+		Vector3(4.6, 0.08, -4.4)
+	]:
+		_add_flower_patch(flower_pos, 7, _flower_material_pink if flower_pos.x < 0.0 else _flower_material_blue)
 
 
 func _cozy_palette(kind: String, variant: int) -> Dictionary:
