@@ -137,6 +137,7 @@ var _flower_material_pink: StandardMaterial3D
 var _flower_material_blue: StandardMaterial3D
 var _meadow_material: StandardMaterial3D
 var _grass_blade_material: StandardMaterial3D
+var _soft_shadow_material: StandardMaterial3D
 var _hover_material_valid: StandardMaterial3D
 var _hover_material_invalid: StandardMaterial3D
 var _ghost_base_material: StandardMaterial3D
@@ -275,22 +276,23 @@ func _input(event: InputEvent) -> void:
 
 
 func _build_materials() -> void:
-	_ground_material_a = _make_material("86945e", 0.98)
-	_ground_material_b = _make_material("758653", 0.98)
-	_ground_material_c = _make_material("b9ae76", 0.98)
-	_soil_material = _make_material("65492f", 0.99)
-	_stone_material = _make_material("ccbda6", 0.92)
-	_water_material = _make_material("3f7881", 0.3, 0.0, true, "8fc6cb", 0.02)
-	_road_material = _make_material("4d4950", 0.99)
-	_road_mark_material = _make_material("f7efdd", 0.64)
-	_sidewalk_material = _make_material("cdbfa8", 0.92)
-	_window_material = _make_material("f6d69a", 0.34, 0.0, true, "ffcd7a", 0.12)
-	_leaf_material = _make_material("739256", 0.97)
-	_trunk_material = _make_material("6b4933", 0.92)
-	_flower_material_pink = _make_material("d791ad", 0.78)
-	_flower_material_blue = _make_material("8aaede", 0.78)
-	_meadow_material = _make_material("aca868", 0.98)
-	_grass_blade_material = _make_material("78904d", 0.96)
+	_ground_material_a = _make_material("7d915b", 0.98)
+	_ground_material_b = _make_material("708451", 0.98)
+	_ground_material_c = _make_material("a3a56b", 0.98)
+	_soil_material = _make_material("7a5a3b", 0.99)
+	_stone_material = _make_material("c8b9a3", 0.94)
+	_water_material = _make_material("4b8b95", 0.38, 0.0, true, "a9d6d8", 0.02)
+	_road_material = _make_material("55515a", 0.98)
+	_road_mark_material = _make_material("efe6cf", 0.78)
+	_sidewalk_material = _make_material("c7b79f", 0.94)
+	_window_material = _make_material("f3d29a", 0.42, 0.0, true, "ffd48e", 0.14)
+	_leaf_material = _make_material("6f8a50", 0.98)
+	_trunk_material = _make_material("765239", 0.94)
+	_flower_material_pink = _make_material("c98ba4", 0.82)
+	_flower_material_blue = _make_material("86a7cf", 0.82)
+	_meadow_material = _make_material("b1ad70", 0.99)
+	_grass_blade_material = _make_material("7b9550", 0.98)
+	_soft_shadow_material = _make_transparent_material(Color(0.08, 0.06, 0.04, 1.0), 1.0, 0.18)
 	_hover_material_valid = _make_transparent_material(Color("76e5c7"), 0.24, 0.34)
 	_hover_material_invalid = _make_transparent_material(Color("f29a8d"), 0.24, 0.34)
 	_ghost_base_material = _make_transparent_material(Color("f7f0d8"), 0.44, 0.52)
@@ -1550,6 +1552,7 @@ func _spawn_ambient_car(road_cell: Vector2i, index: int) -> Node3D:
 	root.set_meta("phase", randf_range(0.0, TAU))
 	root.set_meta("speed", randf_range(0.5, 0.95))
 	root.set_meta("heading", forward_rotation)
+	_add_shadow_disc_local(Vector3(0.0, 0.005, 0.0), Vector2(0.48, 0.72), 0.16, root)
 
 	var palette := [
 		Color("d16758"),
@@ -1599,6 +1602,7 @@ func _spawn_ambient_person(anchor_key: String, index: int) -> Node3D:
 	root.set_meta("finish", finish)
 	root.set_meta("phase", randf_range(0.0, TAU))
 	root.set_meta("speed", randf_range(0.45, 0.88))
+	_add_shadow_disc_local(Vector3(0.0, 0.005, 0.0), Vector2(0.18, 0.18), 0.16, root)
 
 	var coat_palette := [
 		Color("5b7db0"),
@@ -1754,13 +1758,23 @@ func _make_glass_panel_style() -> StyleBoxFlat:
 func _build_water_ring() -> void:
 	var water := MeshInstance3D.new()
 	var water_mesh := CylinderMesh.new()
-	water_mesh.top_radius = 16.5
-	water_mesh.bottom_radius = 18.0
-	water_mesh.height = 0.16
+	water_mesh.top_radius = float(GRID_SIZE) * 0.54
+	water_mesh.bottom_radius = float(GRID_SIZE) * 0.59
+	water_mesh.height = 0.22
 	water.mesh = water_mesh
 	water.material_override = _water_material
 	water.position = Vector3(0.0, -0.62, 0.0)
 	grid_root.add_child(water)
+
+	var shallows := MeshInstance3D.new()
+	var shallow_mesh := CylinderMesh.new()
+	shallow_mesh.top_radius = float(GRID_SIZE) * 0.515
+	shallow_mesh.bottom_radius = float(GRID_SIZE) * 0.54
+	shallow_mesh.height = 0.08
+	shallows.mesh = shallow_mesh
+	shallows.material_override = _make_transparent_material(Color("c8ede7"), 0.22, 0.3)
+	shallows.position = Vector3(0.0, -0.49, 0.0)
+	grid_root.add_child(shallows)
 
 
 func _build_island_base() -> void:
@@ -1780,6 +1794,14 @@ func _build_island_base() -> void:
 	lip.position = Vector3(0.0, -0.11, 0.0)
 	grid_root.add_child(lip)
 
+	var turf := MeshInstance3D.new()
+	var turf_mesh := BoxMesh.new()
+	turf_mesh.size = Vector3(GRID_SIZE + 0.8, 0.14, GRID_SIZE + 0.8)
+	turf.mesh = turf_mesh
+	turf.material_override = _make_material("c2bf8f", 0.98)
+	turf.position = Vector3(0.0, -0.01, 0.0)
+	grid_root.add_child(turf)
+
 
 func _build_ground_tiles() -> void:
 	var half := (GRID_SIZE - 1) * TILE_SIZE * 0.5
@@ -1788,8 +1810,8 @@ func _build_ground_tiles() -> void:
 		for x in range(GRID_SIZE):
 			var tile := MeshInstance3D.new()
 			var mesh := BoxMesh.new()
-			var height_variation := 0.11 + sin(float(x) * 0.35) * 0.018 + cos(float(z) * 0.27) * 0.016
-			mesh.size = Vector3(0.94, height_variation, 0.94)
+			var height_variation := 0.12 + sin(float(x) * 0.35) * 0.02 + cos(float(z) * 0.27) * 0.018
+			mesh.size = Vector3(0.96, height_variation, 0.96)
 			tile.mesh = mesh
 			var material := _ground_material_a
 			if (x + z) % 3 == 0:
@@ -1797,7 +1819,7 @@ func _build_ground_tiles() -> void:
 			elif (x * 3 + z * 5) % 4 == 0:
 				material = _ground_material_c
 			tile.material_override = material
-			tile.position = Vector3(x - half, -0.05, z - half)
+			tile.position = Vector3(x - half, -0.04, z - half)
 			grid_root.add_child(tile)
 
 	for edge in range(GRID_SIZE):
@@ -1855,6 +1877,13 @@ func _build_meadow() -> void:
 		Vector3(2.6, 0.06, -9.55),
 	]:
 		_add_grass_clump(tuft, 1.12)
+	for patch in [
+		Vector3(-14.0, 0.03, -11.0),
+		Vector3(12.6, 0.03, -14.6),
+		Vector3(-10.5, 0.03, 14.2),
+		Vector3(14.1, 0.03, 11.6),
+	]:
+		_add_local_flower_patch(patch, 8, _flower_material_blue if patch.x > 0.0 else _flower_material_pink, grid_root)
 
 
 func _build_nature() -> void:
@@ -1943,8 +1972,9 @@ func _add_village_house_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var root := Node3D.new()
 	root.position = position_3d
 	building_root.add_child(root)
+	_add_parcel_shadow(root, Vector2(4.6, 3.7), 0.26)
 
-	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(4.45, 0.04, 3.45), _make_material("97b66c", 0.98), root)
+	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(4.45, 0.04, 3.45), _make_material("9ab47a", 0.98), root)
 	_add_box(Vector3(0.0, 0.02, 1.32), Vector3(4.1, 0.03, 0.86), _make_material("d7ccb8", 0.88), root)
 	_add_box(Vector3(-1.28, 0.022, 0.64), Vector3(0.74, 0.03, 2.2), _make_material("d3c3aa", 0.9), root)
 	_add_town_path(Vector3(-1.28, 0.03, 0.92), Vector2(0.52, 1.62), root)
@@ -1977,6 +2007,7 @@ func _add_village_house_variant(position_3d: Vector3, variant: int) -> Node3D:
 	_add_flower_box_local(Vector3(0.82, 0.18, 0.14), palette.trim, root)
 	_add_shrub_cluster(Vector3(-1.46, 0.0, 1.18), palette.accent, root, 4)
 	_add_shrub_cluster(Vector3(1.46, 0.0, 1.18), palette.trim, root, 4)
+	_add_hedge_strip_local(Vector3(0.0, 0.08, -1.34), 3.1, palette.accent.darkened(0.15), root)
 	_add_local_flower_patch(Vector3(1.26, 0.05, 0.98), 6, _make_material_from_color(palette.trim, 0.8), root)
 	_add_local_flower_patch(Vector3(-1.26, 0.05, 0.86), 5, _make_material_from_color(palette.accent, 0.8), root)
 	_add_box(Vector3(-1.58, 0.26, 1.62), Vector3(0.16, 0.34, 0.12), _make_material("8c6f4f", 0.84), root)
@@ -1999,6 +2030,7 @@ func _add_police_station_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var root := Node3D.new()
 	root.position = position_3d
 	building_root.add_child(root)
+	_add_parcel_shadow(root, Vector2(4.9, 3.8), 0.24)
 
 	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(4.6, 0.04, 3.5), _make_material("cbd4b5", 0.98), root)
 	_add_town_path(Vector3(0.0, 0.02, 1.22), Vector2(2.1, 0.56), root)
@@ -2029,6 +2061,7 @@ func _add_fire_station_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var root := Node3D.new()
 	root.position = position_3d
 	building_root.add_child(root)
+	_add_parcel_shadow(root, Vector2(5.0, 3.9), 0.24)
 
 	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(4.8, 0.04, 3.6), _make_material("c9c7b2", 0.98), root)
 	_add_box(Vector3(0.0, 0.035, 0.88), Vector3(3.4, 0.03, 1.38), _make_material("7c857a", 0.94), root)
@@ -2059,6 +2092,7 @@ func _add_bank_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var root := Node3D.new()
 	root.position = position_3d
 	building_root.add_child(root)
+	_add_parcel_shadow(root, Vector2(3.9, 2.9), 0.22)
 
 	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(3.8, 0.04, 2.7), _make_material("d9d2bf", 0.98), root)
 	_add_box(Vector3(0.0, 0.03, 0.8), Vector3(2.4, 0.03, 0.9), _make_material("ede8da", 0.9), root)
@@ -2086,6 +2120,7 @@ func _add_grocery_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var root := Node3D.new()
 	root.position = position_3d
 	building_root.add_child(root)
+	_add_parcel_shadow(root, Vector2(5.0, 3.9), 0.24)
 
 	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(4.8, 0.04, 3.6), _make_material("d5d1bc", 0.98), root)
 	_add_box(Vector3(0.0, 0.028, 0.72), Vector3(3.5, 0.03, 1.4), _make_material("7b7f81", 0.94), root)
@@ -2123,6 +2158,7 @@ func _add_restaurant_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var root := Node3D.new()
 	root.position = position_3d
 	building_root.add_child(root)
+	_add_parcel_shadow(root, Vector2(4.1, 3.0), 0.22)
 
 	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(3.8, 0.04, 2.8), _make_material("d9d0b9", 0.98), root)
 	_add_box(Vector3(0.0, 0.028, 0.88), Vector3(2.8, 0.03, 1.0), _make_material("d8cbb8", 0.92), root)
@@ -2151,6 +2187,7 @@ func _add_corner_store_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var root := Node3D.new()
 	root.position = position_3d
 	building_root.add_child(root)
+	_add_parcel_shadow(root, Vector2(4.0, 2.95), 0.22)
 
 	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(3.8, 0.04, 2.8), _make_material("d5cfbc", 0.98), root)
 	_add_box(Vector3(0.9, 0.028, 0.64), Vector3(1.42, 0.03, 1.18), _make_material("7e8082", 0.94), root)
@@ -2174,6 +2211,7 @@ func _add_park_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var root := Node3D.new()
 	root.position = position_3d
 	building_root.add_child(root)
+	_add_parcel_shadow(root, Vector2(3.8, 2.9), 0.18)
 
 	_add_box(Vector3(0.0, 0.02, 0.0), Vector3(3.6, 0.05, 2.7), _make_material("86a65c", 0.96), root)
 	_add_box(Vector3(0.0, 0.04, 0.0), Vector3(2.8, 0.03, 0.24), _make_material("d8c7ab", 0.9), root)
@@ -2541,6 +2579,7 @@ func _add_tree(position_3d: Vector3) -> void:
 	root.position = position_3d
 	_nature_root.add_child(root)
 	_register_nature_feature(root, 0.78)
+	_add_shadow_disc_local(Vector3(0.0, 0.01, 0.0), Vector2(0.9, 0.7), 0.18, root)
 	_add_local_cylinder(Vector3(0.0, 0.34, 0.0), 0.11, 0.08, 0.68, _trunk_material, root)
 	_add_local_sphere(Vector3(0.0, 0.92, 0.02), 0.52, 0.86, _leaf_material, root)
 	_add_local_sphere(Vector3(-0.2, 0.84, 0.0), 0.34, 0.66, _leaf_material, root)
@@ -2710,6 +2749,7 @@ func _add_bench_local(position_3d: Vector3, rotation_y: float, parent: Node) -> 
 
 
 func _add_local_tree(position_3d: Vector3, parent: Node) -> void:
+	_add_shadow_disc_local(position_3d + Vector3(0.0, 0.01, 0.0), Vector2(0.82, 0.64), 0.16, parent)
 	_add_local_cylinder(position_3d + Vector3(0.0, 0.34, 0.0), 0.11, 0.08, 0.68, _trunk_material, parent)
 	_add_local_sphere(position_3d + Vector3(0.0, 0.92, 0.02), 0.52, 0.86, _leaf_material, parent)
 	_add_local_sphere(position_3d + Vector3(-0.2, 0.84, 0.0), 0.34, 0.66, _leaf_material, parent)
@@ -2747,6 +2787,33 @@ func _add_shrub_cluster(center: Vector3, color: Color, parent: Node, count: int)
 		var offset := (float(i) - float(count - 1) * 0.5) * 0.18
 		var shrub := _add_local_sphere(center + Vector3(offset, 0.12, randf_range(-0.04, 0.04)), 0.12, 0.16, shrub_material, parent)
 		shrub.scale = Vector3(1.05, 0.85, 1.0)
+
+
+func _add_hedge_strip_local(center: Vector3, width: float, color: Color, parent: Node) -> void:
+	var hedge_material := _make_material_from_color(color, 0.96)
+	for i in range(6):
+		var t := float(i) / 5.0
+		var x: float = lerpf(-width * 0.5, width * 0.5, t)
+		_add_local_sphere(center + Vector3(x, 0.13 + randf_range(-0.01, 0.02), randf_range(-0.05, 0.05)), 0.16, 0.2, hedge_material, parent)
+
+
+func _add_parcel_shadow(parent: Node, size: Vector2, alpha: float) -> void:
+	_add_shadow_disc_local(Vector3(0.0, 0.005, 0.0), size, alpha, parent)
+
+
+func _add_shadow_disc_local(center: Vector3, size: Vector2, alpha: float, parent: Node) -> void:
+	var shadow := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.5
+	mesh.bottom_radius = 0.54
+	mesh.height = 0.01
+	shadow.mesh = mesh
+	var material := _make_transparent_material(Color(0.08, 0.06, 0.04, 1.0), 1.0, alpha)
+	shadow.material_override = material
+	shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	shadow.scale = Vector3(size.x, 1.0, size.y)
+	shadow.position = center
+	parent.add_child(shadow)
 
 
 func _add_round_canopy(center: Vector3, size: Vector3, material: Material, parent: Node) -> void:
@@ -2851,6 +2918,7 @@ func _make_material(color_hex: String, roughness: float, metallic: float = 0.0, 
 	material.albedo_color = Color(color_hex)
 	material.roughness = roughness
 	material.metallic = metallic
+	material.metallic_specular = 0.18
 	material.emission_enabled = emission_enabled
 	if emission_enabled:
 		material.emission = Color(emission_color_hex)
@@ -2862,6 +2930,7 @@ func _make_material_from_color(color: Color, roughness: float) -> StandardMateri
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
 	material.roughness = roughness
+	material.metallic_specular = 0.18
 	return material
 
 
@@ -2870,6 +2939,7 @@ func _make_transparent_material(color: Color, roughness: float, alpha: float) ->
 	material.albedo_color = color
 	material.albedo_color.a = alpha
 	material.roughness = roughness
+	material.metallic_specular = 0.08
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	return material
 

@@ -47,6 +47,9 @@ shadow_enabled = true
 directional_shadow_mode = 2
 directional_shadow_max_distance = 180.0
 shadow_blur = 0.4
+directional_shadow_blend_splits = true
+shadow_bias = 0.03
+shadow_normal_bias = 2.0
 
 [node name="FillLight" type="DirectionalLight3D" parent="."]
 rotation_degrees = Vector3(-24, 130, 0)
