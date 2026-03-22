@@ -55,6 +55,16 @@ const BUILD_TOOL_COSTS := {
 	BUILD_TOOL_CORNER_STORE: 1600,
 	BUILD_TOOL_PARK: 850,
 }
+const BUILDING_MAX_TIERS := {
+	BUILD_TOOL_HOUSE: 4,
+	BUILD_TOOL_POLICE: 4,
+	BUILD_TOOL_FIRE: 4,
+	BUILD_TOOL_BANK: 4,
+	BUILD_TOOL_GROCERY: 4,
+	BUILD_TOOL_RESTAURANT: 4,
+	BUILD_TOOL_CORNER_STORE: 4,
+	BUILD_TOOL_PARK: 3,
+}
 const SAVE_PATH := "user://cozy_builder_save.json"
 
 @onready var grid_root: Node3D = $GridRoot
@@ -706,6 +716,8 @@ func _try_place_hovered_tile() -> void:
 	if _money < cost:
 		return
 	var placed: Node3D
+	var tier := 1
+	var variant := randi() % 10
 	if _build_tool == BUILD_TOOL_ROAD:
 		_mark_road_cell(_hover_anchor)
 		_rebuild_road_at(_hover_anchor)
@@ -714,11 +726,11 @@ func _try_place_hovered_tile() -> void:
 				_rebuild_road_at(neighbor)
 		placed = _road_nodes.get(_cell_key(_hover_anchor))
 	else:
-		placed = _spawn_building_for_tool(_build_tool, world, _tool_rotation_y(_build_tool, _hover_anchor, footprint))
+		placed = _spawn_building_for_tool(_build_tool, world, _tool_rotation_y(_build_tool, _hover_anchor, footprint), tier, variant)
 
 	_clear_nature_for_cells(_hover_cells)
 	_money -= cost
-	_register_placement(_hover_anchor, _hover_cells, _build_tool, placed, cost)
+	_register_placement(_hover_anchor, _hover_cells, _build_tool, placed, cost, tier, variant)
 	_recalculate_cashflow()
 	_rebuild_ambient_life()
 	_update_hover_from_mouse()
@@ -828,7 +840,7 @@ func _mark_cells(cells: Array[Vector2i], tool: String, node: Node3D) -> void:
 		_placed_nodes[key] = node
 
 
-func _register_placement(anchor: Vector2i, cells: Array[Vector2i], tool: String, node: Node3D, cost: int) -> void:
+func _register_placement(anchor: Vector2i, cells: Array[Vector2i], tool: String, node: Node3D, cost: int, tier: int = 1, variant: int = -1) -> void:
 	var anchor_key := _cell_key(anchor)
 	_placements[anchor_key] = {
 		"anchor": anchor,
@@ -836,6 +848,8 @@ func _register_placement(anchor: Vector2i, cells: Array[Vector2i], tool: String,
 		"tool": tool,
 		"node": node,
 		"cost": cost,
+		"tier": tier,
+		"variant": variant,
 	}
 	for cell in cells:
 		var key := _cell_key(cell)
@@ -903,8 +917,10 @@ func _selection_text() -> String:
 	var cells: Array[Vector2i] = placement["cells"]
 	var footprint := _footprint_from_cells(cells)
 	var road_status := "Road Access: yes" if _cells_touch_road(cells) else "Road Access: no"
-	return "Selection: %s  |  Footprint: %dx%d  |  Build Cost: $%d  |  %s" % [
+	return "Selection: %s  |  Tier: %d/%d  |  Footprint: %dx%d  |  Build Cost: $%d  |  %s" % [
 		_tool_name(placement["tool"]),
+		int(placement.get("tier", 1)),
+		int(BUILDING_MAX_TIERS.get(str(placement["tool"]), 1)),
 		footprint.x,
 		footprint.y,
 		int(placement["cost"]),
@@ -1003,6 +1019,8 @@ func _remove_selected_placement(refund: bool, record_action: bool = true) -> voi
 			"cells": cells.duplicate(),
 			"cost": int(placement["cost"]),
 			"refund": refund_amount,
+			"tier": int(placement.get("tier", 1)),
+			"variant": int(placement.get("variant", -1)),
 		})
 	if tool == BUILD_TOOL_ROAD:
 		for cell in cells:
@@ -1037,10 +1055,12 @@ func _undo_last_action() -> void:
 				for neighbor in _neighbor_cells(cell):
 					if _road_cells.has(_cell_key(neighbor)):
 						_rebuild_road_at(neighbor)
-			_register_placement(anchor, cells, action["tool"], _road_nodes.get(_cell_key(anchor)), int(action["cost"]))
+			_register_placement(anchor, cells, action["tool"], _road_nodes.get(_cell_key(anchor)), int(action["cost"]), 1, -1)
 		else:
-			var node := _spawn_building_for_tool(action["tool"], _anchor_to_world(anchor, _footprint_from_cells(cells)), _tool_rotation_y(action["tool"], anchor, _footprint_from_cells(cells)))
-			_register_placement(anchor, cells, action["tool"], node, int(action["cost"]))
+			var tier := int(action.get("tier", 1))
+			var variant := int(action.get("variant", -1))
+			var node := _spawn_building_for_tool(action["tool"], _anchor_to_world(anchor, _footprint_from_cells(cells)), _tool_rotation_y(action["tool"], anchor, _footprint_from_cells(cells)), tier, variant)
+			_register_placement(anchor, cells, action["tool"], node, int(action["cost"]), tier, variant)
 		if not _action_history.is_empty():
 			_action_history.pop_back()
 	_recalculate_cashflow()
@@ -1133,8 +1153,9 @@ func _spawn_generic_building_preview(tool: String) -> Node3D:
 	return root
 
 
-func _spawn_building_for_tool(tool: String, world_position: Vector3, rotation_y: float) -> Node3D:
-	var variant := randi() % 10
+func _spawn_building_for_tool(tool: String, world_position: Vector3, rotation_y: float, tier: int = 1, variant: int = -1) -> Node3D:
+	if variant < 0:
+		variant = randi() % 10
 	var node: Node3D
 	match tool:
 		BUILD_TOOL_HOUSE:
@@ -1156,6 +1177,8 @@ func _spawn_building_for_tool(tool: String, world_position: Vector3, rotation_y:
 		_:
 			node = _spawn_house_tile(world_position, false)
 	node.rotation_degrees.y = rad_to_deg(rotation_y)
+	node.set_meta("tier", tier)
+	node.set_meta("variant", variant)
 	return node
 
 
@@ -1243,6 +1266,8 @@ func _save_game() -> void:
 			"tool": placement["tool"],
 			"anchor": [anchor.x, anchor.y],
 			"cost": int(placement["cost"]),
+			"tier": int(placement.get("tier", 1)),
+			"variant": int(placement.get("variant", -1)),
 		})
 	save_data["placements"] = placement_list
 
@@ -1314,14 +1339,16 @@ func _try_load_game(force_feedback: bool = false) -> void:
 		else:
 			var footprint := _tool_footprint(tool)
 			var cells := _cells_for_anchor(anchor, footprint)
-			var node := _spawn_building_for_tool(tool, _anchor_to_world(anchor, footprint), _tool_rotation_y(tool, anchor, footprint))
-			_register_placement(anchor, cells, tool, node, int(entry.get("cost", BUILD_TOOL_COSTS.get(tool, 0))))
+			var tier := int(entry.get("tier", 1))
+			var variant := int(entry.get("variant", randi() % 10))
+			var node := _spawn_building_for_tool(tool, _anchor_to_world(anchor, footprint), _tool_rotation_y(tool, anchor, footprint), tier, variant)
+			_register_placement(anchor, cells, tool, node, int(entry.get("cost", BUILD_TOOL_COSTS.get(tool, 0))), tier, variant)
 			if not _action_history.is_empty():
 				_action_history.pop_back()
 	for road_key in _road_cells.keys():
 		var cell := _anchor_key_to_cell(road_key)
 		_rebuild_road_at(cell)
-		_register_placement(cell, [cell], BUILD_TOOL_ROAD, _road_nodes.get(road_key), int(BUILD_TOOL_COSTS[BUILD_TOOL_ROAD]))
+		_register_placement(cell, [cell], BUILD_TOOL_ROAD, _road_nodes.get(road_key), int(BUILD_TOOL_COSTS[BUILD_TOOL_ROAD]), 1, -1)
 		if not _action_history.is_empty():
 			_action_history.pop_back()
 	_loaded_save = true
@@ -1898,42 +1925,50 @@ func _add_village_house_variant(position_3d: Vector3, variant: int) -> Node3D:
 	root.position = position_3d
 	building_root.add_child(root)
 
-	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(3.7, 0.04, 2.7), _make_material("a2ba73", 0.98), root)
-	_add_town_path(Vector3(0.0, 0.02, 0.98), Vector2(0.46, 1.14), root)
-	_add_soft_block(Vector3(0.0, height * 0.5 + 0.06, -0.36), Vector3(width, height, depth), _make_material_from_color(palette.wall, 0.9), root, 0.18)
-	_add_soft_block(Vector3(width * 0.28, 0.58, 0.18), Vector3(width * 0.46, height * 0.62, depth * 0.44), _make_material_from_color(palette.wall.darkened(0.03), 0.9), root, 0.14)
-	_add_gabled_roof(Vector3(0.0, height + 0.2, -0.36), Vector3(width + 0.26, 0.22, depth + 0.28), _make_material_from_color(palette.roof, 0.78), root, 12.0)
-	_add_gabled_roof(Vector3(width * 0.28, 0.98, 0.18), Vector3(width * 0.52, 0.18, depth * 0.54), _make_material_from_color(palette.roof.lightened(0.05), 0.78), root, 11.0)
-	_add_round_canopy(Vector3(0.0, 0.2, 0.58), Vector3(width * 0.46, 0.12, 0.22), _make_material_from_color(palette.accent, 0.5), root)
-	_add_box(Vector3(0.0, 0.2, 0.32), Vector3(width * 0.18, 0.34, 0.06), _window_material, root)
-	_add_box(Vector3(-width * 0.3, 0.38, 0.24), Vector3(0.18, 0.3, 0.05), _window_material, root)
-	_add_box(Vector3(width * 0.3, 0.38, 0.24), Vector3(0.18, 0.3, 0.05), _window_material, root)
-	_add_box(Vector3(-width * 0.3, 0.42, -0.68), Vector3(0.18, 0.24, 0.05), _window_material, root)
-	_add_box(Vector3(width * 0.12, 0.42, -0.68), Vector3(0.24, 0.24, 0.05), _window_material, root)
-	_add_box(Vector3(0.0, 0.08, 0.56), Vector3(width * 0.36, 0.08, 0.42), _make_material_from_color(palette.trim, 0.86), root)
-	_add_box(Vector3(-width * 0.28, 0.28, 0.7), Vector3(0.12, 0.2, 0.12), _make_material_from_color(palette.trim, 0.86), root)
-	_add_box(Vector3(width * 0.28, 0.28, 0.7), Vector3(0.12, 0.2, 0.12), _make_material_from_color(palette.trim, 0.86), root)
-	_add_box(Vector3(0.0, 0.62, -depth * 0.34), Vector3(width * 0.12, 0.56, depth * 0.05), _make_material_from_color(palette.trim, 0.84), root)
+	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(4.45, 0.04, 3.45), _make_material("97b66c", 0.98), root)
+	_add_box(Vector3(0.0, 0.02, 1.32), Vector3(4.1, 0.03, 0.86), _make_material("d7ccb8", 0.88), root)
+	_add_box(Vector3(-1.28, 0.022, 0.64), Vector3(0.74, 0.03, 2.2), _make_material("d3c3aa", 0.9), root)
+	_add_town_path(Vector3(-1.28, 0.03, 0.92), Vector2(0.52, 1.62), root)
+	_add_soft_block(Vector3(0.24, height * 0.5 + 0.06, -0.68), Vector3(width, height, depth), _make_material_from_color(palette.wall, 0.9), root, 0.18)
+	_add_soft_block(Vector3(width * 0.4, 0.58, -0.08), Vector3(width * 0.46, height * 0.62, depth * 0.44), _make_material_from_color(palette.wall.darkened(0.03), 0.9), root, 0.14)
+	_add_gabled_roof(Vector3(0.24, height + 0.2, -0.68), Vector3(width + 0.26, 0.22, depth + 0.28), _make_material_from_color(palette.roof, 0.78), root, 12.0)
+	_add_gabled_roof(Vector3(width * 0.4, 0.98, -0.08), Vector3(width * 0.52, 0.18, depth * 0.54), _make_material_from_color(palette.roof.lightened(0.05), 0.78), root, 11.0)
+	_add_round_canopy(Vector3(0.24, 0.2, 0.3), Vector3(width * 0.46, 0.12, 0.22), _make_material_from_color(palette.accent, 0.5), root)
+	_add_box(Vector3(0.24, 0.2, 0.04), Vector3(width * 0.18, 0.34, 0.06), _window_material, root)
+	_add_box(Vector3(-0.44, 0.38, -0.02), Vector3(0.18, 0.3, 0.05), _window_material, root)
+	_add_box(Vector3(0.92, 0.38, -0.02), Vector3(0.18, 0.3, 0.05), _window_material, root)
+	_add_box(Vector3(-0.44, 0.42, -0.98), Vector3(0.18, 0.24, 0.05), _window_material, root)
+	_add_box(Vector3(0.48, 0.42, -0.98), Vector3(0.24, 0.24, 0.05), _window_material, root)
+	_add_box(Vector3(0.24, 0.08, 0.28), Vector3(width * 0.36, 0.08, 0.42), _make_material_from_color(palette.trim, 0.86), root)
+	_add_box(Vector3(-0.22, 0.28, 0.4), Vector3(0.12, 0.2, 0.12), _make_material_from_color(palette.trim, 0.86), root)
+	_add_box(Vector3(0.68, 0.28, 0.4), Vector3(0.12, 0.2, 0.12), _make_material_from_color(palette.trim, 0.86), root)
+	_add_box(Vector3(0.24, 0.62, -depth * 0.54), Vector3(width * 0.12, 0.56, depth * 0.05), _make_material_from_color(palette.trim, 0.84), root)
 	if variant % 2 == 0:
-		_add_box(Vector3(width * 0.32, height + 0.46, -depth * 0.42), Vector3(0.16, 0.46, 0.16), _stone_material, root)
+		_add_box(Vector3(1.04, height + 0.46, -1.02), Vector3(0.16, 0.46, 0.16), _stone_material, root)
 	if variant % 3 != 1:
-		_add_dormer(Vector3(-width * 0.18, height + 0.36, -0.16), palette.trim, palette.roof, root)
+		_add_dormer(Vector3(-0.14, height + 0.36, -0.48), palette.trim, palette.roof, root)
 	if variant % 4 == 0:
-		_add_dormer(Vector3(width * 0.22, height + 0.34, -0.28), palette.trim.lightened(0.04), palette.roof.lightened(0.06), root)
-	_add_garden_path(root, width * 0.24, 1.18)
-	_add_picket_fence(root, Vector3(0.0, 0.0, 1.28), 2.9)
-	_add_flower_box_local(Vector3(-width * 0.28, 0.18, 0.42), palette.accent, root)
-	_add_flower_box_local(Vector3(width * 0.28, 0.18, 0.42), palette.trim, root)
-	_add_shrub_cluster(Vector3(-0.96, 0.0, 0.98), palette.accent, root, 4)
-	_add_shrub_cluster(Vector3(0.96, 0.0, 0.98), palette.trim, root, 4)
-	_add_local_flower_patch(Vector3(-1.1, 0.05, 0.58), 5, _make_material_from_color(palette.trim, 0.8), root)
+		_add_dormer(Vector3(0.76, height + 0.34, -0.58), palette.trim.lightened(0.04), palette.roof.lightened(0.06), root)
+	_add_garden_path(root, width * 0.24, 1.48)
+	_add_picket_fence(root, Vector3(0.0, 0.0, 1.56), 3.64)
+	_add_box(Vector3(-1.82, 0.18, -0.1), Vector3(0.04, 0.32, 2.86), _make_material("efe3cf", 0.86), root)
+	_add_box(Vector3(1.82, 0.18, -0.1), Vector3(0.04, 0.32, 2.86), _make_material("efe3cf", 0.86), root)
+	_add_box(Vector3(0.0, 0.18, -1.5), Vector3(3.6, 0.32, 0.04), _make_material("efe3cf", 0.86), root)
+	_add_flower_box_local(Vector3(-0.28, 0.18, 0.14), palette.accent, root)
+	_add_flower_box_local(Vector3(0.82, 0.18, 0.14), palette.trim, root)
+	_add_shrub_cluster(Vector3(-1.46, 0.0, 1.18), palette.accent, root, 4)
+	_add_shrub_cluster(Vector3(1.46, 0.0, 1.18), palette.trim, root, 4)
+	_add_local_flower_patch(Vector3(1.26, 0.05, 0.98), 6, _make_material_from_color(palette.trim, 0.8), root)
+	_add_local_flower_patch(Vector3(-1.26, 0.05, 0.86), 5, _make_material_from_color(palette.accent, 0.8), root)
+	_add_box(Vector3(-1.58, 0.26, 1.62), Vector3(0.16, 0.34, 0.12), _make_material("8c6f4f", 0.84), root)
+	_add_box(Vector3(-1.58, 0.38, 1.58), Vector3(0.22, 0.16, 0.04), _make_material("f4efe4", 0.86), root)
 	if variant % 2 == 0:
-		_add_box(Vector3(1.0, 0.03, -0.58), Vector3(1.0, 0.05, 0.74), _make_material("6fb8cb", 0.46), root)
-		_add_box(Vector3(1.0, 0.04, -0.58), Vector3(0.9, 0.02, 0.64), _make_transparent_material(Color("b5f4ff"), 0.32, 0.12), root)
+		_add_box(Vector3(1.28, 0.03, -0.26), Vector3(1.3, 0.05, 0.92), _make_material("6fb8cb", 0.46), root)
+		_add_box(Vector3(1.28, 0.04, -0.26), Vector3(1.14, 0.02, 0.76), _make_transparent_material(Color("b5f4ff"), 0.32, 0.12), root)
 	else:
-		_add_box(Vector3(0.98, 0.03, -0.54), Vector3(1.08, 0.04, 0.78), _make_material("8c9a55", 0.96), root)
-		for gx in [-0.22, 0.0, 0.22]:
-			_add_box(Vector3(0.98 + gx, 0.08, -0.54), Vector3(0.04, 0.12, 0.62), _make_material("7a5e3f", 0.84), root)
+		_add_box(Vector3(1.24, 0.03, -0.22), Vector3(1.34, 0.04, 1.0), _make_material("8c9a55", 0.96), root)
+		for gx in [-0.26, 0.0, 0.26]:
+			_add_box(Vector3(1.24 + gx, 0.08, -0.22), Vector3(0.04, 0.12, 0.8), _make_material("7a5e3f", 0.84), root)
 	return root
 
 
@@ -2278,6 +2313,20 @@ func _tool_rotation_y(tool: String, anchor: Vector2i, footprint: Vector2i) -> fl
 	if tool == BUILD_TOOL_ROAD:
 		return 0.0
 
+	var south_touch := _adjacent_transport_count(anchor, footprint, "south")
+	var north_touch := _adjacent_transport_count(anchor, footprint, "north")
+	var east_touch := _adjacent_transport_count(anchor, footprint, "east")
+	var west_touch := _adjacent_transport_count(anchor, footprint, "west")
+	var best_touch := maxi(maxi(south_touch, north_touch), maxi(east_touch, west_touch))
+	if best_touch > 0:
+		if south_touch == best_touch:
+			return 0.0
+		if north_touch == best_touch:
+			return PI
+		if east_touch == best_touch:
+			return -PI * 0.5
+		return PI * 0.5
+
 	var south_score: float = _transport_side_score(anchor, footprint, "south")
 	var north_score: float = _transport_side_score(anchor, footprint, "north")
 	var east_score: float = _transport_side_score(anchor, footprint, "east")
@@ -2379,6 +2428,28 @@ func _rotation_toward_nearest_transport(anchor: Vector2i, footprint: Vector2i) -
 	if abs(nearest_direction.x) > abs(nearest_direction.y):
 		return -PI * 0.5 if nearest_direction.x > 0.0 else PI * 0.5
 	return 0.0 if nearest_direction.y > 0.0 else PI
+
+
+func _adjacent_transport_count(anchor: Vector2i, footprint: Vector2i, side: String) -> int:
+	var count := 0
+	match side:
+		"north":
+			for dx in range(footprint.x):
+				if _road_cells.has(_cell_key(Vector2i(anchor.x + dx, anchor.y - 1))):
+					count += 1
+		"south":
+			for dx in range(footprint.x):
+				if _road_cells.has(_cell_key(Vector2i(anchor.x + dx, anchor.y + footprint.y))):
+					count += 1
+		"west":
+			for dz in range(footprint.y):
+				if _road_cells.has(_cell_key(Vector2i(anchor.x - 1, anchor.y + dz))):
+					count += 1
+		"east":
+			for dz in range(footprint.y):
+				if _road_cells.has(_cell_key(Vector2i(anchor.x + footprint.x, anchor.y + dz))):
+					count += 1
+	return count
 
 
 func _add_house(center: Vector3, size: Vector3, wall_color: Color, roof_color: Color) -> void:
