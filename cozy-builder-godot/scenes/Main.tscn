@@ -3,12 +3,12 @@
 [ext_resource type="Script" path="res://scripts/main.gd" id="1"]
 
 [sub_resource type="ProceduralSkyMaterial" id="1"]
-sky_top_color = Color(0.427451, 0.54902, 0.721569, 1)
-sky_horizon_color = Color(0.952941, 0.854902, 0.756863, 1)
-ground_bottom_color = Color(0.168627, 0.172549, 0.164706, 1)
-ground_horizon_color = Color(0.529412, 0.603922, 0.458824, 1)
-sun_angle_max = 14.0
-sun_curve = 0.26
+sky_top_color = Color(0.321569, 0.396078, 0.556863, 1)
+sky_horizon_color = Color(0.992157, 0.760784, 0.54902, 1)
+ground_bottom_color = Color(0.145098, 0.121569, 0.0941176, 1)
+ground_horizon_color = Color(0.47451, 0.415686, 0.282353, 1)
+sun_angle_max = 9.0
+sun_curve = 0.22
 
 [sub_resource type="Sky" id="2"]
 sky_material = SubResource("1")
@@ -17,17 +17,21 @@ sky_material = SubResource("1")
 background_mode = 2
 sky = SubResource("2")
 ambient_light_source = 3
-ambient_light_color = Color(0.921569, 0.882353, 0.815686, 1)
-ambient_light_energy = 0.5
+ambient_light_color = Color(0.878431, 0.780392, 0.643137, 1)
+ambient_light_energy = 0.34
 reflected_light_source = 1
 tonemap_mode = 2
 glow_enabled = true
-glow_bloom = 0.05
-glow_intensity = 0.18
+glow_bloom = 0.04
+glow_intensity = 0.09
 fog_enabled = true
-fog_light_color = Color(0.839216, 0.772549, 0.694118, 1)
-fog_light_energy = 0.11
-fog_density = 0.009
+fog_light_color = Color(0.952941, 0.760784, 0.556863, 1)
+fog_light_energy = 0.22
+fog_density = 0.013
+adjustment_enabled = true
+adjustment_brightness = 0.92
+adjustment_contrast = 1.08
+adjustment_saturation = 1.06
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1")
@@ -36,15 +40,15 @@ script = ExtResource("1")
 environment = SubResource("3")
 
 [node name="Sun" type="DirectionalLight3D" parent="."]
-rotation_degrees = Vector3(-42, 28, 0)
-light_color = Color(1, 0.929412, 0.8, 1)
-light_energy = 1.24
+rotation_degrees = Vector3(-52, 20, 0)
+light_color = Color(1, 0.815686, 0.584314, 1)
+light_energy = 1.42
 shadow_enabled = true
 
 [node name="FillLight" type="DirectionalLight3D" parent="."]
 rotation_degrees = Vector3(-18, -124, 0)
-light_color = Color(0.556863, 0.670588, 0.776471, 1)
-light_energy = 0.18
+light_color = Color(0.356863, 0.45098, 0.603922, 1)
+light_energy = 0.08
 shadow_enabled = false
 
 [node name="GridRoot" type="Node3D" parent="."]
