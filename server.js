@@ -15,19 +15,21 @@ app.use(
   '/godot-playtest',
   express.static(path.join(__dirname, 'public', 'godot-playtest'), {
     setHeaders: (res, filePath) => {
-      if (filePath.endsWith('.html')) {
+      if (
+        filePath.endsWith('.html') ||
+        filePath.endsWith('.js') ||
+        filePath.endsWith('.wasm') ||
+        filePath.endsWith('.pck')
+      ) {
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
         res.setHeader('Pragma', 'no-cache');
         res.setHeader('Expires', '0');
         res.setHeader('Surrogate-Control', 'no-store');
-        return;
       }
 
       if (filePath.endsWith('.wasm')) {
         res.setHeader('Content-Type', 'application/wasm');
       }
-
-      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
     }
   })
 );
