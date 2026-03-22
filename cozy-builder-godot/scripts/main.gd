@@ -116,16 +116,21 @@ var _clouds: Array[Node3D] = []
 var _window_bands: Array[MeshInstance3D] = []
 var _grass_clumps: Array[Node3D] = []
 var _hover_tiles: Array[MeshInstance3D] = []
+var _meadow_patches: Array[MeshInstance3D] = []
 var _hover_root: Node3D
 var _ghost_root: Node3D
 var _ghost_nodes: Dictionary = {}
 var _hud_layer: CanvasLayer
+var _hud_margin: MarginContainer
 var _hud_panel: Control
+var _title_label: Label
 var _tool_status_label: Label
 var _hint_label: Label
 var _stats_label: Label
 var _selection_label: Label
 var _tool_buttons: Dictionary = {}
+var _tool_dropdown: OptionButton
+var _town_menu: MenuButton
 var _fullscreen_button: Button
 var _save_button: Button
 var _load_button: Button
@@ -282,151 +287,138 @@ func _build_hud() -> void:
 	add_child(_hud_layer)
 
 	var margin := MarginContainer.new()
-	margin.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	margin.offset_left = 18
-	margin.offset_top = 18
-	margin.offset_right = 560
-	margin.offset_bottom = 320
+	margin.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	margin.offset_left = 14
+	margin.offset_top = 12
+	margin.offset_right = -14
+	margin.offset_bottom = 0
 	_hud_layer.add_child(margin)
+	_hud_margin = margin
 
 	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", _make_panel_style(Color(0.05, 0.09, 0.12, 0.9), Color(0.31, 0.45, 0.49, 0.45)))
+	panel.add_theme_stylebox_override("panel", _make_glass_panel_style())
 	margin.add_child(panel)
 	_hud_panel = panel
 
 	var stack := VBoxContainer.new()
-	stack.add_theme_constant_override("separation", 8)
+	stack.add_theme_constant_override("separation", 4)
 	panel.add_child(stack)
 
+	var top_row := HFlowContainer.new()
+	top_row.add_theme_constant_override("separation", 6)
+	stack.add_child(top_row)
+
 	var title := Label.new()
-	title.text = "Cozy Builder Prototype"
-	title.add_theme_color_override("font_color", Color("f7f2e6"))
-	title.add_theme_font_size_override("font_size", 18)
-	stack.add_child(title)
+	title.text = "Cozy Builder"
+	title.add_theme_color_override("font_color", Color("f8f7f3"))
+	title.add_theme_font_size_override("font_size", 16)
+	title.custom_minimum_size = Vector2(110, 0)
+	top_row.add_child(title)
+	_title_label = title
+
+	_tool_dropdown = OptionButton.new()
+	_tool_dropdown.custom_minimum_size = Vector2(160, 0)
+	for tool in [
+		BUILD_TOOL_ROAD,
+		BUILD_TOOL_HOUSE,
+		BUILD_TOOL_POLICE,
+		BUILD_TOOL_FIRE,
+		BUILD_TOOL_BANK,
+		BUILD_TOOL_GROCERY,
+		BUILD_TOOL_RESTAURANT,
+		BUILD_TOOL_CORNER_STORE,
+		BUILD_TOOL_PARK,
+		BUILD_TOOL_INSPECT,
+		BUILD_TOOL_BULLDOZE,
+	]:
+		var index := _tool_dropdown.item_count
+		_tool_dropdown.add_item(_tool_dropdown_label(tool), index)
+		_tool_dropdown.set_item_metadata(index, tool)
+	_tool_dropdown.item_selected.connect(_on_tool_dropdown_selected)
+	top_row.add_child(_tool_dropdown)
+
+	_place_button = Button.new()
+	_place_button.text = "Place"
+	_place_button.custom_minimum_size = Vector2(74, 0)
+	_place_button.pressed.connect(_try_place_hovered_tile)
+	top_row.add_child(_place_button)
+
+	_town_menu = MenuButton.new()
+	_town_menu.text = "Town"
+	_town_menu.custom_minimum_size = Vector2(72, 0)
+	var town_popup := _town_menu.get_popup()
+	town_popup.add_item("Home View", 0)
+	town_popup.add_item("Save Town", 1)
+	town_popup.add_item("Load Save", 2)
+	town_popup.add_item("New Map", 3)
+	town_popup.id_pressed.connect(_on_town_menu_action)
+	top_row.add_child(_town_menu)
+
+	_fullscreen_button = Button.new()
+	_fullscreen_button.text = "Fullscreen"
+	_fullscreen_button.custom_minimum_size = Vector2(92, 0)
+	_fullscreen_button.pressed.connect(_toggle_fullscreen)
+	top_row.add_child(_fullscreen_button)
+
+	_home_button = Button.new()
+	_home_button.text = "Home"
+	_home_button.custom_minimum_size = Vector2(64, 0)
+	_home_button.pressed.connect(_reset_camera_view)
+	top_row.add_child(_home_button)
+
+	_rotate_left_button = Button.new()
+	_rotate_left_button.text = "L"
+	_rotate_left_button.custom_minimum_size = Vector2(38, 0)
+	_rotate_left_button.pressed.connect(_rotate_camera.bind(-PI * 0.5))
+	top_row.add_child(_rotate_left_button)
+
+	_rotate_right_button = Button.new()
+	_rotate_right_button.text = "R"
+	_rotate_right_button.custom_minimum_size = Vector2(38, 0)
+	_rotate_right_button.pressed.connect(_rotate_camera.bind(PI * 0.5))
+	top_row.add_child(_rotate_right_button)
+
+	_zoom_out_button = Button.new()
+	_zoom_out_button.text = "-"
+	_zoom_out_button.custom_minimum_size = Vector2(38, 0)
+	_zoom_out_button.pressed.connect(_adjust_zoom.bind(1.6))
+	top_row.add_child(_zoom_out_button)
+
+	_zoom_in_button = Button.new()
+	_zoom_in_button.text = "+"
+	_zoom_in_button.custom_minimum_size = Vector2(38, 0)
+	_zoom_in_button.pressed.connect(_adjust_zoom.bind(-1.6))
+	top_row.add_child(_zoom_in_button)
+
+	_undo_button = Button.new()
+	_undo_button.text = "Undo"
+	_undo_button.custom_minimum_size = Vector2(64, 0)
+	_undo_button.pressed.connect(_undo_last_action)
+	top_row.add_child(_undo_button)
 
 	_tool_status_label = Label.new()
 	_tool_status_label.add_theme_color_override("font_color", Color("d3ebe4"))
-	_tool_status_label.add_theme_font_size_override("font_size", 13)
+	_tool_status_label.add_theme_font_size_override("font_size", 12)
 	stack.add_child(_tool_status_label)
 
 	_stats_label = Label.new()
 	_stats_label.add_theme_color_override("font_color", Color("f7f2e6"))
-	_stats_label.add_theme_font_size_override("font_size", 13)
+	_stats_label.add_theme_font_size_override("font_size", 12)
 	stack.add_child(_stats_label)
-
-	var civic_row := HBoxContainer.new()
-	civic_row.add_theme_constant_override("separation", 8)
-	stack.add_child(civic_row)
-
-	_add_tool_button(civic_row, BUILD_TOOL_ROAD, "1 Road", 94)
-	_add_tool_button(civic_row, BUILD_TOOL_HOUSE, "2 House", 94)
-	_add_tool_button(civic_row, BUILD_TOOL_BANK, "5 Bank", 94)
-	_add_tool_button(civic_row, BUILD_TOOL_GROCERY, "6 Grocery", 104)
-
-	_fullscreen_button = Button.new()
-	_fullscreen_button.text = "Fullscreen"
-	_fullscreen_button.custom_minimum_size = Vector2(140, 0)
-	_fullscreen_button.pressed.connect(_toggle_fullscreen)
-	civic_row.add_child(_fullscreen_button)
-
-	var service_row := HBoxContainer.new()
-	service_row.add_theme_constant_override("separation", 8)
-	stack.add_child(service_row)
-
-	_add_tool_button(service_row, BUILD_TOOL_RESTAURANT, "7 Restaurant", 116)
-	_add_tool_button(service_row, BUILD_TOOL_CORNER_STORE, "8 Corner", 96)
-	_add_tool_button(service_row, BUILD_TOOL_POLICE, "3 Police", 96)
-	_add_tool_button(service_row, BUILD_TOOL_FIRE, "4 Fire", 92)
-
-	var utility_row := HBoxContainer.new()
-	utility_row.add_theme_constant_override("separation", 8)
-	stack.add_child(utility_row)
-
-	_add_tool_button(utility_row, BUILD_TOOL_PARK, "P Park", 90)
-	_add_tool_button(utility_row, BUILD_TOOL_INSPECT, "9 Inspect", 94)
-	_add_tool_button(utility_row, BUILD_TOOL_BULLDOZE, "0 Bulldoze", 108)
-
-	var action_row := HBoxContainer.new()
-	action_row.add_theme_constant_override("separation", 8)
-	stack.add_child(action_row)
-
-	_place_button = Button.new()
-	_place_button.text = "Place Here"
-	_place_button.custom_minimum_size = Vector2(128, 0)
-	_place_button.pressed.connect(_try_place_hovered_tile)
-	action_row.add_child(_place_button)
-
-	_zoom_in_button = Button.new()
-	_zoom_in_button.text = "Zoom +"
-	_zoom_in_button.custom_minimum_size = Vector2(96, 0)
-	_zoom_in_button.pressed.connect(_adjust_zoom.bind(-1.6))
-	action_row.add_child(_zoom_in_button)
-
-	_zoom_out_button = Button.new()
-	_zoom_out_button.text = "Zoom -"
-	_zoom_out_button.custom_minimum_size = Vector2(96, 0)
-	_zoom_out_button.pressed.connect(_adjust_zoom.bind(1.6))
-	action_row.add_child(_zoom_out_button)
-
-	_rotate_left_button = Button.new()
-	_rotate_left_button.text = "Rotate Left"
-	_rotate_left_button.custom_minimum_size = Vector2(112, 0)
-	_rotate_left_button.pressed.connect(_rotate_camera.bind(-PI * 0.5))
-	action_row.add_child(_rotate_left_button)
-
-	_rotate_right_button = Button.new()
-	_rotate_right_button.text = "Rotate Right"
-	_rotate_right_button.custom_minimum_size = Vector2(118, 0)
-	_rotate_right_button.pressed.connect(_rotate_camera.bind(PI * 0.5))
-	action_row.add_child(_rotate_right_button)
-
-	_undo_button = Button.new()
-	_undo_button.text = "Undo"
-	_undo_button.custom_minimum_size = Vector2(92, 0)
-	_undo_button.pressed.connect(_undo_last_action)
-	action_row.add_child(_undo_button)
-
-	_home_button = Button.new()
-	_home_button.text = "Home View"
-	_home_button.custom_minimum_size = Vector2(104, 0)
-	_home_button.pressed.connect(_reset_camera_view)
-	action_row.add_child(_home_button)
-
-	var save_row := HBoxContainer.new()
-	save_row.add_theme_constant_override("separation", 8)
-	stack.add_child(save_row)
-
-	_save_button = Button.new()
-	_save_button.text = "Save Town"
-	_save_button.custom_minimum_size = Vector2(108, 0)
-	_save_button.pressed.connect(_save_game)
-	save_row.add_child(_save_button)
-
-	_load_button = Button.new()
-	_load_button.text = "Load Save"
-	_load_button.custom_minimum_size = Vector2(108, 0)
-	_load_button.pressed.connect(_load_game)
-	save_row.add_child(_load_button)
-
-	_clear_button = Button.new()
-	_clear_button.text = "New Map"
-	_clear_button.custom_minimum_size = Vector2(104, 0)
-	_clear_button.pressed.connect(_new_map)
-	save_row.add_child(_clear_button)
 
 	_selection_label = Label.new()
 	_selection_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_selection_label.custom_minimum_size = Vector2(460, 0)
+	_selection_label.custom_minimum_size = Vector2(320, 0)
 	_selection_label.add_theme_color_override("font_color", Color("d7e7ef"))
-	_selection_label.add_theme_font_size_override("font_size", 12)
+	_selection_label.add_theme_font_size_override("font_size", 11)
 	stack.add_child(_selection_label)
 
 	_hint_label = Label.new()
 	_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_hint_label.custom_minimum_size = Vector2(460, 0)
+	_hint_label.custom_minimum_size = Vector2(320, 0)
 	_hint_label.add_theme_color_override("font_color", Color("a9bec5"))
-	_hint_label.add_theme_font_size_override("font_size", 12)
-	_hint_label.text = "Use the build buttons or keys 1-0 and P, then click or press Space to place. Q/E rotates. Cmd/Ctrl+Z undoes. Right drag pans."
+	_hint_label.add_theme_font_size_override("font_size", 11)
+	_hint_label.text = "Use the build menu or keys 1-0 and P. Q/E rotates. Cmd/Ctrl+Z undoes. Right drag pans."
 	stack.add_child(_hint_label)
 
 
@@ -439,8 +431,17 @@ func _refresh_tool_ui() -> void:
 		_tool_status_label.text = "Tool: %s%s" % [tool_name, cost_text]
 	if _stats_label:
 		_stats_label.text = _build_stats_text()
+	if _tool_dropdown:
+		for index in range(_tool_dropdown.item_count):
+			if str(_tool_dropdown.get_item_metadata(index)) == _build_tool:
+				_tool_dropdown.select(index)
+				break
 	for tool in _tool_buttons.keys():
 		_style_tool_button(_tool_buttons[tool], _build_tool == tool)
+	if _tool_dropdown:
+		_style_tool_button(_tool_dropdown, false)
+	if _town_menu:
+		_style_tool_button(_town_menu, false)
 	if _fullscreen_button:
 		_style_tool_button(_fullscreen_button, false)
 		_fullscreen_button.text = "Exit Fullscreen" if _is_fullscreen() else "Fullscreen"
@@ -467,6 +468,7 @@ func _refresh_tool_ui() -> void:
 		_style_tool_button(_clear_button, false)
 	if _selection_label:
 		_selection_label.text = _selection_text()
+	_apply_hud_layout()
 	if _ghost_root:
 		for tool in _ghost_nodes.keys():
 			_ghost_nodes[tool].visible = _build_tool == tool and BUILD_TOOL_COSTS.has(tool)
@@ -476,11 +478,11 @@ func _style_tool_button(button: Button, selected: bool) -> void:
 	button.add_theme_color_override("font_color", Color("f7f2e6"))
 	button.add_theme_color_override("font_hover_color", Color("ffffff"))
 	button.add_theme_color_override("font_pressed_color", Color("ffffff"))
-	var base_color := Color("16303b") if not selected else Color("2b7f74")
-	var border_color := Color("355a63") if not selected else Color("79dfcb")
+	var base_color := Color(0.11, 0.16, 0.22, 0.42) if not selected else Color(0.2, 0.58, 0.54, 0.5)
+	var border_color := Color(0.86, 0.93, 0.98, 0.18) if not selected else Color(0.56, 0.92, 0.86, 0.34)
 	button.add_theme_stylebox_override("normal", _make_panel_style(base_color, border_color))
 	button.add_theme_stylebox_override("hover", _make_panel_style(base_color.lightened(0.08), border_color.lightened(0.08)))
-	button.add_theme_stylebox_override("pressed", _make_panel_style(base_color.darkened(0.08), border_color))
+	button.add_theme_stylebox_override("pressed", _make_panel_style(base_color.darkened(0.04), border_color))
 	button.add_theme_stylebox_override("focus", _make_panel_style(base_color, border_color.lightened(0.12)))
 
 
@@ -488,6 +490,84 @@ func _set_build_tool(tool: String) -> void:
 	_build_tool = tool
 	_refresh_tool_ui()
 	_update_hover_from_mouse()
+
+
+func _tool_dropdown_label(tool: String) -> String:
+	match tool:
+		BUILD_TOOL_ROAD:
+			return "Build: Road"
+		BUILD_TOOL_HOUSE:
+			return "Build: House"
+		BUILD_TOOL_POLICE:
+			return "Build: Police"
+		BUILD_TOOL_FIRE:
+			return "Build: Fire"
+		BUILD_TOOL_BANK:
+			return "Build: Bank"
+		BUILD_TOOL_GROCERY:
+			return "Build: Grocery"
+		BUILD_TOOL_RESTAURANT:
+			return "Build: Restaurant"
+		BUILD_TOOL_CORNER_STORE:
+			return "Build: Corner"
+		BUILD_TOOL_PARK:
+			return "Build: Park"
+		BUILD_TOOL_INSPECT:
+			return "Tool: Inspect"
+		BUILD_TOOL_BULLDOZE:
+			return "Tool: Bulldoze"
+	return _tool_name(tool)
+
+
+func _on_tool_dropdown_selected(index: int) -> void:
+	if not _tool_dropdown:
+		return
+	var tool := str(_tool_dropdown.get_item_metadata(index))
+	if tool != "":
+		_set_build_tool(tool)
+
+
+func _on_town_menu_action(id: int) -> void:
+	match id:
+		0:
+			_reset_camera_view()
+		1:
+			_save_game()
+		2:
+			_load_game()
+		3:
+			_new_map()
+
+
+func _apply_hud_layout() -> void:
+	if not _hud_margin or not _hud_panel:
+		return
+	var viewport_size := get_viewport().get_visible_rect().size
+	var compact := _is_fullscreen() or viewport_size.x < 980.0
+	_hud_margin.offset_left = 10 if compact else 14
+	_hud_margin.offset_top = 8 if compact else 12
+	_hud_margin.offset_right = -10 if compact else -14
+	if _title_label:
+		_title_label.visible = not compact
+	if _tool_status_label:
+		_tool_status_label.add_theme_font_size_override("font_size", 11 if compact else 12)
+	if _stats_label:
+		_stats_label.add_theme_font_size_override("font_size", 10 if compact else 12)
+	if _selection_label:
+		_selection_label.visible = not compact
+		_selection_label.add_theme_font_size_override("font_size", 10 if compact else 11)
+	if _hint_label:
+		_hint_label.add_theme_font_size_override("font_size", 10 if compact else 11)
+	if _tool_dropdown:
+		_tool_dropdown.custom_minimum_size = Vector2(136 if compact else 160, 0)
+	if _place_button:
+		_place_button.custom_minimum_size = Vector2(62 if compact else 74, 0)
+	if _fullscreen_button:
+		_fullscreen_button.custom_minimum_size = Vector2(84 if compact else 92, 0)
+	if _town_menu:
+		_town_menu.custom_minimum_size = Vector2(62 if compact else 72, 0)
+	if _home_button:
+		_home_button.visible = not compact
 
 
 func _update_hover_from_mouse() -> void:
@@ -620,6 +700,7 @@ func _try_place_hovered_tile() -> void:
 	else:
 		placed = _spawn_building_for_tool(_build_tool, world, _tool_rotation_y(_build_tool, _hover_anchor, footprint))
 
+	_clear_nature_for_cells(_hover_cells)
 	_money -= cost
 	_register_placement(_hover_anchor, _hover_cells, _build_tool, placed, cost)
 	_recalculate_cashflow()
@@ -945,6 +1026,7 @@ func _mark_road_cell(cell: Vector2i) -> void:
 	var key := _cell_key(cell)
 	_road_cells[key] = true
 	_occupied_cells[key] = BUILD_TOOL_ROAD
+	_clear_nature_for_cells([cell])
 
 
 func _neighbor_cells(cell: Vector2i) -> Array[Vector2i]:
@@ -1260,6 +1342,41 @@ func _clear_map_data() -> void:
 	_road_nodes.clear()
 	_action_history.clear()
 	_clear_selected_anchor()
+	_reset_nature_layer()
+
+
+func _reset_nature_layer() -> void:
+	for patch in _meadow_patches:
+		if is_instance_valid(patch):
+			patch.queue_free()
+	_meadow_patches.clear()
+	for clump in _grass_clumps:
+		if is_instance_valid(clump):
+			clump.queue_free()
+	_grass_clumps.clear()
+	_build_meadow()
+
+
+func _clear_nature_for_cells(cells: Array[Vector2i]) -> void:
+	for cell in cells:
+		var world_center := _cell_to_world(cell)
+		for i in range(_grass_clumps.size() - 1, -1, -1):
+			var clump := _grass_clumps[i]
+			if not is_instance_valid(clump):
+				_grass_clumps.remove_at(i)
+				continue
+			if Vector2(clump.position.x, clump.position.z).distance_to(Vector2(world_center.x, world_center.z)) < 0.72:
+				clump.queue_free()
+				_grass_clumps.remove_at(i)
+		for j in range(_meadow_patches.size() - 1, -1, -1):
+			var patch := _meadow_patches[j]
+			if not is_instance_valid(patch):
+				_meadow_patches.remove_at(j)
+				continue
+			var radius: float = float(patch.get_meta("radius", 1.0))
+			if Vector2(patch.position.x, patch.position.z).distance_to(Vector2(world_center.x, world_center.z)) < radius:
+				patch.queue_free()
+				_meadow_patches.remove_at(j)
 
 
 func _update_day_night_visuals() -> void:
@@ -1338,6 +1455,27 @@ func _make_panel_style(fill: Color, border: Color) -> StyleBoxFlat:
 	style.content_margin_top = 12
 	style.content_margin_right = 14
 	style.content_margin_bottom = 12
+	return style
+
+
+func _make_glass_panel_style() -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.08, 0.11, 0.16, 0.34)
+	style.border_color = Color(0.94, 0.98, 1.0, 0.16)
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.corner_radius_top_left = 20
+	style.corner_radius_top_right = 20
+	style.corner_radius_bottom_right = 20
+	style.corner_radius_bottom_left = 20
+	style.shadow_color = Color(0.0, 0.0, 0.0, 0.18)
+	style.shadow_size = 18
+	style.content_margin_left = 12
+	style.content_margin_top = 10
+	style.content_margin_right = 12
+	style.content_margin_bottom = 10
 	return style
 
 
@@ -1727,7 +1865,9 @@ func _add_meadow_patch(center: Vector3, size: Vector2, clump_count: int) -> void
 	patch.material_override = _meadow_material
 	patch.scale = Vector3(size.x / max(size.x, size.y), 1.0, size.y / max(size.x, size.y))
 	patch.position = center
+	patch.set_meta("radius", max(size.x, size.y) * 0.52)
 	grid_root.add_child(patch)
+	_meadow_patches.append(patch)
 
 	for i in range(clump_count):
 		var t: float = float(i) / maxf(1.0, float(clump_count))
@@ -1818,20 +1958,10 @@ func _tool_rotation_y(tool: String, anchor: Vector2i, footprint: Vector2i) -> fl
 	if tool == BUILD_TOOL_ROAD:
 		return 0.0
 
-	var north_score := 0
-	var east_score := 0
-	var south_score := 0
-	var west_score := 0
-	for dx in range(footprint.x):
-		if _road_cells.has(_cell_key(Vector2i(anchor.x + dx, anchor.y - 1))):
-			north_score += 1
-		if _road_cells.has(_cell_key(Vector2i(anchor.x + dx, anchor.y + footprint.y))):
-			south_score += 1
-	for dz in range(footprint.y):
-		if _road_cells.has(_cell_key(Vector2i(anchor.x - 1, anchor.y + dz))):
-			west_score += 1
-		if _road_cells.has(_cell_key(Vector2i(anchor.x + footprint.x, anchor.y + dz))):
-			east_score += 1
+	var north_score := _transport_edge_score(anchor, footprint, "north")
+	var east_score := _transport_edge_score(anchor, footprint, "east")
+	var south_score := _transport_edge_score(anchor, footprint, "south")
+	var west_score := _transport_edge_score(anchor, footprint, "west")
 
 	var best: int = maxi(maxi(north_score, south_score), maxi(east_score, west_score))
 	if best > 0:
@@ -1843,11 +1973,66 @@ func _tool_rotation_y(tool: String, anchor: Vector2i, footprint: Vector2i) -> fl
 			return -PI * 0.5
 		return PI * 0.5
 
+	var facing: Variant = _rotation_toward_nearest_transport(anchor, footprint)
+	if facing != null:
+		return facing
+
 	var center := _anchor_to_world(anchor, footprint)
 	var to_center := Vector2(-center.x, -center.z)
 	if abs(to_center.x) > abs(to_center.y):
 		return -PI * 0.5 if to_center.x > 0.0 else PI * 0.5
 	return 0.0 if to_center.y > 0.0 else PI
+
+
+func _transport_edge_score(anchor: Vector2i, footprint: Vector2i, side: String) -> int:
+	var score := 0
+	match side:
+		"north":
+			for dx in range(footprint.x):
+				if _road_cells.has(_cell_key(Vector2i(anchor.x + dx, anchor.y - 1))):
+					score += 3
+				if _road_cells.has(_cell_key(Vector2i(anchor.x + dx, anchor.y - 2))):
+					score += 1
+		"south":
+			for dx in range(footprint.x):
+				if _road_cells.has(_cell_key(Vector2i(anchor.x + dx, anchor.y + footprint.y))):
+					score += 3
+				if _road_cells.has(_cell_key(Vector2i(anchor.x + dx, anchor.y + footprint.y + 1))):
+					score += 1
+		"west":
+			for dz in range(footprint.y):
+				if _road_cells.has(_cell_key(Vector2i(anchor.x - 1, anchor.y + dz))):
+					score += 3
+				if _road_cells.has(_cell_key(Vector2i(anchor.x - 2, anchor.y + dz))):
+					score += 1
+		"east":
+			for dz in range(footprint.y):
+				if _road_cells.has(_cell_key(Vector2i(anchor.x + footprint.x, anchor.y + dz))):
+					score += 3
+				if _road_cells.has(_cell_key(Vector2i(anchor.x + footprint.x + 1, anchor.y + dz))):
+					score += 1
+	return score
+
+
+func _rotation_toward_nearest_transport(anchor: Vector2i, footprint: Vector2i) -> Variant:
+	if _road_cells.is_empty():
+		return null
+	var center := _anchor_to_world(anchor, footprint)
+	var nearest_distance := INF
+	var nearest_direction := Vector2.ZERO
+	for road_key in _road_cells.keys():
+		var road_cell := _anchor_key_to_cell(road_key)
+		var road_world := _cell_to_world(road_cell)
+		var offset := Vector2(road_world.x - center.x, road_world.z - center.z)
+		var distance := offset.length()
+		if distance < nearest_distance:
+			nearest_distance = distance
+			nearest_direction = offset
+	if nearest_distance == INF:
+		return null
+	if abs(nearest_direction.x) > abs(nearest_direction.y):
+		return -PI * 0.5 if nearest_direction.x > 0.0 else PI * 0.5
+	return 0.0 if nearest_direction.y > 0.0 else PI
 
 
 func _add_house(center: Vector3, size: Vector3, wall_color: Color, roof_color: Color) -> void:
@@ -1933,7 +2118,7 @@ func _add_grass_clump(position_3d: Vector3, scale_factor: float) -> void:
 	clump.rotation_degrees.y = randf_range(0.0, 180.0)
 	clump.set_meta("phase", randf_range(0.0, TAU))
 	clump.set_meta("sway", randf_range(0.8, 1.3))
-	building_root.add_child(clump)
+	_nature_root.add_child(clump)
 	_grass_clumps.append(clump)
 
 	for blade_data in [
