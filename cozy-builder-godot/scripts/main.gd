@@ -5,6 +5,32 @@ const TILE_SIZE := 1.0
 const PAN_SPEED := 0.018
 const BUILD_TOOL_ROAD := "road"
 const BUILD_TOOL_HOUSE := "house"
+const BUILD_TOOL_POLICE := "police"
+const BUILD_TOOL_FIRE := "fire"
+const BUILD_TOOL_BANK := "bank"
+const BUILD_TOOL_GROCERY := "grocery"
+const BUILD_TOOL_RESTAURANT := "restaurant"
+const BUILD_TOOL_CORNER_STORE := "corner_store"
+const BUILD_TOOL_SEQUENCE := [
+	BUILD_TOOL_ROAD,
+	BUILD_TOOL_HOUSE,
+	BUILD_TOOL_POLICE,
+	BUILD_TOOL_FIRE,
+	BUILD_TOOL_BANK,
+	BUILD_TOOL_GROCERY,
+	BUILD_TOOL_RESTAURANT,
+	BUILD_TOOL_CORNER_STORE,
+]
+const BUILD_TOOL_LABELS := {
+	BUILD_TOOL_ROAD: "Road",
+	BUILD_TOOL_HOUSE: "House",
+	BUILD_TOOL_POLICE: "Police",
+	BUILD_TOOL_FIRE: "Fire",
+	BUILD_TOOL_BANK: "Bank",
+	BUILD_TOOL_GROCERY: "Grocery",
+	BUILD_TOOL_RESTAURANT: "Restaurant",
+	BUILD_TOOL_CORNER_STORE: "Corner Store",
+}
 
 @onready var grid_root: Node3D = $GridRoot
 @onready var building_root: Node3D = $BuildingRoot
@@ -50,14 +76,12 @@ var _window_bands: Array[MeshInstance3D] = []
 var _grass_clumps: Array[Node3D] = []
 var _hover_indicator: MeshInstance3D
 var _ghost_root: Node3D
-var _ghost_road: Node3D
-var _ghost_house: Node3D
+var _ghost_nodes: Dictionary = {}
 var _hud_layer: CanvasLayer
 var _hud_panel: Control
 var _tool_status_label: Label
 var _hint_label: Label
-var _road_button: Button
-var _house_button: Button
+var _tool_buttons: Dictionary = {}
 var _fullscreen_button: Button
 var _place_button: Button
 var _zoom_in_button: Button
@@ -93,6 +117,18 @@ func _input(event: InputEvent) -> void:
 				_set_build_tool(BUILD_TOOL_ROAD)
 			KEY_2:
 				_set_build_tool(BUILD_TOOL_HOUSE)
+			KEY_3:
+				_set_build_tool(BUILD_TOOL_POLICE)
+			KEY_4:
+				_set_build_tool(BUILD_TOOL_FIRE)
+			KEY_5:
+				_set_build_tool(BUILD_TOOL_BANK)
+			KEY_6:
+				_set_build_tool(BUILD_TOOL_GROCERY)
+			KEY_7:
+				_set_build_tool(BUILD_TOOL_RESTAURANT)
+			KEY_8:
+				_set_build_tool(BUILD_TOOL_CORNER_STORE)
 			KEY_SPACE, KEY_ENTER:
 				_try_place_hovered_tile()
 			KEY_F:
@@ -167,11 +203,10 @@ func _create_runtime_helpers() -> void:
 	_ghost_root.visible = false
 	add_child(_ghost_root)
 
-	_ghost_road = _spawn_road_tile(Vector3.ZERO, true)
-	_ghost_root.add_child(_ghost_road)
-
-	_ghost_house = _spawn_house_tile(Vector3.ZERO, true)
-	_ghost_root.add_child(_ghost_house)
+	for tool in BUILD_TOOL_SEQUENCE:
+		var ghost := _spawn_tool_preview(tool)
+		_ghost_nodes[tool] = ghost
+		_ghost_root.add_child(ghost)
 
 
 func _build_hud() -> void:
@@ -182,8 +217,8 @@ func _build_hud() -> void:
 	margin.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	margin.offset_left = 18
 	margin.offset_top = 18
-	margin.offset_right = 420
-	margin.offset_bottom = 220
+	margin.offset_right = 560
+	margin.offset_bottom = 320
 	_hud_layer.add_child(margin)
 
 	var panel := PanelContainer.new()
@@ -206,27 +241,29 @@ func _build_hud() -> void:
 	_tool_status_label.add_theme_font_size_override("font_size", 13)
 	stack.add_child(_tool_status_label)
 
-	var button_row := HBoxContainer.new()
-	button_row.add_theme_constant_override("separation", 8)
-	stack.add_child(button_row)
+	var civic_row := HBoxContainer.new()
+	civic_row.add_theme_constant_override("separation", 8)
+	stack.add_child(civic_row)
 
-	_road_button = Button.new()
-	_road_button.text = "1 Road"
-	_road_button.custom_minimum_size = Vector2(112, 0)
-	_road_button.pressed.connect(_set_build_tool.bind(BUILD_TOOL_ROAD))
-	button_row.add_child(_road_button)
-
-	_house_button = Button.new()
-	_house_button.text = "2 House"
-	_house_button.custom_minimum_size = Vector2(112, 0)
-	_house_button.pressed.connect(_set_build_tool.bind(BUILD_TOOL_HOUSE))
-	button_row.add_child(_house_button)
+	_add_tool_button(civic_row, BUILD_TOOL_ROAD, "1 Road", 94)
+	_add_tool_button(civic_row, BUILD_TOOL_HOUSE, "2 House", 94)
+	_add_tool_button(civic_row, BUILD_TOOL_BANK, "5 Bank", 94)
+	_add_tool_button(civic_row, BUILD_TOOL_GROCERY, "6 Grocery", 104)
 
 	_fullscreen_button = Button.new()
 	_fullscreen_button.text = "Exit Fullscreen"
 	_fullscreen_button.custom_minimum_size = Vector2(140, 0)
 	_fullscreen_button.pressed.connect(_exit_fullscreen)
-	button_row.add_child(_fullscreen_button)
+	civic_row.add_child(_fullscreen_button)
+
+	var service_row := HBoxContainer.new()
+	service_row.add_theme_constant_override("separation", 8)
+	stack.add_child(service_row)
+
+	_add_tool_button(service_row, BUILD_TOOL_RESTAURANT, "7 Restaurant", 116)
+	_add_tool_button(service_row, BUILD_TOOL_CORNER_STORE, "8 Corner", 96)
+	_add_tool_button(service_row, BUILD_TOOL_POLICE, "3 Police", 96)
+	_add_tool_button(service_row, BUILD_TOOL_FIRE, "4 Fire", 92)
 
 	var action_row := HBoxContainer.new()
 	action_row.add_theme_constant_override("separation", 8)
@@ -252,21 +289,19 @@ func _build_hud() -> void:
 
 	_hint_label = Label.new()
 	_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_hint_label.custom_minimum_size = Vector2(300, 0)
+	_hint_label.custom_minimum_size = Vector2(460, 0)
 	_hint_label.add_theme_color_override("font_color", Color("a9bec5"))
 	_hint_label.add_theme_font_size_override("font_size", 12)
-	_hint_label.text = "Use the buttons or press Space to place. Right drag pans. WASD or arrows move the camera. Zoom buttons are at the top."
+	_hint_label.text = "Use the build buttons or keys 1-8, then click or press Space to place. Right drag pans. WASD or arrows move the camera."
 	stack.add_child(_hint_label)
 
 
 func _refresh_tool_ui() -> void:
 	if _tool_status_label:
-		var tool_name := "Road" if _build_tool == BUILD_TOOL_ROAD else "House"
+		var tool_name := _tool_name(_build_tool)
 		_tool_status_label.text = "Tool: %s  |  Build on the open pasture around town." % [tool_name]
-	if _road_button:
-		_style_tool_button(_road_button, _build_tool == BUILD_TOOL_ROAD)
-	if _house_button:
-		_style_tool_button(_house_button, _build_tool == BUILD_TOOL_HOUSE)
+	for tool in _tool_buttons.keys():
+		_style_tool_button(_tool_buttons[tool], _build_tool == tool)
 	if _fullscreen_button:
 		_style_tool_button(_fullscreen_button, false)
 	if _place_button:
@@ -276,8 +311,8 @@ func _refresh_tool_ui() -> void:
 	if _zoom_out_button:
 		_style_tool_button(_zoom_out_button, false)
 	if _ghost_root:
-		_ghost_road.visible = _build_tool == BUILD_TOOL_ROAD
-		_ghost_house.visible = _build_tool == BUILD_TOOL_HOUSE
+		for tool in _ghost_nodes.keys():
+			_ghost_nodes[tool].visible = _build_tool == tool
 
 
 func _style_tool_button(button: Button, selected: bool) -> void:
@@ -321,12 +356,12 @@ func _update_hover_from_mouse() -> void:
 	_hover_indicator.material_override = _hover_material_valid if valid else _hover_material_invalid
 	_ghost_root.visible = true
 	_ghost_root.position = world
-	_ghost_road.visible = _build_tool == BUILD_TOOL_ROAD
-	_ghost_house.visible = _build_tool == BUILD_TOOL_HOUSE
+	for tool in _ghost_nodes.keys():
+		_ghost_nodes[tool].visible = _build_tool == tool
 
 	if _hint_label:
 		if valid:
-			_hint_label.text = "Cell %d, %d is open. Left click to place a %s." % [cell.x + 1, cell.y + 1, _build_tool]
+			_hint_label.text = "Cell %d, %d is open. Left click to place a %s." % [cell.x + 1, cell.y + 1, _tool_name(_build_tool).to_lower()]
 		elif is_reserved:
 			_hint_label.text = "This center area is part of the starter town. Build out into the surrounding pasture."
 		else:
@@ -340,7 +375,7 @@ func _clear_hover() -> void:
 	if _ghost_root:
 		_ghost_root.visible = false
 	if _hint_label:
-		_hint_label.text = "Use the buttons or press Space to place. Right drag pans. WASD or arrows move the camera. Zoom buttons are at the top."
+		_hint_label.text = "Use the build buttons or keys 1-8, then click or press Space to place. Right drag pans. WASD or arrows move the camera."
 
 
 func _pick_grid_cell(mouse_position: Vector2) -> Dictionary:
@@ -384,12 +419,89 @@ func _try_place_hovered_tile() -> void:
 		placed = _spawn_road_tile(world, false)
 		grid_root.add_child(placed)
 	else:
-		placed = _spawn_house_tile(world, false)
-		building_root.add_child(placed)
+		placed = _spawn_building_for_tool(_build_tool, world)
 
 	_occupied_cells[key] = _build_tool
 	_placed_nodes[key] = placed
 	_update_hover_from_mouse()
+
+
+func _tool_name(tool: String) -> String:
+	return BUILD_TOOL_LABELS.get(tool, "Building")
+
+
+func _add_tool_button(container: HBoxContainer, tool: String, label: String, width: float) -> void:
+	var button := Button.new()
+	button.text = label
+	button.custom_minimum_size = Vector2(width, 0)
+	button.pressed.connect(_set_build_tool.bind(tool))
+	container.add_child(button)
+	_tool_buttons[tool] = button
+
+
+func _spawn_tool_preview(tool: String) -> Node3D:
+	if tool == BUILD_TOOL_ROAD:
+		return _spawn_road_tile(Vector3.ZERO, true)
+	if tool == BUILD_TOOL_HOUSE:
+		return _spawn_house_tile(Vector3.ZERO, true)
+
+	return _spawn_generic_building_preview(tool)
+
+
+func _spawn_generic_building_preview(tool: String) -> Node3D:
+	var root := Node3D.new()
+	var pad_material := _ghost_base_material
+	var wall_material := _ghost_base_material
+	var accent_material := _ghost_accent_material
+	var body_size := Vector3(0.82, 0.8, 0.74)
+	var roof_size := Vector3(0.9, 0.18, 0.84)
+
+	match tool:
+		BUILD_TOOL_POLICE:
+			body_size = Vector3(0.88, 0.88, 0.78)
+			roof_size = Vector3(0.94, 0.18, 0.86)
+		BUILD_TOOL_FIRE:
+			body_size = Vector3(0.92, 0.9, 0.82)
+			roof_size = Vector3(0.98, 0.18, 0.9)
+		BUILD_TOOL_BANK:
+			body_size = Vector3(0.84, 0.8, 0.72)
+			roof_size = Vector3(0.92, 0.18, 0.82)
+		BUILD_TOOL_GROCERY:
+			body_size = Vector3(0.96, 0.74, 0.82)
+			roof_size = Vector3(1.0, 0.14, 0.88)
+		BUILD_TOOL_RESTAURANT:
+			body_size = Vector3(0.9, 0.76, 0.78)
+			roof_size = Vector3(0.98, 0.18, 0.9)
+		BUILD_TOOL_CORNER_STORE:
+			body_size = Vector3(0.82, 0.74, 0.7)
+			roof_size = Vector3(0.9, 0.16, 0.8)
+
+	_add_box(Vector3(0.0, 0.02, 0.0), Vector3(0.98, 0.04, 0.98), pad_material, root)
+	_add_soft_block(Vector3(0.0, body_size.y * 0.5 + 0.05, 0.0), body_size, wall_material, root, 0.14)
+	_add_gabled_roof(Vector3(0.0, body_size.y + 0.16, 0.0), roof_size, accent_material, root, 9.0)
+	_add_round_canopy(Vector3(0.0, 0.34, body_size.z * 0.56), Vector3(body_size.x * 0.74, 0.12, 0.18), accent_material, root)
+	return root
+
+
+func _spawn_building_for_tool(tool: String, world_position: Vector3) -> Node3D:
+	var variant := randi() % 10
+	match tool:
+		BUILD_TOOL_HOUSE:
+			return _add_village_house_variant(world_position, variant)
+		BUILD_TOOL_POLICE:
+			return _add_police_station_variant(world_position, variant)
+		BUILD_TOOL_FIRE:
+			return _add_fire_station_variant(world_position, variant)
+		BUILD_TOOL_BANK:
+			return _add_bank_variant(world_position, variant)
+		BUILD_TOOL_GROCERY:
+			return _add_grocery_variant(world_position, variant)
+		BUILD_TOOL_RESTAURANT:
+			return _add_restaurant_variant(world_position, variant)
+		BUILD_TOOL_CORNER_STORE:
+			return _add_corner_store_variant(world_position, variant)
+		_:
+			return _spawn_house_tile(world_position, false)
 
 
 func _adjust_zoom(delta_amount: float) -> void:
@@ -676,7 +788,7 @@ func _cozy_palette(kind: String, variant: int) -> Dictionary:
 	}
 
 
-func _add_village_house_variant(position_3d: Vector3, variant: int) -> void:
+func _add_village_house_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var palette := _cozy_palette("house", variant)
 	var width := 1.08 + float(variant % 3) * 0.12
 	var depth := 0.98 + float(int(variant / 3) % 2) * 0.12
@@ -698,9 +810,10 @@ func _add_village_house_variant(position_3d: Vector3, variant: int) -> void:
 	_add_round_canopy(Vector3(0.0, 0.32, depth * 0.62), Vector3(width * 0.62, 0.18, 0.28), _make_material_from_color(palette.accent, 0.5), root)
 	_add_shrub_cluster(Vector3(-width * 0.36, 0.0, depth * 0.78), palette.accent, root, 2)
 	_add_shrub_cluster(Vector3(width * 0.36, 0.0, depth * 0.78), palette.trim, root, 2)
+	return root
 
 
-func _add_police_station_variant(position_3d: Vector3, variant: int) -> void:
+func _add_police_station_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var palette := _cozy_palette("police", variant)
 	var width := 2.25 + float(variant % 3) * 0.14
 	var depth := 1.68 + float(variant % 2) * 0.16
@@ -721,9 +834,10 @@ func _add_police_station_variant(position_3d: Vector3, variant: int) -> void:
 	_add_local_cylinder(Vector3(width * 0.24, 1.9, -depth * 0.16), 0.11, 0.11, 0.22, _make_material_from_color(palette.accent, 0.42), root)
 	_add_shrub_cluster(Vector3(-width * 0.38, 0.0, depth * 0.82), palette.accent, root, 2)
 	_add_shrub_cluster(Vector3(width * 0.38, 0.0, depth * 0.82), palette.trim, root, 2)
+	return root
 
 
-func _add_fire_station_variant(position_3d: Vector3, variant: int) -> void:
+func _add_fire_station_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var palette := _cozy_palette("fire", variant)
 	var width := 2.55 + float(variant % 2) * 0.22
 	var depth := 1.88 + float(int(variant / 3) % 2) * 0.14
@@ -743,9 +857,10 @@ func _add_fire_station_variant(position_3d: Vector3, variant: int) -> void:
 	_add_local_cylinder(Vector3(width * 0.34, 2.03, -depth * 0.12), 0.1, 0.1, 0.28, _make_material_from_color(palette.accent, 0.46), root)
 	_add_shrub_cluster(Vector3(-width * 0.34, 0.0, depth * 0.84), palette.accent, root, 2)
 	_add_shrub_cluster(Vector3(width * 0.34, 0.0, depth * 0.84), palette.trim, root, 2)
+	return root
 
 
-func _add_bank_variant(position_3d: Vector3, variant: int) -> void:
+func _add_bank_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var palette := _cozy_palette("bank", variant)
 	var width := 2.18 + float(variant % 3) * 0.14
 	var depth := 1.52 + float(variant % 2) * 0.1
@@ -765,9 +880,10 @@ func _add_bank_variant(position_3d: Vector3, variant: int) -> void:
 	_add_local_sphere(Vector3(0.0, 1.18, 0.0), 0.18, 0.22, _make_material_from_color(palette.accent, 0.36), root)
 	_add_shrub_cluster(Vector3(-width * 0.32, 0.0, depth * 0.84), palette.accent, root, 2)
 	_add_shrub_cluster(Vector3(width * 0.32, 0.0, depth * 0.84), palette.trim, root, 2)
+	return root
 
 
-func _add_grocery_variant(position_3d: Vector3, variant: int) -> void:
+func _add_grocery_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var palette := _cozy_palette("grocery", variant)
 	var width := 2.5 + float(variant % 3) * 0.12
 	var depth := 1.72 + float(int(variant / 3) % 2) * 0.12
@@ -791,9 +907,10 @@ func _add_grocery_variant(position_3d: Vector3, variant: int) -> void:
 		_add_box(produce_data.pos, Vector3(0.18, 0.14, 0.18), _make_material_from_color(produce_data.color, 0.82), root)
 	_add_shrub_cluster(Vector3(-width * 0.36, 0.0, depth * 0.86), palette.trim, root, 2)
 	_add_shrub_cluster(Vector3(width * 0.36, 0.0, depth * 0.86), palette.accent, root, 2)
+	return root
 
 
-func _add_restaurant_variant(position_3d: Vector3, variant: int) -> void:
+func _add_restaurant_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var palette := _cozy_palette("restaurant", variant)
 	var width := 2.2 + float(variant % 3) * 0.14
 	var depth := 1.6 + float(variant % 2) * 0.16
@@ -815,9 +932,10 @@ func _add_restaurant_variant(position_3d: Vector3, variant: int) -> void:
 	_add_box(Vector3(width * 0.28, height + 0.42, -depth * 0.08), Vector3(0.12, 0.4, 0.12), _stone_material, root)
 	_add_shrub_cluster(Vector3(-width * 0.42, 0.0, depth * 0.88), palette.trim, root, 2)
 	_add_shrub_cluster(Vector3(width * 0.42, 0.0, depth * 0.88), palette.accent, root, 2)
+	return root
 
 
-func _add_corner_store_variant(position_3d: Vector3, variant: int) -> void:
+func _add_corner_store_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var palette := _cozy_palette("corner_store", variant)
 	var width := 1.88 + float(variant % 3) * 0.12
 	var depth := 1.45 + float(int(variant / 3) % 2) * 0.12
@@ -837,6 +955,7 @@ func _add_corner_store_variant(position_3d: Vector3, variant: int) -> void:
 		_add_soft_block(Vector3(width * 0.34, 0.56, -depth * 0.1), Vector3(0.46, 0.68, 0.52), _make_material_from_color(palette.trim, 0.84), root, 0.1)
 	_add_shrub_cluster(Vector3(-width * 0.3, 0.0, depth * 0.86), palette.accent, root, 2)
 	_add_shrub_cluster(Vector3(width * 0.3, 0.0, depth * 0.86), palette.trim, root, 2)
+	return root
 
 
 func _add_town_path(center: Vector3, size: Vector2, parent: Node = null) -> void:
