@@ -1090,7 +1090,7 @@ func _add_soft_block(center: Vector3, size: Vector3, material: Material, parent:
 	root.position = center
 	parent.add_child(root)
 
-	var radius := min(corner_radius, size.x * 0.22, size.z * 0.22)
+	var radius: float = minf(corner_radius, minf(size.x * 0.22, size.z * 0.22))
 	_add_box(Vector3.ZERO, Vector3(max(0.12, size.x - radius * 1.45), size.y, size.z), material, root)
 	_add_box(Vector3.ZERO, Vector3(size.x, size.y, max(0.12, size.z - radius * 1.45)), material, root)
 
