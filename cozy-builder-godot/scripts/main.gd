@@ -41,14 +41,20 @@ var _focus := Vector3(0.0, 0.0, 0.0)
 var _target_focus := Vector3(0.0, 0.0, 0.0)
 var _zoom := 16.0
 var _target_zoom := 16.0
+var _camera_yaw := deg_to_rad(45.0)
+var _target_camera_yaw := deg_to_rad(45.0)
 var _dragging := false
 var _build_tool := BUILD_TOOL_ROAD
 var _hovered_cell := Vector2i(-1, -1)
+var _hover_anchor := Vector2i(-1, -1)
+var _hover_cells: Array[Vector2i] = []
 var _hover_active := false
 var _hover_can_build := false
 var _occupied_cells: Dictionary = {}
 var _reserved_cells: Dictionary = {}
 var _placed_nodes: Dictionary = {}
+var _road_cells: Dictionary = {}
+var _road_nodes: Dictionary = {}
 
 var _ground_material_a: StandardMaterial3D
 var _ground_material_b: StandardMaterial3D
@@ -74,7 +80,8 @@ var _ghost_accent_material: StandardMaterial3D
 var _clouds: Array[Node3D] = []
 var _window_bands: Array[MeshInstance3D] = []
 var _grass_clumps: Array[Node3D] = []
-var _hover_indicator: MeshInstance3D
+var _hover_tiles: Array[MeshInstance3D] = []
+var _hover_root: Node3D
 var _ghost_root: Node3D
 var _ghost_nodes: Dictionary = {}
 var _hud_layer: CanvasLayer
@@ -83,6 +90,8 @@ var _tool_status_label: Label
 var _hint_label: Label
 var _tool_buttons: Dictionary = {}
 var _fullscreen_button: Button
+var _rotate_left_button: Button
+var _rotate_right_button: Button
 var _place_button: Button
 var _zoom_in_button: Button
 var _zoom_out_button: Button
@@ -129,6 +138,10 @@ func _input(event: InputEvent) -> void:
 				_set_build_tool(BUILD_TOOL_RESTAURANT)
 			KEY_8:
 				_set_build_tool(BUILD_TOOL_CORNER_STORE)
+			KEY_Q:
+				_rotate_camera(-PI * 0.5)
+			KEY_E:
+				_rotate_camera(PI * 0.5)
 			KEY_SPACE, KEY_ENTER:
 				_try_place_hovered_tile()
 			KEY_F:
@@ -146,8 +159,10 @@ func _input(event: InputEvent) -> void:
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
 			_target_zoom = min(24.0, _target_zoom + 1.15)
 	elif event is InputEventMouseMotion and _dragging:
-		_target_focus.x -= event.relative.x * PAN_SPEED
-		_target_focus.z -= event.relative.y * PAN_SPEED
+		var right := Vector3.RIGHT.rotated(Vector3.UP, _target_camera_yaw)
+		var forward := Vector3.FORWARD.rotated(Vector3.UP, _target_camera_yaw)
+		var pan_delta := (-right * event.relative.x + forward * event.relative.y) * PAN_SPEED
+		_target_focus += Vector3(pan_delta.x, 0.0, pan_delta.z)
 		_target_focus.x = clamp(_target_focus.x, -8.5, 8.5)
 		_target_focus.z = clamp(_target_focus.z, -8.5, 8.5)
 
@@ -191,13 +206,8 @@ func _register_reserved_cells() -> void:
 
 
 func _create_runtime_helpers() -> void:
-	_hover_indicator = MeshInstance3D.new()
-	var hover_mesh := BoxMesh.new()
-	hover_mesh.size = Vector3(0.92, 0.06, 0.92)
-	_hover_indicator.mesh = hover_mesh
-	_hover_indicator.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_hover_indicator.visible = false
-	grid_root.add_child(_hover_indicator)
+	_hover_root = Node3D.new()
+	grid_root.add_child(_hover_root)
 
 	_ghost_root = Node3D.new()
 	_ghost_root.visible = false
@@ -287,12 +297,24 @@ func _build_hud() -> void:
 	_zoom_out_button.pressed.connect(_adjust_zoom.bind(1.6))
 	action_row.add_child(_zoom_out_button)
 
+	_rotate_left_button = Button.new()
+	_rotate_left_button.text = "Rotate Left"
+	_rotate_left_button.custom_minimum_size = Vector2(112, 0)
+	_rotate_left_button.pressed.connect(_rotate_camera.bind(-PI * 0.5))
+	action_row.add_child(_rotate_left_button)
+
+	_rotate_right_button = Button.new()
+	_rotate_right_button.text = "Rotate Right"
+	_rotate_right_button.custom_minimum_size = Vector2(118, 0)
+	_rotate_right_button.pressed.connect(_rotate_camera.bind(PI * 0.5))
+	action_row.add_child(_rotate_right_button)
+
 	_hint_label = Label.new()
 	_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_hint_label.custom_minimum_size = Vector2(460, 0)
 	_hint_label.add_theme_color_override("font_color", Color("a9bec5"))
 	_hint_label.add_theme_font_size_override("font_size", 12)
-	_hint_label.text = "Use the build buttons or keys 1-8, then click or press Space to place. Right drag pans. WASD or arrows move the camera."
+	_hint_label.text = "Use the build buttons or keys 1-8, then click or press Space to place. Q/E rotates. Right drag pans. WASD or arrows move the camera."
 	stack.add_child(_hint_label)
 
 
@@ -310,6 +332,10 @@ func _refresh_tool_ui() -> void:
 		_style_tool_button(_zoom_in_button, false)
 	if _zoom_out_button:
 		_style_tool_button(_zoom_out_button, false)
+	if _rotate_left_button:
+		_style_tool_button(_rotate_left_button, false)
+	if _rotate_right_button:
+		_style_tool_button(_rotate_right_button, false)
 	if _ghost_root:
 		for tool in _ghost_nodes.keys():
 			_ghost_nodes[tool].visible = _build_tool == tool
@@ -342,40 +368,44 @@ func _update_hover_from_mouse() -> void:
 		return
 
 	var cell: Vector2i = pick["cell"]
-	var world := _cell_to_world(cell)
-	var cell_key := _cell_key(cell)
-	var is_reserved := _reserved_cells.has(cell_key)
-	var is_occupied := _occupied_cells.has(cell_key)
-	var valid := not is_reserved and not is_occupied
+	var footprint := _tool_footprint(_build_tool)
+	var anchor := _anchor_for_hover_cell(cell, footprint)
+	var cells := _cells_for_anchor(anchor, footprint)
+	var world := _anchor_to_world(anchor, footprint)
+	var valid := _cells_are_buildable(cells)
 
 	_hovered_cell = cell
+	_hover_anchor = anchor
+	_hover_cells = cells
 	_hover_active = true
 	_hover_can_build = valid
-	_hover_indicator.visible = true
-	_hover_indicator.position = world + Vector3(0.0, 0.06, 0.0)
-	_hover_indicator.material_override = _hover_material_valid if valid else _hover_material_invalid
+	_update_hover_tiles(cells, valid)
 	_ghost_root.visible = true
 	_ghost_root.position = world
+	_ghost_root.rotation_degrees.y = rad_to_deg(_tool_rotation_y(_build_tool, anchor, footprint))
 	for tool in _ghost_nodes.keys():
 		_ghost_nodes[tool].visible = _build_tool == tool
 
 	if _hint_label:
 		if valid:
-			_hint_label.text = "Cell %d, %d is open. Left click to place a %s." % [cell.x + 1, cell.y + 1, _tool_name(_build_tool).to_lower()]
-		elif is_reserved:
+			var size_label := "%dx%d" % [footprint.x, footprint.y]
+			_hint_label.text = "Footprint %s at %d, %d is open. Left click to place a %s." % [size_label, anchor.x + 1, anchor.y + 1, _tool_name(_build_tool).to_lower()]
+		elif _cells_touch_reserved(cells):
 			_hint_label.text = "This center area is part of the starter town. Build out into the surrounding pasture."
 		else:
-			_hint_label.text = "That tile is already occupied. Pick an open spot nearby."
+			_hint_label.text = "That footprint collides with something already placed. Pick a clearer spot nearby."
 
 
 func _clear_hover() -> void:
 	_hover_active = false
 	_hover_can_build = false
-	_hover_indicator.visible = false
+	_hover_anchor = Vector2i(-1, -1)
+	_hover_cells.clear()
+	_clear_hover_tiles()
 	if _ghost_root:
 		_ghost_root.visible = false
 	if _hint_label:
-		_hint_label.text = "Use the build buttons or keys 1-8, then click or press Space to place. Right drag pans. WASD or arrows move the camera."
+		_hint_label.text = "Use the build buttons or keys 1-8, then click or press Space to place. Q/E rotates. Right drag pans. WASD or arrows move the camera."
 
 
 func _pick_grid_cell(mouse_position: Vector2) -> Dictionary:
@@ -412,22 +442,112 @@ func _try_place_hovered_tile() -> void:
 	if not _hover_active or not _hover_can_build:
 		return
 
-	var world := _cell_to_world(_hovered_cell)
-	var key := _cell_key(_hovered_cell)
+	var footprint := _tool_footprint(_build_tool)
+	var world := _anchor_to_world(_hover_anchor, footprint)
 	var placed: Node3D
 	if _build_tool == BUILD_TOOL_ROAD:
-		placed = _spawn_road_tile(world, false)
-		grid_root.add_child(placed)
+		_mark_road_cell(_hover_anchor)
+		_rebuild_road_at(_hover_anchor)
+		for neighbor in _neighbor_cells(_hover_anchor):
+			if _road_cells.has(_cell_key(neighbor)):
+				_rebuild_road_at(neighbor)
+		placed = _road_nodes.get(_cell_key(_hover_anchor))
 	else:
-		placed = _spawn_building_for_tool(_build_tool, world)
+		placed = _spawn_building_for_tool(_build_tool, world, _tool_rotation_y(_build_tool, _hover_anchor, footprint))
 
-	_occupied_cells[key] = _build_tool
-	_placed_nodes[key] = placed
+	_mark_cells(_hover_cells, _build_tool, placed)
 	_update_hover_from_mouse()
 
 
 func _tool_name(tool: String) -> String:
 	return BUILD_TOOL_LABELS.get(tool, "Building")
+
+
+func _tool_footprint(tool: String) -> Vector2i:
+	if tool == BUILD_TOOL_ROAD:
+		return Vector2i(1, 1)
+	return Vector2i(2, 2)
+
+
+func _anchor_for_hover_cell(cell: Vector2i, footprint: Vector2i) -> Vector2i:
+	return Vector2i(
+		clamp(cell.x, 0, GRID_SIZE - footprint.x),
+		clamp(cell.y, 0, GRID_SIZE - footprint.y)
+	)
+
+
+func _cells_for_anchor(anchor: Vector2i, footprint: Vector2i) -> Array[Vector2i]:
+	var cells: Array[Vector2i] = []
+	for dz in range(footprint.y):
+		for dx in range(footprint.x):
+			cells.append(Vector2i(anchor.x + dx, anchor.y + dz))
+	return cells
+
+
+func _cells_are_buildable(cells: Array[Vector2i]) -> bool:
+	for cell in cells:
+		var key := _cell_key(cell)
+		if _reserved_cells.has(key) or _occupied_cells.has(key):
+			return false
+	return true
+
+
+func _cells_touch_reserved(cells: Array[Vector2i]) -> bool:
+	for cell in cells:
+		if _reserved_cells.has(_cell_key(cell)):
+			return true
+	return false
+
+
+func _anchor_to_world(anchor: Vector2i, footprint: Vector2i) -> Vector3:
+	var min_world := _cell_to_world(anchor)
+	return min_world + Vector3(float(footprint.x - 1) * 0.5, 0.0, float(footprint.y - 1) * 0.5)
+
+
+func _update_hover_tiles(cells: Array[Vector2i], valid: bool) -> void:
+	while _hover_tiles.size() < cells.size():
+		var tile := MeshInstance3D.new()
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(0.92, 0.05, 0.92)
+		tile.mesh = mesh
+		tile.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_hover_root.add_child(tile)
+		_hover_tiles.append(tile)
+	for i in range(_hover_tiles.size()):
+		var tile := _hover_tiles[i]
+		if i < cells.size():
+			tile.visible = true
+			tile.position = _cell_to_world(cells[i]) + Vector3(0.0, 0.06, 0.0)
+			tile.material_override = _hover_material_valid if valid else _hover_material_invalid
+		else:
+			tile.visible = false
+
+
+func _clear_hover_tiles() -> void:
+	for tile in _hover_tiles:
+		tile.visible = false
+
+
+func _mark_cells(cells: Array[Vector2i], tool: String, node: Node3D) -> void:
+	for cell in cells:
+		var key := _cell_key(cell)
+		_occupied_cells[key] = tool
+		_placed_nodes[key] = node
+
+
+func _mark_road_cell(cell: Vector2i) -> void:
+	var key := _cell_key(cell)
+	_road_cells[key] = true
+	_occupied_cells[key] = BUILD_TOOL_ROAD
+
+
+func _neighbor_cells(cell: Vector2i) -> Array[Vector2i]:
+	return [
+		Vector2i(cell.x, cell.y - 1),
+		Vector2i(cell.x + 1, cell.y),
+		Vector2i(cell.x, cell.y + 1),
+		Vector2i(cell.x - 1, cell.y),
+	]
 
 
 func _add_tool_button(container: HBoxContainer, tool: String, label: String, width: float) -> void:
@@ -441,7 +561,7 @@ func _add_tool_button(container: HBoxContainer, tool: String, label: String, wid
 
 func _spawn_tool_preview(tool: String) -> Node3D:
 	if tool == BUILD_TOOL_ROAD:
-		return _spawn_road_tile(Vector3.ZERO, true)
+		return _build_road_tile_mesh(Vector2i.ZERO, true, [Vector2i(0, 0)])
 	if tool == BUILD_TOOL_HOUSE:
 		return _spawn_house_tile(Vector3.ZERO, true)
 
@@ -453,59 +573,66 @@ func _spawn_generic_building_preview(tool: String) -> Node3D:
 	var pad_material := _ghost_base_material
 	var wall_material := _ghost_base_material
 	var accent_material := _ghost_accent_material
-	var body_size := Vector3(0.82, 0.8, 0.74)
-	var roof_size := Vector3(0.9, 0.18, 0.84)
+	var body_size := Vector3(1.38, 0.88, 1.18)
+	var roof_size := Vector3(1.52, 0.18, 1.3)
 
 	match tool:
 		BUILD_TOOL_POLICE:
-			body_size = Vector3(0.88, 0.88, 0.78)
-			roof_size = Vector3(0.94, 0.18, 0.86)
+			body_size = Vector3(1.52, 0.94, 1.26)
+			roof_size = Vector3(1.64, 0.18, 1.38)
 		BUILD_TOOL_FIRE:
-			body_size = Vector3(0.92, 0.9, 0.82)
-			roof_size = Vector3(0.98, 0.18, 0.9)
+			body_size = Vector3(1.58, 0.96, 1.34)
+			roof_size = Vector3(1.72, 0.18, 1.44)
 		BUILD_TOOL_BANK:
-			body_size = Vector3(0.84, 0.8, 0.72)
-			roof_size = Vector3(0.92, 0.18, 0.82)
+			body_size = Vector3(1.42, 0.86, 1.14)
+			roof_size = Vector3(1.58, 0.18, 1.28)
 		BUILD_TOOL_GROCERY:
-			body_size = Vector3(0.96, 0.74, 0.82)
-			roof_size = Vector3(1.0, 0.14, 0.88)
+			body_size = Vector3(1.66, 0.82, 1.36)
+			roof_size = Vector3(1.78, 0.16, 1.46)
 		BUILD_TOOL_RESTAURANT:
-			body_size = Vector3(0.9, 0.76, 0.78)
-			roof_size = Vector3(0.98, 0.18, 0.9)
+			body_size = Vector3(1.52, 0.84, 1.24)
+			roof_size = Vector3(1.7, 0.18, 1.4)
 		BUILD_TOOL_CORNER_STORE:
-			body_size = Vector3(0.82, 0.74, 0.7)
-			roof_size = Vector3(0.9, 0.16, 0.8)
+			body_size = Vector3(1.36, 0.8, 1.08)
+			roof_size = Vector3(1.5, 0.16, 1.22)
 
-	_add_box(Vector3(0.0, 0.02, 0.0), Vector3(0.98, 0.04, 0.98), pad_material, root)
+	_add_box(Vector3(0.0, 0.02, 0.1), Vector3(1.8, 0.04, 1.6), pad_material, root)
 	_add_soft_block(Vector3(0.0, body_size.y * 0.5 + 0.05, 0.0), body_size, wall_material, root, 0.14)
 	_add_gabled_roof(Vector3(0.0, body_size.y + 0.16, 0.0), roof_size, accent_material, root, 9.0)
 	_add_round_canopy(Vector3(0.0, 0.34, body_size.z * 0.56), Vector3(body_size.x * 0.74, 0.12, 0.18), accent_material, root)
 	return root
 
 
-func _spawn_building_for_tool(tool: String, world_position: Vector3) -> Node3D:
+func _spawn_building_for_tool(tool: String, world_position: Vector3, rotation_y: float) -> Node3D:
 	var variant := randi() % 10
+	var node: Node3D
 	match tool:
 		BUILD_TOOL_HOUSE:
-			return _add_village_house_variant(world_position, variant)
+			node = _add_village_house_variant(world_position, variant)
 		BUILD_TOOL_POLICE:
-			return _add_police_station_variant(world_position, variant)
+			node = _add_police_station_variant(world_position, variant)
 		BUILD_TOOL_FIRE:
-			return _add_fire_station_variant(world_position, variant)
+			node = _add_fire_station_variant(world_position, variant)
 		BUILD_TOOL_BANK:
-			return _add_bank_variant(world_position, variant)
+			node = _add_bank_variant(world_position, variant)
 		BUILD_TOOL_GROCERY:
-			return _add_grocery_variant(world_position, variant)
+			node = _add_grocery_variant(world_position, variant)
 		BUILD_TOOL_RESTAURANT:
-			return _add_restaurant_variant(world_position, variant)
+			node = _add_restaurant_variant(world_position, variant)
 		BUILD_TOOL_CORNER_STORE:
-			return _add_corner_store_variant(world_position, variant)
+			node = _add_corner_store_variant(world_position, variant)
 		_:
-			return _spawn_house_tile(world_position, false)
+			node = _spawn_house_tile(world_position, false)
+	node.rotation_degrees.y = rad_to_deg(rotation_y)
+	return node
 
 
 func _adjust_zoom(delta_amount: float) -> void:
 	_target_zoom = clamp(_target_zoom + delta_amount, 8.5, 24.0)
+
+
+func _rotate_camera(delta_yaw: float) -> void:
+	_target_camera_yaw += delta_yaw
 
 
 func _update_keyboard_camera(delta: float) -> void:
@@ -520,8 +647,11 @@ func _update_keyboard_camera(delta: float) -> void:
 		move.y += 1.0
 	if move != Vector2.ZERO:
 		move = move.normalized()
-		_target_focus.x = clamp(_target_focus.x + move.x * delta * 8.0, -8.5, 8.5)
-		_target_focus.z = clamp(_target_focus.z + move.y * delta * 8.0, -8.5, 8.5)
+		var right := Vector3.RIGHT.rotated(Vector3.UP, _target_camera_yaw)
+		var forward := Vector3.FORWARD.rotated(Vector3.UP, _target_camera_yaw)
+		var motion := (right * move.x + forward * move.y) * delta * 8.0
+		_target_focus.x = clamp(_target_focus.x + motion.x, -8.5, 8.5)
+		_target_focus.z = clamp(_target_focus.z + motion.z, -8.5, 8.5)
 
 	if Input.is_key_pressed(KEY_EQUAL) or Input.is_key_pressed(KEY_KP_ADD):
 		_target_zoom = max(8.5, _target_zoom - delta * 10.0)
@@ -552,15 +682,13 @@ func _exit_fullscreen() -> void:
 
 
 func _spawn_road_tile(world_position: Vector3, preview: bool) -> Node3D:
-	var root := Node3D.new()
+	var cell := _world_to_cell(world_position)
+	var extra := [cell]
+	for neighbor in _neighbor_cells(cell):
+		if _road_cells.has(_cell_key(neighbor)):
+			extra.append(neighbor)
+	var root := _build_road_tile_mesh(cell, preview, extra)
 	root.position = world_position
-	var curb_material: Material = _ghost_base_material if preview else _sidewalk_material
-	var road_material: Material = _ghost_accent_material if preview else _road_material
-	var lane_material: Material = _ghost_base_material if preview else _road_mark_material
-
-	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(1.02, 0.03, 1.02), curb_material, root)
-	_add_box(Vector3(0.0, 0.04, 0.0), Vector3(0.9, 0.05, 0.9), road_material, root)
-	_add_box(Vector3(0.0, 0.075, 0.0), Vector3(0.08, 0.02, 0.38), lane_material, root)
 	return root
 
 
@@ -571,14 +699,14 @@ func _spawn_house_tile(world_position: Vector3, preview: bool) -> Node3D:
 	var roof_material: Material = _ghost_accent_material if preview else _make_material("b97554", 0.74)
 	var pad_material: Material = _ghost_base_material if preview else _make_material("d7d8cf", 0.88)
 
-	_add_box(Vector3(0.0, 0.02, 0.0), Vector3(0.98, 0.04, 0.98), pad_material, root)
-	_add_box(Vector3(0.0, 0.42, 0.02), Vector3(0.68, 0.74, 0.64), wall_material, root)
-	var roof_a := _add_box(Vector3(0.0, 0.86, 0.12), Vector3(0.76, 0.14, 0.42), roof_material, root)
-	var roof_b := _add_box(Vector3(0.0, 0.86, -0.08), Vector3(0.76, 0.14, 0.42), roof_material, root)
+	_add_box(Vector3(0.0, 0.02, 0.1), Vector3(1.78, 0.04, 1.58), pad_material, root)
+	_add_box(Vector3(0.0, 0.5, -0.04), Vector3(1.34, 0.92, 1.18), wall_material, root)
+	_add_box(Vector3(0.34, 0.42, 0.42), Vector3(0.52, 0.66, 0.58), wall_material, root)
+	var roof_a := _add_box(Vector3(0.0, 1.0, 0.08), Vector3(1.52, 0.16, 0.74), roof_material, root)
+	var roof_b := _add_box(Vector3(0.0, 1.0, -0.24), Vector3(1.52, 0.16, 0.74), roof_material, root)
 	roof_a.rotation_degrees = Vector3(0.0, 0.0, -7.0)
 	roof_b.rotation_degrees = Vector3(0.0, 0.0, 7.0)
-	_add_box(Vector3(0.0, 0.18, 0.39), Vector3(0.24, 0.26, 0.06), _ghost_accent_material if preview else _window_material, root)
-	_add_box(Vector3(0.0, 0.07, 0.42), Vector3(0.34, 0.08, 0.18), pad_material, root)
+	_add_round_canopy(Vector3(0.0, 0.24, 0.84), Vector3(0.64, 0.12, 0.18), _ghost_accent_material if preview else _window_material, root)
 	return root
 
 
@@ -790,26 +918,32 @@ func _cozy_palette(kind: String, variant: int) -> Dictionary:
 
 func _add_village_house_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var palette := _cozy_palette("house", variant)
-	var width := 1.08 + float(variant % 3) * 0.12
-	var depth := 0.98 + float(int(variant / 3) % 2) * 0.12
-	var height := 0.88 + float(int(variant / 5)) * 0.12
+	var width := 1.34 + float(variant % 3) * 0.12
+	var depth := 1.22 + float(int(variant / 3) % 2) * 0.14
+	var height := 0.94 + float(int(variant / 5)) * 0.12
 	var root := Node3D.new()
 	root.position = position_3d
 	building_root.add_child(root)
 
-	_add_town_path(Vector3(0.0, 0.02, depth * 0.58), Vector2(width * 0.42, 0.34), root)
-	_add_soft_block(Vector3(0.0, height * 0.5 + 0.06, 0.0), Vector3(width, height, depth), _make_material_from_color(palette.wall, 0.9), root, 0.16)
-	_add_gabled_roof(Vector3(0.0, height + 0.18, 0.0), Vector3(width + 0.16, 0.18, depth + 0.22), _make_material_from_color(palette.roof, 0.78), root, 12.0)
-	_add_box(Vector3(0.0, 0.16, depth * 0.54), Vector3(width * 0.4, 0.18, 0.05), _window_material, root)
-	_add_box(Vector3(-width * 0.28, 0.28, depth * 0.52), Vector3(0.13, 0.24, 0.05), _window_material, root)
-	_add_box(Vector3(width * 0.28, 0.28, depth * 0.52), Vector3(0.13, 0.24, 0.05), _window_material, root)
-	_add_box(Vector3(0.0, 0.08, depth * 0.64), Vector3(width * 0.42, 0.08, 0.2), _make_material_from_color(palette.trim, 0.86), root)
-	_add_box(Vector3(0.0, 0.58, -depth * 0.08), Vector3(width * 0.12, 0.5, depth * 0.05), _make_material_from_color(palette.trim, 0.84), root)
+	_add_town_path(Vector3(0.0, 0.02, 0.78), Vector2(width * 0.34, 0.72), root)
+	_add_soft_block(Vector3(0.0, height * 0.5 + 0.06, -0.08), Vector3(width, height, depth), _make_material_from_color(palette.wall, 0.9), root, 0.18)
+	_add_soft_block(Vector3(width * 0.26, 0.54, 0.34), Vector3(width * 0.42, height * 0.62, depth * 0.46), _make_material_from_color(palette.wall.darkened(0.03), 0.9), root, 0.14)
+	_add_gabled_roof(Vector3(0.0, height + 0.2, -0.08), Vector3(width + 0.18, 0.2, depth + 0.24), _make_material_from_color(palette.roof, 0.78), root, 12.0)
+	_add_gabled_roof(Vector3(width * 0.26, 0.92, 0.34), Vector3(width * 0.48, 0.16, depth * 0.54), _make_material_from_color(palette.roof.lightened(0.05), 0.78), root, 11.0)
+	_add_round_canopy(Vector3(0.0, 0.2, 0.82), Vector3(width * 0.42, 0.12, 0.18), _make_material_from_color(palette.accent, 0.5), root)
+	_add_box(Vector3(0.0, 0.2, 0.54), Vector3(width * 0.18, 0.34, 0.06), _window_material, root)
+	_add_box(Vector3(-width * 0.28, 0.38, 0.48), Vector3(0.16, 0.28, 0.05), _window_material, root)
+	_add_box(Vector3(width * 0.28, 0.38, 0.48), Vector3(0.16, 0.28, 0.05), _window_material, root)
+	_add_box(Vector3(-width * 0.28, 0.42, -0.44), Vector3(0.16, 0.24, 0.05), _window_material, root)
+	_add_box(Vector3(width * 0.1, 0.42, -0.44), Vector3(0.22, 0.24, 0.05), _window_material, root)
+	_add_box(Vector3(0.0, 0.08, 0.68), Vector3(width * 0.32, 0.08, 0.34), _make_material_from_color(palette.trim, 0.86), root)
+	_add_box(Vector3(-width * 0.26, 0.28, 0.8), Vector3(0.12, 0.2, 0.12), _make_material_from_color(palette.trim, 0.86), root)
+	_add_box(Vector3(width * 0.26, 0.28, 0.8), Vector3(0.12, 0.2, 0.12), _make_material_from_color(palette.trim, 0.86), root)
+	_add_box(Vector3(0.0, 0.6, -depth * 0.1), Vector3(width * 0.12, 0.54, depth * 0.05), _make_material_from_color(palette.trim, 0.84), root)
 	if variant % 2 == 0:
-		_add_box(Vector3(width * 0.28, height + 0.44, -depth * 0.1), Vector3(0.14, 0.44, 0.14), _stone_material, root)
-	_add_round_canopy(Vector3(0.0, 0.32, depth * 0.62), Vector3(width * 0.62, 0.18, 0.28), _make_material_from_color(palette.accent, 0.5), root)
-	_add_shrub_cluster(Vector3(-width * 0.36, 0.0, depth * 0.78), palette.accent, root, 2)
-	_add_shrub_cluster(Vector3(width * 0.36, 0.0, depth * 0.78), palette.trim, root, 2)
+		_add_box(Vector3(width * 0.3, height + 0.46, -depth * 0.14), Vector3(0.16, 0.46, 0.16), _stone_material, root)
+	_add_shrub_cluster(Vector3(-width * 0.42, 0.0, 0.96), palette.accent, root, 3)
+	_add_shrub_cluster(Vector3(width * 0.42, 0.0, 0.96), palette.trim, root, 3)
 	return root
 
 
@@ -1009,31 +1143,115 @@ func _add_meadow_patch(center: Vector3, size: Vector2, clump_count: int) -> void
 func _place_road_strip(origin: Vector3, count: int, horizontal: bool) -> void:
 	for i in range(count):
 		var offset := float(i) - float(count - 1) * 0.5
+		var world := origin + (Vector3(offset, 0.0, 0.0) if horizontal else Vector3(0.0, 0.0, offset))
+		_mark_road_cell(_world_to_cell(world))
 
-		var sidewalk := MeshInstance3D.new()
-		var sidewalk_mesh := BoxMesh.new()
-		sidewalk_mesh.size = Vector3(1.08, 0.03, 1.08)
-		sidewalk.mesh = sidewalk_mesh
-		sidewalk.material_override = _sidewalk_material
-		sidewalk.position = origin + (Vector3(offset, 0.008, 0.0) if horizontal else Vector3(0.0, 0.008, offset))
-		grid_root.add_child(sidewalk)
+	for i in range(count):
+		var offset := float(i) - float(count - 1) * 0.5
+		var world := origin + (Vector3(offset, 0.0, 0.0) if horizontal else Vector3(0.0, 0.0, offset))
+		_rebuild_road_at(_world_to_cell(world))
 
-		var road := MeshInstance3D.new()
-		var road_mesh := BoxMesh.new()
-		road_mesh.size = Vector3(0.92, 0.05, 0.92)
-		road.mesh = road_mesh
-		road.material_override = _road_material
-		road.position = origin + (Vector3(offset, 0.03, 0.0) if horizontal else Vector3(0.0, 0.03, offset))
-		grid_root.add_child(road)
 
-		if i < count - 1:
-			var mark := MeshInstance3D.new()
-			var mark_mesh := BoxMesh.new()
-			mark_mesh.size = Vector3(0.08, 0.02, 0.38) if horizontal else Vector3(0.38, 0.02, 0.08)
-			mark.mesh = mark_mesh
-			mark.material_override = _road_mark_material
-			mark.position = road.position + Vector3(0.0, 0.035, 0.0)
-			grid_root.add_child(mark)
+func _world_to_cell(world_position: Vector3) -> Vector2i:
+	var grid_half := float(GRID_SIZE) * 0.5
+	return Vector2i(
+		int(round(world_position.x + grid_half - 0.5)),
+		int(round(world_position.z + grid_half - 0.5))
+	)
+
+
+func _rebuild_road_at(cell: Vector2i) -> void:
+	var key := _cell_key(cell)
+	if not _road_cells.has(key):
+		return
+	if _road_nodes.has(key):
+		var existing: Node3D = _road_nodes[key]
+		if is_instance_valid(existing):
+			existing.queue_free()
+	var road := _build_road_tile_mesh(cell, false)
+	road.position = _cell_to_world(cell)
+	grid_root.add_child(road)
+	_road_nodes[key] = road
+	_placed_nodes[key] = road
+
+
+func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = []) -> Node3D:
+	var root := Node3D.new()
+	var curb_material: Material = _ghost_base_material if preview else _sidewalk_material
+	var road_material: Material = _ghost_accent_material if preview else _road_material
+	var lane_material: Material = _ghost_base_material if preview else _road_mark_material
+	var source := road_source if road_source.size() > 0 else [cell]
+
+	_add_box(Vector3(0.0, 0.012, 0.0), Vector3(0.98, 0.024, 0.98), curb_material, root)
+	_add_box(Vector3(0.0, 0.03, 0.0), Vector3(0.42, 0.03, 0.42), road_material, root)
+
+	var north := _road_in_source(Vector2i(cell.x, cell.y - 1), source)
+	var east := _road_in_source(Vector2i(cell.x + 1, cell.y), source)
+	var south := _road_in_source(Vector2i(cell.x, cell.y + 1), source)
+	var west := _road_in_source(Vector2i(cell.x - 1, cell.y), source)
+
+	if north:
+		_add_box(Vector3(0.0, 0.03, -0.2), Vector3(0.42, 0.03, 0.58), road_material, root)
+	if south:
+		_add_box(Vector3(0.0, 0.03, 0.2), Vector3(0.42, 0.03, 0.58), road_material, root)
+	if east:
+		_add_box(Vector3(0.2, 0.03, 0.0), Vector3(0.58, 0.03, 0.42), road_material, root)
+	if west:
+		_add_box(Vector3(-0.2, 0.03, 0.0), Vector3(0.58, 0.03, 0.42), road_material, root)
+	if not north and not south and not east and not west:
+		_add_box(Vector3(0.0, 0.03, 0.0), Vector3(0.72, 0.03, 0.72), road_material, root)
+
+	var vertical_straight := north and south and not east and not west
+	var horizontal_straight := east and west and not north and not south
+	if vertical_straight:
+		_add_box(Vector3(0.0, 0.055, 0.0), Vector3(0.06, 0.01, 0.74), lane_material, root)
+	elif horizontal_straight:
+		_add_box(Vector3(0.0, 0.055, 0.0), Vector3(0.74, 0.01, 0.06), lane_material, root)
+
+	return root
+
+
+func _road_in_source(cell: Vector2i, road_source: Array) -> bool:
+	for item in road_source:
+		if item == cell:
+			return true
+	return _road_cells.has(_cell_key(cell))
+
+
+func _tool_rotation_y(tool: String, anchor: Vector2i, footprint: Vector2i) -> float:
+	if tool == BUILD_TOOL_ROAD:
+		return 0.0
+
+	var north_score := 0
+	var east_score := 0
+	var south_score := 0
+	var west_score := 0
+	for dx in range(footprint.x):
+		if _road_cells.has(_cell_key(Vector2i(anchor.x + dx, anchor.y - 1))):
+			north_score += 1
+		if _road_cells.has(_cell_key(Vector2i(anchor.x + dx, anchor.y + footprint.y))):
+			south_score += 1
+	for dz in range(footprint.y):
+		if _road_cells.has(_cell_key(Vector2i(anchor.x - 1, anchor.y + dz))):
+			west_score += 1
+		if _road_cells.has(_cell_key(Vector2i(anchor.x + footprint.x, anchor.y + dz))):
+			east_score += 1
+
+	var best := max(max(north_score, south_score), max(east_score, west_score))
+	if best > 0:
+		if south_score == best:
+			return 0.0
+		if north_score == best:
+			return PI
+		if east_score == best:
+			return -PI * 0.5
+		return PI * 0.5
+
+	var center := _anchor_to_world(anchor, footprint)
+	var to_center := Vector2(-center.x, -center.z)
+	if abs(to_center.x) > abs(to_center.y):
+		return -PI * 0.5 if to_center.x > 0.0 else PI * 0.5
+	return 0.0 if to_center.y > 0.0 else PI
 
 
 func _add_house(center: Vector3, size: Vector3, wall_color: Color, roof_color: Color) -> void:
@@ -1344,7 +1562,8 @@ func _animate_grass() -> void:
 
 
 func _update_camera(force := false) -> void:
-	var orbit := Vector3(_zoom * 0.92, _zoom * 0.74, _zoom * 0.86)
+	_camera_yaw = lerp_angle(_camera_yaw, _target_camera_yaw, 0.18 if not force else 1.0)
+	var orbit := Vector3(_zoom * 0.92, _zoom * 0.74, _zoom * 0.86).rotated(Vector3.UP, _camera_yaw)
 	camera_rig.position = _focus
 	camera.position = orbit
 	camera.look_at(_focus + Vector3(0.0, 0.55, 0.0), Vector3.UP)
