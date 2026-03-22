@@ -115,11 +115,15 @@ var _ghost_accent_material: StandardMaterial3D
 var _clouds: Array[Node3D] = []
 var _window_bands: Array[MeshInstance3D] = []
 var _grass_clumps: Array[Node3D] = []
+var _nature_features: Array[Node3D] = []
 var _hover_tiles: Array[MeshInstance3D] = []
 var _meadow_patches: Array[MeshInstance3D] = []
+var _ambient_cars: Array[Node3D] = []
+var _ambient_people: Array[Node3D] = []
 var _hover_root: Node3D
 var _ghost_root: Node3D
 var _ghost_nodes: Dictionary = {}
+var _life_root: Node3D
 var _hud_layer: CanvasLayer
 var _hud_margin: MarginContainer
 var _hud_panel: Control
@@ -163,6 +167,7 @@ func _process(delta: float) -> void:
 	_animate_clouds(delta)
 	_animate_windows()
 	_animate_grass()
+	_animate_life(delta)
 	_update_keyboard_camera(delta)
 	_update_hover_from_mouse()
 	_update_day_night_visuals()
@@ -260,6 +265,8 @@ func _build_materials() -> void:
 func _build_world() -> void:
 	_nature_root = Node3D.new()
 	building_root.add_child(_nature_root)
+	_life_root = Node3D.new()
+	building_root.add_child(_life_root)
 	_build_water_ring()
 	_build_island_base()
 	_build_ground_tiles()
@@ -704,6 +711,7 @@ func _try_place_hovered_tile() -> void:
 	_money -= cost
 	_register_placement(_hover_anchor, _hover_cells, _build_tool, placed, cost)
 	_recalculate_cashflow()
+	_rebuild_ambient_life()
 	_update_hover_from_mouse()
 	_refresh_tool_ui()
 
@@ -987,6 +995,7 @@ func _remove_selected_placement(refund: bool, record_action: bool = true) -> voi
 					_rebuild_road_at(neighbor)
 	_clear_selected_anchor()
 	_recalculate_cashflow()
+	_rebuild_ambient_life()
 	_refresh_tool_ui()
 	_update_hover_from_mouse()
 
@@ -1019,6 +1028,7 @@ func _undo_last_action() -> void:
 		if not _action_history.is_empty():
 			_action_history.pop_back()
 	_recalculate_cashflow()
+	_rebuild_ambient_life()
 	_refresh_tool_ui()
 
 
@@ -1300,6 +1310,7 @@ func _try_load_game(force_feedback: bool = false) -> void:
 	_loaded_save = true
 	_clear_selected_anchor()
 	_recalculate_cashflow()
+	_rebuild_ambient_life()
 	_refresh_tool_ui()
 	_update_hover_from_mouse()
 	_update_camera(true)
@@ -1316,6 +1327,7 @@ func _new_map() -> void:
 	_loaded_save = false
 	_reset_camera_view()
 	_recalculate_cashflow()
+	_rebuild_ambient_life()
 	_refresh_tool_ui()
 	_update_hover_from_mouse()
 	if _hint_label:
@@ -1343,9 +1355,14 @@ func _clear_map_data() -> void:
 	_action_history.clear()
 	_clear_selected_anchor()
 	_reset_nature_layer()
+	_clear_ambient_life()
 
 
 func _reset_nature_layer() -> void:
+	for feature in _nature_features:
+		if is_instance_valid(feature):
+			feature.queue_free()
+	_nature_features.clear()
 	for patch in _meadow_patches:
 		if is_instance_valid(patch):
 			patch.queue_free()
@@ -1358,6 +1375,19 @@ func _reset_nature_layer() -> void:
 
 
 func _clear_nature_for_cells(cells: Array[Vector2i]) -> void:
+	for i in range(_nature_features.size() - 1, -1, -1):
+		var feature := _nature_features[i]
+		if not is_instance_valid(feature):
+			_nature_features.remove_at(i)
+			continue
+		var radius: float = float(feature.get_meta("clear_radius", 0.72))
+		for cell in cells:
+			var feature_center := Vector2(feature.global_position.x, feature.global_position.z)
+			var world_center := _cell_to_world(cell)
+			if feature_center.distance_to(Vector2(world_center.x, world_center.z)) < radius:
+				feature.queue_free()
+				_nature_features.remove_at(i)
+				break
 	for cell in cells:
 		var world_center := _cell_to_world(cell)
 		for i in range(_grass_clumps.size() - 1, -1, -1):
@@ -1377,6 +1407,185 @@ func _clear_nature_for_cells(cells: Array[Vector2i]) -> void:
 			if Vector2(patch.position.x, patch.position.z).distance_to(Vector2(world_center.x, world_center.z)) < radius:
 				patch.queue_free()
 				_meadow_patches.remove_at(j)
+
+
+func _register_nature_feature(node: Node3D, clear_radius: float) -> void:
+	node.set_meta("clear_radius", clear_radius)
+	_nature_features.append(node)
+
+
+func _clear_ambient_life() -> void:
+	for car in _ambient_cars:
+		if is_instance_valid(car):
+			car.queue_free()
+	_ambient_cars.clear()
+	for person in _ambient_people:
+		if is_instance_valid(person):
+			person.queue_free()
+	_ambient_people.clear()
+
+
+func _rebuild_ambient_life() -> void:
+	_clear_ambient_life()
+	if _road_cells.is_empty():
+		return
+	var road_keys: Array = _road_cells.keys()
+	var car_count := mini(6, road_keys.size())
+	for index in range(car_count):
+		var road_key: String = str(road_keys[index])
+		var road_cell := _anchor_key_to_cell(road_key)
+		var car := _spawn_ambient_car(road_cell, index)
+		_life_root.add_child(car)
+		_ambient_cars.append(car)
+
+	var anchors: Array = _placements.keys()
+	var person_count := mini(10, anchors.size())
+	var spawned_people := 0
+	for anchor_key_variant in anchors:
+		if spawned_people >= person_count:
+			break
+		var anchor_key := str(anchor_key_variant)
+		if not _placements.has(anchor_key):
+			continue
+		var placement: Dictionary = _placements[anchor_key]
+		if str(placement["tool"]) == BUILD_TOOL_ROAD:
+			continue
+		var person := _spawn_ambient_person(anchor_key, spawned_people)
+		_life_root.add_child(person)
+		_ambient_people.append(person)
+		spawned_people += 1
+
+
+func _spawn_ambient_car(road_cell: Vector2i, index: int) -> Node3D:
+	var root := Node3D.new()
+	var road_center := _cell_to_world(road_cell)
+	var neighbors: Array[Vector2i] = []
+	for neighbor in _neighbor_cells(road_cell):
+		if _road_cells.has(_cell_key(neighbor)):
+			neighbors.append(neighbor)
+	var travel_axis := Vector3.RIGHT
+	var forward_rotation := 0.0
+	if not neighbors.is_empty():
+		var target := _cell_to_world(neighbors[index % neighbors.size()])
+		var direction := (target - road_center).normalized()
+		if abs(direction.x) > abs(direction.z):
+			travel_axis = Vector3.RIGHT
+			forward_rotation = -PI * 0.5 if direction.x > 0.0 else PI * 0.5
+		else:
+			travel_axis = Vector3.FORWARD
+			forward_rotation = 0.0 if direction.z > 0.0 else PI
+	var lane_offset := Vector3(0.0, 0.05, 0.0)
+	if abs(travel_axis.x) > 0.0:
+		lane_offset.z = -0.1 if index % 2 == 0 else 0.1
+	else:
+		lane_offset.x = -0.1 if index % 2 == 0 else 0.1
+	var travel_distance := 0.42
+	var start := road_center - travel_axis * travel_distance + lane_offset
+	var finish := road_center + travel_axis * travel_distance + lane_offset
+	root.position = start
+	root.rotation.y = forward_rotation
+	root.set_meta("mode", "car")
+	root.set_meta("start", start)
+	root.set_meta("finish", finish)
+	root.set_meta("phase", randf_range(0.0, TAU))
+	root.set_meta("speed", randf_range(0.5, 0.95))
+	root.set_meta("heading", forward_rotation)
+
+	var palette := [
+		Color("d16758"),
+		Color("5f8cb8"),
+		Color("86a05d"),
+		Color("e3be67"),
+		Color("7e6ba1"),
+	]
+	var body_material := _make_material_from_color(palette[index % palette.size()], 0.68)
+	var trim_material := _make_material("f6f1e4", 0.82)
+	var tire_material := _make_material("26252b", 0.98)
+	var window_glass := _make_transparent_material(Color("bfe6ff"), 0.24, 0.16)
+	_add_soft_block(Vector3(0.0, 0.16, 0.0), Vector3(0.34, 0.16, 0.58), body_material, root, 0.08)
+	_add_soft_block(Vector3(0.0, 0.27, -0.02), Vector3(0.24, 0.12, 0.28), trim_material, root, 0.06)
+	_add_box(Vector3(0.0, 0.29, -0.02), Vector3(0.18, 0.08, 0.18), window_glass, root)
+	_add_box(Vector3(0.0, 0.13, 0.29), Vector3(0.18, 0.03, 0.03), trim_material, root)
+	_add_box(Vector3(0.0, 0.13, -0.29), Vector3(0.18, 0.03, 0.03), trim_material, root)
+	for wheel_data in [
+		Vector3(-0.14, 0.07, -0.2),
+		Vector3(0.14, 0.07, -0.2),
+		Vector3(-0.14, 0.07, 0.2),
+		Vector3(0.14, 0.07, 0.2),
+	]:
+		var wheel := _add_local_cylinder(wheel_data, 0.05, 0.05, 0.04, tire_material, root)
+		wheel.rotation_degrees.z = 90.0
+	return root
+
+
+func _spawn_ambient_person(anchor_key: String, index: int) -> Node3D:
+	var root := Node3D.new()
+	var placement: Dictionary = _placements[anchor_key]
+	var anchor: Vector2i = placement["anchor"]
+	var cells: Array[Vector2i] = placement["cells"]
+	var footprint := _footprint_from_cells(cells)
+	var rotation_y := _tool_rotation_y(str(placement["tool"]), anchor, footprint)
+	var forward := Vector3(sin(rotation_y), 0.0, cos(rotation_y))
+	var side := Vector3(forward.z, 0.0, -forward.x)
+	var center := _anchor_to_world(anchor, footprint)
+	var frontage := center + forward * (float(footprint.y) * 0.5 + 0.45)
+	var stride := 0.38 + float(index % 3) * 0.06
+	var side_offset := (-0.35 if index % 2 == 0 else 0.35) + float(index % 3) * 0.06 - 0.06
+	var start := frontage - side * stride + side * side_offset + Vector3(0.0, 0.02, 0.0)
+	var finish := frontage + side * stride + side * side_offset + Vector3(0.0, 0.02, 0.0)
+	root.position = start
+	root.set_meta("mode", "person")
+	root.set_meta("start", start)
+	root.set_meta("finish", finish)
+	root.set_meta("phase", randf_range(0.0, TAU))
+	root.set_meta("speed", randf_range(0.45, 0.88))
+
+	var coat_palette := [
+		Color("5b7db0"),
+		Color("b86a58"),
+		Color("728e57"),
+		Color("8b6da8"),
+		Color("cb9a5a"),
+	]
+	var coat_material := _make_material_from_color(coat_palette[index % coat_palette.size()], 0.74)
+	var pant_material := _make_material("4a4748", 0.96)
+	var skin_material := _make_material("e7c8a8", 0.86)
+	_add_soft_block(Vector3(0.0, 0.2, 0.0), Vector3(0.12, 0.2, 0.1), coat_material, root, 0.04)
+	_add_local_sphere(Vector3(0.0, 0.34, 0.0), 0.06, 0.08, skin_material, root)
+	_add_box(Vector3(-0.03, 0.07, 0.0), Vector3(0.03, 0.14, 0.03), pant_material, root)
+	_add_box(Vector3(0.03, 0.07, 0.0), Vector3(0.03, 0.14, 0.03), pant_material, root)
+	_add_box(Vector3(0.0, 0.23, -0.07), Vector3(0.12, 0.03, 0.03), _make_material("f5efe4", 0.86), root)
+	return root
+
+
+func _animate_life(delta: float) -> void:
+	for car in _ambient_cars:
+		if not is_instance_valid(car):
+			continue
+		var speed: float = float(car.get_meta("speed", 0.65))
+		var phase: float = float(car.get_meta("phase", 0.0)) + delta * speed
+		car.set_meta("phase", phase)
+		var motion := 0.5 + 0.5 * sin(phase)
+		var start: Vector3 = car.get_meta("start", car.position)
+		var finish: Vector3 = car.get_meta("finish", car.position)
+		car.position = start.lerp(finish, motion)
+		car.rotation.y = float(car.get_meta("heading", car.rotation.y))
+
+	for person in _ambient_people:
+		if not is_instance_valid(person):
+			continue
+		var speed: float = float(person.get_meta("speed", 0.6))
+		var phase: float = float(person.get_meta("phase", 0.0)) + delta * speed
+		person.set_meta("phase", phase)
+		var motion := 0.5 + 0.5 * sin(phase)
+		var start: Vector3 = person.get_meta("start", person.position)
+		var finish: Vector3 = person.get_meta("finish", person.position)
+		var next_position := start.lerp(finish, motion)
+		next_position.y += abs(sin(phase * 6.0)) * 0.025
+		person.position = next_position
+		var look_direction := finish - start
+		if look_direction.length() > 0.01:
+			person.rotation.y = atan2(look_direction.x, look_direction.z) + (PI if cos(phase) < 0.0 else 0.0)
 
 
 func _update_day_night_visuals() -> void:
@@ -2014,18 +2223,18 @@ func _tool_rotation_y(tool: String, anchor: Vector2i, footprint: Vector2i) -> fl
 	if tool == BUILD_TOOL_ROAD:
 		return 0.0
 
-	var north_score := _transport_edge_score(anchor, footprint, "north")
-	var east_score := _transport_edge_score(anchor, footprint, "east")
-	var south_score := _transport_edge_score(anchor, footprint, "south")
-	var west_score := _transport_edge_score(anchor, footprint, "west")
+	var south_score: float = _transport_side_score(anchor, footprint, "south")
+	var north_score: float = _transport_side_score(anchor, footprint, "north")
+	var east_score: float = _transport_side_score(anchor, footprint, "east")
+	var west_score: float = _transport_side_score(anchor, footprint, "west")
 
-	var best: int = maxi(maxi(north_score, south_score), maxi(east_score, west_score))
-	if best > 0:
-		if south_score == best:
+	var best_score := maxf(maxf(south_score, north_score), maxf(east_score, west_score))
+	if best_score > -9000.0:
+		if is_equal_approx(south_score, best_score):
 			return 0.0
-		if north_score == best:
+		if is_equal_approx(north_score, best_score):
 			return PI
-		if east_score == best:
+		if is_equal_approx(east_score, best_score):
 			return -PI * 0.5
 		return PI * 0.5
 
@@ -2040,34 +2249,60 @@ func _tool_rotation_y(tool: String, anchor: Vector2i, footprint: Vector2i) -> fl
 	return 0.0 if to_center.y > 0.0 else PI
 
 
-func _transport_edge_score(anchor: Vector2i, footprint: Vector2i, side: String) -> int:
-	var score := 0
+func _transport_side_score(anchor: Vector2i, footprint: Vector2i, side: String) -> float:
+	var side_center := _frontage_side_center(anchor, footprint, side)
+	var adjacent_count := 0
+	var nearest_distance := INF
 	match side:
 		"north":
 			for dx in range(footprint.x):
-				if _road_cells.has(_cell_key(Vector2i(anchor.x + dx, anchor.y - 1))):
-					score += 3
-				if _road_cells.has(_cell_key(Vector2i(anchor.x + dx, anchor.y - 2))):
-					score += 1
+				for offset in [1, 2, 3]:
+					var candidate := Vector2i(anchor.x + dx, anchor.y - offset)
+					if _road_cells.has(_cell_key(candidate)):
+						nearest_distance = minf(nearest_distance, side_center.distance_to(Vector2(_cell_to_world(candidate).x, _cell_to_world(candidate).z)))
+						if offset == 1:
+							adjacent_count += 1
 		"south":
 			for dx in range(footprint.x):
-				if _road_cells.has(_cell_key(Vector2i(anchor.x + dx, anchor.y + footprint.y))):
-					score += 3
-				if _road_cells.has(_cell_key(Vector2i(anchor.x + dx, anchor.y + footprint.y + 1))):
-					score += 1
+				for offset in [0, 1, 2]:
+					var candidate := Vector2i(anchor.x + dx, anchor.y + footprint.y + offset)
+					if _road_cells.has(_cell_key(candidate)):
+						nearest_distance = minf(nearest_distance, side_center.distance_to(Vector2(_cell_to_world(candidate).x, _cell_to_world(candidate).z)))
+						if offset == 0:
+							adjacent_count += 1
 		"west":
 			for dz in range(footprint.y):
-				if _road_cells.has(_cell_key(Vector2i(anchor.x - 1, anchor.y + dz))):
-					score += 3
-				if _road_cells.has(_cell_key(Vector2i(anchor.x - 2, anchor.y + dz))):
-					score += 1
+				for offset in [1, 2, 3]:
+					var candidate := Vector2i(anchor.x - offset, anchor.y + dz)
+					if _road_cells.has(_cell_key(candidate)):
+						nearest_distance = minf(nearest_distance, side_center.distance_to(Vector2(_cell_to_world(candidate).x, _cell_to_world(candidate).z)))
+						if offset == 1:
+							adjacent_count += 1
 		"east":
 			for dz in range(footprint.y):
-				if _road_cells.has(_cell_key(Vector2i(anchor.x + footprint.x, anchor.y + dz))):
-					score += 3
-				if _road_cells.has(_cell_key(Vector2i(anchor.x + footprint.x + 1, anchor.y + dz))):
-					score += 1
-	return score
+				for offset in [0, 1, 2]:
+					var candidate := Vector2i(anchor.x + footprint.x + offset, anchor.y + dz)
+					if _road_cells.has(_cell_key(candidate)):
+						nearest_distance = minf(nearest_distance, side_center.distance_to(Vector2(_cell_to_world(candidate).x, _cell_to_world(candidate).z)))
+						if offset == 0:
+							adjacent_count += 1
+	if nearest_distance == INF:
+		return -9999.0
+	return float(adjacent_count) * 100.0 - nearest_distance
+
+
+func _frontage_side_center(anchor: Vector2i, footprint: Vector2i, side: String) -> Vector2:
+	var center := _anchor_to_world(anchor, footprint)
+	match side:
+		"north":
+			return Vector2(center.x, center.z - float(footprint.y) * 0.5 - 0.5)
+		"south":
+			return Vector2(center.x, center.z + float(footprint.y) * 0.5 + 0.5)
+		"west":
+			return Vector2(center.x - float(footprint.x) * 0.5 - 0.5, center.z)
+		"east":
+			return Vector2(center.x + float(footprint.x) * 0.5 + 0.5, center.z)
+	return Vector2(center.x, center.z)
 
 
 func _rotation_toward_nearest_transport(anchor: Vector2i, footprint: Vector2i) -> Variant:
@@ -2162,10 +2397,14 @@ func _add_plaza(center: Vector3, size: Vector2) -> void:
 
 
 func _add_tree(position_3d: Vector3) -> void:
-	_add_cylinder(position_3d + Vector3(0.0, 0.34, 0.0), 0.11, 0.08, 0.68, _trunk_material)
-	_add_sphere(position_3d + Vector3(0.0, 0.92, 0.02), 0.52, 0.86, _leaf_material)
-	_add_sphere(position_3d + Vector3(-0.2, 0.84, 0.0), 0.34, 0.66, _leaf_material)
-	_add_sphere(position_3d + Vector3(0.22, 0.84, -0.08), 0.3, 0.58, _leaf_material)
+	var root := Node3D.new()
+	root.position = position_3d
+	_nature_root.add_child(root)
+	_register_nature_feature(root, 0.78)
+	_add_local_cylinder(Vector3(0.0, 0.34, 0.0), 0.11, 0.08, 0.68, _trunk_material, root)
+	_add_local_sphere(Vector3(0.0, 0.92, 0.02), 0.52, 0.86, _leaf_material, root)
+	_add_local_sphere(Vector3(-0.2, 0.84, 0.0), 0.34, 0.66, _leaf_material, root)
+	_add_local_sphere(Vector3(0.22, 0.84, -0.08), 0.3, 0.58, _leaf_material, root)
 
 
 func _add_grass_clump(position_3d: Vector3, scale_factor: float) -> void:
@@ -2188,11 +2427,15 @@ func _add_grass_clump(position_3d: Vector3, scale_factor: float) -> void:
 
 
 func _add_park_corner(position_3d: Vector3) -> void:
-	_add_plaza(position_3d, Vector2(1.8, 1.8))
-	_add_tree(position_3d + Vector3(-0.55, 0.0, -0.1))
-	_add_tree(position_3d + Vector3(0.52, 0.0, 0.28))
-	_add_bench(position_3d + Vector3(0.0, 0.06, -0.58), 0.0)
-	_add_flower_patch(position_3d + Vector3(0.58, 0.08, -0.55), 4, _flower_material_pink)
+	var root := Node3D.new()
+	root.position = position_3d
+	_nature_root.add_child(root)
+	_register_nature_feature(root, 1.08)
+	_add_box(Vector3(0.0, 0.02, 0.0), Vector3(1.8, 0.05, 1.8), _make_material("eef4f5", 0.84), root)
+	_add_local_tree(Vector3(-0.55, 0.0, -0.1), root)
+	_add_local_tree(Vector3(0.52, 0.0, 0.28), root)
+	_add_bench_local(Vector3(0.0, 0.06, -0.58), 0.0, root)
+	_add_local_flower_patch(Vector3(0.58, 0.08, -0.55), 4, _flower_material_pink, root)
 
 
 func _add_planter(position_3d: Vector3) -> void:
@@ -2201,10 +2444,14 @@ func _add_planter(position_3d: Vector3) -> void:
 
 
 func _add_flower_patch(center: Vector3, count: int, material: StandardMaterial3D) -> void:
+	var root := Node3D.new()
+	root.position = center
+	_nature_root.add_child(root)
+	_register_nature_feature(root, 0.48)
 	for i in range(count):
 		var offset_x := (float(i % 3) - 1.0) * 0.14
 		var offset_z := (float(i / 3) - 0.5) * 0.14
-		_add_box(center + Vector3(offset_x, 0.05, offset_z), Vector3(0.08, 0.08, 0.08), material, building_root)
+		_add_box(Vector3(offset_x, 0.05, offset_z), Vector3(0.08, 0.08, 0.08), material, root)
 
 
 func _add_flower_box_local(position_3d: Vector3, color: Color, parent: Node) -> void:
@@ -2292,8 +2539,12 @@ func _add_string_lights_local(parent: Node, z_position: float, width: float) -> 
 
 
 func _add_shore_detail(position_3d: Vector3) -> void:
-	_add_box(position_3d, Vector3(0.34, 0.08, 0.24), _stone_material, grid_root)
-	_add_box(position_3d + Vector3(0.18, 0.04, -0.1), Vector3(0.18, 0.06, 0.16), _stone_material, grid_root)
+	var root := Node3D.new()
+	root.position = position_3d
+	_nature_root.add_child(root)
+	_add_box(Vector3.ZERO, Vector3(0.34, 0.08, 0.24), _stone_material, root)
+	_add_box(Vector3(0.18, 0.04, -0.1), Vector3(0.18, 0.06, 0.16), _stone_material, root)
+	_register_nature_feature(root, 0.54)
 	_add_grass_clump(position_3d + Vector3(-0.12, 0.12, 0.08), 0.72)
 
 
