@@ -3,10 +3,10 @@
 [ext_resource type="Script" path="res://scripts/lighting_controller.gd" id="1"]
 
 [sub_resource type="ProceduralSkyMaterial" id="1"]
-sky_top_color = Color(0.286275, 0.345098, 0.447059, 1)
-sky_horizon_color = Color(0.94902, 0.796078, 0.627451, 1)
-ground_bottom_color = Color(0.176471, 0.145098, 0.109804, 1)
-ground_horizon_color = Color(0.470588, 0.396078, 0.278431, 1)
+sky_top_color = Color(0.25098, 0.294118, 0.356863, 1)
+sky_horizon_color = Color(0.952941, 0.756863, 0.52549, 1)
+ground_bottom_color = Color(0.156863, 0.133333, 0.101961, 1)
+ground_horizon_color = Color(0.396078, 0.341176, 0.243137, 1)
 sun_angle_max = 18.0
 sun_curve = 0.25
 
@@ -17,21 +17,21 @@ sky_material = SubResource("1")
 background_mode = 2
 sky = SubResource("2")
 ambient_light_source = 3
-ambient_light_color = Color(0.847059, 0.764706, 0.643137, 1)
-ambient_light_energy = 0.34
+ambient_light_color = Color(0.784314, 0.701961, 0.603922, 1)
+ambient_light_energy = 0.22
 reflected_light_source = 1
 tonemap_mode = 2
 glow_enabled = true
 glow_bloom = 0.02
 glow_intensity = 0.03
 fog_enabled = true
-fog_light_color = Color(0.952941, 0.780392, 0.564706, 1)
-fog_light_energy = 0.12
-fog_density = 0.0017
+fog_light_color = Color(0.929412, 0.713726, 0.490196, 1)
+fog_light_energy = 0.08
+fog_density = 0.0013
 adjustment_enabled = true
-adjustment_brightness = 0.94
-adjustment_contrast = 1.1
-adjustment_saturation = 1.02
+adjustment_brightness = 0.9
+adjustment_contrast = 1.16
+adjustment_saturation = 1.03
 
 [node name="LightingController" type="Node3D"]
 script = ExtResource("1")
@@ -42,7 +42,7 @@ environment = SubResource("3")
 [node name="Sun" type="DirectionalLight3D" parent="."]
 rotation_degrees = Vector3(-50, -26, 0)
 light_color = Color(1, 0.835294, 0.643137, 1)
-light_energy = 1.1
+light_energy = 1.02
 shadow_enabled = true
 directional_shadow_mode = 2
 directional_shadow_max_distance = 180.0
