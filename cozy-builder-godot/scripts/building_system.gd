@@ -119,6 +119,7 @@ var _cell_anchor_lookup: Dictionary = {}
 var _road_cells: Dictionary = {}
 var _road_nodes: Dictionary = {}
 var _action_history: Array[Dictionary] = []
+var _variant_cycle: Dictionary = {}
 var _loaded_save := false
 
 var _ground_material_a: StandardMaterial3D
@@ -276,15 +277,15 @@ func _input(event: InputEvent) -> void:
 
 
 func _build_materials() -> void:
-	_ground_material_a = _make_material("79955d", 0.98)
-	_ground_material_b = _make_material("65804a", 0.98)
-	_ground_material_c = _make_material("97a169", 0.98)
-	_soil_material = _make_material("7a5a3b", 0.99)
-	_stone_material = _make_material("c8b9a3", 0.94)
-	_water_material = _make_material("4b8b95", 0.38, 0.0, true, "a9d6d8", 0.02)
-	_road_material = _make_material("5b565c", 0.98)
-	_road_mark_material = _make_material("e8dfc8", 0.8)
-	_sidewalk_material = _make_material("bda98e", 0.94)
+	_ground_material_a = _make_material("95a86d", 0.98)
+	_ground_material_b = _make_material("869a62", 0.98)
+	_ground_material_c = _make_material("a6b37a", 0.98)
+	_soil_material = _make_material("726346", 0.99)
+	_stone_material = _make_material("c9bba6", 0.94)
+	_water_material = _make_material("5c98a8", 0.34, 0.0, true, "d0edf1", 0.03)
+	_road_material = _make_material("44484c", 0.99)
+	_road_mark_material = _make_material("d9cd9d", 0.84)
+	_sidewalk_material = _make_material("8f8775", 0.95)
 	_window_material = _make_material("f3d29a", 0.42, 0.0, true, "ffd48e", 0.14)
 	_leaf_material = _make_material("6f8a50", 0.98)
 	_trunk_material = _make_material("765239", 0.94)
@@ -735,7 +736,7 @@ func _try_place_hovered_tile() -> void:
 		return
 	var placed: Node3D
 	var tier := 1
-	var variant := randi() % 10
+	var variant := _next_variant_for_tool(_build_tool)
 	if _build_tool == BUILD_TOOL_ROAD:
 		_mark_road_cell(_hover_anchor)
 		_rebuild_road_at(_hover_anchor)
@@ -757,6 +758,14 @@ func _try_place_hovered_tile() -> void:
 
 func _tool_name(tool: String) -> String:
 	return BUILD_TOOL_LABELS.get(tool, "Building")
+
+
+func _next_variant_for_tool(tool: String) -> int:
+	if tool == BUILD_TOOL_ROAD or not BUILDING_MAX_TIERS.has(tool):
+		return -1
+	var next_variant := int(_variant_cycle.get(tool, 0))
+	_variant_cycle[tool] = posmod(next_variant + 1, 10)
+	return next_variant
 
 
 func _tool_footprint(tool: String) -> Vector2i:
@@ -1386,6 +1395,7 @@ func _new_map() -> void:
 	_day = 1
 	_simulation_clock = 0.0
 	_build_tool = BUILD_TOOL_ROAD
+	_variant_cycle.clear()
 	_loaded_save = false
 	_reset_camera_view()
 	_recalculate_cashflow()
@@ -1415,6 +1425,7 @@ func _clear_map_data() -> void:
 	_road_cells.clear()
 	_road_nodes.clear()
 	_action_history.clear()
+	_variant_cycle.clear()
 	_clear_selected_anchor()
 	_reset_nature_layer()
 	_clear_ambient_life()
@@ -1492,7 +1503,9 @@ func _rebuild_ambient_life() -> void:
 	if _road_cells.is_empty():
 		return
 	var road_keys: Array = _road_cells.keys()
-	var car_count := mini(6, road_keys.size())
+	var car_count := clampi(int(floor(float(road_keys.size()) / 14.0)), 0, 3)
+	if road_keys.size() >= 16:
+		car_count = maxi(car_count, 1)
 	for index in range(car_count):
 		var road_key: String = str(road_keys[index])
 		var road_cell := _anchor_key_to_cell(road_key)
@@ -1501,7 +1514,7 @@ func _rebuild_ambient_life() -> void:
 		_ambient_cars.append(car)
 
 	var anchors: Array = _placements.keys()
-	var person_count := mini(10, anchors.size())
+	var person_count := mini(6, anchors.size())
 	var spawned_people := 0
 	for anchor_key_variant in anchors:
 		if spawned_people >= person_count:
@@ -1538,10 +1551,10 @@ func _spawn_ambient_car(road_cell: Vector2i, index: int) -> Node3D:
 			forward_rotation = 0.0 if direction.z > 0.0 else PI
 	var lane_offset := Vector3(0.0, 0.05, 0.0)
 	if abs(travel_axis.x) > 0.0:
-		lane_offset.z = -0.1 if index % 2 == 0 else 0.1
+		lane_offset.z = -0.18 if index % 2 == 0 else 0.18
 	else:
-		lane_offset.x = -0.1 if index % 2 == 0 else 0.1
-	var travel_distance := 0.42
+		lane_offset.x = -0.18 if index % 2 == 0 else 0.18
+	var travel_distance := 0.52
 	var start := road_center - travel_axis * travel_distance + lane_offset
 	var finish := road_center + travel_axis * travel_distance + lane_offset
 	root.position = start
@@ -1659,12 +1672,12 @@ func _update_day_night_visuals() -> void:
 	var cycle := fmod(float(_day - 1) + _simulation_clock / 7.5, 6.0) / 6.0
 	var sun_wave := sin(cycle * TAU)
 	var warm_strength: float = clampf(0.52 + sun_wave * 0.34, 0.18, 0.92)
-	var sky_top: Color = Color(0.18, 0.29, 0.44).lerp(Color(0.88, 0.56, 0.3), warm_strength * 0.74)
-	var sky_horizon: Color = Color(0.63, 0.73, 0.8).lerp(Color(0.97, 0.77, 0.5), warm_strength * 0.8)
+	var sky_top: Color = Color(0.32, 0.44, 0.6).lerp(Color(0.89, 0.67, 0.42), warm_strength * 0.46)
+	var sky_horizon: Color = Color(0.8, 0.88, 0.9).lerp(Color(0.98, 0.87, 0.68), warm_strength * 0.5)
 	if world_environment and world_environment.environment:
 		var env: Environment = world_environment.environment
 		env.background_mode = Environment.BG_COLOR
-		env.background_color = sky_horizon
+		env.background_color = sky_top.lerp(sky_horizon, 0.74)
 		env.ambient_light_color = sky_top.lerp(Color(1.0, 0.92, 0.82), 0.38)
 		env.ambient_light_energy = 0.42 + warm_strength * 0.24
 		env.fog_enabled = true
@@ -1772,7 +1785,7 @@ func _build_water_ring() -> void:
 	shallow_mesh.bottom_radius = float(GRID_SIZE) * 0.54
 	shallow_mesh.height = 0.08
 	shallows.mesh = shallow_mesh
-	shallows.material_override = _make_transparent_material(Color("c8ede7"), 0.22, 0.3)
+	shallows.material_override = _make_transparent_material(Color("d7f3ee"), 0.2, 0.28)
 	shallows.position = Vector3(0.0, -0.49, 0.0)
 	grid_root.add_child(shallows)
 
@@ -1790,7 +1803,7 @@ func _build_island_base() -> void:
 	var lip_mesh := BoxMesh.new()
 	lip_mesh.size = Vector3(GRID_SIZE + 1.4, 0.28, GRID_SIZE + 1.4)
 	lip.mesh = lip_mesh
-	lip.material_override = _stone_material
+	lip.material_override = _make_material("9b8b72", 0.95)
 	lip.position = Vector3(0.0, -0.11, 0.0)
 	grid_root.add_child(lip)
 
@@ -1798,7 +1811,7 @@ func _build_island_base() -> void:
 	var turf_mesh := BoxMesh.new()
 	turf_mesh.size = Vector3(GRID_SIZE + 0.8, 0.14, GRID_SIZE + 0.8)
 	turf.mesh = turf_mesh
-	turf.material_override = _make_material("aab177", 0.98)
+	turf.material_override = _make_material("8fa369", 0.98)
 	turf.position = Vector3(0.0, -0.01, 0.0)
 	grid_root.add_child(turf)
 
@@ -1810,8 +1823,8 @@ func _build_ground_tiles() -> void:
 		for x in range(GRID_SIZE):
 			var tile := MeshInstance3D.new()
 			var mesh := BoxMesh.new()
-			var height_variation := 0.14 + sin(float(x) * 0.35) * 0.025 + cos(float(z) * 0.27) * 0.02
-			mesh.size = Vector3(0.98, height_variation, 0.98)
+			var height_variation := 0.1 + sin(float(x) * 0.35) * 0.012 + cos(float(z) * 0.27) * 0.01
+			mesh.size = Vector3(1.04, height_variation, 1.04)
 			tile.mesh = mesh
 			var material := _ground_material_a
 			if (x + z) % 3 == 0:
@@ -1819,7 +1832,7 @@ func _build_ground_tiles() -> void:
 			elif (x * 3 + z * 5) % 4 == 0:
 				material = _ground_material_c
 			tile.material_override = material
-			tile.position = Vector3(x - half, -0.03, z - half)
+			tile.position = Vector3(x - half, -0.02, z - half)
 			grid_root.add_child(tile)
 
 	for edge in range(GRID_SIZE):
@@ -1952,9 +1965,9 @@ func _cozy_palette(kind: String, variant: int) -> Dictionary:
 			roofs = ["6f7f8c", "8b6c55", "5d835a", "7e6888"]
 			accents = ["f29a6a", "7ed1be", "f1d574", "8db0ec"]
 		"house":
-			walls = ["f3dfcf", "e8e0d2", "d8e4dc", "dce6ef"]
-			roofs = ["b77858", "6f6da3", "78955d", "5f7da5"]
-			accents = ["f0c98e", "a8d7d2", "e8a9ad", "f6dca1"]
+			walls = ["efe1cf", "e6ddcf", "d8e1d3", "dfe4e6"]
+			roofs = ["b76f4d", "815640", "72835a", "5d6c7a"]
+			accents = ["d9b67d", "94b6a7", "cb9d8b", "d8d1a3"]
 
 	return {
 		"wall": Color(walls[idx % walls.size()]),
@@ -1964,74 +1977,136 @@ func _cozy_palette(kind: String, variant: int) -> Dictionary:
 	}
 
 
+func _house_variant_profile(variant: int) -> Dictionary:
+	var profiles := [
+		{"width": 2.34, "depth": 1.88, "height": 1.16, "roof_tilt": 22.0, "roof_lift": 0.32, "roof_overhang": 0.52, "wing": false, "garage": false, "garage_side": 1.0, "dormers": 1, "pool": false, "porch_depth": 0.44, "porch_width": 0.66, "entry_offset": 0.0, "bay": false, "shed": false, "trellis": false, "fence_width": 3.9},
+		{"width": 2.18, "depth": 1.78, "height": 1.02, "roof_tilt": 16.0, "roof_lift": 0.24, "roof_overhang": 0.44, "wing": false, "garage": true, "garage_side": 1.0, "dormers": 0, "pool": false, "porch_depth": 0.32, "porch_width": 0.54, "entry_offset": -0.26, "bay": true, "shed": false, "trellis": false, "fence_width": 3.86},
+		{"width": 2.64, "depth": 1.94, "height": 1.12, "roof_tilt": 18.0, "roof_lift": 0.28, "roof_overhang": 0.5, "wing": true, "garage": false, "garage_side": -1.0, "dormers": 1, "pool": true, "porch_depth": 0.46, "porch_width": 0.72, "entry_offset": 0.18, "bay": false, "shed": false, "trellis": false, "fence_width": 3.92},
+		{"width": 2.24, "depth": 1.82, "height": 1.3, "roof_tilt": 25.0, "roof_lift": 0.34, "roof_overhang": 0.48, "wing": false, "garage": false, "garage_side": 1.0, "dormers": 2, "pool": false, "porch_depth": 0.36, "porch_width": 0.52, "entry_offset": 0.0, "bay": false, "shed": false, "trellis": true, "fence_width": 3.84},
+		{"width": 2.82, "depth": 1.92, "height": 1.04, "roof_tilt": 14.0, "roof_lift": 0.22, "roof_overhang": 0.42, "wing": true, "garage": true, "garage_side": -1.0, "dormers": 0, "pool": false, "porch_depth": 0.28, "porch_width": 0.46, "entry_offset": 0.34, "bay": true, "shed": false, "trellis": false, "fence_width": 4.02},
+		{"width": 2.48, "depth": 1.98, "height": 1.14, "roof_tilt": 20.0, "roof_lift": 0.3, "roof_overhang": 0.54, "wing": false, "garage": false, "garage_side": 1.0, "dormers": 1, "pool": false, "porch_depth": 0.56, "porch_width": 0.86, "entry_offset": -0.14, "bay": false, "shed": true, "trellis": false, "fence_width": 3.96},
+		{"width": 2.06, "depth": 1.68, "height": 1.38, "roof_tilt": 27.0, "roof_lift": 0.38, "roof_overhang": 0.46, "wing": false, "garage": false, "garage_side": 1.0, "dormers": 2, "pool": false, "porch_depth": 0.28, "porch_width": 0.44, "entry_offset": 0.0, "bay": true, "shed": false, "trellis": false, "fence_width": 3.7},
+		{"width": 2.72, "depth": 1.84, "height": 1.0, "roof_tilt": 15.0, "roof_lift": 0.22, "roof_overhang": 0.48, "wing": false, "garage": true, "garage_side": 1.0, "dormers": 1, "pool": true, "porch_depth": 0.34, "porch_width": 0.56, "entry_offset": -0.3, "bay": false, "shed": false, "trellis": false, "fence_width": 4.08},
+		{"width": 2.42, "depth": 1.9, "height": 1.08, "roof_tilt": 19.0, "roof_lift": 0.28, "roof_overhang": 0.58, "wing": true, "garage": false, "garage_side": 1.0, "dormers": 1, "pool": false, "porch_depth": 0.54, "porch_width": 0.94, "entry_offset": 0.0, "bay": false, "shed": false, "trellis": true, "fence_width": 4.0},
+		{"width": 2.56, "depth": 1.86, "height": 1.12, "roof_tilt": 21.0, "roof_lift": 0.3, "roof_overhang": 0.5, "wing": false, "garage": false, "garage_side": 1.0, "dormers": 2, "pool": false, "porch_depth": 0.4, "porch_width": 0.62, "entry_offset": 0.22, "bay": true, "shed": true, "trellis": false, "fence_width": 3.9},
+	]
+	return profiles[posmod(variant, profiles.size())]
+
+
 func _add_village_house_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var palette := _cozy_palette("house", variant)
-	var width := 2.36 + float(variant % 3) * 0.22
-	var depth := 1.86 + float(int(variant / 3) % 2) * 0.18
-	var height := 1.22 + float(int(variant / 5)) * 0.16
+	var profile := _house_variant_profile(variant)
+	var width: float = float(profile["width"])
+	var depth: float = float(profile["depth"])
+	var height: float = float(profile["height"])
+	var roof_tilt: float = float(profile["roof_tilt"])
+	var roof_lift: float = float(profile["roof_lift"])
+	var roof_overhang: float = float(profile["roof_overhang"])
+	var porch_depth: float = float(profile["porch_depth"])
+	var porch_width: float = float(profile["porch_width"])
+	var entry_offset: float = float(profile["entry_offset"])
+	var garage_side: float = float(profile["garage_side"])
+	var dormers: int = int(profile["dormers"])
+	var has_wing: bool = bool(profile["wing"])
+	var has_garage: bool = bool(profile["garage"])
+	var has_pool: bool = bool(profile["pool"])
+	var has_bay: bool = bool(profile["bay"])
+	var has_shed: bool = bool(profile["shed"])
+	var has_trellis: bool = bool(profile["trellis"])
+	var fence_width: float = float(profile["fence_width"])
 	var root := Node3D.new()
 	root.position = position_3d
 	building_root.add_child(root)
 	_add_parcel_shadow(root, Vector2(4.6, 3.7), 0.26)
 
-	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(4.45, 0.04, 3.45), _make_material("8ea86c", 0.98), root)
-	_add_box(Vector3(0.0, 0.02, 1.26), Vector3(4.18, 0.03, 1.02), _make_material("cfbea7", 0.9), root)
-	_add_box(Vector3(-1.34, 0.022, 0.56), Vector3(0.86, 0.03, 2.44), _make_material("c8b28d", 0.9), root)
-	_add_town_path(Vector3(-1.34, 0.03, 0.9), Vector2(0.58, 1.84), root)
+	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(4.54, 0.04, 3.52), _make_material("8da56b", 0.98), root)
+	_add_box(Vector3(0.0, 0.02, 1.28), Vector3(4.18, 0.03, 1.08), _make_material("cdb996", 0.9), root)
+	if has_garage:
+		var drive_x := 1.08 * garage_side
+		_add_box(Vector3(drive_x, 0.021, 0.28), Vector3(1.16, 0.028, 2.52), _make_material("b8a58b", 0.9), root)
+		_add_town_path(Vector3(drive_x, 0.03, 1.0), Vector2(0.72, 1.92), root)
+	else:
+		_add_town_path(Vector3(entry_offset, 0.03, 0.98), Vector2(0.62, 1.82), root)
 
-	var plaster := _make_material_from_color(palette.wall.lightened(0.03), 0.94)
+	var plaster := _make_material_from_color(palette.wall.lightened(0.02), 0.95)
 	var timber := _make_material("8d6848", 0.88)
 	var porch_wood := _make_material("976f49", 0.84)
+	var roof_material := _make_material_from_color(palette.roof, 0.74)
+	var trim_material := _make_material_from_color(palette.trim, 0.88)
 
-	_add_soft_block(Vector3(0.14, height * 0.5 + 0.06, -0.6), Vector3(width, height, depth), plaster, root, 0.24)
-	_add_soft_block(Vector3(width * 0.36, 0.74, 0.02), Vector3(width * 0.42, height * 0.72, depth * 0.5), plaster, root, 0.18)
+	_add_soft_block(Vector3(0.0, height * 0.5 + 0.06, -0.54), Vector3(width, height, depth), plaster, root, 0.22)
+	if has_wing:
+		_add_soft_block(Vector3(-0.9, height * 0.42 + 0.04, -0.08), Vector3(width * 0.42, height * 0.68, depth * 0.82), plaster, root, 0.16)
+	if has_garage:
+		_add_soft_block(Vector3(garage_side * 1.1, 0.42, -0.18), Vector3(1.18, 0.72, 1.56), _make_material_from_color(palette.wall.darkened(0.04), 0.93), root, 0.12)
+		_add_box(Vector3(garage_side * 1.1, 0.28, 0.56), Vector3(0.72, 0.52, 0.06), _make_material("f0eadc", 0.9), root)
+		_add_box(Vector3(garage_side * 1.1, 0.62, 0.58), Vector3(0.76, 0.06, 0.06), _make_material("d0c5b5", 0.86), root)
+	if has_bay:
+		_add_soft_block(Vector3(0.74, 0.52, 0.08), Vector3(0.54, 0.64, 0.56), plaster, root, 0.12)
 
-	_add_gabled_roof(Vector3(0.14, height + 0.26, -0.6), Vector3(width + 0.5, 0.34, depth + 0.44), _make_material_from_color(palette.roof, 0.74), root, 24.0)
-	_add_gabled_roof(Vector3(width * 0.36, 1.16, 0.02), Vector3(width * 0.58, 0.26, depth * 0.64), _make_material_from_color(palette.roof.lightened(0.05), 0.74), root, 21.0)
+	_add_gabled_roof(Vector3(0.0, height + roof_lift, -0.54), Vector3(width + roof_overhang, 0.34, depth + roof_overhang), roof_material, root, roof_tilt)
+	if has_wing:
+		_add_gabled_roof(Vector3(-0.9, height * 0.78 + 0.26, -0.08), Vector3(width * 0.56, 0.24, depth * 0.92), _make_material_from_color(palette.roof.lightened(0.04), 0.74), root, roof_tilt - 2.0)
+	if has_garage:
+		_add_gabled_roof(Vector3(garage_side * 1.1, 0.84, -0.18), Vector3(1.36, 0.18, 1.76), _make_material_from_color(palette.roof.darkened(0.05), 0.74), root, max(12.0, roof_tilt - 5.0))
 
-	_add_box(Vector3(-0.34, 0.52, 0.42), Vector3(0.12, 0.88, 0.12), timber, root)
-	_add_box(Vector3(0.72, 0.52, 0.42), Vector3(0.12, 0.88, 0.12), timber, root)
-	_add_box(Vector3(0.2, 0.12, 0.42), Vector3(width * 0.44, 0.1, 0.56), porch_wood, root)
-	_add_round_canopy(Vector3(0.18, 0.48, 0.5), Vector3(width * 0.62, 0.14, 0.34), _make_material_from_color(palette.accent, 0.5), root)
+	for timber_x in [-0.58, 0.0, 0.58]:
+		_add_box(Vector3(timber_x, 0.54, 0.34), Vector3(0.12, 0.9, 0.1), timber, root)
+	_add_box(Vector3(entry_offset, 0.12, 0.54), Vector3(max(0.62, width * porch_width), 0.1, porch_depth), porch_wood, root)
+	_add_round_canopy(Vector3(entry_offset, 0.46, 0.56), Vector3(max(0.74, width * porch_width), 0.14, 0.32), _make_material_from_color(palette.accent, 0.5), root)
+	_add_box(Vector3(entry_offset, 0.06, 0.86), Vector3(max(0.34, width * 0.22), 0.08, 0.22), _make_material("d7c7b0", 0.9), root)
 
-	_add_box(Vector3(0.14, 0.26, 0.14), Vector3(width * 0.18, 0.48, 0.08), _window_material, root)
-	_add_box(Vector3(-0.6, 0.5, 0.06), Vector3(0.24, 0.36, 0.06), _window_material, root)
-	_add_box(Vector3(1.02, 0.5, 0.06), Vector3(0.24, 0.36, 0.06), _window_material, root)
-	_add_box(Vector3(-0.58, 0.54, -1.12), Vector3(0.24, 0.3, 0.06), _window_material, root)
-	_add_box(Vector3(0.54, 0.54, -1.12), Vector3(0.3, 0.3, 0.06), _window_material, root)
+	_add_box(Vector3(entry_offset, 0.32, 0.2), Vector3(width * 0.18, 0.62, 0.08), _make_material("6c4d32", 0.86), root)
+	_add_box(Vector3(entry_offset, 0.26, 0.54), Vector3(width * 0.12, 0.46, 0.02), _make_material("f4efe1", 0.88), root)
+	for window_pos in [
+		Vector3(-0.62, 0.5, 0.1),
+		Vector3(0.66, 0.5, 0.1),
+		Vector3(-0.58, 0.56, -1.0),
+		Vector3(0.6, 0.56, -1.0),
+	]:
+		_add_box(window_pos, Vector3(0.26, 0.34, 0.06), _window_material, root)
+		_add_box(window_pos + Vector3(-0.16, 0.0, 0.0), Vector3(0.05, 0.36, 0.05), timber, root)
+		_add_box(window_pos + Vector3(0.16, 0.0, 0.0), Vector3(0.05, 0.36, 0.05), timber, root)
+	if has_bay:
+		_add_box(Vector3(0.74, 0.54, 0.34), Vector3(0.34, 0.3, 0.06), _window_material, root)
 
-	_add_box(Vector3(0.16, 0.84, -depth * 0.52), Vector3(width * 0.16, 0.8, depth * 0.06), timber, root)
-	_add_box(Vector3(0.14, 0.1, 0.34), Vector3(width * 0.46, 0.1, 0.52), _make_material_from_color(palette.trim, 0.88), root)
-	_add_box(Vector3(-0.3, 0.34, 0.48), Vector3(0.14, 0.28, 0.14), porch_wood, root)
-	_add_box(Vector3(0.62, 0.34, 0.48), Vector3(0.14, 0.28, 0.14), porch_wood, root)
-	if variant % 2 == 0:
-		_add_box(Vector3(1.08, height + 0.6, -1.04), Vector3(0.22, 0.72, 0.22), _stone_material, root)
-	if variant % 3 != 1:
-		_add_dormer(Vector3(-0.14, height + 0.48, -0.48), palette.trim, palette.roof, root)
-	if variant % 4 == 0:
-		_add_dormer(Vector3(0.76, height + 0.46, -0.58), palette.trim.lightened(0.04), palette.roof.lightened(0.06), root)
-	_add_garden_path(root, width * 0.26, 1.62)
-	_add_picket_fence(root, Vector3(0.0, 0.0, 1.58), 3.76)
+	_add_box(Vector3(0.0, 0.8, -depth * 0.56), Vector3(width * 0.18, 0.78, depth * 0.06), timber, root)
+	for dormer_index in range(dormers):
+		var spacing := 0.52 if dormers > 1 else 0.0
+		var dormer_x := (float(dormer_index) - float(dormers - 1) * 0.5) * spacing
+		_add_dormer(Vector3(dormer_x, height + roof_lift + 0.14, -0.44), palette.trim, palette.roof, root)
+	if not has_garage:
+		_add_garden_path(root, width * 0.24, 1.56)
+	_add_picket_fence(root, Vector3(0.0, 0.0, 1.6), fence_width)
 	_add_box(Vector3(-1.86, 0.18, -0.1), Vector3(0.04, 0.32, 2.92), _make_material("efe3cf", 0.86), root)
 	_add_box(Vector3(1.86, 0.18, -0.1), Vector3(0.04, 0.32, 2.92), _make_material("efe3cf", 0.86), root)
 	_add_box(Vector3(0.0, 0.18, -1.54), Vector3(3.74, 0.32, 0.04), _make_material("efe3cf", 0.86), root)
-	_add_flower_box_local(Vector3(-0.28, 0.18, 0.18), palette.accent, root)
-	_add_flower_box_local(Vector3(0.82, 0.18, 0.18), palette.trim, root)
+	_add_flower_box_local(Vector3(entry_offset - 0.32, 0.18, 0.2), palette.accent, root)
+	_add_flower_box_local(Vector3(entry_offset + 0.4, 0.18, 0.2), palette.trim, root)
 	_add_shrub_cluster(Vector3(-1.5, 0.0, 1.16), palette.accent, root, 5)
 	_add_shrub_cluster(Vector3(1.5, 0.0, 1.16), palette.trim, root, 5)
-	_add_hedge_strip_local(Vector3(0.0, 0.08, -1.36), 3.28, palette.accent.darkened(0.15), root)
+	_add_hedge_strip_local(Vector3(0.0, 0.08, -1.36), 3.28, palette.accent.darkened(0.18), root)
 	_add_local_flower_patch(Vector3(1.32, 0.05, 0.98), 8, _make_material_from_color(palette.trim, 0.8), root)
 	_add_local_flower_patch(Vector3(-1.32, 0.05, 0.86), 7, _make_material_from_color(palette.accent, 0.8), root)
 	_add_box(Vector3(-1.62, 0.26, 1.64), Vector3(0.16, 0.34, 0.12), _make_material("8c6f4f", 0.84), root)
 	_add_box(Vector3(-1.62, 0.38, 1.6), Vector3(0.22, 0.16, 0.04), _make_material("f4efe4", 0.86), root)
-	_add_bench_local(Vector3(1.28, 0.02, 1.08), -0.2, root)
-	if variant % 2 == 0:
-		_add_box(Vector3(1.28, 0.03, -0.26), Vector3(1.34, 0.05, 0.96), _make_material("61a9bb", 0.46), root)
-		_add_box(Vector3(1.28, 0.04, -0.26), Vector3(1.18, 0.02, 0.8), _make_transparent_material(Color("b5f4ff"), 0.32, 0.16), root)
+	_add_bench_local(Vector3(1.24, 0.02, 1.08), -0.2, root)
+	if has_pool:
+		_add_box(Vector3(1.22, 0.03, -0.22), Vector3(1.32, 0.05, 0.94), _make_material("5f9fb2", 0.46), root)
+		_add_box(Vector3(1.22, 0.04, -0.22), Vector3(1.12, 0.02, 0.76), _make_transparent_material(Color("c4f6ff"), 0.3, 0.16), root)
 	else:
-		_add_box(Vector3(1.24, 0.03, -0.22), Vector3(1.38, 0.04, 1.02), _make_material("8c9a55", 0.96), root)
-		for gx in [-0.26, 0.0, 0.26]:
-			_add_box(Vector3(1.24 + gx, 0.08, -0.22), Vector3(0.04, 0.12, 0.8), _make_material("7a5e3f", 0.84), root)
+		_add_box(Vector3(1.22, 0.03, -0.2), Vector3(1.34, 0.04, 1.0), _make_material("8ea06a", 0.96), root)
+		for gx in [-0.24, 0.0, 0.24]:
+			_add_box(Vector3(1.22 + gx, 0.08, -0.2), Vector3(0.04, 0.12, 0.78), _make_material("7a5e3f", 0.84), root)
+	if has_shed:
+		_add_soft_block(Vector3(-1.12, 0.36, -1.0), Vector3(0.62, 0.58, 0.58), _make_material("c9b79f", 0.92), root, 0.08)
+		_add_gabled_roof(Vector3(-1.12, 0.72, -1.0), Vector3(0.76, 0.16, 0.74), _make_material_from_color(palette.roof.darkened(0.08), 0.74), root, 18.0)
+	if has_trellis:
+		_add_box(Vector3(-1.42, 0.44, 0.54), Vector3(0.08, 0.84, 0.08), timber, root)
+		_add_box(Vector3(-1.02, 0.44, 0.54), Vector3(0.08, 0.84, 0.08), timber, root)
+		_add_box(Vector3(-1.22, 0.82, 0.54), Vector3(0.52, 0.06, 0.08), timber, root)
+	if int(variant) % 2 == 0:
+		_add_box(Vector3(0.96, height + 0.58, -1.0), Vector3(0.22, 0.72, 0.22), _stone_material, root)
 	return root
 
 
@@ -2325,51 +2400,52 @@ func _rebuild_road_at(cell: Vector2i) -> void:
 
 func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = []) -> Node3D:
 	var root := Node3D.new()
-	var curb_material: Material = _ghost_base_material if preview else _sidewalk_material
+	var verge_material: Material = _ghost_base_material if preview else _make_material("84985f", 0.98)
+	var shoulder_material: Material = _ghost_base_material if preview else _make_material("7c725f", 0.96)
+	var curb_material: Material = _ghost_base_material if preview else _make_material("aca08b", 0.95)
 	var road_material: Material = _ghost_accent_material if preview else _road_material
-	var lane_material: Material = _ghost_base_material if preview else _make_material("d6ccb7", 0.86)
-	var paver_material: Material = _ghost_base_material if preview else _make_material("8e7a62", 0.94)
-	var shoulder_material: Material = _ghost_base_material if preview else _make_material("6e644f", 0.98)
-	var verge_material: Material = _ghost_base_material if preview else _make_material("8ea06b", 0.98)
+	var lane_material: Material = _ghost_base_material if preview else _road_mark_material
 	var source := road_source if road_source.size() > 0 else [cell]
 	var north := _road_in_source(Vector2i(cell.x, cell.y - 1), source)
 	var east := _road_in_source(Vector2i(cell.x + 1, cell.y), source)
 	var south := _road_in_source(Vector2i(cell.x, cell.y + 1), source)
 	var west := _road_in_source(Vector2i(cell.x - 1, cell.y), source)
 
-	_add_box(Vector3(0.0, 0.01, 0.0), Vector3(1.24, 0.018, 1.24), verge_material, root)
-	_add_box(Vector3(0.0, 0.016, 0.0), Vector3(1.14, 0.018, 1.14), curb_material, root)
-	_add_box(Vector3(0.0, 0.022, 0.0), Vector3(1.04, 0.016, 1.04), shoulder_material, root)
-	_add_box(Vector3(0.0, 0.028, 0.0), Vector3(0.96, 0.016, 0.96), paver_material, root)
-	_add_box(Vector3(0.0, 0.04, 0.0), Vector3(0.86, 0.026, 0.86), road_material, root)
+	_add_box(Vector3(0.0, 0.008, 0.0), Vector3(1.62, 0.018, 1.62), verge_material, root)
+	_add_box(Vector3(0.0, 0.014, 0.0), Vector3(1.5, 0.02, 1.5), shoulder_material, root)
+	_add_box(Vector3(0.0, 0.024, 0.0), Vector3(1.36, 0.02, 1.36), curb_material, root)
+	_add_box(Vector3(0.0, 0.038, 0.0), Vector3(1.18, 0.03, 1.18), road_material, root)
 
 	if north:
-		_add_box(Vector3(0.0, 0.04, -0.24), Vector3(0.86, 0.026, 0.6), road_material, root)
+		_add_box(Vector3(0.0, 0.038, -0.32), Vector3(1.18, 0.03, 0.88), road_material, root)
 	if south:
-		_add_box(Vector3(0.0, 0.04, 0.24), Vector3(0.86, 0.026, 0.6), road_material, root)
+		_add_box(Vector3(0.0, 0.038, 0.32), Vector3(1.18, 0.03, 0.88), road_material, root)
 	if east:
-		_add_box(Vector3(0.24, 0.04, 0.0), Vector3(0.6, 0.026, 0.86), road_material, root)
+		_add_box(Vector3(0.32, 0.038, 0.0), Vector3(0.88, 0.03, 1.18), road_material, root)
 	if west:
-		_add_box(Vector3(-0.24, 0.04, 0.0), Vector3(0.6, 0.026, 0.86), road_material, root)
+		_add_box(Vector3(-0.32, 0.038, 0.0), Vector3(0.88, 0.03, 1.18), road_material, root)
 	if not north and not south and not east and not west:
-		_add_box(Vector3(0.0, 0.04, 0.0), Vector3(0.88, 0.026, 0.88), road_material, root)
+		_add_box(Vector3(0.0, 0.038, 0.0), Vector3(1.18, 0.03, 1.18), road_material, root)
 
 	var vertical_straight := north and south and not east and not west
 	var horizontal_straight := east and west and not north and not south
 	var intersection := (north or south) and (east or west)
 	if vertical_straight:
-		for x in [-0.18, 0.18]:
-			_add_box(Vector3(x, 0.055, 0.0), Vector3(0.04, 0.008, 0.9), lane_material, root)
+		_add_box(Vector3(0.0, 0.056, 0.0), Vector3(0.08, 0.008, 1.08), lane_material, root)
+		for x in [-0.42, 0.42]:
+			_add_box(Vector3(x, 0.052, 0.0), Vector3(0.04, 0.006, 1.02), curb_material, root)
 	elif horizontal_straight:
-		for z in [-0.18, 0.18]:
-			_add_box(Vector3(0.0, 0.055, z), Vector3(0.9, 0.008, 0.04), lane_material, root)
+		_add_box(Vector3(0.0, 0.056, 0.0), Vector3(1.08, 0.008, 0.08), lane_material, root)
+		for z in [-0.42, 0.42]:
+			_add_box(Vector3(0.0, 0.052, z), Vector3(1.02, 0.006, 0.04), curb_material, root)
 	elif intersection:
-		_add_box(Vector3(0.0, 0.042, 0.0), Vector3(0.66, 0.02, 0.66), _make_material("9b876d", 0.92), root)
-		for offset in [-0.28, -0.1, 0.1, 0.28]:
-			_add_box(Vector3(offset, 0.056, -0.34), Vector3(0.08, 0.008, 0.03), lane_material, root)
-			_add_box(Vector3(offset, 0.056, 0.34), Vector3(0.08, 0.008, 0.03), lane_material, root)
-			_add_box(Vector3(-0.34, 0.056, offset), Vector3(0.03, 0.008, 0.08), lane_material, root)
-			_add_box(Vector3(0.34, 0.056, offset), Vector3(0.03, 0.008, 0.08), lane_material, root)
+		_add_box(Vector3(0.0, 0.04, 0.0), Vector3(1.22, 0.026, 1.22), road_material, root)
+		_add_box(Vector3(0.0, 0.056, 0.0), Vector3(0.12, 0.008, 0.12), lane_material, root)
+		for offset in [-0.42, 0.42]:
+			_add_box(Vector3(offset, 0.052, 0.0), Vector3(0.04, 0.006, 1.04), curb_material, root)
+			_add_box(Vector3(0.0, 0.052, offset), Vector3(1.04, 0.006, 0.04), curb_material, root)
+	else:
+		_add_box(Vector3(0.0, 0.056, 0.0), Vector3(0.1, 0.008, 0.1), lane_material, root)
 
 	return root
 
