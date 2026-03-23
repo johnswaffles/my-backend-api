@@ -1,1 +1,0 @@
-Stylized isometric cozy small-town commercial property, 3/4 view, handcrafted indie aesthetic, neutral lighting, no baked directional shadows, transparent background, soft ambient occlusion only, readable silhouette, consistent scale. Include storefront awning, signage, parcel details such as parking, crates, produce, patio, benches, or planters depending on shop type.

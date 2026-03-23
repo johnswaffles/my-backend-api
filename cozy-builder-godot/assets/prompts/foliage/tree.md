@@ -1,1 +1,0 @@
-Stylized cozy isometric tree asset, rounded canopy, hand-painted indie aesthetic, neutral lighting, no baked directional shadows, subtle ambient occlusion only, transparent background, readable silhouette at gameplay scale.

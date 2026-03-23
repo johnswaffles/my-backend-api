@@ -1,1 +1,0 @@
-Stylized isometric cozy cottage property, 3/4 view, steep roof, warm plaster walls, timber framing, porch, chimney, flower beds, garden details, optional small pool or fenced yard, neutral lighting, no baked directional shadows, subtle contact occlusion only, transparent background, game-ready, consistent scale.

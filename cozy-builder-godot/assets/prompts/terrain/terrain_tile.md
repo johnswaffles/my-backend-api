@@ -1,1 +1,0 @@
-Stylized cozy isometric terrain tile for a builder game, hand-painted look, neutral lighting, no baked directional light, transparent edges if needed, earthy natural palette, subtle texture variation, game-ready tile asset, consistent scale.

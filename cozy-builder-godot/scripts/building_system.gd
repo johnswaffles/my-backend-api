@@ -1,8 +1,5 @@
 extends Node3D
 
-const AssetLoaderScript := preload("res://scripts/asset_loader.gd")
-const WhiteKeySpriteShader := preload("res://shaders/white_key_sprite.gdshader")
-
 const GRID_SIZE := 64
 const TILE_SIZE := 1.0
 const PAN_SPEED := 0.018
@@ -57,16 +54,6 @@ const BUILD_TOOL_COSTS := {
 	BUILD_TOOL_RESTAURANT: 2000,
 	BUILD_TOOL_CORNER_STORE: 1600,
 	BUILD_TOOL_PARK: 850,
-}
-const BUILDING_ASSET_IDS := {
-	BUILD_TOOL_HOUSE: "house",
-	BUILD_TOOL_POLICE: "police",
-	BUILD_TOOL_FIRE: "fire",
-	BUILD_TOOL_BANK: "bank",
-	BUILD_TOOL_GROCERY: "grocery",
-	BUILD_TOOL_RESTAURANT: "restaurant",
-	BUILD_TOOL_CORNER_STORE: "corner_store",
-	BUILD_TOOL_PARK: "park",
 }
 const FRONTAGE_ROTATIONS := {
 	"south": 0.0,
@@ -133,7 +120,6 @@ var _road_cells: Dictionary = {}
 var _road_nodes: Dictionary = {}
 var _action_history: Array[Dictionary] = []
 var _loaded_save := false
-var _asset_loader := AssetLoaderScript.new()
 
 var _ground_material_a: StandardMaterial3D
 var _ground_material_b: StandardMaterial3D
@@ -323,6 +309,7 @@ func _build_world() -> void:
 	_build_ground_tiles()
 	_build_meadow()
 	_build_nature()
+	_build_clouds()
 
 
 func _create_runtime_helpers() -> void:
@@ -337,153 +324,6 @@ func _create_runtime_helpers() -> void:
 		var ghost := _spawn_tool_preview(tool)
 		_ghost_nodes[tool] = ghost
 		_ghost_root.add_child(ghost)
-
-
-func _tool_asset_id(tool: String) -> String:
-	return str(BUILDING_ASSET_IDS.get(tool, ""))
-
-
-func _array_to_vec2(value: Variant, fallback := Vector2.ONE) -> Vector2:
-	if value is Array and value.size() >= 2:
-		return Vector2(float(value[0]), float(value[1]))
-	return fallback
-
-
-func _array_to_vec3(value: Variant, fallback := Vector3.ZERO) -> Vector3:
-	if value is Array and value.size() >= 3:
-		return Vector3(float(value[0]), float(value[1]), float(value[2]))
-	return fallback
-
-
-func _asset_direction_from_rotation(rotation_y: float) -> String:
-	var snapped := wrapf(snappedf(rotation_y, PI * 0.5), -PI, PI)
-	if is_equal_approx(snapped, 0.0):
-		return "south"
-	if is_equal_approx(snapped, PI) or is_equal_approx(snapped, -PI):
-		return "north"
-	if is_equal_approx(snapped, PI * 0.5):
-		return "west"
-	return "east"
-
-
-func _make_asset_material(texture: Texture2D, alpha: float = 1.0, tint := Color.WHITE, shaded: bool = true) -> StandardMaterial3D:
-	return _make_asset_material_for_path("", texture, alpha, tint, shaded)
-
-
-func _make_asset_material_for_path(source_path: String, texture: Texture2D, alpha: float = 1.0, tint := Color.WHITE, shaded: bool = true) -> Material:
-	if source_path.contains("/sheet/"):
-		var shader_material := ShaderMaterial.new()
-		shader_material.shader = WhiteKeySpriteShader
-		shader_material.set_shader_parameter("albedo_tex", texture)
-		shader_material.set_shader_parameter("tint", Color(tint.r, tint.g, tint.b, alpha))
-		return shader_material
-	var material := StandardMaterial3D.new()
-	material.albedo_texture = texture
-	material.albedo_color = Color(tint.r, tint.g, tint.b, alpha)
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-	material.alpha_scissor_threshold = 0.04
-	material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL if shaded else BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	material.billboard_mode = BaseMaterial3D.BILLBOARD_DISABLED
-	return material
-
-
-func _create_vertical_asset_quad(texture: Texture2D, world_size: Vector2, alpha: float = 1.0, tint := Color.WHITE, shaded: bool = true, source_path: String = "") -> MeshInstance3D:
-	var quad := MeshInstance3D.new()
-	var mesh := QuadMesh.new()
-	mesh.size = world_size
-	quad.mesh = mesh
-	quad.position = Vector3(0.0, world_size.y * 0.5, 0.0)
-	quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if source_path.contains("/sheet/") else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-	quad.material_override = _make_asset_material_for_path(source_path, texture, alpha, tint, shaded)
-	return quad
-
-
-func _create_flat_asset_quad(texture: Texture2D, size: Vector2, alpha: float = 1.0, tint := Color.WHITE, y_offset: float = 0.01, shaded: bool = true, source_path: String = "") -> MeshInstance3D:
-	var quad := MeshInstance3D.new()
-	var mesh := QuadMesh.new()
-	mesh.size = size
-	quad.mesh = mesh
-	quad.rotation_degrees.x = -90.0
-	quad.position = Vector3(0.0, y_offset, 0.0)
-	quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	quad.material_override = _make_asset_material_for_path(source_path, texture, alpha, tint, shaded)
-	return quad
-
-
-func _build_asset_node(group: String, asset_id: String, variation_index: int = 0, direction: String = "south", tier: int = 1, alpha: float = 1.0, tint := Color.WHITE) -> Node3D:
-	var resolved := _asset_loader.resolve_variant(group, asset_id, variation_index, direction, tier)
-	if resolved.is_empty():
-		return Node3D.new()
-	var root := Node3D.new()
-	var layers: Array = resolved.get("layers", [])
-	if not layers.is_empty():
-		for layer_value in layers:
-			if layer_value is not Dictionary:
-				continue
-			var layer: Dictionary = layer_value
-			var texture := _asset_loader.get_texture(str(layer.get("path", "")))
-			if texture == null:
-				continue
-			var source_path := str(layer.get("path", ""))
-			var world_size := _array_to_vec2(layer.get("world_size", [1.0, 1.0]), Vector2.ONE)
-			var mode := str(layer.get("mode", "upright"))
-			var layer_alpha := alpha * float(layer.get("alpha", 1.0))
-			var node := _create_flat_asset_quad(texture, world_size, layer_alpha, tint, 0.01, true, source_path) if mode == "flat" else _create_vertical_asset_quad(texture, world_size, layer_alpha, tint, true, source_path)
-			node.position += _array_to_vec3(layer.get("position", [0.0, 0.0, 0.0]))
-			node.rotation_degrees += _array_to_vec3(layer.get("rotation", [0.0, 0.0, 0.0]))
-			if not source_path.contains("/sheet/"):
-				node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if bool(layer.get("casts_shadow", true)) else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			root.add_child(node)
-		return root
-	var source_path := str(resolved.get("path", ""))
-	var texture := _asset_loader.get_texture(source_path)
-	if texture == null:
-		return root
-	var world_size := _array_to_vec2(resolved.get("world_size", [1.0, 1.0]), Vector2.ONE)
-	root.add_child(_create_vertical_asset_quad(texture, world_size, alpha, tint, not source_path.contains("/sheet/"), source_path))
-	return root
-
-
-func _create_ground_asset_node(asset_id: String, size: Vector2, rotation_y: float = 0.0, alpha: float = 1.0, tint := Color.WHITE, y_offset: float = 0.01, shaded: bool = true) -> Node3D:
-	var resolved := _asset_loader.resolve_variant("terrain", asset_id)
-	if resolved.is_empty():
-		return Node3D.new()
-	var texture := _asset_loader.get_texture(str(resolved.get("path", "")))
-	if texture == null:
-		return Node3D.new()
-	var root := Node3D.new()
-	root.rotation.y = rotation_y
-	root.add_child(_create_flat_asset_quad(texture, size, alpha, tint, y_offset, shaded))
-	return root
-
-
-func _make_property_base(size: Vector2, tint := Color.WHITE, y_offset: float = 0.006) -> Node3D:
-	var base := _create_ground_asset_node("grass_tile", size, 0.0, 1.0, tint, y_offset, true)
-	return base
-
-
-func _spawn_asset_building(tool: String, world_position: Vector3, rotation_y: float, tier: int = 1, variant: int = 0, preview: bool = false) -> Node3D:
-	var asset_id := _tool_asset_id(tool)
-	if asset_id == "":
-		return Node3D.new()
-	var footprint := _tool_footprint(tool)
-	var lot_size := Vector2(maxf(1.6, float(footprint.x) * 1.02), maxf(1.6, float(footprint.y) * 1.02))
-	var root := Node3D.new()
-	root.position = world_position
-	root.rotation.y = rotation_y
-	var base_tint := Color(0.96, 0.98, 0.95, 1.0) if not preview else Color(0.75, 0.98, 0.93, 1.0)
-	root.add_child(_make_property_base(lot_size, base_tint, 0.004))
-	var direction := _asset_direction_from_rotation(rotation_y)
-	var visual := _build_asset_node("buildings", asset_id, variant, direction, tier, 0.56 if preview else 1.0, Color.WHITE)
-	root.add_child(visual)
-	root.set_meta("visual_asset_id", asset_id)
-	root.set_meta("tier", tier)
-	root.set_meta("variant", variant)
-	if not preview:
-		building_root.add_child(root)
-	return root
 
 
 func _build_hud() -> void:
@@ -571,7 +411,16 @@ func _build_hud() -> void:
 	top_row.add_child(_home_button)
 
 	_rotate_left_button = Button.new()
+	_rotate_left_button.text = "L"
+	_rotate_left_button.custom_minimum_size = Vector2(38, 0)
+	_rotate_left_button.pressed.connect(_rotate_camera.bind(-PI * 0.5))
+	top_row.add_child(_rotate_left_button)
+
 	_rotate_right_button = Button.new()
+	_rotate_right_button.text = "R"
+	_rotate_right_button.custom_minimum_size = Vector2(38, 0)
+	_rotate_right_button.pressed.connect(_rotate_camera.bind(PI * 0.5))
+	top_row.add_child(_rotate_right_button)
 
 	_zoom_out_button = Button.new()
 	_zoom_out_button.text = "-"
@@ -613,7 +462,7 @@ func _build_hud() -> void:
 	_hint_label.custom_minimum_size = Vector2(320, 0)
 	_hint_label.add_theme_color_override("font_color", Color("a9bec5"))
 	_hint_label.add_theme_font_size_override("font_size", 11)
-	_hint_label.text = "Use the build menu or keys 1-0 and P, then click or press Space to place. Cmd/Ctrl+Z undoes. Right drag pans."
+	_hint_label.text = "Use the build menu or keys 1-0 and P. Q/E rotates. Cmd/Ctrl+Z undoes. Right drag pans."
 	stack.add_child(_hint_label)
 
 
@@ -647,9 +496,9 @@ func _refresh_tool_ui() -> void:
 	if _zoom_out_button:
 		_style_tool_button(_zoom_out_button, false)
 	if _rotate_left_button:
-		_rotate_left_button.visible = false
+		_style_tool_button(_rotate_left_button, false)
 	if _rotate_right_button:
-		_rotate_right_button.visible = false
+		_style_tool_button(_rotate_right_button, false)
 	if _undo_button:
 		_style_tool_button(_undo_button, _action_history.size() > 0)
 		_undo_button.disabled = _action_history.is_empty()
@@ -834,7 +683,7 @@ func _clear_hover() -> void:
 	if _ghost_root:
 		_ghost_root.visible = false
 	if _hint_label:
-		_hint_label.text = "Use the build menu or keys 1-0 and P, then click or press Space to place. Cmd/Ctrl+Z undoes. Right drag pans."
+		_hint_label.text = "Use the build buttons or keys 1-0 and P, then click or press Space to place. Q/E rotates. Cmd/Ctrl+Z undoes. Right drag pans."
 
 
 func _pick_grid_cell(mouse_position: Vector2) -> Dictionary:
@@ -981,10 +830,9 @@ func _anchor_to_world(anchor: Vector2i, footprint: Vector2i) -> Vector3:
 func _update_hover_tiles(cells: Array[Vector2i], valid: bool) -> void:
 	while _hover_tiles.size() < cells.size():
 		var tile := MeshInstance3D.new()
-		var mesh := QuadMesh.new()
-		mesh.size = Vector2(0.94, 0.94)
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(0.92, 0.05, 0.92)
 		tile.mesh = mesh
-		tile.rotation_degrees.x = -90.0
 		tile.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_hover_root.add_child(tile)
 		_hover_tiles.append(tile)
@@ -992,7 +840,7 @@ func _update_hover_tiles(cells: Array[Vector2i], valid: bool) -> void:
 		var tile := _hover_tiles[i]
 		if i < cells.size():
 			tile.visible = true
-			tile.position = _cell_to_world(cells[i]) + Vector3(0.0, 0.045, 0.0)
+			tile.position = _cell_to_world(cells[i]) + Vector3(0.0, 0.06, 0.0)
 			tile.material_override = _hover_material_valid if valid else _hover_material_invalid
 		else:
 			tile.visible = false
@@ -1268,13 +1116,88 @@ func _spawn_tool_preview(tool: String) -> Node3D:
 		return Node3D.new()
 	if tool == BUILD_TOOL_ROAD:
 		return _build_road_tile_mesh(Vector2i.ZERO, true, [Vector2i(0, 0)])
-	return _spawn_asset_building(tool, Vector3.ZERO, 0.0, 1, 0, true)
+	if tool == BUILD_TOOL_HOUSE:
+		return _spawn_house_tile(Vector3.ZERO, true)
+	if tool == BUILD_TOOL_PARK:
+		return _spawn_park_preview()
+
+	return _spawn_generic_building_preview(tool)
+
+
+func _spawn_park_preview() -> Node3D:
+	var root := Node3D.new()
+	var lawn_material := _ghost_base_material
+	var path_material := _ghost_accent_material
+	_add_box(Vector3(0.0, 0.02, 0.0), Vector3(1.82, 0.04, 1.82), lawn_material, root)
+	_add_box(Vector3(0.0, 0.04, 0.0), Vector3(1.54, 0.03, 0.26), path_material, root)
+	_add_box(Vector3(0.0, 0.04, 0.0), Vector3(0.26, 0.03, 1.54), path_material, root)
+	_add_local_sphere(Vector3(-0.42, 0.22, -0.32), 0.18, 0.22, _ghost_accent_material, root)
+	_add_local_sphere(Vector3(0.42, 0.22, 0.32), 0.18, 0.22, _ghost_accent_material, root)
+	return root
+
+
+func _spawn_generic_building_preview(tool: String) -> Node3D:
+	var root := Node3D.new()
+	var pad_material := _ghost_base_material
+	var wall_material := _ghost_base_material
+	var accent_material := _ghost_accent_material
+	var body_size := Vector3(1.38, 0.88, 1.18)
+	var roof_size := Vector3(1.52, 0.18, 1.3)
+
+	match tool:
+		BUILD_TOOL_POLICE:
+			body_size = Vector3(1.52, 0.94, 1.26)
+			roof_size = Vector3(1.64, 0.18, 1.38)
+		BUILD_TOOL_FIRE:
+			body_size = Vector3(1.58, 0.96, 1.34)
+			roof_size = Vector3(1.72, 0.18, 1.44)
+		BUILD_TOOL_BANK:
+			body_size = Vector3(1.42, 0.86, 1.14)
+			roof_size = Vector3(1.58, 0.18, 1.28)
+		BUILD_TOOL_GROCERY:
+			body_size = Vector3(1.66, 0.82, 1.36)
+			roof_size = Vector3(1.78, 0.16, 1.46)
+		BUILD_TOOL_RESTAURANT:
+			body_size = Vector3(1.52, 0.84, 1.24)
+			roof_size = Vector3(1.7, 0.18, 1.4)
+		BUILD_TOOL_CORNER_STORE:
+			body_size = Vector3(1.36, 0.8, 1.08)
+			roof_size = Vector3(1.5, 0.16, 1.22)
+
+	_add_box(Vector3(0.0, 0.02, 0.1), Vector3(1.8, 0.04, 1.6), pad_material, root)
+	_add_soft_block(Vector3(0.0, body_size.y * 0.5 + 0.05, 0.0), body_size, wall_material, root, 0.14)
+	_add_gabled_roof(Vector3(0.0, body_size.y + 0.16, 0.0), roof_size, accent_material, root, 9.0)
+	_add_round_canopy(Vector3(0.0, 0.34, body_size.z * 0.56), Vector3(body_size.x * 0.74, 0.12, 0.18), accent_material, root)
+	return root
 
 
 func _spawn_building_for_tool(tool: String, world_position: Vector3, rotation_y: float, tier: int = 1, variant: int = -1) -> Node3D:
 	if variant < 0:
 		variant = randi() % 10
-	return _spawn_asset_building(tool, world_position, rotation_y, tier, variant, false)
+	var node: Node3D
+	match tool:
+		BUILD_TOOL_HOUSE:
+			node = _add_village_house_variant(world_position, variant)
+		BUILD_TOOL_POLICE:
+			node = _add_police_station_variant(world_position, variant)
+		BUILD_TOOL_FIRE:
+			node = _add_fire_station_variant(world_position, variant)
+		BUILD_TOOL_BANK:
+			node = _add_bank_variant(world_position, variant)
+		BUILD_TOOL_GROCERY:
+			node = _add_grocery_variant(world_position, variant)
+		BUILD_TOOL_RESTAURANT:
+			node = _add_restaurant_variant(world_position, variant)
+		BUILD_TOOL_CORNER_STORE:
+			node = _add_corner_store_variant(world_position, variant)
+		BUILD_TOOL_PARK:
+			node = _add_park_variant(world_position, variant)
+		_:
+			node = _spawn_house_tile(world_position, false)
+	node.rotation_degrees.y = rad_to_deg(rotation_y)
+	node.set_meta("tier", tier)
+	node.set_meta("variant", variant)
+	return node
 
 
 func _adjust_zoom(delta_amount: float) -> void:
@@ -1282,7 +1205,7 @@ func _adjust_zoom(delta_amount: float) -> void:
 
 
 func _rotate_camera(delta_yaw: float) -> void:
-	_target_camera_yaw = deg_to_rad(45.0)
+	_target_camera_yaw = wrapf(snappedf(_target_camera_yaw + delta_yaw, PI * 0.5), -PI, PI)
 
 
 func _update_keyboard_camera(delta: float) -> void:
@@ -1629,7 +1552,32 @@ func _spawn_ambient_car(road_cell: Vector2i, index: int) -> Node3D:
 	root.set_meta("phase", randf_range(0.0, TAU))
 	root.set_meta("speed", randf_range(0.5, 0.95))
 	root.set_meta("heading", forward_rotation)
-	root.add_child(_build_asset_node("props", "car_compact", index, "south", 1, 1.0, Color.WHITE))
+	_add_shadow_disc_local(Vector3(0.0, 0.005, 0.0), Vector2(0.48, 0.72), 0.16, root)
+
+	var palette := [
+		Color("d16758"),
+		Color("5f8cb8"),
+		Color("86a05d"),
+		Color("e3be67"),
+		Color("7e6ba1"),
+	]
+	var body_material := _make_material_from_color(palette[index % palette.size()], 0.68)
+	var trim_material := _make_material("f6f1e4", 0.82)
+	var tire_material := _make_material("26252b", 0.98)
+	var window_glass := _make_transparent_material(Color("bfe6ff"), 0.24, 0.16)
+	_add_soft_block(Vector3(0.0, 0.16, 0.0), Vector3(0.34, 0.16, 0.58), body_material, root, 0.08)
+	_add_soft_block(Vector3(0.0, 0.27, -0.02), Vector3(0.24, 0.12, 0.28), trim_material, root, 0.06)
+	_add_box(Vector3(0.0, 0.29, -0.02), Vector3(0.18, 0.08, 0.18), window_glass, root)
+	_add_box(Vector3(0.0, 0.13, 0.29), Vector3(0.18, 0.03, 0.03), trim_material, root)
+	_add_box(Vector3(0.0, 0.13, -0.29), Vector3(0.18, 0.03, 0.03), trim_material, root)
+	for wheel_data in [
+		Vector3(-0.14, 0.07, -0.2),
+		Vector3(0.14, 0.07, -0.2),
+		Vector3(-0.14, 0.07, 0.2),
+		Vector3(0.14, 0.07, 0.2),
+	]:
+		var wheel := _add_local_cylinder(wheel_data, 0.05, 0.05, 0.04, tire_material, root)
+		wheel.rotation_degrees.z = 90.0
 	return root
 
 
@@ -1654,7 +1602,23 @@ func _spawn_ambient_person(anchor_key: String, index: int) -> Node3D:
 	root.set_meta("finish", finish)
 	root.set_meta("phase", randf_range(0.0, TAU))
 	root.set_meta("speed", randf_range(0.45, 0.88))
-	root.add_child(_build_asset_node("props", "person_villager", index, "south", 1, 1.0, Color.WHITE))
+	_add_shadow_disc_local(Vector3(0.0, 0.005, 0.0), Vector2(0.18, 0.18), 0.16, root)
+
+	var coat_palette := [
+		Color("5b7db0"),
+		Color("b86a58"),
+		Color("728e57"),
+		Color("8b6da8"),
+		Color("cb9a5a"),
+	]
+	var coat_material := _make_material_from_color(coat_palette[index % coat_palette.size()], 0.74)
+	var pant_material := _make_material("4a4748", 0.96)
+	var skin_material := _make_material("e7c8a8", 0.86)
+	_add_soft_block(Vector3(0.0, 0.2, 0.0), Vector3(0.12, 0.2, 0.1), coat_material, root, 0.04)
+	_add_local_sphere(Vector3(0.0, 0.34, 0.0), 0.06, 0.08, skin_material, root)
+	_add_box(Vector3(-0.03, 0.07, 0.0), Vector3(0.03, 0.14, 0.03), pant_material, root)
+	_add_box(Vector3(0.03, 0.07, 0.0), Vector3(0.03, 0.14, 0.03), pant_material, root)
+	_add_box(Vector3(0.0, 0.23, -0.07), Vector3(0.12, 0.03, 0.03), _make_material("f5efe4", 0.86), root)
 	return root
 
 
@@ -1792,22 +1756,51 @@ func _make_glass_panel_style() -> StyleBoxFlat:
 
 
 func _build_water_ring() -> void:
-	var water_size := Vector2(float(GRID_SIZE) + 26.0, float(GRID_SIZE) + 26.0)
-	var water := _create_ground_asset_node("water_plane", water_size, 0.0, 0.92, Color(0.9, 0.98, 1.0, 1.0), -0.08, true)
+	var water := MeshInstance3D.new()
+	var water_mesh := CylinderMesh.new()
+	water_mesh.top_radius = float(GRID_SIZE) * 0.54
+	water_mesh.bottom_radius = float(GRID_SIZE) * 0.59
+	water_mesh.height = 0.22
+	water.mesh = water_mesh
+	water.material_override = _water_material
+	water.position = Vector3(0.0, -0.62, 0.0)
 	grid_root.add_child(water)
+
+	var shallows := MeshInstance3D.new()
+	var shallow_mesh := CylinderMesh.new()
+	shallow_mesh.top_radius = float(GRID_SIZE) * 0.515
+	shallow_mesh.bottom_radius = float(GRID_SIZE) * 0.54
+	shallow_mesh.height = 0.08
+	shallows.mesh = shallow_mesh
+	shallows.material_override = _make_transparent_material(Color("c8ede7"), 0.22, 0.3)
+	shallows.position = Vector3(0.0, -0.49, 0.0)
+	grid_root.add_child(shallows)
 
 
 func _build_island_base() -> void:
-	var island := _create_ground_asset_node(
-		"grass_tile",
-		Vector2(float(GRID_SIZE) + 1.2, float(GRID_SIZE) + 1.2),
-		0.0,
-		1.0,
-		Color(0.86, 0.94, 0.82, 1.0),
-		-0.012,
-		true
-	)
-	grid_root.add_child(island)
+	var base := MeshInstance3D.new()
+	var base_mesh := BoxMesh.new()
+	base_mesh.size = Vector3(GRID_SIZE + 4.6, 1.1, GRID_SIZE + 4.6)
+	base.mesh = base_mesh
+	base.material_override = _soil_material
+	base.position = Vector3(0.0, -0.66, 0.0)
+	grid_root.add_child(base)
+
+	var lip := MeshInstance3D.new()
+	var lip_mesh := BoxMesh.new()
+	lip_mesh.size = Vector3(GRID_SIZE + 1.4, 0.28, GRID_SIZE + 1.4)
+	lip.mesh = lip_mesh
+	lip.material_override = _stone_material
+	lip.position = Vector3(0.0, -0.11, 0.0)
+	grid_root.add_child(lip)
+
+	var turf := MeshInstance3D.new()
+	var turf_mesh := BoxMesh.new()
+	turf_mesh.size = Vector3(GRID_SIZE + 0.8, 0.14, GRID_SIZE + 0.8)
+	turf.mesh = turf_mesh
+	turf.material_override = _make_material("aab177", 0.98)
+	turf.position = Vector3(0.0, -0.01, 0.0)
+	grid_root.add_child(turf)
 
 
 func _build_ground_tiles() -> void:
@@ -1815,14 +1808,47 @@ func _build_ground_tiles() -> void:
 
 	for z in range(GRID_SIZE):
 		for x in range(GRID_SIZE):
-			var tint := Color(0.94, 0.99, 0.9, 1.0)
+			var tile := MeshInstance3D.new()
+			var mesh := BoxMesh.new()
+			var height_variation := 0.14 + sin(float(x) * 0.35) * 0.025 + cos(float(z) * 0.27) * 0.02
+			mesh.size = Vector3(0.98, height_variation, 0.98)
+			tile.mesh = mesh
+			var material := _ground_material_a
 			if (x + z) % 3 == 0:
-				tint = Color(0.88, 0.95, 0.84, 1.0)
+				material = _ground_material_b
 			elif (x * 3 + z * 5) % 4 == 0:
-				tint = Color(0.84, 0.92, 0.8, 1.0)
-			var tile := _create_ground_asset_node("grass_tile", Vector2(0.98, 0.98), 0.0, 1.0, tint, -0.004, true)
-			tile.position = Vector3(x - half, 0.0, z - half)
+				material = _ground_material_c
+			tile.material_override = material
+			tile.position = Vector3(x - half, -0.03, z - half)
 			grid_root.add_child(tile)
+
+	for edge in range(GRID_SIZE):
+		_add_edge_post(Vector3(-half - 0.9, 0.12, edge - half))
+		_add_edge_post(Vector3(half + 0.9, 0.12, edge - half))
+		_add_edge_post(Vector3(edge - half, 0.12, -half - 0.9))
+		_add_edge_post(Vector3(edge - half, 0.12, half + 0.9))
+
+	var shore_ring := float(GRID_SIZE) * 0.5 - 2.1
+	var shore_inner := float(GRID_SIZE) * 0.22
+	for shore_pos in [
+		Vector3(-shore_ring, -0.14, -shore_inner * 1.4),
+		Vector3(-shore_ring, -0.14, -shore_inner * 0.4),
+		Vector3(-shore_ring, -0.14, shore_inner * 0.4),
+		Vector3(-shore_ring, -0.14, shore_inner * 1.4),
+		Vector3(shore_ring, -0.14, -shore_inner * 1.2),
+		Vector3(shore_ring, -0.14, -shore_inner * 0.2),
+		Vector3(shore_ring, -0.14, shore_inner * 0.6),
+		Vector3(shore_ring, -0.14, shore_inner * 1.6),
+		Vector3(-shore_inner * 1.4, -0.14, -shore_ring),
+		Vector3(-shore_inner * 0.4, -0.14, -shore_ring),
+		Vector3(shore_inner * 0.6, -0.14, -shore_ring),
+		Vector3(shore_inner * 1.6, -0.14, -shore_ring),
+		Vector3(-shore_inner * 1.6, -0.14, shore_ring),
+		Vector3(-shore_inner * 0.6, -0.14, shore_ring),
+		Vector3(shore_inner * 0.6, -0.14, shore_ring),
+		Vector3(shore_inner * 1.6, -0.14, shore_ring),
+	]:
+		_add_shore_detail(shore_pos)
 
 
 func _build_meadow() -> void:
@@ -1857,7 +1883,7 @@ func _build_meadow() -> void:
 		Vector3(-10.5, 0.03, 14.2),
 		Vector3(14.1, 0.03, 11.6),
 	]:
-		_add_flower_patch(patch, 8, _flower_material_blue if patch.x > 0.0 else _flower_material_pink)
+		_add_local_flower_patch(patch, 8, _flower_material_blue if patch.x > 0.0 else _flower_material_pink, grid_root)
 
 
 func _build_nature() -> void:
@@ -2219,15 +2245,37 @@ func _add_town_path(center: Vector3, size: Vector2, parent: Node = null) -> void
 
 
 func _build_clouds() -> void:
-	return
+	for i in range(4):
+		var cloud := Node3D.new()
+		cloud.position = Vector3(-9.5 + i * 5.5, 6.4 + float(i % 2) * 0.4, -7.5 + i * 1.3)
+		cloud.set_meta("speed", 0.12 + float(i) * 0.03)
+		cloud.set_meta("base_z", cloud.position.z)
+		building_root.add_child(cloud)
+		_clouds.append(cloud)
+
+		for puff_index in range(3):
+			var puff := MeshInstance3D.new()
+			var puff_mesh := SphereMesh.new()
+			puff_mesh.radius = 0.55 + puff_index * 0.08
+			puff_mesh.height = 0.7 + puff_index * 0.06
+			puff.mesh = puff_mesh
+			var puff_material := _make_material("ffffff", 0.08)
+			puff_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+			puff_material.albedo_color.a = 0.86
+			puff.material_override = puff_material
+			puff.position = Vector3(puff_index * 0.55, 0.0 if puff_index != 1 else 0.18, randf_range(-0.15, 0.15))
+			cloud.add_child(puff)
 
 
 func _add_meadow_patch(center: Vector3, size: Vector2, clump_count: int) -> void:
-	var resolved := _asset_loader.resolve_variant("foliage", "meadow_patch")
-	var texture := _asset_loader.get_texture(str(resolved.get("path", "")))
-	if texture == null:
-		return
-	var patch := _create_flat_asset_quad(texture, size, 0.78, Color.WHITE, 0.012, true)
+	var patch := MeshInstance3D.new()
+	var patch_mesh := CylinderMesh.new()
+	patch_mesh.top_radius = max(size.x, size.y) * 0.52
+	patch_mesh.bottom_radius = patch_mesh.top_radius * 1.04
+	patch_mesh.height = 0.04
+	patch.mesh = patch_mesh
+	patch.material_override = _meadow_material
+	patch.scale = Vector3(size.x / max(size.x, size.y), 1.0, size.y / max(size.x, size.y))
 	patch.position = center
 	patch.set_meta("radius", max(size.x, size.y) * 0.52)
 	grid_root.add_child(patch)
@@ -2277,36 +2325,52 @@ func _rebuild_road_at(cell: Vector2i) -> void:
 
 func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = []) -> Node3D:
 	var root := Node3D.new()
+	var curb_material: Material = _ghost_base_material if preview else _sidewalk_material
+	var road_material: Material = _ghost_accent_material if preview else _road_material
+	var lane_material: Material = _ghost_base_material if preview else _make_material("d6ccb7", 0.86)
+	var paver_material: Material = _ghost_base_material if preview else _make_material("8e7a62", 0.94)
+	var shoulder_material: Material = _ghost_base_material if preview else _make_material("6e644f", 0.98)
+	var verge_material: Material = _ghost_base_material if preview else _make_material("8ea06b", 0.98)
 	var source := road_source if road_source.size() > 0 else [cell]
 	var north := _road_in_source(Vector2i(cell.x, cell.y - 1), source)
 	var east := _road_in_source(Vector2i(cell.x + 1, cell.y), source)
 	var south := _road_in_source(Vector2i(cell.x, cell.y + 1), source)
 	var west := _road_in_source(Vector2i(cell.x - 1, cell.y), source)
-	var connection_count := int(north) + int(east) + int(south) + int(west)
-	var asset_id := "road_straight"
-	var rotation_y := 0.0
-	if connection_count >= 3:
-		asset_id = "road_cross"
-	elif north and south and not east and not west:
-		asset_id = "road_straight"
-	elif east and west and not north and not south:
-		asset_id = "road_straight"
-		rotation_y = PI * 0.5
-	elif north and east:
-		asset_id = "road_corner"
-	elif east and south:
-		asset_id = "road_corner"
-		rotation_y = -PI * 0.5
-	elif south and west:
-		asset_id = "road_corner"
-		rotation_y = PI
-	elif west and north:
-		asset_id = "road_corner"
-		rotation_y = PI * 0.5
-	elif east or west:
-		asset_id = "road_straight"
-		rotation_y = PI * 0.5
-	root.add_child(_create_ground_asset_node(asset_id, Vector2(1.24, 1.24), rotation_y, 0.58 if preview else 1.0, Color.WHITE, 0.014, true))
+
+	_add_box(Vector3(0.0, 0.01, 0.0), Vector3(1.24, 0.018, 1.24), verge_material, root)
+	_add_box(Vector3(0.0, 0.016, 0.0), Vector3(1.14, 0.018, 1.14), curb_material, root)
+	_add_box(Vector3(0.0, 0.022, 0.0), Vector3(1.04, 0.016, 1.04), shoulder_material, root)
+	_add_box(Vector3(0.0, 0.028, 0.0), Vector3(0.96, 0.016, 0.96), paver_material, root)
+	_add_box(Vector3(0.0, 0.04, 0.0), Vector3(0.86, 0.026, 0.86), road_material, root)
+
+	if north:
+		_add_box(Vector3(0.0, 0.04, -0.24), Vector3(0.86, 0.026, 0.6), road_material, root)
+	if south:
+		_add_box(Vector3(0.0, 0.04, 0.24), Vector3(0.86, 0.026, 0.6), road_material, root)
+	if east:
+		_add_box(Vector3(0.24, 0.04, 0.0), Vector3(0.6, 0.026, 0.86), road_material, root)
+	if west:
+		_add_box(Vector3(-0.24, 0.04, 0.0), Vector3(0.6, 0.026, 0.86), road_material, root)
+	if not north and not south and not east and not west:
+		_add_box(Vector3(0.0, 0.04, 0.0), Vector3(0.88, 0.026, 0.88), road_material, root)
+
+	var vertical_straight := north and south and not east and not west
+	var horizontal_straight := east and west and not north and not south
+	var intersection := (north or south) and (east or west)
+	if vertical_straight:
+		for x in [-0.18, 0.18]:
+			_add_box(Vector3(x, 0.055, 0.0), Vector3(0.04, 0.008, 0.9), lane_material, root)
+	elif horizontal_straight:
+		for z in [-0.18, 0.18]:
+			_add_box(Vector3(0.0, 0.055, z), Vector3(0.9, 0.008, 0.04), lane_material, root)
+	elif intersection:
+		_add_box(Vector3(0.0, 0.042, 0.0), Vector3(0.66, 0.02, 0.66), _make_material("9b876d", 0.92), root)
+		for offset in [-0.28, -0.1, 0.1, 0.28]:
+			_add_box(Vector3(offset, 0.056, -0.34), Vector3(0.08, 0.008, 0.03), lane_material, root)
+			_add_box(Vector3(offset, 0.056, 0.34), Vector3(0.08, 0.008, 0.03), lane_material, root)
+			_add_box(Vector3(-0.34, 0.056, offset), Vector3(0.03, 0.008, 0.08), lane_material, root)
+			_add_box(Vector3(0.34, 0.056, offset), Vector3(0.03, 0.008, 0.08), lane_material, root)
+
 	return root
 
 
@@ -2320,7 +2384,10 @@ func _road_in_source(cell: Vector2i, road_source: Array) -> bool:
 func _tool_rotation_y(tool: String, anchor: Vector2i, footprint: Vector2i) -> float:
 	if tool == BUILD_TOOL_ROAD:
 		return 0.0
-	return 0.0
+
+	var preferred_side := _preferred_frontage_side(anchor, footprint)
+	var rotation := _rotation_for_side(preferred_side)
+	return rotation + float(BUILDING_FRONT_ROTATION_OFFSETS.get(tool, 0.0))
 
 
 func _transport_side_score(anchor: Vector2i, footprint: Vector2i, side: String) -> float:
@@ -2527,7 +2594,11 @@ func _add_tree(position_3d: Vector3) -> void:
 	root.position = position_3d
 	_nature_root.add_child(root)
 	_register_nature_feature(root, 0.78)
-	root.add_child(_build_asset_node("foliage", "tree_round", 0, "south", 1, 1.0, Color.WHITE))
+	_add_shadow_disc_local(Vector3(0.0, 0.01, 0.0), Vector2(0.9, 0.7), 0.18, root)
+	_add_local_cylinder(Vector3(0.0, 0.34, 0.0), 0.11, 0.08, 0.68, _trunk_material, root)
+	_add_local_sphere(Vector3(0.0, 0.92, 0.02), 0.52, 0.86, _leaf_material, root)
+	_add_local_sphere(Vector3(-0.2, 0.84, 0.0), 0.34, 0.66, _leaf_material, root)
+	_add_local_sphere(Vector3(0.22, 0.84, -0.08), 0.3, 0.58, _leaf_material, root)
 
 
 func _add_grass_clump(position_3d: Vector3, scale_factor: float) -> void:
@@ -2538,11 +2609,15 @@ func _add_grass_clump(position_3d: Vector3, scale_factor: float) -> void:
 	clump.set_meta("sway", randf_range(0.8, 1.3))
 	_nature_root.add_child(clump)
 	_grass_clumps.append(clump)
-	var resolved := _asset_loader.resolve_variant("foliage", "meadow_patch")
-	var texture := _asset_loader.get_texture(str(resolved.get("path", "")))
-	if texture == null:
-		return
-	clump.add_child(_create_flat_asset_quad(texture, Vector2(0.72, 0.46) * scale_factor, 0.9, Color.WHITE, 0.014, true))
+
+	for blade_data in [
+		{"pos": Vector3(-0.08, 0.17, 0.0), "rot": -10.0, "size": Vector3(0.06, 0.38, 0.02)},
+		{"pos": Vector3(0.02, 0.2, 0.03), "rot": 7.0, "size": Vector3(0.06, 0.44, 0.02)},
+		{"pos": Vector3(0.1, 0.15, -0.02), "rot": 14.0, "size": Vector3(0.05, 0.32, 0.02)},
+		{"pos": Vector3(-0.02, 0.16, -0.08), "rot": -18.0, "size": Vector3(0.05, 0.3, 0.02)}
+	]:
+		var blade := _add_box(blade_data.pos * scale_factor, blade_data.size * scale_factor, _grass_blade_material, clump)
+		blade.rotation_degrees.z = blade_data.rot
 
 
 func _add_park_corner(position_3d: Vector3) -> void:
@@ -2550,8 +2625,11 @@ func _add_park_corner(position_3d: Vector3) -> void:
 	root.position = position_3d
 	_nature_root.add_child(root)
 	_register_nature_feature(root, 1.08)
-	root.add_child(_make_property_base(Vector2(1.9, 1.9), Color(0.9, 0.98, 0.9, 1.0), 0.004))
-	root.add_child(_build_asset_node("buildings", "park", 0, "south", 1, 1.0, Color.WHITE))
+	_add_box(Vector3(0.0, 0.02, 0.0), Vector3(1.8, 0.05, 1.8), _make_material("eef4f5", 0.84), root)
+	_add_local_tree(Vector3(-0.55, 0.0, -0.1), root)
+	_add_local_tree(Vector3(0.52, 0.0, 0.28), root)
+	_add_bench_local(Vector3(0.0, 0.06, -0.58), 0.0, root)
+	_add_local_flower_patch(Vector3(0.58, 0.08, -0.55), 4, _flower_material_pink, root)
 
 
 func _add_planter(position_3d: Vector3) -> void:
@@ -2567,14 +2645,7 @@ func _add_flower_patch(center: Vector3, count: int, material: StandardMaterial3D
 	for i in range(count):
 		var offset_x := (float(i % 3) - 1.0) * 0.14
 		var offset_z := (float(i / 3) - 0.5) * 0.14
-		var resolved := _asset_loader.resolve_variant("foliage", "meadow_patch")
-		var texture := _asset_loader.get_texture(str(resolved.get("path", "")))
-		if texture == null:
-			continue
-		var tint := material.albedo_color if material != null else Color.WHITE
-		var flower := _create_flat_asset_quad(texture, Vector2(0.18, 0.12), 0.84, tint, 0.02, true)
-		flower.position = Vector3(offset_x, 0.0, offset_z)
-		root.add_child(flower)
+		_add_box(Vector3(offset_x, 0.05, offset_z), Vector3(0.08, 0.08, 0.08), material, root)
 
 
 func _add_flower_box_local(position_3d: Vector3, color: Color, parent: Node) -> void:
@@ -2916,7 +2987,6 @@ func _animate_grass() -> void:
 
 
 func _update_camera(force := false) -> void:
-	_target_camera_yaw = deg_to_rad(45.0)
 	_camera_yaw = lerp_angle(_camera_yaw, _target_camera_yaw, 0.18 if not force else 1.0)
 	if camera_controller and camera_controller.has_method("apply_view"):
 		camera_controller.call("apply_view", _focus, _zoom, _camera_yaw)
