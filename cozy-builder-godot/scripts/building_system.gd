@@ -108,6 +108,7 @@ var _build_tool := BUILD_TOOL_ROAD
 var _hovered_cell := Vector2i(-1, -1)
 var _hover_anchor := Vector2i(-1, -1)
 var _hover_cells: Array[Vector2i] = []
+var _hover_frontage_side := "south"
 var _hover_active := false
 var _hover_can_build := false
 var _selected_anchor_key := ""
@@ -678,6 +679,7 @@ func _update_hover_from_mouse() -> void:
 	_hovered_cell = cell
 	_hover_anchor = anchor
 	_hover_cells = cells
+	_hover_frontage_side = str(hover_layout.get("frontage_side", _preferred_frontage_side(anchor, footprint)))
 	_hover_active = true
 	_hover_can_build = valid
 	_update_hover_tiles(cells, valid)
@@ -782,6 +784,7 @@ func _try_place_hovered_tile() -> void:
 	var placed: Node3D
 	var tier := 1
 	var variant := _next_variant_for_tool(_build_tool)
+	var frontage_side := _hover_frontage_side
 	if _build_tool == BUILD_TOOL_ROAD:
 		_mark_road_cell(_hover_anchor)
 		_rebuild_road_at(_hover_anchor)
@@ -790,11 +793,11 @@ func _try_place_hovered_tile() -> void:
 				_rebuild_road_at(neighbor)
 		placed = _road_nodes.get(_cell_key(_hover_anchor))
 	else:
-		placed = _spawn_building_for_tool(_build_tool, world, _tool_rotation_y(_build_tool, _hover_anchor, footprint), tier, variant)
+		placed = _spawn_building_for_tool(_build_tool, world, _tool_rotation_y(_build_tool, _hover_anchor, footprint, frontage_side), tier, variant)
 
 	_clear_nature_for_cells(_hover_cells)
 	_money -= cost
-	_register_placement(_hover_anchor, _hover_cells, _build_tool, placed, cost, tier, variant)
+	_register_placement(_hover_anchor, _hover_cells, _build_tool, placed, cost, tier, variant, frontage_side)
 	_recalculate_cashflow()
 	_rebuild_ambient_life()
 	_update_hover_from_mouse()
@@ -852,6 +855,7 @@ func _resolve_hover_layout(tool: String, cell: Vector2i) -> Dictionary:
 			"anchor": simple_anchor,
 			"footprint": base_footprint,
 			"cells": _cells_for_anchor(simple_anchor, base_footprint),
+			"frontage_side": "south",
 		}
 
 	if not _tool_requires_road(tool):
@@ -860,6 +864,7 @@ func _resolve_hover_layout(tool: String, cell: Vector2i) -> Dictionary:
 			"anchor": default_anchor,
 			"footprint": base_footprint,
 			"cells": _cells_for_anchor(default_anchor, base_footprint),
+			"frontage_side": "south",
 		}
 
 	var candidate_footprints: Array[Vector2i] = [base_footprint]
@@ -886,13 +891,14 @@ func _resolve_hover_layout(tool: String, cell: Vector2i) -> Dictionary:
 				var score := _transport_side_score(anchor, footprint, side)
 				var frontage_center := _frontage_side_center(anchor, footprint, side)
 				var hover_distance := Vector2(hover_world.x, hover_world.z).distance_to(frontage_center)
-				var layout_score := float(touch) * 1000.0 + score * 10.0 - hover_distance
+				var layout_score := float(touch) * 10000.0 + score * 100.0 - hover_distance
 				if layout_score > best_score:
 					best_score = layout_score
 					best_layout = {
 						"anchor": anchor,
 						"footprint": footprint,
 						"cells": cells,
+						"frontage_side": side,
 					}
 
 	if not best_layout.is_empty():
@@ -904,6 +910,7 @@ func _resolve_hover_layout(tool: String, cell: Vector2i) -> Dictionary:
 		"anchor": fallback_anchor,
 		"footprint": fallback_footprint,
 		"cells": _cells_for_anchor(fallback_anchor, fallback_footprint),
+		"frontage_side": _preferred_frontage_side(fallback_anchor, fallback_footprint),
 	}
 
 
@@ -993,7 +1000,7 @@ func _mark_cells(cells: Array[Vector2i], tool: String, node: Node3D) -> void:
 		_placed_nodes[key] = node
 
 
-func _register_placement(anchor: Vector2i, cells: Array[Vector2i], tool: String, node: Node3D, cost: int, tier: int = 1, variant: int = -1) -> void:
+func _register_placement(anchor: Vector2i, cells: Array[Vector2i], tool: String, node: Node3D, cost: int, tier: int = 1, variant: int = -1, frontage_side: String = "") -> void:
 	var anchor_key := _cell_key(anchor)
 	_placements[anchor_key] = {
 		"anchor": anchor,
@@ -1003,6 +1010,7 @@ func _register_placement(anchor: Vector2i, cells: Array[Vector2i], tool: String,
 		"cost": cost,
 		"tier": tier,
 		"variant": variant,
+		"frontage_side": frontage_side,
 	}
 	for cell in cells:
 		var key := _cell_key(cell)
@@ -1013,6 +1021,7 @@ func _register_placement(anchor: Vector2i, cells: Array[Vector2i], tool: String,
 		"type": "place",
 		"anchor_key": anchor_key,
 		"money": cost,
+		"frontage_side": frontage_side,
 	})
 	_set_selected_anchor(anchor_key)
 
@@ -1214,6 +1223,7 @@ func _remove_selected_placement(refund: bool, record_action: bool = true) -> voi
 			"refund": refund_amount,
 			"tier": int(placement.get("tier", 1)),
 			"variant": int(placement.get("variant", -1)),
+			"frontage_side": str(placement.get("frontage_side", "")),
 		})
 	if tool == BUILD_TOOL_ROAD:
 		for neighbor in road_neighbors:
@@ -1305,8 +1315,9 @@ func _undo_last_action() -> void:
 		else:
 			var tier := int(action.get("tier", 1))
 			var variant := int(action.get("variant", -1))
-			var node := _spawn_building_for_tool(action["tool"], _anchor_to_world(anchor, _footprint_from_cells(cells)), _tool_rotation_y(action["tool"], anchor, _footprint_from_cells(cells)), tier, variant)
-			_register_placement(anchor, cells, action["tool"], node, int(action["cost"]), tier, variant)
+			var frontage_side := str(action.get("frontage_side", ""))
+			var node := _spawn_building_for_tool(action["tool"], _anchor_to_world(anchor, _footprint_from_cells(cells)), _tool_rotation_y(action["tool"], anchor, _footprint_from_cells(cells), frontage_side), tier, variant)
+			_register_placement(anchor, cells, action["tool"], node, int(action["cost"]), tier, variant, frontage_side)
 		if not _action_history.is_empty():
 			_action_history.pop_back()
 	_recalculate_cashflow()
@@ -1514,6 +1525,7 @@ func _save_game() -> void:
 			"cost": int(placement["cost"]),
 			"tier": int(placement.get("tier", 1)),
 			"variant": int(placement.get("variant", -1)),
+			"frontage_side": str(placement.get("frontage_side", "")),
 		})
 	save_data["placements"] = placement_list
 
@@ -1587,8 +1599,9 @@ func _try_load_game(force_feedback: bool = false) -> void:
 			var cells := _cells_for_anchor(anchor, footprint)
 			var tier := int(entry.get("tier", 1))
 			var variant := int(entry.get("variant", randi() % 10))
-			var node := _spawn_building_for_tool(tool, _anchor_to_world(anchor, footprint), _tool_rotation_y(tool, anchor, footprint), tier, variant)
-			_register_placement(anchor, cells, tool, node, int(entry.get("cost", BUILD_TOOL_COSTS.get(tool, 0))), tier, variant)
+			var frontage_side := str(entry.get("frontage_side", _preferred_frontage_side(anchor, footprint)))
+			var node := _spawn_building_for_tool(tool, _anchor_to_world(anchor, footprint), _tool_rotation_y(tool, anchor, footprint, frontage_side), tier, variant)
+			_register_placement(anchor, cells, tool, node, int(entry.get("cost", BUILD_TOOL_COSTS.get(tool, 0))), tier, variant, frontage_side)
 			if not _action_history.is_empty():
 				_action_history.pop_back()
 	for road_key in _road_cells.keys():
@@ -2807,53 +2820,53 @@ func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = [
 	_add_box(Vector3(0.0, 0.08, 0.0), Vector3(1.56, 0.018, 1.56), road_top_material, root)
 
 	if north:
-		_add_box(Vector3(0.0, 0.02, -0.56), Vector3(2.48, 0.03, 1.36), sidewalk_material, root)
-		_add_box(Vector3(0.0, 0.038, -0.56), Vector3(2.06, 0.016, 1.18), curb_material, root)
-		_add_box(Vector3(0.0, 0.066, -0.56), Vector3(1.74, 0.06, 1.12), road_material, root)
-		_add_box(Vector3(0.0, 0.08, -0.56), Vector3(1.56, 0.018, 0.98), road_top_material, root)
+		_add_box(Vector3(0.0, 0.02, -0.74), Vector3(3.16, 0.03, 1.72), sidewalk_material, root)
+		_add_box(Vector3(0.0, 0.04, -0.74), Vector3(2.82, 0.016, 1.42), curb_material, root)
+		_add_box(Vector3(0.0, 0.072, -0.74), Vector3(2.42, 0.065, 1.18), road_material, root)
+		_add_box(Vector3(0.0, 0.088, -0.74), Vector3(2.2, 0.02, 1.02), road_top_material, root)
 	if south:
-		_add_box(Vector3(0.0, 0.02, 0.56), Vector3(2.48, 0.03, 1.36), sidewalk_material, root)
-		_add_box(Vector3(0.0, 0.038, 0.56), Vector3(2.06, 0.016, 1.18), curb_material, root)
-		_add_box(Vector3(0.0, 0.066, 0.56), Vector3(1.74, 0.06, 1.12), road_material, root)
-		_add_box(Vector3(0.0, 0.08, 0.56), Vector3(1.56, 0.018, 0.98), road_top_material, root)
+		_add_box(Vector3(0.0, 0.02, 0.74), Vector3(3.16, 0.03, 1.72), sidewalk_material, root)
+		_add_box(Vector3(0.0, 0.04, 0.74), Vector3(2.82, 0.016, 1.42), curb_material, root)
+		_add_box(Vector3(0.0, 0.072, 0.74), Vector3(2.42, 0.065, 1.18), road_material, root)
+		_add_box(Vector3(0.0, 0.088, 0.74), Vector3(2.2, 0.02, 1.02), road_top_material, root)
 	if east:
-		_add_box(Vector3(0.56, 0.02, 0.0), Vector3(1.36, 0.03, 2.48), sidewalk_material, root)
-		_add_box(Vector3(0.56, 0.038, 0.0), Vector3(1.18, 0.016, 2.06), curb_material, root)
-		_add_box(Vector3(0.56, 0.066, 0.0), Vector3(1.12, 0.06, 1.74), road_material, root)
-		_add_box(Vector3(0.56, 0.08, 0.0), Vector3(0.98, 0.018, 1.56), road_top_material, root)
+		_add_box(Vector3(0.74, 0.02, 0.0), Vector3(1.72, 0.03, 3.16), sidewalk_material, root)
+		_add_box(Vector3(0.74, 0.04, 0.0), Vector3(1.42, 0.016, 2.82), curb_material, root)
+		_add_box(Vector3(0.74, 0.072, 0.0), Vector3(1.18, 0.065, 2.42), road_material, root)
+		_add_box(Vector3(0.74, 0.088, 0.0), Vector3(1.02, 0.02, 2.2), road_top_material, root)
 	if west:
-		_add_box(Vector3(-0.56, 0.02, 0.0), Vector3(1.36, 0.03, 2.48), sidewalk_material, root)
-		_add_box(Vector3(-0.56, 0.038, 0.0), Vector3(1.18, 0.016, 2.06), curb_material, root)
-		_add_box(Vector3(-0.56, 0.066, 0.0), Vector3(1.12, 0.06, 1.74), road_material, root)
-		_add_box(Vector3(-0.56, 0.08, 0.0), Vector3(0.98, 0.018, 1.56), road_top_material, root)
+		_add_box(Vector3(-0.74, 0.02, 0.0), Vector3(1.72, 0.03, 3.16), sidewalk_material, root)
+		_add_box(Vector3(-0.74, 0.04, 0.0), Vector3(1.42, 0.016, 2.82), curb_material, root)
+		_add_box(Vector3(-0.74, 0.072, 0.0), Vector3(1.18, 0.065, 2.42), road_material, root)
+		_add_box(Vector3(-0.74, 0.088, 0.0), Vector3(1.02, 0.02, 2.2), road_top_material, root)
 	if not north and not south and not east and not west:
-		_add_box(Vector3(0.0, 0.066, 0.0), Vector3(1.74, 0.06, 1.74), road_material, root)
-		_add_box(Vector3(0.0, 0.08, 0.0), Vector3(1.56, 0.018, 1.56), road_top_material, root)
+		_add_box(Vector3(0.0, 0.072, 0.0), Vector3(2.42, 0.065, 2.42), road_material, root)
+		_add_box(Vector3(0.0, 0.088, 0.0), Vector3(2.18, 0.02, 2.18), road_top_material, root)
 
 	var vertical_straight := north and south and not east and not west
 	var horizontal_straight := east and west and not north and not south
 	var intersection := (north or south) and (east or west)
 	if vertical_straight:
-		for z in [-0.68, -0.24, 0.24, 0.68]:
-			_add_box(Vector3(0.0, 0.104, z), Vector3(0.12, 0.01, 0.2), lane_material, root)
-		for x in [-0.84, 0.84]:
-			_add_box(Vector3(x, 0.092, 0.0), Vector3(0.07, 0.01, 1.86), sidewalk_material, root)
+		for z in [-0.92, -0.32, 0.32, 0.92]:
+			_add_box(Vector3(0.0, 0.112, z), Vector3(0.14, 0.01, 0.24), lane_material, root)
+		for x in [-1.18, 1.18]:
+			_add_box(Vector3(x, 0.098, 0.0), Vector3(0.1, 0.01, 2.28), sidewalk_material, root)
 	elif horizontal_straight:
-		for x in [-0.68, -0.24, 0.24, 0.68]:
-			_add_box(Vector3(x, 0.104, 0.0), Vector3(0.2, 0.01, 0.12), lane_material, root)
-		for z in [-0.84, 0.84]:
-			_add_box(Vector3(0.0, 0.092, z), Vector3(1.86, 0.01, 0.07), sidewalk_material, root)
+		for x in [-0.92, -0.32, 0.32, 0.92]:
+			_add_box(Vector3(x, 0.112, 0.0), Vector3(0.24, 0.01, 0.14), lane_material, root)
+		for z in [-1.18, 1.18]:
+			_add_box(Vector3(0.0, 0.098, z), Vector3(2.28, 0.01, 0.1), sidewalk_material, root)
 	elif intersection:
-		_add_box(Vector3(0.0, 0.066, 0.0), Vector3(1.94, 0.06, 1.94), road_material, root)
-		_add_box(Vector3(0.0, 0.08, 0.0), Vector3(1.76, 0.018, 1.76), road_top_material, root)
-		for offset in [-0.84, 0.84]:
-			_add_box(Vector3(offset, 0.092, 0.0), Vector3(0.07, 0.01, 1.94), sidewalk_material, root)
-			_add_box(Vector3(0.0, 0.092, offset), Vector3(1.94, 0.01, 0.07), sidewalk_material, root)
-		for offset in [-0.34, 0.34]:
-			_add_box(Vector3(offset, 0.104, 0.0), Vector3(0.12, 0.01, 0.24), lane_material, root)
-			_add_box(Vector3(0.0, 0.104, offset), Vector3(0.24, 0.01, 0.12), lane_material, root)
+		_add_box(Vector3(0.0, 0.072, 0.0), Vector3(2.54, 0.065, 2.54), road_material, root)
+		_add_box(Vector3(0.0, 0.088, 0.0), Vector3(2.3, 0.02, 2.3), road_top_material, root)
+		for offset in [-1.18, 1.18]:
+			_add_box(Vector3(offset, 0.098, 0.0), Vector3(0.1, 0.01, 2.54), sidewalk_material, root)
+			_add_box(Vector3(0.0, 0.098, offset), Vector3(2.54, 0.01, 0.1), sidewalk_material, root)
+		for offset in [-0.46, 0.46]:
+			_add_box(Vector3(offset, 0.112, 0.0), Vector3(0.14, 0.01, 0.28), lane_material, root)
+			_add_box(Vector3(0.0, 0.112, offset), Vector3(0.28, 0.01, 0.14), lane_material, root)
 	else:
-		_add_box(Vector3(0.0, 0.104, 0.0), Vector3(0.14, 0.01, 0.14), lane_material, root)
+		_add_box(Vector3(0.0, 0.112, 0.0), Vector3(0.16, 0.01, 0.16), lane_material, root)
 
 	return root
 
@@ -2865,11 +2878,11 @@ func _road_in_source(cell: Vector2i, road_source: Array) -> bool:
 	return _road_cells.has(_cell_key(cell))
 
 
-func _tool_rotation_y(tool: String, anchor: Vector2i, footprint: Vector2i) -> float:
+func _tool_rotation_y(tool: String, anchor: Vector2i, footprint: Vector2i, frontage_side_override: String = "") -> float:
 	if tool == BUILD_TOOL_ROAD:
 		return 0.0
 
-	var preferred_side := _preferred_frontage_side(anchor, footprint)
+	var preferred_side := frontage_side_override if frontage_side_override != "" else _preferred_frontage_side(anchor, footprint)
 	var rotation := _rotation_for_side(preferred_side)
 	return rotation + float(BUILDING_FRONT_ROTATION_OFFSETS.get(tool, 0.0))
 
@@ -2889,11 +2902,11 @@ func _transport_side_score(anchor: Vector2i, footprint: Vector2i, side: String) 
 							adjacent_count += 1
 		"south":
 			for dx in range(footprint.x):
-				for offset in [0, 1, 2]:
+				for offset in [1, 2, 3]:
 					var candidate := Vector2i(anchor.x + dx, anchor.y + footprint.y + offset)
 					if _road_cells.has(_cell_key(candidate)):
 						nearest_distance = minf(nearest_distance, side_center.distance_to(Vector2(_cell_to_world(candidate).x, _cell_to_world(candidate).z)))
-						if offset == 0:
+						if offset == 1:
 							adjacent_count += 1
 		"west":
 			for dz in range(footprint.y):
@@ -2905,11 +2918,11 @@ func _transport_side_score(anchor: Vector2i, footprint: Vector2i, side: String) 
 							adjacent_count += 1
 		"east":
 			for dz in range(footprint.y):
-				for offset in [0, 1, 2]:
+				for offset in [1, 2, 3]:
 					var candidate := Vector2i(anchor.x + footprint.x + offset, anchor.y + dz)
 					if _road_cells.has(_cell_key(candidate)):
 						nearest_distance = minf(nearest_distance, side_center.distance_to(Vector2(_cell_to_world(candidate).x, _cell_to_world(candidate).z)))
-						if offset == 0:
+						if offset == 1:
 							adjacent_count += 1
 	if nearest_distance == INF:
 		return -9999.0
