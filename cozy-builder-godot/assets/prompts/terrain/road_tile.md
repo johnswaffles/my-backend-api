@@ -1,0 +1,1 @@
+Stylized cozy village lane tile, isometric/top-down compatible for textured quad use, earthy soft road surface, subtle shoulders, blends naturally with grass terrain, neutral lighting, no baked directional shadows, transparent background only if needed, game-ready.

@@ -1,0 +1,1 @@
+Stylized isometric cozy civic building property, 3/4 view, handcrafted indie aesthetic, neutral lighting, no baked directional shadows, transparent background, soft ambient occlusion only, readable silhouette, consistent scale. Include civic frontage details such as steps, signage, fenced service yard, lanterns, or truck apron depending on building type.

@@ -1,0 +1,1 @@
+Stylized cozy park corner or parcel decoration, isometric 3/4 view, neutral lighting, no baked directional shadows, subtle ambient occlusion, transparent background, handcrafted indie aesthetic, readable silhouette.
