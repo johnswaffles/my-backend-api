@@ -102,6 +102,8 @@ var _right_mouse_down := false
 var _right_drag_moved := false
 var _right_drag_origin := Vector2.ZERO
 var _painting_roads := false
+var _painting_bulldoze := false
+var _bulldoze_visited: Dictionary = {}
 var _build_tool := BUILD_TOOL_ROAD
 var _hovered_cell := Vector2i(-1, -1)
 var _hover_anchor := Vector2i(-1, -1)
@@ -272,9 +274,14 @@ func _input(event: InputEvent) -> void:
 			if event.pressed and not _is_pointer_over_hud():
 				if _build_tool == BUILD_TOOL_ROAD:
 					_painting_roads = true
+				elif _build_tool == BUILD_TOOL_BULLDOZE:
+					_painting_bulldoze = true
+					_bulldoze_visited.clear()
 				_try_place_hovered_tile()
 			else:
 				_painting_roads = false
+				_painting_bulldoze = false
+				_bulldoze_visited.clear()
 		elif event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
 			_target_zoom = max(MIN_ZOOM, _target_zoom - 1.15)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
@@ -290,6 +297,8 @@ func _input(event: InputEvent) -> void:
 		_target_focus.x = clamp(_target_focus.x, -pan_limit, pan_limit)
 		_target_focus.z = clamp(_target_focus.z, -pan_limit, pan_limit)
 	elif event is InputEventMouseMotion and _painting_roads and _build_tool == BUILD_TOOL_ROAD and not _is_pointer_over_hud():
+		_try_place_hovered_tile()
+	elif event is InputEventMouseMotion and _painting_bulldoze and _build_tool == BUILD_TOOL_BULLDOZE and not _is_pointer_over_hud():
 		_try_place_hovered_tile()
 
 
@@ -743,6 +752,11 @@ func _try_place_hovered_tile() -> void:
 		return
 
 	if _build_tool == BUILD_TOOL_BULLDOZE:
+		if _selected_anchor_key != "":
+			var selected_key := _selected_anchor_key
+			if _bulldoze_visited.has(selected_key):
+				return
+			_bulldoze_visited[selected_key] = true
 		_remove_selected_placement(true)
 		return
 
@@ -1070,11 +1084,15 @@ func _remove_selected_placement(refund: bool, record_action: bool = true) -> voi
 	var tool: String = placement["tool"]
 	var cells: Array[Vector2i] = placement["cells"]
 	var node: Node3D = placement["node"]
+	var road_neighbors: Array[Vector2i] = []
 	var refund_amount := int(round(float(placement["cost"]) * 0.7)) if refund else 0
 	if refund:
 		_money += refund_amount
 	if tool == BUILD_TOOL_ROAD:
 		for cell in cells:
+			for neighbor in _neighbor_cells(cell):
+				if _road_cells.has(_cell_key(neighbor)):
+					road_neighbors.append(neighbor)
 			var road_key := _cell_key(cell)
 			_road_cells.erase(road_key)
 			if _road_nodes.has(road_key):
@@ -1103,10 +1121,9 @@ func _remove_selected_placement(refund: bool, record_action: bool = true) -> voi
 			"variant": int(placement.get("variant", -1)),
 		})
 	if tool == BUILD_TOOL_ROAD:
-		for cell in cells:
-			for neighbor in _neighbor_cells(cell):
-				if _road_cells.has(_cell_key(neighbor)):
-					_rebuild_road_at(neighbor)
+		for neighbor in road_neighbors:
+			if _road_cells.has(_cell_key(neighbor)):
+				_rebuild_road_at(neighbor)
 	_clear_selected_anchor()
 	_recalculate_cashflow()
 	_rebuild_ambient_life()
@@ -1949,7 +1966,7 @@ func _build_meadow() -> void:
 		Vector3(-10.5, 0.03, 14.2),
 		Vector3(14.1, 0.03, 11.6),
 	]:
-		_add_local_flower_patch(patch, 8, _flower_material_blue if patch.x > 0.0 else _flower_material_pink, grid_root)
+		_add_wildflower_cluster(patch, 8, _flower_material_blue if patch.x > 0.0 else _flower_material_pink, grid_root, 0.16)
 
 
 func _build_nature() -> void:
@@ -1982,7 +1999,7 @@ func _build_nature() -> void:
 		Vector3(-7.4, 0.08, -5.8),
 		Vector3(7.2, 0.08, -6.2)
 	]:
-		_add_flower_patch(flower_pos, 7, _flower_material_pink if flower_pos.x < 0.0 else _flower_material_blue)
+		_add_flower_patch(flower_pos, 5, _flower_material_pink if flower_pos.x < 0.0 else _flower_material_blue)
 
 
 func _cozy_palette(kind: String, variant: int) -> Dictionary:
@@ -2791,10 +2808,7 @@ func _add_flower_patch(center: Vector3, count: int, material: StandardMaterial3D
 	root.position = center
 	_nature_root.add_child(root)
 	_register_nature_feature(root, 0.48)
-	for i in range(count):
-		var offset_x := (float(i % 3) - 1.0) * 0.14
-		var offset_z := (float(i / 3) - 0.5) * 0.14
-		_add_box(Vector3(offset_x, 0.05, offset_z), Vector3(0.08, 0.08, 0.08), material, root)
+	_add_wildflower_cluster(Vector3.ZERO, count, material, root, 0.1)
 
 
 func _add_flower_box_local(position_3d: Vector3, color: Color, parent: Node) -> void:
@@ -2921,10 +2935,17 @@ func _add_local_tree(position_3d: Vector3, parent: Node) -> void:
 
 
 func _add_local_flower_patch(center: Vector3, count: int, material: StandardMaterial3D, parent: Node) -> void:
+	_add_wildflower_cluster(center, count, material, parent, 0.1)
+
+
+func _add_wildflower_cluster(center: Vector3, count: int, material: StandardMaterial3D, parent: Node, spread: float) -> void:
 	for i in range(count):
-		var offset_x := (float(i % 3) - 1.0) * 0.14
-		var offset_z := (float(i / 3) - 0.5) * 0.14
-		_add_box(center + Vector3(offset_x, 0.05, offset_z), Vector3(0.08, 0.08, 0.08), material, parent)
+		var offset_x := randf_range(-spread, spread)
+		var offset_z := randf_range(-spread, spread)
+		var stem := _add_box(center + Vector3(offset_x, 0.05, offset_z), Vector3(0.02, 0.12, 0.02), _grass_blade_material, parent)
+		stem.rotation_degrees.z = randf_range(-10.0, 10.0)
+		var bloom := _add_box(center + Vector3(offset_x, 0.12, offset_z), Vector3(0.07, 0.04, 0.07), material, parent)
+		bloom.rotation_degrees.y = randf_range(0.0, 45.0)
 
 
 func _add_chimney(position_3d: Vector3) -> void:
