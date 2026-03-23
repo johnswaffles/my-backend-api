@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="640" viewBox="0 0 640 640">
+  <rect width="640" height="640" fill="none"/>
+  <path d="M174 458h276V262L326 188 174 274z" fill="#ecdcc4"/>
+  <path d="M326 188l124 74v196H326z" fill="#d8c4ab"/>
+  <path d="M220 316h90v142h-90z" fill="#6e4c32"/>
+  <path d="M246 340h28v42h-28z" fill="#7cb2ca"/>
+  <path d="M356 318h72v108h-72z" fill="#7a5940"/>
+  <path d="M378 346h24v36h-24z" fill="#7db5cb"/>
+  <path d="M280 392h64v66h-64z" fill="#7a5337"/>
+  <path d="M300 406h24v28h-24z" fill="#7db5cb"/>
+  <path d="M136 356h112v24H136z" fill="#946842"/>
+  <path d="M154 300h84v62h-84z" fill="#8a603a"/>
+  <path d="M170 280h62v32h-62z" fill="#74a7bf"/>
+  <path d="M150 382h18v82h-18zM216 382h18v82h-18z" fill="#734f33"/>
+  <path d="M146 404h96v10h-96zM146 436h96v10h-96z" fill="#8c603c"/>
+  <path d="M280 458h70v18h-70z" fill="#c2a37f"/>
+  <path d="M360 202h42v112h-42z" fill="#bba58d"/>
+  <path d="M352 184h56v24h-56z" fill="#aa825d"/>
+</svg>

@@ -28,6 +28,14 @@ func _rasterize_manifest(manifest: Dictionary) -> void:
 				var path := str(variation.get("path", ""))
 				if path.ends_with(".svg"):
 					_rasterize_svg(path)
+				var layers: Array = variation.get("layers", [])
+				for layer_value in layers:
+					if layer_value is not Dictionary:
+						continue
+					var layer: Dictionary = layer_value
+					var layer_path := str(layer.get("path", ""))
+					if layer_path.ends_with(".svg"):
+						_rasterize_svg(layer_path)
 
 
 func _rasterize_svg(svg_path: String) -> void:

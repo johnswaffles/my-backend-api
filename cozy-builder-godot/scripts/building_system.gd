@@ -348,6 +348,12 @@ func _array_to_vec2(value: Variant, fallback := Vector2.ONE) -> Vector2:
 	return fallback
 
 
+func _array_to_vec3(value: Variant, fallback := Vector3.ZERO) -> Vector3:
+	if value is Array and value.size() >= 3:
+		return Vector3(float(value[0]), float(value[1]), float(value[2]))
+	return fallback
+
+
 func _asset_direction_from_rotation(rotation_y: float) -> String:
 	var snapped := wrapf(snappedf(rotation_y, PI * 0.5), -PI, PI)
 	if is_equal_approx(snapped, 0.0):
@@ -399,11 +405,29 @@ func _build_asset_node(group: String, asset_id: String, variation_index: int = 0
 	var resolved := _asset_loader.resolve_variant(group, asset_id, variation_index, direction, tier)
 	if resolved.is_empty():
 		return Node3D.new()
+	var root := Node3D.new()
+	var layers: Array = resolved.get("layers", [])
+	if not layers.is_empty():
+		for layer_value in layers:
+			if layer_value is not Dictionary:
+				continue
+			var layer: Dictionary = layer_value
+			var texture := _asset_loader.get_texture(str(layer.get("path", "")))
+			if texture == null:
+				continue
+			var world_size := _array_to_vec2(layer.get("world_size", [1.0, 1.0]), Vector2.ONE)
+			var mode := str(layer.get("mode", "upright"))
+			var layer_alpha := alpha * float(layer.get("alpha", 1.0))
+			var node := _create_flat_asset_quad(texture, world_size, layer_alpha, tint, 0.01, true) if mode == "flat" else _create_vertical_asset_quad(texture, world_size, layer_alpha, tint, true)
+			node.position += _array_to_vec3(layer.get("position", [0.0, 0.0, 0.0]))
+			node.rotation_degrees += _array_to_vec3(layer.get("rotation", [0.0, 0.0, 0.0]))
+			node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if bool(layer.get("casts_shadow", true)) else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			root.add_child(node)
+		return root
 	var texture := _asset_loader.get_texture(str(resolved.get("path", "")))
 	if texture == null:
-		return Node3D.new()
+		return root
 	var world_size := _array_to_vec2(resolved.get("world_size", [1.0, 1.0]), Vector2.ONE)
-	var root := Node3D.new()
 	root.add_child(_create_vertical_asset_quad(texture, world_size, alpha, tint))
 	return root
 
@@ -2277,7 +2301,7 @@ func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = [
 	elif east or west:
 		asset_id = "road_straight"
 		rotation_y = PI * 0.5
-	root.add_child(_create_ground_asset_node(asset_id, Vector2(1.14, 1.14), rotation_y, 0.58 if preview else 1.0, Color.WHITE, 0.016, true))
+	root.add_child(_create_ground_asset_node(asset_id, Vector2(1.24, 1.24), rotation_y, 0.58 if preview else 1.0, Color.WHITE, 0.014, true))
 	return root
 
 

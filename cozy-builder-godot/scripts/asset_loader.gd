@@ -32,16 +32,21 @@ func get_definition(group: String, asset_id: String) -> Dictionary:
 func get_texture(path: String) -> Texture2D:
 	if path == "":
 		return null
+	var candidate_paths: Array[String] = []
 	if path.ends_with(".svg"):
 		var png_path := path.trim_suffix(".svg") + ".png"
-		if ResourceLoader.exists(png_path):
-			path = png_path
-	if _texture_cache.has(path):
-		return _texture_cache[path]
-	var texture := load(path) as Texture2D
-	if texture:
-		_texture_cache[path] = texture
-	return texture
+		candidate_paths.append(png_path)
+	candidate_paths.append(path)
+	for candidate in candidate_paths:
+		if _texture_cache.has(candidate):
+			return _texture_cache[candidate]
+		var image := Image.new()
+		var load_error := image.load(ProjectSettings.globalize_path(candidate))
+		if load_error == OK:
+			var texture := ImageTexture.create_from_image(image)
+			_texture_cache[candidate] = texture
+			return texture
+	return null
 
 
 func resolve_variant(group: String, asset_id: String, variation_index: int = 0, direction: String = "south", tier: int = 1) -> Dictionary:
@@ -63,9 +68,34 @@ func resolve_variant(group: String, asset_id: String, variation_index: int = 0, 
 			path = str(tiers.get(str(tier), tiers.get("1", "")))
 	if path == "":
 		path = str(variant.get("path", ""))
+	var layers: Array = []
+	var raw_layers: Array = variant.get("layers", [])
+	for layer_value in raw_layers:
+		if layer_value is not Dictionary:
+			continue
+		var layer: Dictionary = layer_value
+		var layer_path := str(layer.get("path", ""))
+		var layer_directions: Dictionary = layer.get("directions", {})
+		if not layer_directions.is_empty():
+			layer_path = str(layer_directions.get(direction, layer_directions.get("south", layer_path)))
+		var layer_tiers: Dictionary = layer.get("tiers", {})
+		if not layer_tiers.is_empty():
+			layer_path = str(layer_tiers.get(str(tier), layer_tiers.get("1", layer_path)))
+		layers.append({
+			"id": str(layer.get("id", "layer")),
+			"path": layer_path,
+			"world_size": layer.get("world_size", variant.get("world_size", definition.get("world_size", [1.0, 1.0]))),
+			"pixel_height": layer.get("pixel_height", variant.get("pixel_height", definition.get("pixel_height", 512))),
+			"mode": str(layer.get("mode", "upright")),
+			"position": layer.get("position", [0.0, 0.0, 0.0]),
+			"rotation": layer.get("rotation", [0.0, 0.0, 0.0]),
+			"casts_shadow": bool(layer.get("casts_shadow", true)),
+			"alpha": float(layer.get("alpha", 1.0)),
+		})
 	var resolved := {
 		"id": str(variant.get("id", "default")),
 		"path": path,
+		"layers": layers,
 		"world_size": variant.get("world_size", definition.get("world_size", [1.0, 1.0])),
 		"pixel_height": variant.get("pixel_height", definition.get("pixel_height", 512)),
 		"category": str(definition.get("category", group)),

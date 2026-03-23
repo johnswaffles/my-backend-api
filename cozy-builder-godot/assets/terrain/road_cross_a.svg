@@ -1,11 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-  <rect width="256" height="256" fill="#8ea36b"/>
-  <rect x="14" y="0" width="228" height="256" rx="12" fill="#9e8a6d"/>
-  <rect x="0" y="14" width="256" height="228" rx="12" fill="#9e8a6d"/>
-  <rect x="28" y="0" width="200" height="256" rx="10" fill="#5d575c"/>
-  <rect x="0" y="28" width="256" height="200" rx="10" fill="#5d575c"/>
-  <rect x="68" y="0" width="4" height="256" fill="#d7cfbd" opacity="0.85"/>
-  <rect x="184" y="0" width="4" height="256" fill="#d7cfbd" opacity="0.85"/>
-  <rect x="0" y="68" width="256" height="4" fill="#d7cfbd" opacity="0.85"/>
-  <rect x="0" y="184" width="256" height="4" fill="#d7cfbd" opacity="0.85"/>
+  <rect width="256" height="256" fill="none"/>
+  <path d="M0 40h84V0h88v40h84v176h-84v40H84v-40H0z" fill="#8d7758" opacity="0.14"/>
+  <path d="M0 52h96V0h64v52h96v152h-96v52H96v-52H0z" fill="#866949" opacity="0.26"/>
+  <path d="M0 64h106V0h44v64h106v128H150v64h-44v-64H0z" fill="#6f5844"/>
+  <path d="M0 76h118V0h20v76h118v104H138v76h-20v-76H0z" fill="#5f4c3d"/>
+  <path d="M72 0h112v256H72z" fill="#6f5947" opacity="0.26"/>
+  <path d="M0 72h256v112H0z" fill="#7a614d" opacity="0.16"/>
+  <g fill="#cfba90" opacity="0.14">
+    <circle cx="44" cy="94" r="4"/>
+    <circle cx="212" cy="164" r="5"/>
+    <circle cx="94" cy="44" r="5"/>
+    <circle cx="164" cy="214" r="4"/>
+  </g>
 </svg>

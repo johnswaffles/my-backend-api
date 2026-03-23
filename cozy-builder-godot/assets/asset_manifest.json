@@ -10,8 +10,59 @@
         {
           "id": "cottage_a",
           "path": "res://assets/buildings/house_cottage_a.svg",
-          "world_size": [5.6, 4.8],
-          "pixel_height": 512
+          "world_size": [5.8, 5.0],
+          "pixel_height": 768,
+          "layers": [
+            {
+              "id": "lot",
+              "path": "res://assets/buildings/house_cottage_lot_a.svg",
+              "mode": "flat",
+              "world_size": [5.0, 4.2],
+              "position": [0.0, 0.0, 0.0],
+              "casts_shadow": false
+            },
+            {
+              "id": "wall_front",
+              "path": "res://assets/buildings/house_cottage_wall_front_a.svg",
+              "mode": "upright",
+              "world_size": [3.9, 3.4],
+              "position": [0.0, 0.14, 0.88],
+              "casts_shadow": true
+            },
+            {
+              "id": "wall_side",
+              "path": "res://assets/buildings/house_cottage_wall_side_a.svg",
+              "mode": "upright",
+              "world_size": [2.9, 3.2],
+              "position": [1.52, 0.12, -0.06],
+              "rotation": [0.0, 90.0, 0.0],
+              "casts_shadow": true
+            },
+            {
+              "id": "roof_top",
+              "path": "res://assets/buildings/house_cottage_roof_top_a.svg",
+              "mode": "flat",
+              "world_size": [4.5, 4.0],
+              "position": [0.05, 2.02, -0.12],
+              "casts_shadow": true
+            },
+            {
+              "id": "porch_front",
+              "path": "res://assets/buildings/house_cottage_front_a.svg",
+              "mode": "upright",
+              "world_size": [4.0, 2.2],
+              "position": [0.0, 0.08, 1.08],
+              "casts_shadow": false
+            },
+            {
+              "id": "chimney",
+              "path": "res://assets/buildings/house_cottage_chimney_a.svg",
+              "mode": "upright",
+              "world_size": [1.0, 1.7],
+              "position": [0.84, 1.98, -0.42],
+              "casts_shadow": true
+            }
+          ]
         }
       ]
     },

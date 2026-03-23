@@ -1,8 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-  <rect width="256" height="256" rx="18" fill="#90ab6e"/>
-  <path d="M0 180c48-22 86-22 128 0s80 22 128 0v76H0z" fill="#7f9b5f" opacity="0.65"/>
-  <circle cx="58" cy="64" r="10" fill="#a9bf7a" opacity="0.8"/>
-  <circle cx="184" cy="92" r="12" fill="#a2bb75" opacity="0.7"/>
-  <circle cx="122" cy="156" r="10" fill="#7a9558" opacity="0.5"/>
-  <path d="M38 118l8-18 7 18h-5l-2 18h-2l-2-18zM198 148l7-16 8 16h-5l-2 18h-2l-1-18z" fill="#6e8d49" opacity="0.7"/>
+  <rect width="256" height="256" fill="#9ebd73"/>
+  <path d="M0 172c36-12 62-12 96 0s60 12 96 0 42-12 64-6v90H0z" fill="#8dac67" opacity="0.56"/>
+  <path d="M0 64c30 8 56 8 90 0s58-8 92 0 48 8 74 0v34c-28 8-54 8-86 0s-56-8-88 0-54 8-82 0z" fill="#b2cb85" opacity="0.34"/>
+  <g opacity="0.55" fill="#79995b">
+    <path d="M42 80l6-13 5 13h-4l-1 9h-2l-1-9z"/>
+    <path d="M188 56l6-12 4 12h-3l-1 8h-2l-1-8z"/>
+    <path d="M140 188l7-14 5 14h-4l-1 10h-2l-1-10z"/>
+    <path d="M84 210l6-12 4 12h-3l-1 8h-2l-1-8z"/>
+  </g>
+  <g opacity="0.28" fill="#d7e9a7">
+    <circle cx="72" cy="132" r="8"/>
+    <circle cx="194" cy="166" r="7"/>
+    <circle cx="118" cy="44" r="6"/>
+  </g>
 </svg>
