@@ -744,7 +744,10 @@ func _cell_key(cell: Vector2i) -> String:
 
 
 func _try_place_hovered_tile() -> void:
-	if not _hover_active or not _hover_can_build:
+	if not _hover_active:
+		return
+
+	if _build_tool != BUILD_TOOL_BULLDOZE and not _hover_can_build:
 		return
 
 	if _build_tool == BUILD_TOOL_INSPECT:
@@ -752,11 +755,21 @@ func _try_place_hovered_tile() -> void:
 		return
 
 	if _build_tool == BUILD_TOOL_BULLDOZE:
-		if _selected_anchor_key != "":
-			var selected_key := _selected_anchor_key
-			if _bulldoze_visited.has(selected_key):
+		var hover_key := _cell_key(_hover_anchor)
+		if _road_cells.has(hover_key):
+			if _bulldoze_visited.has(hover_key):
 				return
-			_bulldoze_visited[selected_key] = true
+			_bulldoze_visited[hover_key] = true
+			_remove_road_at_cell(_hover_anchor, true)
+			return
+
+		var anchor_key := _find_anchor_for_cell(_hover_anchor)
+		if anchor_key == "":
+			return
+		if _bulldoze_visited.has(anchor_key):
+			return
+		_bulldoze_visited[anchor_key] = true
+		_selected_anchor_key = anchor_key
 		_remove_selected_placement(true)
 		return
 
@@ -1124,6 +1137,60 @@ func _remove_selected_placement(refund: bool, record_action: bool = true) -> voi
 		for neighbor in road_neighbors:
 			if _road_cells.has(_cell_key(neighbor)):
 				_rebuild_road_at(neighbor)
+	_clear_selected_anchor()
+	_recalculate_cashflow()
+	_rebuild_ambient_life()
+	_refresh_tool_ui()
+	_update_hover_from_mouse()
+
+
+func _remove_road_at_cell(cell: Vector2i, refund: bool, record_action: bool = true) -> void:
+	var road_key := _cell_key(cell)
+	if not _road_cells.has(road_key):
+		return
+
+	var anchor_key := _find_anchor_for_cell(cell)
+	if anchor_key != "" and _placements.has(anchor_key):
+		_selected_anchor_key = anchor_key
+		_remove_selected_placement(refund, record_action)
+		return
+
+	var road_neighbors: Array[Vector2i] = []
+	for neighbor in _neighbor_cells(cell):
+		if _road_cells.has(_cell_key(neighbor)):
+			road_neighbors.append(neighbor)
+
+	var refund_amount := int(round(float(BUILD_TOOL_COSTS[BUILD_TOOL_ROAD]) * 0.7)) if refund else 0
+	if refund:
+		_money += refund_amount
+
+	_road_cells.erase(road_key)
+	if _road_nodes.has(road_key):
+		var road_node: Node3D = _road_nodes[road_key]
+		if is_instance_valid(road_node):
+			road_node.queue_free()
+		_road_nodes.erase(road_key)
+
+	_occupied_cells.erase(road_key)
+	_placed_nodes.erase(road_key)
+	_cell_anchor_lookup.erase(road_key)
+	_placements.erase(road_key)
+
+	if record_action:
+		_action_history.append({
+			"type": "remove",
+			"anchor_key": road_key,
+			"tool": BUILD_TOOL_ROAD,
+			"cells": [cell],
+			"cost": int(BUILD_TOOL_COSTS[BUILD_TOOL_ROAD]),
+			"refund": refund_amount,
+			"tier": 1,
+			"variant": -1,
+		})
+
+	for neighbor in road_neighbors:
+		if _road_cells.has(_cell_key(neighbor)):
+			_rebuild_road_at(neighbor)
 	_clear_selected_anchor()
 	_recalculate_cashflow()
 	_rebuild_ambient_life()
