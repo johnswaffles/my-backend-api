@@ -62,7 +62,7 @@ const FRONTAGE_ROTATIONS := {
 	"west": PI * 0.5,
 }
 const BUILDING_FRONT_ROTATION_OFFSETS := {
-	BUILD_TOOL_HOUSE: PI,
+	BUILD_TOOL_HOUSE: 0.0,
 	BUILD_TOOL_POLICE: PI,
 	BUILD_TOOL_FIRE: PI,
 	BUILD_TOOL_BANK: PI,
@@ -650,8 +650,10 @@ func _update_hover_from_mouse() -> void:
 		return
 
 	var cell: Vector2i = pick["cell"]
-	var footprint := _tool_footprint(_build_tool)
+	var footprint := _footprint_for_hover_cell(_build_tool, cell)
 	var anchor := _anchor_for_hover_cell(cell, footprint)
+	footprint = _tool_footprint_for_anchor(_build_tool, anchor)
+	anchor = _anchor_for_hover_cell(cell, footprint)
 	var cells := _cells_for_anchor(anchor, footprint)
 	var world := _anchor_to_world(anchor, footprint)
 	var valid := false
@@ -773,7 +775,7 @@ func _try_place_hovered_tile() -> void:
 		_remove_selected_placement(true)
 		return
 
-	var footprint := _tool_footprint(_build_tool)
+	var footprint := _tool_footprint_for_anchor(_build_tool, _hover_anchor)
 	var world := _anchor_to_world(_hover_anchor, footprint)
 	var cost := int(BUILD_TOOL_COSTS.get(_build_tool, 0))
 	if _money < cost:
@@ -823,6 +825,24 @@ func _tool_footprint(tool: String) -> Vector2i:
 		BUILD_TOOL_BANK, BUILD_TOOL_RESTAURANT, BUILD_TOOL_CORNER_STORE, BUILD_TOOL_PARK:
 			return Vector2i(4, 3)
 	return Vector2i(4, 3)
+
+
+func _footprint_for_hover_cell(tool: String, cell: Vector2i) -> Vector2i:
+	var base_footprint := _tool_footprint(tool)
+	if base_footprint.x == base_footprint.y or not _tool_requires_road(tool):
+		return base_footprint
+	var provisional_anchor := _anchor_for_hover_cell(cell, base_footprint)
+	return _tool_footprint_for_anchor(tool, provisional_anchor)
+
+
+func _tool_footprint_for_anchor(tool: String, anchor: Vector2i) -> Vector2i:
+	var base_footprint := _tool_footprint(tool)
+	if base_footprint.x == base_footprint.y or not _tool_requires_road(tool):
+		return base_footprint
+	var preferred_side := _preferred_frontage_side(anchor, base_footprint)
+	if preferred_side == "east" or preferred_side == "west":
+		return Vector2i(base_footprint.y, base_footprint.x)
+	return base_footprint
 
 
 func _anchor_for_hover_cell(cell: Vector2i, footprint: Vector2i) -> Vector2i:
@@ -1501,7 +1521,7 @@ func _try_load_game(force_feedback: bool = false) -> void:
 		if tool == BUILD_TOOL_ROAD:
 			_mark_road_cell(anchor)
 		else:
-			var footprint := _tool_footprint(tool)
+			var footprint := _tool_footprint_for_anchor(tool, anchor)
 			var cells := _cells_for_anchor(anchor, footprint)
 			var tier := int(entry.get("tier", 1))
 			var variant := int(entry.get("variant", randi() % 10))
