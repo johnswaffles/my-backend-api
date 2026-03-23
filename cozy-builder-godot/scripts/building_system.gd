@@ -98,6 +98,9 @@ var _target_zoom := DEFAULT_ZOOM
 var _camera_yaw := deg_to_rad(45.0)
 var _target_camera_yaw := deg_to_rad(45.0)
 var _dragging := false
+var _right_mouse_down := false
+var _right_drag_moved := false
+var _right_drag_origin := Vector2.ZERO
 var _painting_roads := false
 var _build_tool := BUILD_TOOL_ROAD
 var _hovered_cell := Vector2i(-1, -1)
@@ -106,6 +109,7 @@ var _hover_cells: Array[Vector2i] = []
 var _hover_active := false
 var _hover_can_build := false
 var _selected_anchor_key := ""
+var _selected_tile := Vector2i(-1, -1)
 var _selection_cells: Array[Vector2i] = []
 var _money := STARTING_MONEY
 var _day := 1
@@ -251,8 +255,19 @@ func _input(event: InputEvent) -> void:
 				_exit_fullscreen()
 				_clear_hover()
 	elif event is InputEventMouseButton:
-		if event.button_index == MOUSE_BUTTON_MIDDLE or event.button_index == MOUSE_BUTTON_RIGHT:
+		if event.button_index == MOUSE_BUTTON_MIDDLE:
 			_dragging = event.pressed
+		elif event.button_index == MOUSE_BUTTON_RIGHT:
+			if event.pressed:
+				_right_mouse_down = true
+				_right_drag_moved = false
+				_right_drag_origin = event.position
+				_dragging = true
+			else:
+				_dragging = false
+				if _right_mouse_down and not _right_drag_moved and not _is_pointer_over_hud():
+					_cancel_tool_and_select_at_mouse(event.position)
+				_right_mouse_down = false
 		elif event.button_index == MOUSE_BUTTON_LEFT:
 			if event.pressed and not _is_pointer_over_hud():
 				if _build_tool == BUILD_TOOL_ROAD:
@@ -265,6 +280,8 @@ func _input(event: InputEvent) -> void:
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
 			_target_zoom = min(MAX_ZOOM, _target_zoom + 1.15)
 	elif event is InputEventMouseMotion and _dragging:
+		if _right_mouse_down and event.position.distance_to(_right_drag_origin) > 6.0:
+			_right_drag_moved = true
 		var right := Vector3.RIGHT.rotated(Vector3.UP, _target_camera_yaw)
 		var forward := Vector3.FORWARD.rotated(Vector3.UP, _target_camera_yaw)
 		var pan_delta: Vector3 = (-right * event.relative.x + forward * event.relative.y) * PAN_SPEED
@@ -895,6 +912,30 @@ func _find_anchor_for_cell(cell: Vector2i) -> String:
 	return _cell_anchor_lookup.get(_cell_key(cell), "")
 
 
+func _cancel_tool_and_select_at_mouse(mouse_position: Vector2) -> void:
+	var pick := _pick_grid_cell(mouse_position)
+	if pick.is_empty():
+		_clear_selected_anchor()
+		_set_build_tool(BUILD_TOOL_INSPECT)
+		if _hint_label:
+			_hint_label.text = "Build tool cancelled."
+		return
+
+	var cell: Vector2i = pick["cell"]
+	var found_anchor := _find_anchor_for_cell(cell)
+	_set_build_tool(BUILD_TOOL_INSPECT)
+	if found_anchor != "":
+		_set_selected_anchor(found_anchor)
+		if _hint_label:
+			_hint_label.text = "%s selected. Left click to inspect or switch tools to build again." % _tool_name(_placements[found_anchor]["tool"])
+	else:
+		_set_selected_tile(cell)
+		if _hint_label:
+			_hint_label.text = "Tile %d, %d selected. Build tool cancelled." % [cell.x + 1, cell.y + 1]
+	_refresh_tool_ui()
+	_update_hover_from_mouse()
+
+
 func _anchor_key_to_cell(anchor_key: String) -> Vector2i:
 	var parts := anchor_key.split(":")
 	return Vector2i(parts[0].to_int(), parts[1].to_int())
@@ -923,22 +964,34 @@ func _footprint_from_cells(cells: Array[Vector2i]) -> Vector2i:
 
 func _set_selected_anchor(anchor_key: String) -> void:
 	_selected_anchor_key = anchor_key
+	_selected_tile = Vector2i(-1, -1)
 	_selection_cells = _placement_cells(anchor_key)
+
+
+func _set_selected_tile(cell: Vector2i) -> void:
+	_selected_anchor_key = ""
+	_selected_tile = cell
+	_selection_cells = [cell]
 
 
 func _clear_selected_anchor() -> void:
 	_selected_anchor_key = ""
+	_selected_tile = Vector2i(-1, -1)
 	_selection_cells.clear()
 
 
 func _selection_name() -> String:
 	if _selected_anchor_key == "" or not _placements.has(_selected_anchor_key):
+		if _selected_tile.x >= 0 and _selected_tile.y >= 0:
+			return "tile"
 		return "nothing"
 	return _tool_name(_placements[_selected_anchor_key]["tool"]).to_lower()
 
 
 func _selection_text() -> String:
 	if _selected_anchor_key == "" or not _placements.has(_selected_anchor_key):
+		if _selected_tile.x >= 0 and _selected_tile.y >= 0:
+			return "Selection: tile  |  Grid: %d,%d  |  Empty land ready for roads, homes, or civic buildings." % [_selected_tile.x + 1, _selected_tile.y + 1]
 		return "Selection: none  |  Start with roads, then place homes and town buildings off the road network."
 	var placement = _placements[_selected_anchor_key]
 	var cells: Array[Vector2i] = placement["cells"]
