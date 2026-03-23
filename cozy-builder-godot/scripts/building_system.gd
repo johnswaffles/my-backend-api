@@ -650,11 +650,10 @@ func _update_hover_from_mouse() -> void:
 		return
 
 	var cell: Vector2i = pick["cell"]
-	var footprint := _footprint_for_hover_cell(_build_tool, cell)
-	var anchor := _anchor_for_hover_cell(cell, footprint)
-	footprint = _tool_footprint_for_anchor(_build_tool, anchor)
-	anchor = _anchor_for_hover_cell(cell, footprint)
-	var cells := _cells_for_anchor(anchor, footprint)
+	var hover_layout := _resolve_hover_layout(_build_tool, cell)
+	var footprint: Vector2i = hover_layout.get("footprint", _tool_footprint(_build_tool))
+	var anchor: Vector2i = hover_layout.get("anchor", _anchor_for_hover_cell(cell, footprint))
+	var cells: Array[Vector2i] = hover_layout.get("cells", _cells_for_anchor(anchor, footprint))
 	var world := _anchor_to_world(anchor, footprint)
 	var valid := false
 	var inspect_mode := _build_tool == BUILD_TOOL_INSPECT or _build_tool == BUILD_TOOL_BULLDOZE
@@ -775,7 +774,7 @@ func _try_place_hovered_tile() -> void:
 		_remove_selected_placement(true)
 		return
 
-	var footprint := _tool_footprint_for_anchor(_build_tool, _hover_anchor)
+	var footprint := _footprint_from_cells(_hover_cells)
 	var world := _anchor_to_world(_hover_anchor, footprint)
 	var cost := int(BUILD_TOOL_COSTS.get(_build_tool, 0))
 	if _money < cost:
@@ -843,6 +842,69 @@ func _tool_footprint_for_anchor(tool: String, anchor: Vector2i) -> Vector2i:
 	if preferred_side == "east" or preferred_side == "west":
 		return Vector2i(base_footprint.y, base_footprint.x)
 	return base_footprint
+
+
+func _resolve_hover_layout(tool: String, cell: Vector2i) -> Dictionary:
+	var base_footprint := _tool_footprint(tool)
+	if tool == BUILD_TOOL_ROAD or tool == BUILD_TOOL_INSPECT or tool == BUILD_TOOL_BULLDOZE:
+		var simple_anchor := _anchor_for_hover_cell(cell, base_footprint)
+		return {
+			"anchor": simple_anchor,
+			"footprint": base_footprint,
+			"cells": _cells_for_anchor(simple_anchor, base_footprint),
+		}
+
+	if not _tool_requires_road(tool):
+		var default_anchor := _anchor_for_hover_cell(cell, base_footprint)
+		return {
+			"anchor": default_anchor,
+			"footprint": base_footprint,
+			"cells": _cells_for_anchor(default_anchor, base_footprint),
+		}
+
+	var candidate_footprints: Array[Vector2i] = [base_footprint]
+	var rotated_footprint := Vector2i(base_footprint.y, base_footprint.x)
+	if rotated_footprint != base_footprint:
+		candidate_footprints.append(rotated_footprint)
+
+	var best_score := -INF
+	var best_layout := {}
+	var hover_world := _cell_to_world(cell)
+	for footprint in candidate_footprints:
+		for ay in range(cell.y - footprint.y + 1, cell.y + 1):
+			for ax in range(cell.x - footprint.x + 1, cell.x + 1):
+				if ax < 0 or ay < 0 or ax + footprint.x > GRID_SIZE or ay + footprint.y > GRID_SIZE:
+					continue
+				var anchor := Vector2i(ax, ay)
+				var cells := _cells_for_anchor(anchor, footprint)
+				if not _cells_are_buildable(cells):
+					continue
+				if not _cells_touch_road(cells):
+					continue
+				var side := _preferred_frontage_side(anchor, footprint)
+				var touch := _adjacent_transport_count(anchor, footprint, side)
+				var score := _transport_side_score(anchor, footprint, side)
+				var frontage_center := _frontage_side_center(anchor, footprint, side)
+				var hover_distance := Vector2(hover_world.x, hover_world.z).distance_to(frontage_center)
+				var layout_score := float(touch) * 1000.0 + score * 10.0 - hover_distance
+				if layout_score > best_score:
+					best_score = layout_score
+					best_layout = {
+						"anchor": anchor,
+						"footprint": footprint,
+						"cells": cells,
+					}
+
+	if not best_layout.is_empty():
+		return best_layout
+
+	var fallback_footprint := _footprint_for_hover_cell(tool, cell)
+	var fallback_anchor := _anchor_for_hover_cell(cell, fallback_footprint)
+	return {
+		"anchor": fallback_anchor,
+		"footprint": fallback_footprint,
+		"cells": _cells_for_anchor(fallback_anchor, fallback_footprint),
+	}
 
 
 func _anchor_for_hover_cell(cell: Vector2i, footprint: Vector2i) -> Vector2i:
