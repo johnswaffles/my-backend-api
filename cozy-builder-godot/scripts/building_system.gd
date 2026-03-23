@@ -1,6 +1,7 @@
 extends Node3D
 
 const AssetLoaderScript := preload("res://scripts/asset_loader.gd")
+const WhiteKeySpriteShader := preload("res://shaders/white_key_sprite.gdshader")
 
 const GRID_SIZE := 64
 const TILE_SIZE := 1.0
@@ -366,6 +367,16 @@ func _asset_direction_from_rotation(rotation_y: float) -> String:
 
 
 func _make_asset_material(texture: Texture2D, alpha: float = 1.0, tint := Color.WHITE, shaded: bool = true) -> StandardMaterial3D:
+	return _make_asset_material_for_path("", texture, alpha, tint, shaded)
+
+
+func _make_asset_material_for_path(source_path: String, texture: Texture2D, alpha: float = 1.0, tint := Color.WHITE, shaded: bool = true) -> Material:
+	if source_path.contains("/sheet/"):
+		var shader_material := ShaderMaterial.new()
+		shader_material.shader = WhiteKeySpriteShader
+		shader_material.set_shader_parameter("albedo_tex", texture)
+		shader_material.set_shader_parameter("tint", Color(tint.r, tint.g, tint.b, alpha))
+		return shader_material
 	var material := StandardMaterial3D.new()
 	material.albedo_texture = texture
 	material.albedo_color = Color(tint.r, tint.g, tint.b, alpha)
@@ -378,18 +389,18 @@ func _make_asset_material(texture: Texture2D, alpha: float = 1.0, tint := Color.
 	return material
 
 
-func _create_vertical_asset_quad(texture: Texture2D, world_size: Vector2, alpha: float = 1.0, tint := Color.WHITE, shaded: bool = true) -> MeshInstance3D:
+func _create_vertical_asset_quad(texture: Texture2D, world_size: Vector2, alpha: float = 1.0, tint := Color.WHITE, shaded: bool = true, source_path: String = "") -> MeshInstance3D:
 	var quad := MeshInstance3D.new()
 	var mesh := QuadMesh.new()
 	mesh.size = world_size
 	quad.mesh = mesh
 	quad.position = Vector3(0.0, world_size.y * 0.5, 0.0)
-	quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
-	quad.material_override = _make_asset_material(texture, alpha, tint, shaded)
+	quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if source_path.contains("/sheet/") else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+	quad.material_override = _make_asset_material_for_path(source_path, texture, alpha, tint, shaded)
 	return quad
 
 
-func _create_flat_asset_quad(texture: Texture2D, size: Vector2, alpha: float = 1.0, tint := Color.WHITE, y_offset: float = 0.01, shaded: bool = true) -> MeshInstance3D:
+func _create_flat_asset_quad(texture: Texture2D, size: Vector2, alpha: float = 1.0, tint := Color.WHITE, y_offset: float = 0.01, shaded: bool = true, source_path: String = "") -> MeshInstance3D:
 	var quad := MeshInstance3D.new()
 	var mesh := QuadMesh.new()
 	mesh.size = size
@@ -397,7 +408,7 @@ func _create_flat_asset_quad(texture: Texture2D, size: Vector2, alpha: float = 1
 	quad.rotation_degrees.x = -90.0
 	quad.position = Vector3(0.0, y_offset, 0.0)
 	quad.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	quad.material_override = _make_asset_material(texture, alpha, tint, shaded)
+	quad.material_override = _make_asset_material_for_path(source_path, texture, alpha, tint, shaded)
 	return quad
 
 
@@ -415,20 +426,23 @@ func _build_asset_node(group: String, asset_id: String, variation_index: int = 0
 			var texture := _asset_loader.get_texture(str(layer.get("path", "")))
 			if texture == null:
 				continue
+			var source_path := str(layer.get("path", ""))
 			var world_size := _array_to_vec2(layer.get("world_size", [1.0, 1.0]), Vector2.ONE)
 			var mode := str(layer.get("mode", "upright"))
 			var layer_alpha := alpha * float(layer.get("alpha", 1.0))
-			var node := _create_flat_asset_quad(texture, world_size, layer_alpha, tint, 0.01, true) if mode == "flat" else _create_vertical_asset_quad(texture, world_size, layer_alpha, tint, true)
+			var node := _create_flat_asset_quad(texture, world_size, layer_alpha, tint, 0.01, true, source_path) if mode == "flat" else _create_vertical_asset_quad(texture, world_size, layer_alpha, tint, true, source_path)
 			node.position += _array_to_vec3(layer.get("position", [0.0, 0.0, 0.0]))
 			node.rotation_degrees += _array_to_vec3(layer.get("rotation", [0.0, 0.0, 0.0]))
-			node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if bool(layer.get("casts_shadow", true)) else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			if not source_path.contains("/sheet/"):
+				node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if bool(layer.get("casts_shadow", true)) else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			root.add_child(node)
 		return root
-	var texture := _asset_loader.get_texture(str(resolved.get("path", "")))
+	var source_path := str(resolved.get("path", ""))
+	var texture := _asset_loader.get_texture(source_path)
 	if texture == null:
 		return root
 	var world_size := _array_to_vec2(resolved.get("world_size", [1.0, 1.0]), Vector2.ONE)
-	root.add_child(_create_vertical_asset_quad(texture, world_size, alpha, tint))
+	root.add_child(_create_vertical_asset_quad(texture, world_size, alpha, tint, not source_path.contains("/sheet/"), source_path))
 	return root
 
 
@@ -557,16 +571,7 @@ func _build_hud() -> void:
 	top_row.add_child(_home_button)
 
 	_rotate_left_button = Button.new()
-	_rotate_left_button.text = "L"
-	_rotate_left_button.custom_minimum_size = Vector2(38, 0)
-	_rotate_left_button.pressed.connect(_rotate_camera.bind(-PI * 0.5))
-	top_row.add_child(_rotate_left_button)
-
 	_rotate_right_button = Button.new()
-	_rotate_right_button.text = "R"
-	_rotate_right_button.custom_minimum_size = Vector2(38, 0)
-	_rotate_right_button.pressed.connect(_rotate_camera.bind(PI * 0.5))
-	top_row.add_child(_rotate_right_button)
 
 	_zoom_out_button = Button.new()
 	_zoom_out_button.text = "-"
@@ -608,7 +613,7 @@ func _build_hud() -> void:
 	_hint_label.custom_minimum_size = Vector2(320, 0)
 	_hint_label.add_theme_color_override("font_color", Color("a9bec5"))
 	_hint_label.add_theme_font_size_override("font_size", 11)
-	_hint_label.text = "Use the build menu or keys 1-0 and P. Q/E rotates. Cmd/Ctrl+Z undoes. Right drag pans."
+	_hint_label.text = "Use the build menu or keys 1-0 and P, then click or press Space to place. Cmd/Ctrl+Z undoes. Right drag pans."
 	stack.add_child(_hint_label)
 
 
@@ -642,9 +647,9 @@ func _refresh_tool_ui() -> void:
 	if _zoom_out_button:
 		_style_tool_button(_zoom_out_button, false)
 	if _rotate_left_button:
-		_style_tool_button(_rotate_left_button, false)
+		_rotate_left_button.visible = false
 	if _rotate_right_button:
-		_style_tool_button(_rotate_right_button, false)
+		_rotate_right_button.visible = false
 	if _undo_button:
 		_style_tool_button(_undo_button, _action_history.size() > 0)
 		_undo_button.disabled = _action_history.is_empty()
@@ -829,7 +834,7 @@ func _clear_hover() -> void:
 	if _ghost_root:
 		_ghost_root.visible = false
 	if _hint_label:
-		_hint_label.text = "Use the build buttons or keys 1-0 and P, then click or press Space to place. Q/E rotates. Cmd/Ctrl+Z undoes. Right drag pans."
+		_hint_label.text = "Use the build menu or keys 1-0 and P, then click or press Space to place. Cmd/Ctrl+Z undoes. Right drag pans."
 
 
 func _pick_grid_cell(mouse_position: Vector2) -> Dictionary:
@@ -1277,7 +1282,7 @@ func _adjust_zoom(delta_amount: float) -> void:
 
 
 func _rotate_camera(delta_yaw: float) -> void:
-	_target_camera_yaw = wrapf(snappedf(_target_camera_yaw + delta_yaw, PI * 0.5), -PI, PI)
+	_target_camera_yaw = deg_to_rad(45.0)
 
 
 func _update_keyboard_camera(delta: float) -> void:
@@ -2315,10 +2320,7 @@ func _road_in_source(cell: Vector2i, road_source: Array) -> bool:
 func _tool_rotation_y(tool: String, anchor: Vector2i, footprint: Vector2i) -> float:
 	if tool == BUILD_TOOL_ROAD:
 		return 0.0
-
-	var preferred_side := _preferred_frontage_side(anchor, footprint)
-	var rotation := _rotation_for_side(preferred_side)
-	return rotation + float(BUILDING_FRONT_ROTATION_OFFSETS.get(tool, 0.0))
+	return 0.0
 
 
 func _transport_side_score(anchor: Vector2i, footprint: Vector2i, side: String) -> float:
@@ -2914,6 +2916,7 @@ func _animate_grass() -> void:
 
 
 func _update_camera(force := false) -> void:
+	_target_camera_yaw = deg_to_rad(45.0)
 	_camera_yaw = lerp_angle(_camera_yaw, _target_camera_yaw, 0.18 if not force else 1.0)
 	if camera_controller and camera_controller.has_method("apply_view"):
 		camera_controller.call("apply_view", _focus, _zoom, _camera_yaw)

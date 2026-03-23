@@ -40,10 +40,11 @@ func get_texture(path: String) -> Texture2D:
 	for candidate in candidate_paths:
 		if _texture_cache.has(candidate):
 			return _texture_cache[candidate]
-		var texture := load(candidate) as Texture2D
-		if texture:
-			_texture_cache[candidate] = texture
-			return texture
+		if not candidate.contains("/sheet/"):
+			var texture := load(candidate) as Texture2D
+			if texture:
+				_texture_cache[candidate] = texture
+				return texture
 		var image := Image.new()
 		var load_error := image.load(ProjectSettings.globalize_path(candidate))
 		if load_error == OK:
