@@ -82,6 +82,8 @@ const BUILDING_MAX_TIERS := {
 }
 const SAVE_PATH := "user://cozy_builder_save.json"
 const MUSIC_STREAM_PATH := "res://assets/audio/neon-dreams.mp3"
+const PROPERTY_FRONT_SETBACK := 1.0
+const SIDEWALK_ROUTE_OFFSET := 1.96
 
 @onready var grid_root: Node3D = $GridRoot
 @onready var building_root: Node3D = $BuildingRoot
@@ -317,7 +319,7 @@ func _build_materials() -> void:
 	_water_material = _make_material("5c98a8", 0.34, 0.0, true, "d0edf1", 0.03)
 	_road_material = _make_material("5f666f", 0.9)
 	_road_mark_material = _make_material("f0c44b", 0.76)
-	_sidewalk_material = _make_material("c7c0b1", 0.9)
+	_sidewalk_material = _make_material("d8d2c6", 0.92)
 	_window_material = _make_material("f3d29a", 0.42, 0.0, true, "ffd48e", 0.14)
 	_leaf_material = _make_material("6f8a50", 0.98)
 	_trunk_material = _make_material("765239", 0.94)
@@ -1484,6 +1486,8 @@ func _spawn_building_for_tool(tool: String, world_position: Vector3, rotation_y:
 		_:
 			node = _spawn_house_tile(world_position, false)
 	node.rotation_degrees.y = rad_to_deg(rotation_y)
+	if _tool_requires_road(tool):
+		node.translate_object_local(Vector3(0.0, 0.0, -PROPERTY_FRONT_SETBACK))
 	node.set_meta("tier", tier)
 	node.set_meta("variant", variant)
 	return node
@@ -2085,15 +2089,15 @@ func _build_person_route(anchor: Vector2i, footprint: Vector2i, frontage_side: S
 		if direction.length() < 0.01:
 			direction = Vector3.RIGHT
 		var lateral := Vector3(direction.z, 0.0, -direction.x)
-		var point := center + lateral * (1.56 * sidewalk_sign) + Vector3(0.0, 0.03, 0.0)
+		var point := center + lateral * (SIDEWALK_ROUTE_OFFSET * sidewalk_sign) + Vector3(0.0, 0.03, 0.0)
 		route.append(point)
 	if route.size() >= 2 and randf() < 0.35:
 		var center := _anchor_to_world(anchor, footprint)
 		var rotation_y := _tool_rotation_y(BUILD_TOOL_HOUSE, anchor, footprint, frontage_side)
 		var forward := Vector3(sin(rotation_y), 0.0, cos(rotation_y))
 		var lateral := Vector3(forward.z, 0.0, -forward.x)
-		var yard_front := center + forward * (float(footprint.y) * 0.5 - 0.7) + lateral * (0.35 if index % 2 == 0 else -0.35)
-		var yard_back := center + forward * (float(footprint.y) * 0.5 - 1.55) + lateral * (0.65 if index % 2 == 0 else -0.65)
+		var yard_front := center + forward * (float(footprint.y) * 0.5 - 1.55) + lateral * (0.42 if index % 2 == 0 else -0.42)
+		var yard_back := center + forward * (float(footprint.y) * 0.5 - 2.3) + lateral * (0.78 if index % 2 == 0 else -0.78)
 		route.push_front(yard_back + Vector3(0.0, 0.03, 0.0))
 		route.push_front(yard_front + Vector3(0.0, 0.03, 0.0))
 	return route
@@ -2115,13 +2119,13 @@ func _build_sidewalk_route(anchor: Vector2i, footprint: Vector2i, frontage_side:
 		var point := center + Vector3(0.0, 0.03, 0.0)
 		match side:
 			"north":
-				point.z += 1.56
+				point.z += SIDEWALK_ROUTE_OFFSET
 			"south":
-				point.z -= 1.56
+				point.z -= SIDEWALK_ROUTE_OFFSET
 			"west":
-				point.x += 1.56
+				point.x += SIDEWALK_ROUTE_OFFSET
 			"east":
-				point.x -= 1.56
+				point.x -= SIDEWALK_ROUTE_OFFSET
 		route.append(point)
 	return route
 
@@ -2981,35 +2985,35 @@ func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = [
 	var south := _road_in_source(Vector2i(cell.x, cell.y + 1), source)
 	var west := _road_in_source(Vector2i(cell.x - 1, cell.y), source)
 
-	_add_box(Vector3(0.0, 0.004, 0.0), Vector3(3.96, 0.022, 3.96), verge_material, root)
-	_add_box(Vector3(0.0, 0.02, 0.0), Vector3(3.76, 0.03, 3.76), sidewalk_material, root)
-	_add_box(Vector3(0.0, 0.038, 0.0), Vector3(3.18, 0.016, 3.18), curb_material, root)
-	_add_box(Vector3(0.0, 0.068, 0.0), Vector3(2.64, 0.064, 2.64), road_material, root)
-	_add_box(Vector3(0.0, 0.086, 0.0), Vector3(2.42, 0.022, 2.42), road_top_material, root)
+	_add_box(Vector3(0.0, 0.004, 0.0), Vector3(5.18, 0.022, 5.18), verge_material, root)
+	_add_box(Vector3(0.0, 0.02, 0.0), Vector3(4.92, 0.03, 4.92), sidewalk_material, root)
+	_add_box(Vector3(0.0, 0.038, 0.0), Vector3(4.22, 0.016, 4.22), curb_material, root)
+	_add_box(Vector3(0.0, 0.068, 0.0), Vector3(3.42, 0.064, 3.42), road_material, root)
+	_add_box(Vector3(0.0, 0.086, 0.0), Vector3(3.12, 0.022, 3.12), road_top_material, root)
 
 	if north:
-		_add_box(Vector3(0.0, 0.02, -1.06), Vector3(4.58, 0.03, 2.24), sidewalk_material, root)
-		_add_box(Vector3(0.0, 0.04, -1.06), Vector3(4.06, 0.016, 1.86), curb_material, root)
-		_add_box(Vector3(0.0, 0.074, -1.06), Vector3(3.34, 0.07, 1.48), road_material, root)
-		_add_box(Vector3(0.0, 0.094, -1.06), Vector3(3.06, 0.024, 1.28), road_top_material, root)
+		_add_box(Vector3(0.0, 0.02, -1.28), Vector3(5.74, 0.03, 2.74), sidewalk_material, root)
+		_add_box(Vector3(0.0, 0.04, -1.28), Vector3(5.02, 0.016, 2.28), curb_material, root)
+		_add_box(Vector3(0.0, 0.074, -1.28), Vector3(4.04, 0.07, 1.82), road_material, root)
+		_add_box(Vector3(0.0, 0.094, -1.28), Vector3(3.68, 0.024, 1.58), road_top_material, root)
 	if south:
-		_add_box(Vector3(0.0, 0.02, 1.06), Vector3(4.58, 0.03, 2.24), sidewalk_material, root)
-		_add_box(Vector3(0.0, 0.04, 1.06), Vector3(4.06, 0.016, 1.86), curb_material, root)
-		_add_box(Vector3(0.0, 0.074, 1.06), Vector3(3.34, 0.07, 1.48), road_material, root)
-		_add_box(Vector3(0.0, 0.094, 1.06), Vector3(3.06, 0.024, 1.28), road_top_material, root)
+		_add_box(Vector3(0.0, 0.02, 1.28), Vector3(5.74, 0.03, 2.74), sidewalk_material, root)
+		_add_box(Vector3(0.0, 0.04, 1.28), Vector3(5.02, 0.016, 2.28), curb_material, root)
+		_add_box(Vector3(0.0, 0.074, 1.28), Vector3(4.04, 0.07, 1.82), road_material, root)
+		_add_box(Vector3(0.0, 0.094, 1.28), Vector3(3.68, 0.024, 1.58), road_top_material, root)
 	if east:
-		_add_box(Vector3(1.06, 0.02, 0.0), Vector3(2.24, 0.03, 4.58), sidewalk_material, root)
-		_add_box(Vector3(1.06, 0.04, 0.0), Vector3(1.86, 0.016, 4.06), curb_material, root)
-		_add_box(Vector3(1.06, 0.074, 0.0), Vector3(1.48, 0.07, 3.34), road_material, root)
-		_add_box(Vector3(1.06, 0.094, 0.0), Vector3(1.28, 0.024, 3.06), road_top_material, root)
+		_add_box(Vector3(1.28, 0.02, 0.0), Vector3(2.74, 0.03, 5.74), sidewalk_material, root)
+		_add_box(Vector3(1.28, 0.04, 0.0), Vector3(2.28, 0.016, 5.02), curb_material, root)
+		_add_box(Vector3(1.28, 0.074, 0.0), Vector3(1.82, 0.07, 4.04), road_material, root)
+		_add_box(Vector3(1.28, 0.094, 0.0), Vector3(1.58, 0.024, 3.68), road_top_material, root)
 	if west:
-		_add_box(Vector3(-1.06, 0.02, 0.0), Vector3(2.24, 0.03, 4.58), sidewalk_material, root)
-		_add_box(Vector3(-1.06, 0.04, 0.0), Vector3(1.86, 0.016, 4.06), curb_material, root)
-		_add_box(Vector3(-1.06, 0.074, 0.0), Vector3(1.48, 0.07, 3.34), road_material, root)
-		_add_box(Vector3(-1.06, 0.094, 0.0), Vector3(1.28, 0.024, 3.06), road_top_material, root)
+		_add_box(Vector3(-1.28, 0.02, 0.0), Vector3(2.74, 0.03, 5.74), sidewalk_material, root)
+		_add_box(Vector3(-1.28, 0.04, 0.0), Vector3(2.28, 0.016, 5.02), curb_material, root)
+		_add_box(Vector3(-1.28, 0.074, 0.0), Vector3(1.82, 0.07, 4.04), road_material, root)
+		_add_box(Vector3(-1.28, 0.094, 0.0), Vector3(1.58, 0.024, 3.68), road_top_material, root)
 	if not north and not south and not east and not west:
-		_add_box(Vector3(0.0, 0.074, 0.0), Vector3(3.34, 0.07, 3.34), road_material, root)
-		_add_box(Vector3(0.0, 0.094, 0.0), Vector3(3.06, 0.024, 3.06), road_top_material, root)
+		_add_box(Vector3(0.0, 0.074, 0.0), Vector3(4.04, 0.07, 4.04), road_material, root)
+		_add_box(Vector3(0.0, 0.094, 0.0), Vector3(3.68, 0.024, 3.68), road_top_material, root)
 
 	var vertical_straight := north and south and not east and not west
 	var horizontal_straight := east and west and not north and not south
@@ -3017,29 +3021,29 @@ func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = [
 	if vertical_straight:
 		for z in [-1.24, -0.44, 0.44, 1.24]:
 			_add_box(Vector3(0.0, 0.12, z), Vector3(0.16, 0.01, 0.3), lane_material, root)
-		for x in [-1.58, 1.58]:
-			_add_box(Vector3(x, 0.104, 0.0), Vector3(0.12, 0.01, 3.02), sidewalk_material, root)
+		for x in [-2.06, 2.06]:
+			_add_box(Vector3(x, 0.104, 0.0), Vector3(0.16, 0.01, 3.56), sidewalk_material, root)
 		for rail_x in [-0.18, 0.18]:
-			_add_box(Vector3(rail_x, 0.108, 0.0), Vector3(0.05, 0.012, 3.04), rail_material, root)
+			_add_box(Vector3(rail_x, 0.108, 0.0), Vector3(0.05, 0.012, 3.56), rail_material, root)
 	elif horizontal_straight:
 		for x in [-1.24, -0.44, 0.44, 1.24]:
 			_add_box(Vector3(x, 0.12, 0.0), Vector3(0.3, 0.01, 0.16), lane_material, root)
-		for z in [-1.58, 1.58]:
-			_add_box(Vector3(0.0, 0.104, z), Vector3(3.02, 0.01, 0.12), sidewalk_material, root)
+		for z in [-2.06, 2.06]:
+			_add_box(Vector3(0.0, 0.104, z), Vector3(3.56, 0.01, 0.16), sidewalk_material, root)
 		for rail_z in [-0.18, 0.18]:
-			_add_box(Vector3(0.0, 0.108, rail_z), Vector3(3.04, 0.012, 0.05), rail_material, root)
+			_add_box(Vector3(0.0, 0.108, rail_z), Vector3(3.56, 0.012, 0.05), rail_material, root)
 	elif intersection:
-		_add_box(Vector3(0.0, 0.074, 0.0), Vector3(3.54, 0.07, 3.54), road_material, root)
-		_add_box(Vector3(0.0, 0.094, 0.0), Vector3(3.24, 0.024, 3.24), road_top_material, root)
-		for offset in [-1.58, 1.58]:
-			_add_box(Vector3(offset, 0.104, 0.0), Vector3(0.12, 0.01, 3.54), sidewalk_material, root)
-			_add_box(Vector3(0.0, 0.104, offset), Vector3(3.54, 0.01, 0.12), sidewalk_material, root)
+		_add_box(Vector3(0.0, 0.074, 0.0), Vector3(4.18, 0.07, 4.18), road_material, root)
+		_add_box(Vector3(0.0, 0.094, 0.0), Vector3(3.82, 0.024, 3.82), road_top_material, root)
+		for offset in [-2.06, 2.06]:
+			_add_box(Vector3(offset, 0.104, 0.0), Vector3(0.16, 0.01, 4.18), sidewalk_material, root)
+			_add_box(Vector3(0.0, 0.104, offset), Vector3(4.18, 0.01, 0.16), sidewalk_material, root)
 		for offset in [-0.58, 0.58]:
 			_add_box(Vector3(offset, 0.12, 0.0), Vector3(0.16, 0.01, 0.34), lane_material, root)
 			_add_box(Vector3(0.0, 0.12, offset), Vector3(0.34, 0.01, 0.16), lane_material, root)
 		for rail_offset in [-0.18, 0.18]:
-			_add_box(Vector3(rail_offset, 0.108, 0.0), Vector3(0.05, 0.012, 3.54), rail_material, root)
-			_add_box(Vector3(0.0, 0.108, rail_offset), Vector3(3.54, 0.012, 0.05), rail_material, root)
+			_add_box(Vector3(rail_offset, 0.108, 0.0), Vector3(0.05, 0.012, 4.18), rail_material, root)
+			_add_box(Vector3(0.0, 0.108, rail_offset), Vector3(4.18, 0.012, 0.05), rail_material, root)
 	else:
 		_add_box(Vector3(0.0, 0.12, 0.0), Vector3(0.18, 0.01, 0.18), lane_material, root)
 		_add_box(Vector3(-0.18, 0.108, 0.0), Vector3(0.05, 0.012, 0.84), rail_material, root)
