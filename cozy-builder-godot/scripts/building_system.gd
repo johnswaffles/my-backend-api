@@ -1863,9 +1863,9 @@ func _spawn_ambient_person(anchor_key: String, index: int) -> Node3D:
 	var anchor: Vector2i = placement["anchor"]
 	var cells: Array[Vector2i] = placement["cells"]
 	var footprint := _footprint_from_cells(cells)
-	var sidewalk_route := _build_sidewalk_route(anchor, footprint)
+	var frontage_side := str(placement.get("frontage_side", _preferred_frontage_side(anchor, footprint)))
+	var sidewalk_route := _build_person_route(anchor, footprint, frontage_side, index)
 	if sidewalk_route.size() < 2:
-		var frontage_side := str(placement.get("frontage_side", ""))
 		var rotation_y := _tool_rotation_y(str(placement["tool"]), anchor, footprint, frontage_side)
 		var forward := Vector3(sin(rotation_y), 0.0, cos(rotation_y))
 		var side := Vector3(forward.z, 0.0, -forward.x)
@@ -1961,8 +1961,7 @@ func _build_car_route(start_cell: Vector2i, index: int) -> Array[Vector3]:
 	return route
 
 
-func _build_sidewalk_route(anchor: Vector2i, footprint: Vector2i) -> Array[Vector3]:
-	var side := _preferred_frontage_side(anchor, footprint)
+func _frontage_road_cells(anchor: Vector2i, footprint: Vector2i, side: String) -> Array[Vector2i]:
 	var road_cells: Array[Vector2i] = []
 	match side:
 		"north":
@@ -1985,6 +1984,52 @@ func _build_sidewalk_route(anchor: Vector2i, footprint: Vector2i) -> Array[Vecto
 				var cell := Vector2i(anchor.x + footprint.x, anchor.y + dz)
 				if _road_cells.has(_cell_key(cell)):
 					road_cells.append(cell)
+	return road_cells
+
+
+func _build_person_route(anchor: Vector2i, footprint: Vector2i, frontage_side: String, index: int) -> Array[Vector3]:
+	var road_cells := _frontage_road_cells(anchor, footprint, frontage_side)
+	if road_cells.size() < 1:
+		return []
+	var start_cell := road_cells[index % road_cells.size()]
+	var component := _road_component_cells(start_cell)
+	if component.size() < 2:
+		return _build_sidewalk_route(anchor, footprint, frontage_side)
+	var far_a := _farthest_road_in_component(start_cell, component)
+	var far_b := _farthest_road_in_component(far_a, component)
+	var path := _road_path_between(far_a, far_b, component)
+	if path.size() < 2:
+		return _build_sidewalk_route(anchor, footprint, frontage_side)
+	var route: Array[Vector3] = []
+	var sidewalk_sign := 1.0 if index % 2 == 0 else -1.0
+	for i in range(path.size()):
+		var road_cell: Vector2i = path[i]
+		var center := _cell_to_world(road_cell)
+		var direction := Vector3.ZERO
+		if i < path.size() - 1:
+			direction = (_cell_to_world(path[i + 1]) - center).normalized()
+		elif i > 0:
+			direction = (center - _cell_to_world(path[i - 1])).normalized()
+		if direction.length() < 0.01:
+			direction = Vector3.RIGHT
+		var lateral := Vector3(direction.z, 0.0, -direction.x)
+		var point := center + lateral * (1.1 * sidewalk_sign) + Vector3(0.0, 0.03, 0.0)
+		route.append(point)
+	if route.size() >= 2 and randf() < 0.35:
+		var center := _anchor_to_world(anchor, footprint)
+		var rotation_y := _tool_rotation_y(BUILD_TOOL_HOUSE, anchor, footprint, frontage_side)
+		var forward := Vector3(sin(rotation_y), 0.0, cos(rotation_y))
+		var lateral := Vector3(forward.z, 0.0, -forward.x)
+		var yard_front := center + forward * (float(footprint.y) * 0.5 - 0.7) + lateral * (0.35 if index % 2 == 0 else -0.35)
+		var yard_back := center + forward * (float(footprint.y) * 0.5 - 1.55) + lateral * (0.65 if index % 2 == 0 else -0.65)
+		route.push_front(yard_back + Vector3(0.0, 0.03, 0.0))
+		route.push_front(yard_front + Vector3(0.0, 0.03, 0.0))
+	return route
+
+
+func _build_sidewalk_route(anchor: Vector2i, footprint: Vector2i, frontage_side: String = "") -> Array[Vector3]:
+	var side := frontage_side if frontage_side != "" else _preferred_frontage_side(anchor, footprint)
+	var road_cells := _frontage_road_cells(anchor, footprint, side)
 	if road_cells.size() < 1:
 		return []
 	road_cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
@@ -1998,13 +2043,13 @@ func _build_sidewalk_route(anchor: Vector2i, footprint: Vector2i) -> Array[Vecto
 		var point := center + Vector3(0.0, 0.03, 0.0)
 		match side:
 			"north":
-				point.z += 0.72
+				point.z += 1.1
 			"south":
-				point.z -= 0.72
+				point.z -= 1.1
 			"west":
-				point.x += 0.72
+				point.x += 1.1
 			"east":
-				point.x -= 0.72
+				point.x -= 1.1
 		route.append(point)
 	return route
 
