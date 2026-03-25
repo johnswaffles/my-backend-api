@@ -83,6 +83,15 @@ const BUILDING_MAX_TIERS := {
 const SAVE_PATH := "user://cozy_builder_save.json"
 const MUSIC_STREAM_PATH := "res://assets/audio/neon-dreams.mp3"
 const PROPERTY_FRONT_SETBACK := 1.0
+const PROPERTY_FRONT_SETBACK_BY_TOOL := {
+	BUILD_TOOL_HOUSE: 1.25,
+	BUILD_TOOL_POLICE: 1.15,
+	BUILD_TOOL_FIRE: 1.15,
+	BUILD_TOOL_BANK: 1.35,
+	BUILD_TOOL_GROCERY: 1.45,
+	BUILD_TOOL_RESTAURANT: 1.25,
+	BUILD_TOOL_CORNER_STORE: 1.2,
+}
 const SIDEWALK_ROUTE_OFFSET := 1.96
 
 @onready var grid_root: Node3D = $GridRoot
@@ -1487,7 +1496,8 @@ func _spawn_building_for_tool(tool: String, world_position: Vector3, rotation_y:
 			node = _spawn_house_tile(world_position, false)
 	node.rotation_degrees.y = rad_to_deg(rotation_y)
 	if _tool_requires_road(tool):
-		node.translate_object_local(Vector3(0.0, 0.0, -PROPERTY_FRONT_SETBACK))
+		var setback := float(PROPERTY_FRONT_SETBACK_BY_TOOL.get(tool, PROPERTY_FRONT_SETBACK))
+		node.translate_object_local(Vector3(0.0, 0.0, -setback))
 	node.set_meta("tier", tier)
 	node.set_meta("variant", variant)
 	return node
