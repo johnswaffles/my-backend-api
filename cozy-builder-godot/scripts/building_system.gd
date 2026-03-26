@@ -1044,7 +1044,10 @@ func _try_place_hovered_tile() -> void:
 			_update_hover_from_mouse()
 			return
 
-		var road_cells := _road_line_cells(_road_line_start, _hover_anchor)
+		var road_end := _hovered_cell
+		if road_end.x < 0 or road_end.y < 0:
+			return
+		var road_cells := _road_line_cells(_road_line_start, road_end)
 		if not _road_line_is_valid(road_cells):
 			return
 		_place_road_line(road_cells)
