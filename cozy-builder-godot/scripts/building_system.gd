@@ -104,7 +104,7 @@ const PROPERTY_BUFFER_BY_TOOL := {
 }
 const SIDEWALK_ROUTE_OFFSET := 1.96
 const PropertyUpgradeData = preload("res://scripts/property_upgrade_data.gd")
-const DEBUG_UPGRADES := true
+const DEBUG_UPGRADES := false
 
 @onready var grid_root: Node3D = $GridRoot
 @onready var building_root: Node3D = $BuildingRoot
@@ -3197,17 +3197,22 @@ func _apply_house_tier_visuals(root: Node3D, tier: int, variant: int, profile: D
 	if tier >= 2:
 		if bool(profile.get("roof_trim", false)):
 			_add_box(Vector3(0.0, 0.26, 1.72), Vector3(1.28, 0.05, 0.05), roof_trim, root)
+		if bool(profile.get("frontage_steps", false)):
+			_add_box(Vector3(0.0, 0.09, 1.48), Vector3(0.52, 0.08, 0.18), fence_material, root)
+			_add_box(Vector3(0.0, 0.04, 1.62), Vector3(0.36, 0.03, 0.12), _make_material("d9cbb7", 0.88), root)
 		if bool(profile.get("frontage_path", false)):
-			_add_town_path(Vector3(0.0, 0.03, 2.24), Vector2(1.38, 0.26), root)
+			_add_town_path(Vector3(0.0, 0.03, 1.92), Vector2(0.86, 0.2), root)
 		if bool(profile.get("landscaping", false)):
 			_add_flower_box_local(Vector3(-0.92, 0.18, 1.38), palette.accent, root)
 			_add_flower_box_local(Vector3(0.92, 0.18, 1.38), palette.trim, root)
 			_add_shrub_cluster(Vector3(-1.74, 0.0, 1.44), palette.accent, root, 3)
 			_add_shrub_cluster(Vector3(1.74, 0.0, 1.44), palette.trim, root, 3)
 		if bool(profile.get("fence_upgrade", false)):
-			_add_box(Vector3(0.0, 0.2, 1.96), Vector3(1.2, 0.08, 0.06), fence_material, root)
+			_add_box(Vector3(0.0, 0.2, 1.82), Vector3(1.2, 0.08, 0.06), fence_material, root)
 
 	if tier >= 3:
+		if bool(profile.get("roof_dormer", false)):
+			_add_dormer(Vector3(0.0, 1.76, 0.16), palette.trim, palette.roof, root)
 		if bool(profile.get("side_annex", false)):
 			var side := -1.0 if posmod(variant, 2) == 0 else 1.0
 			_add_soft_block(Vector3(side * 1.46, 0.48, 0.2), Vector3(0.82, 0.78, 1.02), _make_material_from_color(palette.wall.darkened(0.02), 0.94), root, 0.14)
