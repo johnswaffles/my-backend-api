@@ -762,6 +762,7 @@ func _update_hover_from_mouse() -> void:
 	var world := _anchor_to_world(anchor, footprint)
 	var valid := false
 	var inspect_mode := _build_tool == BUILD_TOOL_INSPECT or _build_tool == BUILD_TOOL_BULLDOZE
+	var pointer_over_hud := _is_pointer_over_hud()
 	if inspect_mode:
 		var found_anchor := _find_anchor_for_cell(cell)
 		if found_anchor != "":
@@ -771,8 +772,11 @@ func _update_hover_from_mouse() -> void:
 			world = _anchor_to_world(anchor, footprint)
 			valid = true
 			_set_selected_anchor(found_anchor)
-		else:
+		elif not pointer_over_hud:
+			_upgrade_debug("inspect hover cleared selection cell=%s hud=%s selected_before=%s" % [str(cell), str(pointer_over_hud), _selected_anchor_key])
 			_clear_selected_anchor()
+		elif DEBUG_UPGRADES:
+			_upgrade_debug("inspect hover preserved selection over HUD cell=%s selected=%s" % [str(cell), _selected_anchor_key])
 	else:
 		valid = _cells_are_buildable(cells)
 		if valid and _tool_requires_road(_build_tool) and not _cells_touch_road(cells):
