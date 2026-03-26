@@ -104,6 +104,7 @@ const PROPERTY_BUFFER_BY_TOOL := {
 }
 const SIDEWALK_ROUTE_OFFSET := 1.96
 const PropertyUpgradeData = preload("res://scripts/property_upgrade_data.gd")
+const DEBUG_UPGRADES := true
 
 @onready var grid_root: Node3D = $GridRoot
 @onready var building_root: Node3D = $BuildingRoot
@@ -583,6 +584,12 @@ func _refresh_tool_ui() -> void:
 				_upgrade_button.text = "Upgrade"
 		else:
 			_upgrade_button.text = "Upgrade"
+		_upgrade_debug("ui refresh selected=%s can_upgrade=%s disabled=%s text=%s" % [
+			_selected_anchor_key,
+			str(can_upgrade),
+			str(_upgrade_button.disabled),
+			_upgrade_button.text
+		])
 	if _zoom_in_button:
 		_style_tool_button(_zoom_in_button, false)
 	if _zoom_out_button:
@@ -1138,6 +1145,9 @@ func _mark_cells(cells: Array[Vector2i], tool: String, node: Node3D) -> void:
 
 func _register_placement(anchor: Vector2i, cells: Array[Vector2i], tool: String, node: Node3D, cost: int, tier: int = 1, variant: int = -1, frontage_side: String = "") -> void:
 	var anchor_key := _cell_key(anchor)
+	_upgrade_debug("register placement anchor=%s tool=%s tier=%d variant=%d frontage=%s cost=%d cells=%s node=%s" % [
+		anchor_key, tool, tier, variant, frontage_side, cost, str(cells), str(node)
+	])
 	_placements[anchor_key] = {
 		"anchor": anchor,
 		"cells": cells.duplicate(),
@@ -1164,6 +1174,7 @@ func _register_placement(anchor: Vector2i, cells: Array[Vector2i], tool: String,
 		"frontage_side": frontage_side,
 	})
 	_set_selected_anchor(anchor_key)
+	_upgrade_debug("register placement selected=%s selection_cells=%s" % [_selected_anchor_key, str(_selection_cells)])
 
 
 func _find_anchor_for_cell(cell: Vector2i) -> String:
@@ -1238,46 +1249,91 @@ func _clear_selected_anchor() -> void:
 	_selection_cells.clear()
 
 
+func _upgrade_debug(message: String) -> void:
+	if DEBUG_UPGRADES:
+		print("[UPGRADE] ", message)
+
+
+func _placement_debug_string(placement: Dictionary) -> String:
+	if placement.is_empty():
+		return "<empty>"
+	var anchor: Vector2i = placement.get("anchor", Vector2i(-1, -1))
+	var tool: String = str(placement.get("tool", ""))
+	var tier: int = int(placement.get("tier", 1))
+	var cost: int = int(placement.get("cost", 0))
+	var variant: int = int(placement.get("variant", -1))
+	var frontage_side: String = str(placement.get("frontage_side", ""))
+	return "anchor=%s tool=%s tier=%d cost=%d variant=%d frontage=%s" % [
+		str(anchor),
+		tool,
+		tier,
+		cost,
+		variant,
+		frontage_side,
+	]
+
+
 func _can_upgrade_selected_property() -> bool:
 	if _selected_anchor_key == "" or not _placements.has(_selected_anchor_key):
+		_upgrade_debug("can_upgrade -> false (no selected placement) selected=%s" % _selected_anchor_key)
 		return false
 	var placement: Dictionary = _placements[_selected_anchor_key]
 	var tool := str(placement["tool"])
 	if not PropertyUpgradeData.is_upgradeable(tool):
+		_upgrade_debug("can_upgrade -> false (tool not upgradeable) tool=%s placement=%s" % [tool, _placement_debug_string(placement)])
 		return false
 	var tier := int(placement.get("tier", 1))
-	if tier >= PropertyUpgradeData.max_tier(tool):
+	var max_tier: int = PropertyUpgradeData.max_tier(tool)
+	if tier >= max_tier:
+		_upgrade_debug("can_upgrade -> false (already max tier) tool=%s tier=%d max=%d placement=%s" % [tool, tier, max_tier, _placement_debug_string(placement)])
 		return false
 	var cost := _selected_upgrade_cost()
-	return cost > 0 and _money >= cost
+	var allowed := cost > 0 and _money >= cost
+	_upgrade_debug("can_upgrade check tool=%s tier=%d max=%d cost=%d money=%d allowed=%s placement=%s" % [
+		tool, tier, max_tier, cost, _money, str(allowed), _placement_debug_string(placement)
+	])
+	return allowed
 
 
 func _selected_upgrade_cost() -> int:
 	if _selected_anchor_key == "" or not _placements.has(_selected_anchor_key):
+		_upgrade_debug("selected_upgrade_cost -> -1 (no selected placement) selected=%s" % _selected_anchor_key)
 		return -1
 	var placement: Dictionary = _placements[_selected_anchor_key]
 	var tool := str(placement["tool"])
 	var tier := int(placement.get("tier", 1))
-	return PropertyUpgradeData.upgrade_cost(int(placement["cost"]), tool, tier)
+	var cost := PropertyUpgradeData.upgrade_cost(int(placement["cost"]), tool, tier)
+	_upgrade_debug("selected_upgrade_cost tool=%s current_tier=%d base_cost=%d cost=%d placement=%s" % [
+		tool, tier, int(placement["cost"]), cost, _placement_debug_string(placement)
+	])
+	return cost
 
 
 func _upgrade_selected_property() -> void:
+	_upgrade_debug("upgrade_pressed signal received selected=%s" % _selected_anchor_key)
 	if _selected_anchor_key == "" or not _placements.has(_selected_anchor_key):
+		_upgrade_debug("upgrade aborted (no selected placement)")
 		return
 	var placement: Dictionary = _placements[_selected_anchor_key]
 	var tool := str(placement["tool"])
+	_upgrade_debug("upgrade target tool=%s placement=%s" % [tool, _placement_debug_string(placement)])
 	if not PropertyUpgradeData.is_upgradeable(tool):
+		_upgrade_debug("upgrade aborted (tool not upgradeable) tool=%s" % tool)
 		if _hint_label:
 			_hint_label.text = "%s cannot be upgraded." % _tool_name(tool)
 		return
 	var current_tier := int(placement.get("tier", 1))
 	var max_tier: int = PropertyUpgradeData.max_tier(tool)
+	_upgrade_debug("upgrade tier state tool=%s current=%d max=%d" % [tool, current_tier, max_tier])
 	if current_tier >= max_tier:
+		_upgrade_debug("upgrade aborted (already max tier) tool=%s tier=%d max=%d" % [tool, current_tier, max_tier])
 		if _hint_label:
 			_hint_label.text = "%s is already at the top tier." % _tool_name(tool)
 		return
 	var upgrade_cost := _selected_upgrade_cost()
+	_upgrade_debug("upgrade cost check tool=%s current_tier=%d upgrade_cost=%d money=%d" % [tool, current_tier, upgrade_cost, _money])
 	if upgrade_cost <= 0 or _money < upgrade_cost:
+		_upgrade_debug("upgrade aborted (cannot afford or invalid cost) tool=%s cost=%d money=%d" % [tool, upgrade_cost, _money])
 		if _hint_label:
 			_hint_label.text = "Not enough money to upgrade %s. You need $%d." % [_tool_name(tool).to_lower(), max(0, upgrade_cost)]
 		return
@@ -1290,10 +1346,28 @@ func _upgrade_selected_property() -> void:
 	var base_cost := int(placement["cost"])
 	var next_tier := current_tier + 1
 
+	_upgrade_debug("upgrade begin anchor=%s tool=%s current_tier=%d next_tier=%d variant=%d frontage=%s cells=%s" % [
+		anchor_key, tool, current_tier, next_tier, variant, frontage_side, str(cells)
+	])
 	_remove_selected_placement(false, false)
+	_upgrade_debug("upgrade after remove money=%d selected=%s placement_exists=%s" % [
+		_money,
+		_selected_anchor_key,
+		str(_placements.has(anchor_key))
+	])
 	_money -= upgrade_cost
+	_upgrade_debug("upgrade money deducted cost=%d remaining=%d" % [upgrade_cost, _money])
 	var node := _spawn_building_for_tool(tool, _anchor_to_world(anchor, _footprint_from_cells(cells)), _tool_rotation_y(tool, anchor, _footprint_from_cells(cells), frontage_side), next_tier, variant)
+	_upgrade_debug("upgrade spawned node=%s next_tier=%d" % [str(node), next_tier])
 	_register_placement(anchor, cells, tool, node, base_cost, next_tier, variant, frontage_side)
+	_upgrade_debug("upgrade registered placement anchor=%s selected_now=%s placement=%s" % [
+		anchor_key,
+		_selected_anchor_key,
+		_placement_debug_string(_placements.get(anchor_key, {}))
+	])
+	if _selected_anchor_key != anchor_key:
+		_set_selected_anchor(anchor_key)
+		_upgrade_debug("upgrade restored selection anchor=%s" % anchor_key)
 	_action_history.append({
 		"type": "upgrade",
 		"anchor_key": anchor_key,
@@ -1305,9 +1379,17 @@ func _upgrade_selected_property() -> void:
 		"variant": variant,
 		"frontage_side": frontage_side,
 	})
+	_upgrade_debug("upgrade action recorded from=%d to=%d cost=%d base_cost=%d" % [current_tier, next_tier, upgrade_cost, base_cost])
 	_recalculate_cashflow()
+	_upgrade_debug("upgrade cashflow recalculated cashflow=%d money=%d" % [_cashflow_per_day, _money])
 	_rebuild_ambient_life()
+	_upgrade_debug("upgrade ambient life rebuilt")
 	_refresh_tool_ui()
+	_upgrade_debug("upgrade complete selected=%s can_upgrade=%s button_disabled=%s" % [
+		_selected_anchor_key,
+		str(_can_upgrade_selected_property()),
+		str(_upgrade_button.disabled if _upgrade_button else false)
+	])
 	if _hint_label:
 		_hint_label.text = "%s upgraded to tier %d." % [_tool_name(tool), next_tier]
 
@@ -1401,6 +1483,7 @@ func _is_fullscreen() -> bool:
 
 func _remove_selected_placement(refund: bool, record_action: bool = true) -> void:
 	if _selected_anchor_key == "" or not _placements.has(_selected_anchor_key):
+		_upgrade_debug("remove selected placement skipped selected=%s has=%s" % [_selected_anchor_key, str(_placements.has(_selected_anchor_key))])
 		return
 	var anchor_key := _selected_anchor_key
 	var placement = _placements[anchor_key]
@@ -1409,6 +1492,9 @@ func _remove_selected_placement(refund: bool, record_action: bool = true) -> voi
 	var node: Node3D = placement["node"]
 	var road_neighbors: Array[Vector2i] = []
 	var refund_amount := int(round(float(placement["cost"]) * 0.7)) if refund else 0
+	_upgrade_debug("remove selected placement anchor=%s tool=%s refund=%s refund_amount=%d placement=%s" % [
+		anchor_key, tool, str(refund), refund_amount, _placement_debug_string(placement)
+	])
 	if refund:
 		_money += refund_amount
 	if tool == BUILD_TOOL_ROAD:
@@ -1456,6 +1542,7 @@ func _remove_selected_placement(refund: bool, record_action: bool = true) -> voi
 			if _road_cells.has(_cell_key(neighbor)):
 				_rebuild_road_at(neighbor)
 	_clear_selected_anchor()
+	_upgrade_debug("remove selected placement complete selected=%s money=%d" % [_selected_anchor_key, _money])
 	_recalculate_cashflow()
 	_rebuild_ambient_life()
 	_refresh_tool_ui()
@@ -1655,6 +1742,7 @@ func _spawn_building_for_tool(tool: String, world_position: Vector3, rotation_y:
 	if variant < 0:
 		variant = randi() % 10
 	tier = clamp(tier, 1, PropertyUpgradeData.max_tier(tool))
+	_upgrade_debug("spawn building tool=%s tier=%d variant=%d world=%s rot=%.2f" % [tool, tier, variant, str(world_position), rotation_y])
 	var node: Node3D
 	match tool:
 		BUILD_TOOL_HOUSE:
@@ -1679,9 +1767,11 @@ func _spawn_building_for_tool(tool: String, world_position: Vector3, rotation_y:
 	if _tool_requires_road(tool):
 		var setback := float(PROPERTY_FRONT_SETBACK_BY_TOOL.get(tool, PROPERTY_FRONT_SETBACK))
 		node.translate_object_local(Vector3(0.0, 0.0, -setback))
+		_upgrade_debug("spawn building tool=%s applied setback=%.2f" % [tool, setback])
 	_apply_property_tier_visuals(node, tool, tier, variant)
 	node.set_meta("tier", tier)
 	node.set_meta("variant", variant)
+	_upgrade_debug("spawn building complete node=%s tier_meta=%d variant_meta=%d" % [str(node), int(node.get_meta("tier", -1)), int(node.get_meta("variant", -1))])
 	return node
 
 
@@ -3076,10 +3166,13 @@ func _add_park_variant(position_3d: Vector3, variant: int) -> Node3D:
 
 func _apply_property_tier_visuals(root: Node3D, tool: String, tier: int, variant: int) -> void:
 	tier = clamp(tier, 1, PropertyUpgradeData.max_tier(tool))
+	_upgrade_debug("apply tier visuals tool=%s tier=%d variant=%d root=%s" % [tool, tier, variant, str(root)])
 	if tier <= 1:
+		_upgrade_debug("apply tier visuals skipped (base tier)")
 		return
 
 	var profile := PropertyUpgradeData.visual_profile(tool, tier)
+	_upgrade_debug("apply tier visuals profile=%s" % [str(profile)])
 	match tool:
 		BUILD_TOOL_HOUSE:
 			_apply_house_tier_visuals(root, tier, variant, profile)
@@ -3090,6 +3183,7 @@ func _apply_property_tier_visuals(root: Node3D, tool: String, tier: int, variant
 
 
 func _apply_house_tier_visuals(root: Node3D, tier: int, variant: int, profile: Dictionary) -> void:
+	_upgrade_debug("apply house tier visuals tier=%d variant=%d profile=%s" % [tier, variant, str(profile)])
 	var palette := _cozy_palette("house", variant)
 	var roof_trim := _make_material_from_color(palette.trim.lightened(0.04), 0.88)
 	var roof_detail := _make_material_from_color(palette.roof.darkened(0.03), 0.74)

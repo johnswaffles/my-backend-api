@@ -92,7 +92,7 @@ const VISUAL_PROFILES := {
 			"frontage_path": true,
 			"frontage_steps": true,
 			"roof_trim": true,
-			"roof_dormer": false,
+			"roof_dormer": true,
 			"side_annex": false,
 			"fence_upgrade": true,
 			"garden_extension": false,
