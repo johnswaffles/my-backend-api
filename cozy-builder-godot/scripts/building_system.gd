@@ -84,13 +84,23 @@ const SAVE_PATH := "user://cozy_builder_save.json"
 const MUSIC_STREAM_PATH := "res://assets/audio/neon-dreams.mp3"
 const PROPERTY_FRONT_SETBACK := 1.0
 const PROPERTY_FRONT_SETBACK_BY_TOOL := {
-	BUILD_TOOL_HOUSE: 1.25,
-	BUILD_TOOL_POLICE: 1.15,
-	BUILD_TOOL_FIRE: 1.15,
-	BUILD_TOOL_BANK: 1.35,
-	BUILD_TOOL_GROCERY: 1.45,
-	BUILD_TOOL_RESTAURANT: 1.25,
-	BUILD_TOOL_CORNER_STORE: 1.2,
+	BUILD_TOOL_HOUSE: 1.6,
+	BUILD_TOOL_POLICE: 1.35,
+	BUILD_TOOL_FIRE: 1.35,
+	BUILD_TOOL_BANK: 1.55,
+	BUILD_TOOL_GROCERY: 1.65,
+	BUILD_TOOL_RESTAURANT: 1.45,
+	BUILD_TOOL_CORNER_STORE: 1.45,
+}
+const PROPERTY_BUFFER_BY_TOOL := {
+	BUILD_TOOL_HOUSE: 1,
+	BUILD_TOOL_POLICE: 1,
+	BUILD_TOOL_FIRE: 1,
+	BUILD_TOOL_BANK: 1,
+	BUILD_TOOL_GROCERY: 1,
+	BUILD_TOOL_RESTAURANT: 1,
+	BUILD_TOOL_CORNER_STORE: 1,
+	BUILD_TOOL_PARK: 1,
 }
 const SIDEWALK_ROUTE_OFFSET := 1.96
 
@@ -948,6 +958,9 @@ func _resolve_hover_layout(tool: String, cell: Vector2i) -> Dictionary:
 				if not _cells_touch_road(cells):
 					continue
 				var side := _preferred_frontage_side(anchor, footprint)
+				var reserved_cells := _property_reserved_cells(anchor, footprint, side, tool)
+				if not reserved_cells.is_empty() and not _cells_are_buildable(reserved_cells):
+					continue
 				var touch := _adjacent_transport_count(anchor, footprint, side)
 				var score := _transport_side_score(anchor, footprint, side)
 				var frontage_center := _frontage_side_center(anchor, footprint, side)
@@ -1003,6 +1016,42 @@ func _cells_touch_reserved(cells: Array[Vector2i]) -> bool:
 		if _reserved_cells.has(_cell_key(cell)):
 			return true
 	return false
+
+
+func _property_spacing_margin_for_tool(tool: String) -> int:
+	return int(PROPERTY_BUFFER_BY_TOOL.get(tool, 0))
+
+
+func _property_reserved_cells(anchor: Vector2i, footprint: Vector2i, frontage_side: String, tool: String) -> Array[Vector2i]:
+	var margin := _property_spacing_margin_for_tool(tool)
+	if margin <= 0:
+		return []
+
+	var min_x := maxi(0, anchor.x - margin)
+	var max_x := mini(GRID_SIZE - 1, anchor.x + footprint.x + margin - 1)
+	var min_y := maxi(0, anchor.y - margin)
+	var max_y := mini(GRID_SIZE - 1, anchor.y + footprint.y + margin - 1)
+	var reserved: Array[Vector2i] = []
+
+	for y in range(min_y, max_y + 1):
+		for x in range(min_x, max_x + 1):
+			if x >= anchor.x and x < anchor.x + footprint.x and y >= anchor.y and y < anchor.y + footprint.y:
+				continue
+			match frontage_side:
+				"north":
+					if y < anchor.y:
+						continue
+				"south":
+					if y >= anchor.y + footprint.y:
+						continue
+				"west":
+					if x < anchor.x:
+						continue
+				"east":
+					if x >= anchor.x + footprint.x:
+						continue
+			reserved.append(Vector2i(x, y))
+	return reserved
 
 
 func _cells_touch_road(cells: Array[Vector2i]) -> bool:
@@ -1078,6 +1127,10 @@ func _register_placement(anchor: Vector2i, cells: Array[Vector2i], tool: String,
 		_occupied_cells[key] = tool
 		_placed_nodes[key] = node
 		_cell_anchor_lookup[key] = anchor_key
+	for cell in _property_reserved_cells(anchor, _footprint_from_cells(cells), frontage_side, tool):
+		var reserved_key := _cell_key(cell)
+		if not _occupied_cells.has(reserved_key):
+			_reserved_cells[reserved_key] = tool
 	_action_history.append({
 		"type": "place",
 		"anchor_key": anchor_key,
@@ -1268,6 +1321,13 @@ func _remove_selected_placement(refund: bool, record_action: bool = true) -> voi
 	else:
 		if is_instance_valid(node):
 			node.queue_free()
+	for cell in _property_reserved_cells(
+		placement["anchor"],
+		_footprint_from_cells(cells),
+		str(placement.get("frontage_side", "")),
+		tool
+	):
+		_reserved_cells.erase(_cell_key(cell))
 	for cell in cells:
 		var key := _cell_key(cell)
 		_occupied_cells.erase(key)
@@ -1715,6 +1775,7 @@ func _clear_map_data() -> void:
 		if is_instance_valid(building):
 			building.queue_free()
 	_occupied_cells.clear()
+	_reserved_cells.clear()
 	_placed_nodes.clear()
 	_placements.clear()
 	_cell_anchor_lookup.clear()
