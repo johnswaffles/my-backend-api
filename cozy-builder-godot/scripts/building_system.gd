@@ -125,9 +125,10 @@ var _dragging := false
 var _right_mouse_down := false
 var _right_drag_moved := false
 var _right_drag_origin := Vector2.ZERO
-var _painting_roads := false
 var _painting_bulldoze := false
 var _bulldoze_visited: Dictionary = {}
+var _road_line_active := false
+var _road_line_start := Vector2i(-1, -1)
 var _build_tool := BUILD_TOOL_ROAD
 var _hovered_cell := Vector2i(-1, -1)
 var _hover_anchor := Vector2i(-1, -1)
@@ -178,6 +179,7 @@ var _ghost_accent_material: StandardMaterial3D
 var _clouds: Array[Node3D] = []
 var _window_bands: Array[MeshInstance3D] = []
 var _grass_clumps: Array[Node3D] = []
+var _road_preview_nodes: Array[Node3D] = []
 var _nature_features: Array[Node3D] = []
 var _hover_tiles: Array[MeshInstance3D] = []
 var _meadow_patches: Array[MeshInstance3D] = []
@@ -286,6 +288,11 @@ func _input(event: InputEvent) -> void:
 			KEY_F:
 				_toggle_fullscreen()
 			KEY_ESCAPE:
+				if _build_tool == BUILD_TOOL_ROAD and _road_line_active:
+					_cancel_road_line()
+					_refresh_tool_ui()
+					_update_hover_from_mouse()
+					return
 				_exit_fullscreen()
 				_clear_hover()
 	elif event is InputEventMouseButton:
@@ -304,14 +311,11 @@ func _input(event: InputEvent) -> void:
 				_right_mouse_down = false
 		elif event.button_index == MOUSE_BUTTON_LEFT:
 			if event.pressed and not _is_pointer_over_hud():
-				if _build_tool == BUILD_TOOL_ROAD:
-					_painting_roads = true
-				elif _build_tool == BUILD_TOOL_BULLDOZE:
+				if _build_tool == BUILD_TOOL_BULLDOZE:
 					_painting_bulldoze = true
 					_bulldoze_visited.clear()
 				_try_place_hovered_tile()
 			else:
-				_painting_roads = false
 				_painting_bulldoze = false
 				_bulldoze_visited.clear()
 		elif event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
@@ -328,8 +332,6 @@ func _input(event: InputEvent) -> void:
 		var pan_limit := _pan_limit()
 		_target_focus.x = clamp(_target_focus.x, -pan_limit, pan_limit)
 		_target_focus.z = clamp(_target_focus.z, -pan_limit, pan_limit)
-	elif event is InputEventMouseMotion and _painting_roads and _build_tool == BUILD_TOOL_ROAD and not _is_pointer_over_hud():
-		_try_place_hovered_tile()
 	elif event is InputEventMouseMotion and _painting_bulldoze and _build_tool == BUILD_TOOL_BULLDOZE and not _is_pointer_over_hud():
 		_try_place_hovered_tile()
 
@@ -630,6 +632,8 @@ func _style_tool_button(button: Button, selected: bool) -> void:
 
 
 func _set_build_tool(tool: String) -> void:
+	if tool != _build_tool:
+		_cancel_road_line()
 	_build_tool = tool
 	_refresh_tool_ui()
 	_update_hover_from_mouse()
@@ -781,11 +785,35 @@ func _update_hover_from_mouse() -> void:
 			_clear_selected_anchor()
 		elif DEBUG_UPGRADES:
 			_upgrade_debug("inspect hover preserved selection over HUD cell=%s selected=%s" % [str(cell), _selected_anchor_key])
+	elif _build_tool == BUILD_TOOL_ROAD and _road_line_active and _road_line_start.x >= 0:
+		var road_cells := _road_line_cells(_road_line_start, cell)
+		valid = _road_line_is_valid(road_cells)
+		_hovered_cell = cell
+		_hover_anchor = _road_line_start
+		_hover_cells = road_cells
+		_hover_frontage_side = "south"
+		_hover_active = true
+		_hover_can_build = valid
+		_clear_hover_tiles()
+		_update_road_line_preview(road_cells, valid)
+		if _ghost_root:
+			_ghost_root.visible = false
+		if _hint_label:
+			if valid:
+				_hint_label.text = "Road start set. Click again to place the straight road."
+			else:
+				_hint_label.text = "That road line is blocked. Pick a clearer end point or right click / Esc to cancel."
+		return
 	else:
-		valid = _cells_are_buildable(cells)
-		if valid and _tool_requires_road(_build_tool) and not _cells_touch_road(cells):
-			valid = false
-		if BUILD_TOOL_COSTS.has(_build_tool) and _money < int(BUILD_TOOL_COSTS[_build_tool]):
+		if _build_tool == BUILD_TOOL_ROAD:
+			valid = _road_start_can_be_selected(anchor)
+		else:
+			valid = _cells_are_buildable(cells)
+			if valid and _tool_requires_road(_build_tool) and not _cells_touch_road(cells):
+				valid = false
+			if BUILD_TOOL_COSTS.has(_build_tool) and _money < int(BUILD_TOOL_COSTS[_build_tool]):
+				valid = false
+		if _build_tool == BUILD_TOOL_ROAD and BUILD_TOOL_COSTS.has(_build_tool) and _money < int(BUILD_TOOL_COSTS[_build_tool]):
 			valid = false
 
 	_hovered_cell = cell
@@ -822,10 +850,128 @@ func _clear_hover() -> void:
 	_hover_anchor = Vector2i(-1, -1)
 	_hover_cells.clear()
 	_clear_hover_tiles()
+	_clear_road_line_preview()
 	if _ghost_root:
 		_ghost_root.visible = false
 	if _hint_label:
 		_hint_label.text = "Use the build buttons or keys 1-0 and P, then click or press Space to place. Q/E rotates. Cmd/Ctrl+Z undoes. Right drag pans."
+
+
+func _cancel_road_line() -> void:
+	_road_line_active = false
+	_road_line_start = Vector2i(-1, -1)
+	_clear_road_line_preview()
+
+
+func _clear_road_line_preview() -> void:
+	for node in _road_preview_nodes:
+		if is_instance_valid(node):
+			node.queue_free()
+	_road_preview_nodes.clear()
+
+
+func _road_line_cells(start_cell: Vector2i, end_cell: Vector2i) -> Array[Vector2i]:
+	var cells: Array[Vector2i] = []
+	if start_cell.x < 0 or start_cell.y < 0 or end_cell.x < 0 or end_cell.y < 0:
+		return cells
+	var horizontal := abs(end_cell.x - start_cell.x) >= abs(end_cell.y - start_cell.y)
+	if horizontal:
+		var from_x := mini(start_cell.x, end_cell.x)
+		var to_x := maxi(start_cell.x, end_cell.x)
+		for x in range(from_x, to_x + 1):
+			cells.append(Vector2i(x, start_cell.y))
+	else:
+		var from_y := mini(start_cell.y, end_cell.y)
+		var to_y := maxi(start_cell.y, end_cell.y)
+		for y in range(from_y, to_y + 1):
+			cells.append(Vector2i(start_cell.x, y))
+	return cells
+
+
+func _road_line_is_valid(cells: Array[Vector2i]) -> bool:
+	if cells.is_empty():
+		return false
+	var has_new_tile := false
+	for cell in cells:
+		if cell.x < 0 or cell.x >= GRID_SIZE or cell.y < 0 or cell.y >= GRID_SIZE:
+			return false
+		var key := _cell_key(cell)
+		if _reserved_cells.has(key):
+			return false
+		if _occupied_cells.has(key) and not _road_cells.has(key):
+			return false
+		if not _road_cells.has(key):
+			has_new_tile = true
+	return has_new_tile
+
+
+func _road_start_can_be_selected(cell: Vector2i) -> bool:
+	if cell.x < 0 or cell.x >= GRID_SIZE or cell.y < 0 or cell.y >= GRID_SIZE:
+		return false
+	var key := _cell_key(cell)
+	if _reserved_cells.has(key):
+		return false
+	return not _occupied_cells.has(key) or _road_cells.has(key)
+
+
+func _place_road_line(road_cells: Array[Vector2i]) -> void:
+	var changed_cells: Array[Vector2i] = []
+	for road_cell in road_cells:
+		var road_key := _cell_key(road_cell)
+		if not _road_cells.has(road_key):
+			changed_cells.append(road_cell)
+	if changed_cells.is_empty():
+		_cancel_road_line()
+		_refresh_tool_ui()
+		_update_hover_from_mouse()
+		return
+
+	var road_cost := int(BUILD_TOOL_COSTS[BUILD_TOOL_ROAD]) * changed_cells.size()
+	if _money < road_cost:
+		_cancel_road_line()
+		_refresh_tool_ui()
+		_update_hover_from_mouse()
+		return
+
+	for road_cell in changed_cells:
+		_mark_road_cell(road_cell)
+
+	var affected_cells: Array[Vector2i] = []
+	for road_cell in changed_cells:
+		affected_cells.append(road_cell)
+		for neighbor in _neighbor_cells(road_cell):
+			if _road_cells.has(_cell_key(neighbor)):
+				affected_cells.append(neighbor)
+
+	_money -= road_cost
+	for road_cell in affected_cells:
+		_rebuild_road_at(road_cell)
+
+	var road_anchor := changed_cells[0]
+	_register_placement(road_anchor, changed_cells, BUILD_TOOL_ROAD, _road_nodes.get(_cell_key(road_anchor)), road_cost, 1, -1)
+	_recalculate_cashflow()
+	_rebuild_ambient_life()
+	_cancel_road_line()
+	_refresh_tool_ui()
+	_update_hover_from_mouse()
+
+
+func _update_road_line_preview(cells: Array[Vector2i], valid: bool) -> void:
+	_clear_road_line_preview()
+	for cell in cells:
+		var tile := _build_road_tile_mesh(cell, true, cells)
+		tile.position = _cell_to_world(cell)
+		if not valid:
+			_tint_preview_invalid(tile)
+		_hover_root.add_child(tile)
+		_road_preview_nodes.append(tile)
+
+
+func _tint_preview_invalid(node: Node) -> void:
+	if node is GeometryInstance3D:
+		(node as GeometryInstance3D).material_override = _hover_material_invalid
+	for child in node.get_children():
+		_tint_preview_invalid(child)
 
 
 func _pick_grid_cell(mouse_position: Vector2) -> Dictionary:
@@ -888,6 +1034,22 @@ func _try_place_hovered_tile() -> void:
 		_remove_selected_placement(true)
 		return
 
+	if _build_tool == BUILD_TOOL_ROAD:
+		if not _road_line_active:
+			if _hover_anchor.x < 0 or _hover_anchor.y < 0 or not _hover_can_build:
+				return
+			_road_line_active = true
+			_road_line_start = _hover_anchor
+			_refresh_tool_ui()
+			_update_hover_from_mouse()
+			return
+
+		var road_cells := _road_line_cells(_road_line_start, _hover_anchor)
+		if not _road_line_is_valid(road_cells):
+			return
+		_place_road_line(road_cells)
+		return
+
 	var footprint := _footprint_from_cells(_hover_cells)
 	var world := _anchor_to_world(_hover_anchor, footprint)
 	var cost := int(BUILD_TOOL_COSTS.get(_build_tool, 0))
@@ -897,15 +1059,7 @@ func _try_place_hovered_tile() -> void:
 	var tier := 1
 	var variant := _next_variant_for_tool(_build_tool)
 	var frontage_side := _hover_frontage_side
-	if _build_tool == BUILD_TOOL_ROAD:
-		_mark_road_cell(_hover_anchor)
-		_rebuild_road_at(_hover_anchor)
-		for neighbor in _neighbor_cells(_hover_anchor):
-			if _road_cells.has(_cell_key(neighbor)):
-				_rebuild_road_at(neighbor)
-		placed = _road_nodes.get(_cell_key(_hover_anchor))
-	else:
-		placed = _spawn_building_for_tool(_build_tool, world, _tool_rotation_y(_build_tool, _hover_anchor, footprint, frontage_side), tier, variant)
+	placed = _spawn_building_for_tool(_build_tool, world, _tool_rotation_y(_build_tool, _hover_anchor, footprint, frontage_side), tier, variant)
 
 	_clear_nature_for_cells(_hover_cells)
 	_money -= cost
