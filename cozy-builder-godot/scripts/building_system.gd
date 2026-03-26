@@ -78,7 +78,7 @@ const BUILDING_MAX_TIERS := {
 	BUILD_TOOL_GROCERY: 4,
 	BUILD_TOOL_RESTAURANT: 4,
 	BUILD_TOOL_CORNER_STORE: 4,
-	BUILD_TOOL_PARK: 3,
+	BUILD_TOOL_PARK: 4,
 }
 const SAVE_PATH := "user://cozy_builder_save.json"
 const MUSIC_STREAM_PATH := "res://assets/audio/neon-dreams.mp3"
@@ -103,6 +103,7 @@ const PROPERTY_BUFFER_BY_TOOL := {
 	BUILD_TOOL_PARK: 1,
 }
 const SIDEWALK_ROUTE_OFFSET := 1.96
+const PropertyUpgradeData = preload("res://scripts/property_upgrade_data.gd")
 
 @onready var grid_root: Node3D = $GridRoot
 @onready var building_root: Node3D = $BuildingRoot
@@ -205,6 +206,7 @@ var _home_button: Button
 var _rotate_left_button: Button
 var _rotate_right_button: Button
 var _place_button: Button
+var _upgrade_button: Button
 var _undo_button: Button
 var _zoom_in_button: Button
 var _zoom_out_button: Button
@@ -269,6 +271,8 @@ func _input(event: InputEvent) -> void:
 				_set_build_tool(BUILD_TOOL_INSPECT)
 			KEY_0:
 				_set_build_tool(BUILD_TOOL_BULLDOZE)
+			KEY_U:
+				_upgrade_selected_property()
 			KEY_Q:
 				_rotate_camera(-PI * 0.5)
 			KEY_E:
@@ -446,6 +450,12 @@ func _build_hud() -> void:
 	_place_button.pressed.connect(_try_place_hovered_tile)
 	top_row.add_child(_place_button)
 
+	_upgrade_button = Button.new()
+	_upgrade_button.text = "Upgrade"
+	_upgrade_button.custom_minimum_size = Vector2(86, 0)
+	_upgrade_button.pressed.connect(_upgrade_selected_property)
+	top_row.add_child(_upgrade_button)
+
 	_town_menu = MenuButton.new()
 	_town_menu.text = "Town"
 	_town_menu.custom_minimum_size = Vector2(72, 0)
@@ -559,6 +569,20 @@ func _refresh_tool_ui() -> void:
 		_music_button.text = "Music On" if _music_enabled else "Music Off"
 	if _place_button:
 		_style_tool_button(_place_button, true)
+	if _upgrade_button:
+		var can_upgrade := _can_upgrade_selected_property()
+		_style_tool_button(_upgrade_button, can_upgrade)
+		_upgrade_button.disabled = not can_upgrade
+		if _selected_anchor_key != "" and _placements.has(_selected_anchor_key):
+			var selected_tool := str(_placements[_selected_anchor_key]["tool"])
+			var selected_tier := int(_placements[_selected_anchor_key].get("tier", 1))
+			if PropertyUpgradeData.is_upgradeable(selected_tool) and selected_tier < PropertyUpgradeData.max_tier(selected_tool):
+				var upgrade_cost := _selected_upgrade_cost()
+				_upgrade_button.text = "Upgrade $%d" % upgrade_cost
+			else:
+				_upgrade_button.text = "Upgrade"
+		else:
+			_upgrade_button.text = "Upgrade"
 	if _zoom_in_button:
 		_style_tool_button(_zoom_in_button, false)
 	if _zoom_out_button:
@@ -703,6 +727,8 @@ func _apply_hud_layout() -> void:
 		_tool_dropdown.custom_minimum_size = Vector2(136 if compact else 160, 0)
 	if _place_button:
 		_place_button.custom_minimum_size = Vector2(62 if compact else 74, 0)
+	if _upgrade_button:
+		_upgrade_button.custom_minimum_size = Vector2(86 if compact else 100, 0)
 	if _fullscreen_button:
 		_fullscreen_button.custom_minimum_size = Vector2(84 if compact else 92, 0)
 	if _music_button:
@@ -1212,6 +1238,80 @@ func _clear_selected_anchor() -> void:
 	_selection_cells.clear()
 
 
+func _can_upgrade_selected_property() -> bool:
+	if _selected_anchor_key == "" or not _placements.has(_selected_anchor_key):
+		return false
+	var placement: Dictionary = _placements[_selected_anchor_key]
+	var tool := str(placement["tool"])
+	if not PropertyUpgradeData.is_upgradeable(tool):
+		return false
+	var tier := int(placement.get("tier", 1))
+	if tier >= PropertyUpgradeData.max_tier(tool):
+		return false
+	var cost := _selected_upgrade_cost()
+	return cost > 0 and _money >= cost
+
+
+func _selected_upgrade_cost() -> int:
+	if _selected_anchor_key == "" or not _placements.has(_selected_anchor_key):
+		return -1
+	var placement: Dictionary = _placements[_selected_anchor_key]
+	var tool := str(placement["tool"])
+	var tier := int(placement.get("tier", 1))
+	return PropertyUpgradeData.upgrade_cost(int(placement["cost"]), tool, tier)
+
+
+func _upgrade_selected_property() -> void:
+	if _selected_anchor_key == "" or not _placements.has(_selected_anchor_key):
+		return
+	var placement: Dictionary = _placements[_selected_anchor_key]
+	var tool := str(placement["tool"])
+	if not PropertyUpgradeData.is_upgradeable(tool):
+		if _hint_label:
+			_hint_label.text = "%s cannot be upgraded." % _tool_name(tool)
+		return
+	var current_tier := int(placement.get("tier", 1))
+	var max_tier: int = PropertyUpgradeData.max_tier(tool)
+	if current_tier >= max_tier:
+		if _hint_label:
+			_hint_label.text = "%s is already at the top tier." % _tool_name(tool)
+		return
+	var upgrade_cost := _selected_upgrade_cost()
+	if upgrade_cost <= 0 or _money < upgrade_cost:
+		if _hint_label:
+			_hint_label.text = "Not enough money to upgrade %s. You need $%d." % [_tool_name(tool).to_lower(), max(0, upgrade_cost)]
+		return
+
+	var anchor_key := _selected_anchor_key
+	var anchor: Vector2i = placement["anchor"]
+	var cells: Array[Vector2i] = placement["cells"]
+	var variant := int(placement.get("variant", -1))
+	var frontage_side := str(placement.get("frontage_side", ""))
+	var base_cost := int(placement["cost"])
+	var next_tier := current_tier + 1
+
+	_remove_selected_placement(false, false)
+	_money -= upgrade_cost
+	var node := _spawn_building_for_tool(tool, _anchor_to_world(anchor, _footprint_from_cells(cells)), _tool_rotation_y(tool, anchor, _footprint_from_cells(cells), frontage_side), next_tier, variant)
+	_register_placement(anchor, cells, tool, node, base_cost, next_tier, variant, frontage_side)
+	_action_history.append({
+		"type": "upgrade",
+		"anchor_key": anchor_key,
+		"tool": tool,
+		"from_tier": current_tier,
+		"to_tier": next_tier,
+		"cost": upgrade_cost,
+		"base_cost": base_cost,
+		"variant": variant,
+		"frontage_side": frontage_side,
+	})
+	_recalculate_cashflow()
+	_rebuild_ambient_life()
+	_refresh_tool_ui()
+	if _hint_label:
+		_hint_label.text = "%s upgraded to tier %d." % [_tool_name(tool), next_tier]
+
+
 func _selection_name() -> String:
 	if _selected_anchor_key == "" or not _placements.has(_selected_anchor_key):
 		if _selected_tile.x >= 0 and _selected_tile.y >= 0:
@@ -1225,18 +1325,25 @@ func _selection_text() -> String:
 		if _selected_tile.x >= 0 and _selected_tile.y >= 0:
 			return "Selection: tile  |  Grid: %d,%d  |  Empty land ready for roads, homes, or civic buildings." % [_selected_tile.x + 1, _selected_tile.y + 1]
 		return "Selection: none  |  Start with roads, then place homes and town buildings off the road network."
-	var placement = _placements[_selected_anchor_key]
+	var placement: Dictionary = _placements[_selected_anchor_key]
 	var cells: Array[Vector2i] = placement["cells"]
 	var footprint := _footprint_from_cells(cells)
 	var road_status := "Road Access: yes" if _cells_touch_road(cells) else "Road Access: no"
-	return "Selection: %s  |  Tier: %d/%d  |  Footprint: %dx%d  |  Build Cost: $%d  |  %s" % [
-		_tool_name(placement["tool"]),
-		int(placement.get("tier", 1)),
-		int(BUILDING_MAX_TIERS.get(str(placement["tool"]), 1)),
+	var tool := str(placement["tool"])
+	var tier := int(placement.get("tier", 1))
+	var max_tier: int = PropertyUpgradeData.max_tier(tool)
+	var upgrade_text := "Upgrade: maxed"
+	if tier < max_tier:
+		upgrade_text = "Upgrade: $%d" % _selected_upgrade_cost()
+	return "Selection: %s  |  Tier: %d/%d  |  Footprint: %dx%d  |  Build Cost: $%d  |  %s  |  %s" % [
+		_tool_name(tool),
+		tier,
+		max_tier,
 		footprint.x,
 		footprint.y,
 		int(placement["cost"]),
-		road_status
+		road_status,
+		upgrade_text
 	]
 
 
@@ -1245,8 +1352,18 @@ func _build_stats_text() -> String:
 	var shops := 0
 	var civics := 0
 	var parks := 0
+	var population := 0
+	var jobs := 0
+	var appeal := 0
+	var net_cashflow := 0
 	for anchor_key in _placements.keys():
 		var tool: String = _placements[anchor_key]["tool"]
+		var tier := int(_placements[anchor_key].get("tier", 1))
+		var yield_data: Dictionary = PropertyUpgradeData.tier_yield(tool, tier)
+		population += int(yield_data.get("population", 0))
+		jobs += int(yield_data.get("jobs", 0))
+		appeal += int(yield_data.get("appeal", 0))
+		net_cashflow += int(yield_data.get("cashflow", 0))
 		if tool == BUILD_TOOL_HOUSE:
 			homes += 1
 		elif tool in [BUILD_TOOL_BANK, BUILD_TOOL_GROCERY, BUILD_TOOL_RESTAURANT, BUILD_TOOL_CORNER_STORE]:
@@ -1255,28 +1372,16 @@ func _build_stats_text() -> String:
 			civics += 1
 		elif tool == BUILD_TOOL_PARK:
 			parks += 1
-	var population := homes * 14
-	var jobs := shops * 26 + civics * 14
-	var appeal := parks * 28 + shops * 10 + homes * 6
-	return "Day %d  |  Money: $%d  |  +$%d/day  |  Pop: %d  |  Jobs: %d  |  Homes: %d  |  Shops: %d  |  Civic: %d  |  Parks: %d  |  Appeal: %d  |  Roads: %d" % [_day, _money, _cashflow_per_day, population, jobs, homes, shops, civics, parks, appeal, _road_cells.size()]
+	return "Day %d  |  Money: $%d  |  +$%d/day  |  Pop: %d  |  Jobs: %d  |  Homes: %d  |  Shops: %d  |  Civic: %d  |  Parks: %d  |  Appeal: %d  |  Roads: %d" % [_day, _money, net_cashflow, population, jobs, homes, shops, civics, parks, appeal, _road_cells.size()]
 
 
 func _recalculate_cashflow() -> void:
-	var homes := 0
-	var shops := 0
-	var civics := 0
-	var parks := 0
+	var net_cashflow := 0
 	for anchor_key in _placements.keys():
 		var tool: String = _placements[anchor_key]["tool"]
-		if tool == BUILD_TOOL_HOUSE:
-			homes += 1
-		elif tool in [BUILD_TOOL_BANK, BUILD_TOOL_GROCERY, BUILD_TOOL_RESTAURANT, BUILD_TOOL_CORNER_STORE]:
-			shops += 1
-		elif tool in [BUILD_TOOL_POLICE, BUILD_TOOL_FIRE]:
-			civics += 1
-		elif tool == BUILD_TOOL_PARK:
-			parks += 1
-	_cashflow_per_day = homes * 168 + shops * 292 - civics * 54 - parks * 8 - _road_cells.size() * 1
+		var tier := int(_placements[anchor_key].get("tier", 1))
+		net_cashflow += int(PropertyUpgradeData.tier_yield(tool, tier).get("cashflow", 0))
+	_cashflow_per_day = net_cashflow - _road_cells.size() * 1
 
 
 func _update_simulation(delta: float) -> void:
@@ -1439,6 +1544,21 @@ func _undo_last_action() -> void:
 			var frontage_side := str(action.get("frontage_side", ""))
 			var node := _spawn_building_for_tool(action["tool"], _anchor_to_world(anchor, _footprint_from_cells(cells)), _tool_rotation_y(action["tool"], anchor, _footprint_from_cells(cells), frontage_side), tier, variant)
 			_register_placement(anchor, cells, action["tool"], node, int(action["cost"]), tier, variant, frontage_side)
+	elif action["type"] == "upgrade":
+		_money += int(action["cost"])
+		var anchor_key := str(action["anchor_key"])
+		if _placements.has(anchor_key):
+			_selected_anchor_key = anchor_key
+			var placement: Dictionary = _placements[anchor_key]
+			var tool := str(placement["tool"])
+			var anchor: Vector2i = placement["anchor"]
+			var cells: Array[Vector2i] = placement["cells"]
+			var variant := int(placement.get("variant", -1))
+			var frontage_side := str(placement.get("frontage_side", ""))
+			var from_tier := int(action.get("from_tier", 1))
+			_remove_selected_placement(false, false)
+			var node := _spawn_building_for_tool(tool, _anchor_to_world(anchor, _footprint_from_cells(cells)), _tool_rotation_y(tool, anchor, _footprint_from_cells(cells), frontage_side), from_tier, variant)
+			_register_placement(anchor, cells, tool, node, int(action.get("base_cost", placement.get("cost", 0))), from_tier, variant, frontage_side)
 		if not _action_history.is_empty():
 			_action_history.pop_back()
 	_recalculate_cashflow()
@@ -1534,6 +1654,7 @@ func _spawn_generic_building_preview(tool: String) -> Node3D:
 func _spawn_building_for_tool(tool: String, world_position: Vector3, rotation_y: float, tier: int = 1, variant: int = -1) -> Node3D:
 	if variant < 0:
 		variant = randi() % 10
+	tier = clamp(tier, 1, PropertyUpgradeData.max_tier(tool))
 	var node: Node3D
 	match tool:
 		BUILD_TOOL_HOUSE:
@@ -1558,6 +1679,7 @@ func _spawn_building_for_tool(tool: String, world_position: Vector3, rotation_y:
 	if _tool_requires_road(tool):
 		var setback := float(PROPERTY_FRONT_SETBACK_BY_TOOL.get(tool, PROPERTY_FRONT_SETBACK))
 		node.translate_object_local(Vector3(0.0, 0.0, -setback))
+	_apply_property_tier_visuals(node, tool, tier, variant)
 	node.set_meta("tier", tier)
 	node.set_meta("variant", variant)
 	return node
@@ -2950,6 +3072,175 @@ func _add_park_variant(position_3d: Vector3, variant: int) -> Node3D:
 	_add_local_tree(Vector3(1.06, 0.0, 0.62), root)
 	_add_local_flower_patch(Vector3(0.82, 0.05, -0.54), 6, _make_material_from_color(palette.trim, 0.8), root)
 	return root
+
+
+func _apply_property_tier_visuals(root: Node3D, tool: String, tier: int, variant: int) -> void:
+	tier = clamp(tier, 1, PropertyUpgradeData.max_tier(tool))
+	if tier <= 1:
+		return
+
+	var profile := PropertyUpgradeData.visual_profile(tool, tier)
+	match tool:
+		BUILD_TOOL_HOUSE:
+			_apply_house_tier_visuals(root, tier, variant, profile)
+		BUILD_TOOL_POLICE, BUILD_TOOL_FIRE, BUILD_TOOL_BANK, BUILD_TOOL_GROCERY, BUILD_TOOL_RESTAURANT, BUILD_TOOL_CORNER_STORE:
+			_apply_service_tier_visuals(root, tool, tier, variant, profile)
+		BUILD_TOOL_PARK:
+			_apply_park_tier_visuals(root, tier, variant, profile)
+
+
+func _apply_house_tier_visuals(root: Node3D, tier: int, variant: int, profile: Dictionary) -> void:
+	var palette := _cozy_palette("house", variant)
+	var roof_trim := _make_material_from_color(palette.trim.lightened(0.04), 0.88)
+	var roof_detail := _make_material_from_color(palette.roof.darkened(0.03), 0.74)
+	var yard_trim := _make_material_from_color(palette.accent.lightened(0.08), 0.92)
+	var fence_material := _make_material("efe3cf", 0.86)
+
+	if tier >= 2:
+		if bool(profile.get("roof_trim", false)):
+			_add_box(Vector3(0.0, 0.26, 1.72), Vector3(1.28, 0.05, 0.05), roof_trim, root)
+		if bool(profile.get("frontage_path", false)):
+			_add_town_path(Vector3(0.0, 0.03, 2.24), Vector2(1.38, 0.26), root)
+		if bool(profile.get("landscaping", false)):
+			_add_flower_box_local(Vector3(-0.92, 0.18, 1.38), palette.accent, root)
+			_add_flower_box_local(Vector3(0.92, 0.18, 1.38), palette.trim, root)
+			_add_shrub_cluster(Vector3(-1.74, 0.0, 1.44), palette.accent, root, 3)
+			_add_shrub_cluster(Vector3(1.74, 0.0, 1.44), palette.trim, root, 3)
+		if bool(profile.get("fence_upgrade", false)):
+			_add_box(Vector3(0.0, 0.2, 1.96), Vector3(1.2, 0.08, 0.06), fence_material, root)
+
+	if tier >= 3:
+		if bool(profile.get("side_annex", false)):
+			var side := -1.0 if posmod(variant, 2) == 0 else 1.0
+			_add_soft_block(Vector3(side * 1.46, 0.48, 0.2), Vector3(0.82, 0.78, 1.02), _make_material_from_color(palette.wall.darkened(0.02), 0.94), root, 0.14)
+			_add_gabled_roof(Vector3(side * 1.46, 1.02, 0.2), Vector3(0.96, 0.14, 1.14), roof_detail, root, 13.0)
+		if bool(profile.get("roof_dormer", false)):
+			_add_dormer(Vector3(-0.44, 1.76, 0.16), palette.trim, palette.roof, root)
+			_add_dormer(Vector3(0.48, 1.76, 0.16), palette.trim, palette.roof, root)
+		if bool(profile.get("garden_extension", false)):
+			_add_hedge_strip_local(Vector3(0.0, 0.08, -1.84), 4.26, palette.accent.darkened(0.14), root)
+			_add_bench_local(Vector3(-1.04, 0.02, 1.58), 0.18, root)
+			_add_bench_local(Vector3(1.04, 0.02, 1.58), -0.18, root)
+
+	if tier >= 4:
+		match posmod(variant, 3):
+			0:
+				_add_soft_block(Vector3(0.72, 0.38, -1.0), Vector3(0.86, 0.58, 0.72), _make_material_from_color(palette.wall.lightened(0.05), 0.94), root, 0.1)
+				_add_gabled_roof(Vector3(0.72, 0.86, -1.0), Vector3(1.0, 0.12, 0.86), roof_detail, root, 18.0)
+			1:
+				_add_box(Vector3(-1.0, 0.07, -0.98), Vector3(1.68, 0.04, 1.02), _make_material("c9d7be", 0.96), root)
+				_add_round_canopy(Vector3(-0.52, 0.34, -0.78), Vector3(1.2, 0.14, 0.22), yard_trim, root)
+			2:
+				_add_box(Vector3(0.82, 0.06, -1.34), Vector3(1.04, 0.04, 0.74), _make_material("b7cbb1", 0.96), root)
+				_add_town_path(Vector3(0.82, 0.03, -1.34), Vector2(0.92, 0.38), root)
+		_add_shrub_cluster(Vector3(-1.58, 0.0, -0.96), palette.trim, root, 4)
+		_add_shrub_cluster(Vector3(1.58, 0.0, -0.96), palette.accent, root, 4)
+		_add_box(Vector3(0.0, 0.34, -2.06), Vector3(0.16, 0.46, 0.16), _stone_material, root)
+
+
+func _apply_service_tier_visuals(root: Node3D, tool: String, tier: int, variant: int, profile: Dictionary) -> void:
+	var palette: Dictionary = _cozy_palette(tool, variant)
+	var accent: Color = palette["accent"]
+	var trim: Color = palette["trim"]
+
+	if tier >= 2:
+		if bool(profile.get("landscaping", false)):
+			_add_shrub_cluster(Vector3(-1.16, 0.0, 1.22), trim, root, 3)
+			_add_shrub_cluster(Vector3(1.16, 0.0, 1.22), accent, root, 3)
+		_add_town_path(Vector3(0.0, 0.03, 1.44), Vector2(1.1, 0.32), root)
+		_add_front_lanterns(root, 1.38, 0.72)
+
+	if tier >= 3:
+		match tool:
+			BUILD_TOOL_POLICE:
+				if bool(profile.get("tower", false)):
+					_add_box(Vector3(0.96, 0.26, -0.9), Vector3(0.36, 0.52, 0.5), _make_material_from_color(palette.trim, 0.82), root)
+					_add_gabled_roof(Vector3(0.96, 0.6, -0.9), Vector3(0.46, 0.1, 0.58), _make_material_from_color(palette.roof.darkened(0.02), 0.74), root, 16.0)
+				if bool(profile.get("badge_plaza", false)):
+					_add_box(Vector3(-1.24, 0.08, 1.42), Vector3(1.48, 0.08, 0.06), _make_material_from_color(accent, 0.38), root)
+			BUILD_TOOL_FIRE:
+				if bool(profile.get("bay_extend", false)):
+					_add_box(Vector3(1.08, 0.14, 0.92), Vector3(0.72, 0.12, 1.22), _make_material_from_color(palette.trim.darkened(0.04), 0.84), root)
+				if bool(profile.get("apron", false)):
+					_add_hydrant_local(Vector3(-1.34, 0.08, 1.32), root)
+			BUILD_TOOL_BANK:
+				if bool(profile.get("side_wing", false)):
+					_add_soft_block(Vector3(1.1, 0.72, -0.62), Vector3(0.72, 0.56, 0.9), _make_material_from_color(palette.wall.lightened(0.02), 0.9), root, 0.12)
+					_add_gabled_roof(Vector3(1.1, 1.1, -0.62), Vector3(0.92, 0.12, 1.08), _make_material_from_color(palette.roof.darkened(0.01), 0.76), root, 10.0)
+				if bool(profile.get("grand_plaza", false)):
+					_add_box(Vector3(-1.14, 0.08, 1.18), Vector3(1.64, 0.08, 0.06), _make_material_from_color(trim, 0.42), root)
+			BUILD_TOOL_GROCERY:
+				if bool(profile.get("parking", false)):
+					_add_box(Vector3(1.34, 0.04, 0.78), Vector3(1.18, 0.04, 0.84), _road_mark_material, root)
+				if bool(profile.get("service_wing", false)):
+					_add_crate_stack_local(Vector3(-1.48, 0.08, 1.02), accent, root)
+				if bool(profile.get("awning", false)):
+					_add_box(Vector3(0.0, 0.03, 1.34), Vector3(1.4, 0.04, 0.08), _make_material_from_color(trim, 0.42), root)
+			BUILD_TOOL_RESTAURANT:
+				if bool(profile.get("patio", false)):
+					_add_box(Vector3(-0.84, 0.08, 1.12), Vector3(1.42, 0.04, 0.08), _make_material_from_color(accent, 0.42), root)
+					_add_box(Vector3(0.84, 0.08, 1.12), Vector3(1.42, 0.04, 0.08), _make_material_from_color(accent, 0.42), root)
+				if bool(profile.get("pergola", false)):
+					_add_box(Vector3(0.0, 0.04, 1.44), Vector3(1.34, 0.04, 0.08), _make_material_from_color(trim, 0.42), root)
+			BUILD_TOOL_CORNER_STORE:
+				if bool(profile.get("corner_awning", false)):
+					_add_box(Vector3(-1.08, 0.08, 1.12), Vector3(1.28, 0.04, 0.08), _make_material_from_color(accent, 0.42), root)
+				if bool(profile.get("delivery_nook", false)):
+					_add_crate_stack_local(Vector3(0.84, 0.08, 1.02), trim, root)
+
+	if tier >= 4:
+		match tool:
+			BUILD_TOOL_POLICE:
+				if bool(profile.get("fenceyard", false)):
+					_add_box(Vector3(-1.36, 0.08, 1.5), Vector3(2.16, 0.08, 0.06), _make_material_from_color(accent, 0.4), root)
+					_add_shrub_cluster(Vector3(-1.42, 0.0, -0.78), trim, root, 4)
+			BUILD_TOOL_FIRE:
+				if bool(profile.get("apron", false)):
+					_add_box(Vector3(-1.18, 0.08, 1.48), Vector3(2.24, 0.08, 0.06), _make_material_from_color(accent, 0.4), root)
+					_add_box(Vector3(0.0, 0.08, 1.64), Vector3(1.54, 0.04, 0.12), _make_material_from_color(trim, 0.44), root)
+			BUILD_TOOL_BANK:
+				_add_frontage_detail_cluster(root, 2.0, 1.34, accent, "vault")
+				if bool(profile.get("landscaping", false)):
+					_add_shrub_cluster(Vector3(0.0, 0.0, 1.46), trim, root, 4)
+			BUILD_TOOL_GROCERY:
+				if bool(profile.get("parking", false)):
+					_add_box(Vector3(0.0, 0.04, 0.38), Vector3(2.0, 0.03, 1.32), _road_mark_material, root)
+				if bool(profile.get("landscaping", false)):
+					_add_box(Vector3(-1.36, 0.08, 1.34), Vector3(0.32, 0.32, 0.12), _make_material_from_color(accent, 0.66), root)
+					_add_box(Vector3(1.36, 0.08, 1.34), Vector3(0.32, 0.32, 0.12), _make_material_from_color(accent, 0.66), root)
+			BUILD_TOOL_RESTAURANT:
+				if bool(profile.get("garden_room", false)):
+					_add_box(Vector3(0.0, 0.08, 1.62), Vector3(1.86, 0.04, 0.08), _make_material_from_color(accent, 0.42), root)
+					_add_bench_local(Vector3(-0.84, 0.02, 1.58), 0.0, root)
+					_add_bench_local(Vector3(0.84, 0.02, 1.58), 0.0, root)
+			BUILD_TOOL_CORNER_STORE:
+				if bool(profile.get("side_sign", false)):
+					_add_box(Vector3(0.76, 0.08, 1.48), Vector3(0.18, 0.34, 0.12), _make_material_from_color(trim, 0.82), root)
+				if bool(profile.get("landscaping", false)):
+					_add_shrub_cluster(Vector3(-0.92, 0.0, 1.36), accent, root, 4)
+
+
+func _apply_park_tier_visuals(root: Node3D, tier: int, variant: int, profile: Dictionary) -> void:
+	var palette := _cozy_palette("house", variant)
+	if tier >= 2:
+		if bool(profile.get("extra_trees", false)):
+			_add_wildflower_cluster(Vector3(-0.88, 0.06, -0.56), 5, _make_material_from_color(palette.accent, 0.8), root, 0.12)
+			_add_wildflower_cluster(Vector3(0.88, 0.06, 0.56), 5, _make_material_from_color(palette.trim, 0.8), root, 0.12)
+		if bool(profile.get("paths", false)):
+			_add_box(Vector3(0.0, 0.04, 0.86), Vector3(0.18, 0.02, 0.96), _make_material("d8c7ab", 0.9), root)
+			_add_box(Vector3(0.0, 0.04, -0.86), Vector3(0.18, 0.02, 0.96), _make_material("d8c7ab", 0.9), root)
+	if tier >= 3:
+		if bool(profile.get("gazebo", false)):
+			_add_soft_block(Vector3(-0.54, 0.1, 0.08), Vector3(0.44, 0.32, 0.44), _make_material_from_color(palette.wall, 0.88), root, 0.08)
+			_add_gabled_roof(Vector3(-0.54, 0.3, 0.08), Vector3(0.56, 0.08, 0.56), _make_material_from_color(palette.roof, 0.74), root, 18.0)
+		_add_bench_local(Vector3(0.52, 0.0, -0.16), -0.9, root)
+	if tier >= 4:
+		if bool(profile.get("fountain", false)):
+			_add_local_sphere(Vector3(0.0, 0.14, 0.0), 0.22, 0.16, _make_material_from_color(palette.accent, 0.44), root)
+		if bool(profile.get("paths", false)):
+			_add_box(Vector3(0.0, 0.06, 0.0), Vector3(0.82, 0.03, 0.82), _make_material_from_color(palette.trim, 0.56), root)
+			_add_box(Vector3(0.0, 0.12, 0.0), Vector3(0.08, 0.24, 1.34), _make_material("d8c7ab", 0.9), root)
+			_add_box(Vector3(0.0, 0.12, 0.0), Vector3(1.34, 0.24, 0.08), _make_material("d8c7ab", 0.9), root)
 
 
 func _add_town_path(center: Vector3, size: Vector2, parent: Node = null) -> void:
