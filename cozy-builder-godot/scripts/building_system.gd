@@ -2711,9 +2711,7 @@ func _add_police_station_variant(position_3d: Vector3, variant: int) -> Node3D:
 	_add_box(Vector3(-0.28, 0.24, 0.84), Vector3(width * 0.18, 0.42, 0.05), _window_material, root)
 	_add_round_canopy(Vector3(-0.28, 0.36, 1.02), Vector3(width * 0.5, 0.18, 0.22), _make_material_from_color(palette.trim, 0.52), root)
 	_add_local_cylinder(Vector3(0.58, 1.8, -0.62), 0.11, 0.11, 0.22, _make_material_from_color(palette.accent, 0.42), root)
-	_add_service_steps(root, 1.16, width * 0.44)
-	_add_front_lanterns(root, 1.28, width * 0.54)
-	_add_signboard_local(Vector3(-0.28, 0.98, 1.12), Vector2(0.86, 0.16), palette.accent, "badge", root)
+	_add_frontage_detail_cluster(root, width, 1.28, palette.accent, "badge")
 	_add_box(Vector3(1.48, 0.52, -0.66), Vector3(0.12, 1.0, 1.36), _make_material("6b7384", 0.88), root)
 	_add_box(Vector3(1.78, 0.52, -0.66), Vector3(0.12, 1.0, 1.36), _make_material("6b7384", 0.88), root)
 	_add_box(Vector3(1.63, 1.0, -0.66), Vector3(0.46, 0.08, 1.36), _make_material("6b7384", 0.88), root)
@@ -2743,7 +2741,7 @@ func _add_fire_station_variant(position_3d: Vector3, variant: int) -> Node3D:
 		_add_box(Vector3(i * width * 0.24, 0.62, 0.46), Vector3(width * 0.18, 0.08, 0.07), _make_material_from_color(palette.accent, 0.44), root)
 	_add_box(Vector3(0.0, 0.84, 0.5), Vector3(width * 0.54, 0.12, 0.06), _make_material_from_color(palette.accent, 0.4), root)
 	_add_local_cylinder(Vector3(width * 0.36, 2.08, -0.74), 0.1, 0.1, 0.28, _make_material_from_color(palette.accent, 0.46), root)
-	_add_signboard_local(Vector3(0.0, 0.98, 1.02), Vector2(0.96, 0.18), palette.accent, "fire", root)
+	_add_frontage_detail_cluster(root, width, 1.3, palette.accent, "fire")
 	_add_hydrant_local(Vector3(-1.24, 0.08, 1.34), root)
 	for truck_x in [-0.86, 0.0, 0.86]:
 		var truck_color := _make_material("c64b41", 0.74)
@@ -2774,9 +2772,7 @@ func _add_bank_variant(position_3d: Vector3, variant: int) -> Node3D:
 	_add_box(Vector3(0.0, 0.28, 0.68), Vector3(width * 0.16, 0.42, 0.05), _window_material, root)
 	_add_round_canopy(Vector3(0.0, 0.28, 0.92), Vector3(width * 0.44, 0.14, 0.18), _make_material_from_color(palette.trim, 0.48), root)
 	_add_local_sphere(Vector3(0.0, 1.18, -0.12), 0.18, 0.22, _make_material_from_color(palette.accent, 0.36), root)
-	_add_service_steps(root, 1.06, width * 0.5)
-	_add_front_lanterns(root, 1.2, width * 0.54)
-	_add_signboard_local(Vector3(0.0, 0.98, 1.08), Vector2(0.92, 0.16), palette.accent, "vault", root)
+	_add_frontage_detail_cluster(root, width, 1.24, palette.accent, "vault")
 	_add_shrub_cluster(Vector3(-1.06, 0.0, 1.04), palette.accent, root, 3)
 	_add_shrub_cluster(Vector3(1.06, 0.0, 1.04), palette.trim, root, 3)
 	return root
@@ -2814,7 +2810,7 @@ func _add_grocery_variant(position_3d: Vector3, variant: int) -> Node3D:
 	]:
 		_add_box(produce_data.pos, Vector3(0.18, 0.14, 0.18), _make_material_from_color(produce_data.color, 0.82), root)
 	_add_crate_stack_local(Vector3(-width * 0.42, 0.08, 0.92), palette.accent, root)
-	_add_signboard_local(Vector3(0.0, 0.98, 0.9), Vector2(1.06, 0.18), palette.accent, "grocer", root)
+	_add_frontage_detail_cluster(root, width, 1.24, palette.accent, "grocer")
 	_add_shrub_cluster(Vector3(-1.42, 0.0, 1.34), palette.trim, root, 2)
 	_add_shrub_cluster(Vector3(1.42, 0.0, 1.34), palette.accent, root, 2)
 	return root
@@ -2843,7 +2839,7 @@ func _add_restaurant_variant(position_3d: Vector3, variant: int) -> Node3D:
 		umbrella.scale = Vector3(1.4, 0.3, 1.4)
 	_add_box(Vector3(width * 0.28, height + 0.42, -0.46), Vector3(0.12, 0.4, 0.12), _stone_material, root)
 	_add_string_lights_local(root, 1.18, width * 0.78)
-	_add_signboard_local(Vector3(0.0, 0.98, 1.0), Vector2(0.92, 0.16), palette.accent, "bistro", root)
+	_add_frontage_detail_cluster(root, width, 1.22, palette.accent, "bistro")
 	_add_shrub_cluster(Vector3(-1.18, 0.0, 1.18), palette.trim, root, 2)
 	_add_shrub_cluster(Vector3(1.18, 0.0, 1.18), palette.accent, root, 2)
 	return root
@@ -2869,7 +2865,7 @@ func _add_corner_store_variant(position_3d: Vector3, variant: int) -> Node3D:
 	_add_box(Vector3(-0.18, 0.82, 0.6), Vector3(width * 0.46, 0.1, 0.05), _make_material_from_color(palette.trim, 0.42), root)
 	if variant % 2 == 1:
 		_add_soft_block(Vector3(width * 0.34, 0.56, -0.42), Vector3(0.46, 0.68, 0.52), _make_material_from_color(palette.trim, 0.84), root, 0.1)
-	_add_signboard_local(Vector3(-0.18, 0.94, 0.98), Vector2(0.82, 0.14), palette.accent, "corner", root)
+	_add_frontage_detail_cluster(root, width, 1.18, palette.accent, "corner")
 	_add_crate_stack_local(Vector3(0.78, 0.08, 0.98), palette.trim, root)
 	_add_shrub_cluster(Vector3(-1.02, 0.0, 1.1), palette.accent, root, 2)
 	_add_shrub_cluster(Vector3(0.42, 0.0, 1.1), palette.trim, root, 2)
@@ -3373,6 +3369,14 @@ func _add_front_lanterns(parent: Node, z_position: float, width: float) -> void:
 	for side in [-1.0, 1.0]:
 		_add_local_cylinder(Vector3(side * width * 0.5, 0.38, z_position), 0.03, 0.03, 0.76, _road_material, parent)
 		_add_box(Vector3(side * width * 0.5, 0.82, z_position), Vector3(0.12, 0.1, 0.12), _window_material, parent)
+
+
+func _add_frontage_detail_cluster(parent: Node, width: float, z_position: float, accent: Color, kind: String) -> void:
+	var pad_width: float = maxf(0.82, width * 0.46)
+	_add_town_path(Vector3(0.0, 0.03, z_position), Vector2(pad_width, 0.34), parent)
+	_add_service_steps(parent, z_position + 0.08, width * 0.48)
+	_add_front_lanterns(parent, z_position + 0.2, width * 0.56)
+	_add_signboard_local(Vector3(0.0, 0.98, z_position + 0.24), Vector2(maxf(0.78, width * 0.34), 0.16), accent, kind, parent)
 
 
 func _add_signboard_local(position_3d: Vector3, size: Vector2, accent: Color, kind: String, parent: Node) -> void:
