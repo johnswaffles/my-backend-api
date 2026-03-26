@@ -772,6 +772,10 @@ func _update_hover_from_mouse() -> void:
 			world = _anchor_to_world(anchor, footprint)
 			valid = true
 			_set_selected_anchor(found_anchor)
+		elif _selected_anchor_key != "":
+			valid = true
+			if DEBUG_UPGRADES:
+				_upgrade_debug("inspect hover kept selection cell=%s selected=%s hud=%s" % [str(cell), _selected_anchor_key, str(pointer_over_hud)])
 		elif not pointer_over_hud:
 			_upgrade_debug("inspect hover cleared selection cell=%s hud=%s selected_before=%s" % [str(cell), str(pointer_over_hud), _selected_anchor_key])
 			_clear_selected_anchor()
