@@ -1236,21 +1236,30 @@ func _footprint_from_cells(cells: Array[Vector2i]) -> Vector2i:
 
 
 func _set_selected_anchor(anchor_key: String) -> void:
+	if _selected_anchor_key == anchor_key and _selected_tile == Vector2i(-1, -1):
+		return
 	_selected_anchor_key = anchor_key
 	_selected_tile = Vector2i(-1, -1)
 	_selection_cells = _placement_cells(anchor_key)
+	_refresh_tool_ui()
 
 
 func _set_selected_tile(cell: Vector2i) -> void:
+	if _selected_anchor_key == "" and _selected_tile == cell:
+		return
 	_selected_anchor_key = ""
 	_selected_tile = cell
 	_selection_cells = [cell]
+	_refresh_tool_ui()
 
 
 func _clear_selected_anchor() -> void:
+	if _selected_anchor_key == "" and _selected_tile == Vector2i(-1, -1) and _selection_cells.is_empty():
+		return
 	_selected_anchor_key = ""
 	_selected_tile = Vector2i(-1, -1)
 	_selection_cells.clear()
+	_refresh_tool_ui()
 
 
 func _upgrade_debug(message: String) -> void:
@@ -3200,11 +3209,14 @@ func _apply_house_tier_visuals(root: Node3D, tier: int, variant: int, profile: D
 		if bool(profile.get("frontage_steps", false)):
 			_add_box(Vector3(0.0, 0.09, 1.48), Vector3(0.52, 0.08, 0.18), fence_material, root)
 			_add_box(Vector3(0.0, 0.04, 1.62), Vector3(0.36, 0.03, 0.12), _make_material("d9cbb7", 0.88), root)
+			_add_box(Vector3(0.0, 0.03, 1.76), Vector3(0.26, 0.02, 0.24), _make_material("d8c7ab", 0.92), root)
 		if bool(profile.get("frontage_path", false)):
 			_add_town_path(Vector3(0.0, 0.03, 1.92), Vector2(0.86, 0.2), root)
 		if bool(profile.get("landscaping", false)):
 			_add_flower_box_local(Vector3(-0.92, 0.18, 1.38), palette.accent, root)
 			_add_flower_box_local(Vector3(0.92, 0.18, 1.38), palette.trim, root)
+			_add_flower_box_local(Vector3(-0.52, 0.18, 1.62), palette.accent.lightened(0.06), root)
+			_add_flower_box_local(Vector3(0.52, 0.18, 1.62), palette.trim.lightened(0.06), root)
 			_add_shrub_cluster(Vector3(-1.74, 0.0, 1.44), palette.accent, root, 3)
 			_add_shrub_cluster(Vector3(1.74, 0.0, 1.44), palette.trim, root, 3)
 		if bool(profile.get("fence_upgrade", false)):
