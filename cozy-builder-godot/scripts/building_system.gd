@@ -874,7 +874,7 @@ func _road_line_cells(start_cell: Vector2i, end_cell: Vector2i) -> Array[Vector2
 	var cells: Array[Vector2i] = []
 	if start_cell.x < 0 or start_cell.y < 0 or end_cell.x < 0 or end_cell.y < 0:
 		return cells
-	var horizontal := abs(end_cell.x - start_cell.x) >= abs(end_cell.y - start_cell.y)
+	var horizontal: bool = abs(end_cell.x - start_cell.x) >= abs(end_cell.y - start_cell.y)
 	if horizontal:
 		var from_x := mini(start_cell.x, end_cell.x)
 		var to_x := maxi(start_cell.x, end_cell.x)
