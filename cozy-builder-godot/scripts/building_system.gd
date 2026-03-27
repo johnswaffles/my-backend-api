@@ -112,6 +112,7 @@ const PROPERTY_BUFFER_BY_TOOL := {
 	BUILD_TOOL_PARK: 1,
 }
 const SIDEWALK_ROUTE_OFFSET := 1.96
+const HOUSE_FRONT_BUFFER_CELLS := 1
 const PropertyUpgradeData = preload("res://scripts/property_upgrade_data.gd")
 const DEBUG_UPGRADES := false
 
@@ -818,7 +819,8 @@ func _update_hover_from_mouse() -> void:
 			valid = _road_start_can_be_selected(anchor)
 		else:
 			valid = _cells_are_buildable(cells)
-			if valid and _tool_requires_road(_build_tool) and not _cells_touch_road(cells):
+			var hover_side := str(hover_layout.get("frontage_side", _preferred_frontage_side(_build_tool, anchor, footprint)))
+			if valid and _tool_requires_road(_build_tool) and not _placement_has_required_frontage(_build_tool, anchor, footprint, hover_side):
 				valid = false
 			if BUILD_TOOL_COSTS.has(_build_tool) and _money < int(BUILD_TOOL_COSTS[_build_tool]):
 				valid = false
@@ -828,7 +830,7 @@ func _update_hover_from_mouse() -> void:
 	_hovered_cell = cell
 	_hover_anchor = anchor
 	_hover_cells = cells
-	_hover_frontage_side = str(hover_layout.get("frontage_side", _preferred_frontage_side(anchor, footprint)))
+	_hover_frontage_side = str(hover_layout.get("frontage_side", _preferred_frontage_side(_build_tool, anchor, footprint)))
 	_hover_active = true
 	_hover_can_build = valid
 	_update_hover_tiles(cells, valid)
@@ -847,8 +849,8 @@ func _update_hover_from_mouse() -> void:
 				_hint_label.text = "Footprint %s at %d, %d is open. Left click to place a %s." % [size_label, anchor.x + 1, anchor.y + 1, _tool_name(_build_tool).to_lower()]
 		elif BUILD_TOOL_COSTS.has(_build_tool) and _money < int(BUILD_TOOL_COSTS[_build_tool]):
 			_hint_label.text = "Not enough money for %s. You need $%d." % [_tool_name(_build_tool).to_lower(), int(BUILD_TOOL_COSTS[_build_tool])]
-		elif _tool_requires_road(_build_tool) and not _cells_touch_road(cells):
-			_hint_label.text = "%s needs to touch a road so townspeople can reach it." % _tool_name(_build_tool)
+		elif _tool_requires_road(_build_tool):
+			_hint_label.text = "%s needs a clear frontage strip and a road just beyond it." % _tool_name(_build_tool)
 		else:
 			_hint_label.text = "That footprint collides with something already placed. Pick a clearer spot nearby."
 
@@ -1119,7 +1121,7 @@ func _tool_footprint_for_anchor(tool: String, anchor: Vector2i) -> Vector2i:
 	var base_footprint := _tool_footprint(tool)
 	if base_footprint.x == base_footprint.y or not _tool_requires_road(tool):
 		return base_footprint
-	var preferred_side := _preferred_frontage_side(anchor, base_footprint)
+	var preferred_side := _preferred_frontage_side(tool, anchor, base_footprint)
 	if preferred_side == "east" or preferred_side == "west":
 		return Vector2i(base_footprint.y, base_footprint.x)
 	return base_footprint
@@ -1162,14 +1164,14 @@ func _resolve_hover_layout(tool: String, cell: Vector2i) -> Dictionary:
 				var cells := _cells_for_anchor(anchor, footprint)
 				if not _cells_are_buildable(cells):
 					continue
-				if not _cells_touch_road(cells):
+				var side := _preferred_frontage_side(tool, anchor, footprint)
+				if not _placement_has_required_frontage(tool, anchor, footprint, side):
 					continue
-				var side := _preferred_frontage_side(anchor, footprint)
 				var reserved_cells := _property_reserved_cells(anchor, footprint, side, tool)
 				if not reserved_cells.is_empty() and not _cells_are_buildable(reserved_cells):
 					continue
-				var touch := _adjacent_transport_count(anchor, footprint, side)
-				var score := _transport_side_score(anchor, footprint, side)
+				var touch := _adjacent_transport_count(tool, anchor, footprint, side)
+				var score := _transport_side_score(tool, anchor, footprint, side)
 				var frontage_center := _frontage_side_center(anchor, footprint, side)
 				var hover_distance := Vector2(hover_world.x, hover_world.z).distance_to(frontage_center)
 				var layout_score := float(touch) * 10000.0 + score * 100.0 - hover_distance
@@ -1191,7 +1193,7 @@ func _resolve_hover_layout(tool: String, cell: Vector2i) -> Dictionary:
 		"anchor": fallback_anchor,
 		"footprint": fallback_footprint,
 		"cells": _cells_for_anchor(fallback_anchor, fallback_footprint),
-		"frontage_side": _preferred_frontage_side(fallback_anchor, fallback_footprint),
+		"frontage_side": _preferred_frontage_side(tool, fallback_anchor, fallback_footprint),
 	}
 
 
@@ -1254,6 +1256,47 @@ func _cells_touch_road(cells: Array[Vector2i]) -> bool:
 			if _road_cells.has(_cell_key(neighbor)):
 				return true
 	return false
+
+
+func _frontage_transport_offset(tool: String) -> int:
+	return HOUSE_FRONT_BUFFER_CELLS + 1 if tool == BUILD_TOOL_HOUSE else 1
+
+
+func _frontage_buffer_cells(tool: String, anchor: Vector2i, footprint: Vector2i, side: String) -> Array[Vector2i]:
+	var cells: Array[Vector2i] = []
+	var buffer_depth := _frontage_transport_offset(tool) - 1
+	if buffer_depth <= 0:
+		return cells
+	match side:
+		"north":
+			for offset in range(1, buffer_depth + 1):
+				for dx in range(footprint.x):
+					cells.append(Vector2i(anchor.x + dx, anchor.y - offset))
+		"south":
+			for offset in range(1, buffer_depth + 1):
+				for dx in range(footprint.x):
+					cells.append(Vector2i(anchor.x + dx, anchor.y + footprint.y - 1 + offset))
+		"west":
+			for offset in range(1, buffer_depth + 1):
+				for dz in range(footprint.y):
+					cells.append(Vector2i(anchor.x - offset, anchor.y + dz))
+		"east":
+			for offset in range(1, buffer_depth + 1):
+				for dz in range(footprint.y):
+					cells.append(Vector2i(anchor.x + footprint.x - 1 + offset, anchor.y + dz))
+	return cells
+
+
+func _placement_has_required_frontage(tool: String, anchor: Vector2i, footprint: Vector2i, side: String) -> bool:
+	if not _tool_requires_road(tool):
+		return true
+	for buffer_cell in _frontage_buffer_cells(tool, anchor, footprint, side):
+		if buffer_cell.x < 0 or buffer_cell.y < 0 or buffer_cell.x >= GRID_SIZE or buffer_cell.y >= GRID_SIZE:
+			return false
+		var buffer_key := _cell_key(buffer_cell)
+		if _occupied_cells.has(buffer_key) or _reserved_cells.has(buffer_key) or _road_cells.has(buffer_key):
+			return false
+	return _adjacent_transport_count(tool, anchor, footprint, side) > 0
 
 
 func _tool_requires_road(tool: String) -> bool:
@@ -1935,13 +1978,16 @@ func _spawn_building_for_tool(tool: String, world_position: Vector3, rotation_y:
 			node = _spawn_house_tile(world_position, false)
 	node.rotation_degrees.y = rad_to_deg(rotation_y)
 	if _tool_requires_road(tool):
-		var lot_root := _property_lot_root(node)
-		var lot_setback := float(PROPERTY_LOT_SETBACK_BY_TOOL.get(tool, 0.0))
-		if lot_setback > 0.0:
-			lot_root.translate_object_local(Vector3(0.0, 0.0, -lot_setback))
-		var setback := float(PROPERTY_FRONT_SETBACK_BY_TOOL.get(tool, PROPERTY_FRONT_SETBACK))
-		var structure_root := _property_structure_root(node)
-		structure_root.translate_object_local(Vector3(0.0, 0.0, -setback))
+		var lot_setback := 0.0
+		var setback := 0.0
+		if tool != BUILD_TOOL_HOUSE:
+			var lot_root := _property_lot_root(node)
+			lot_setback = float(PROPERTY_LOT_SETBACK_BY_TOOL.get(tool, 0.0))
+			if lot_setback > 0.0:
+				lot_root.translate_object_local(Vector3(0.0, 0.0, -lot_setback))
+			setback = float(PROPERTY_FRONT_SETBACK_BY_TOOL.get(tool, PROPERTY_FRONT_SETBACK))
+			var structure_root := _property_structure_root(node)
+			structure_root.translate_object_local(Vector3(0.0, 0.0, -setback))
 		_upgrade_debug("spawn building tool=%s applied lot_setback=%.2f structure_setback=%.2f" % [tool, lot_setback, setback])
 	_apply_property_tier_visuals(node, tool, tier, variant)
 	node.set_meta("tier", tier)
@@ -2140,7 +2186,7 @@ func _try_load_game(force_feedback: bool = false) -> void:
 			var cells := _cells_for_anchor(anchor, footprint)
 			var tier := int(entry.get("tier", 1))
 			var variant := int(entry.get("variant", randi() % 10))
-			var frontage_side := str(entry.get("frontage_side", _preferred_frontage_side(anchor, footprint)))
+			var frontage_side := str(entry.get("frontage_side", _preferred_frontage_side(tool, anchor, footprint)))
 			var node := _spawn_building_for_tool(tool, _anchor_to_world(anchor, footprint), _tool_rotation_y(tool, anchor, footprint, frontage_side), tier, variant)
 			_register_placement(anchor, cells, tool, node, int(entry.get("cost", BUILD_TOOL_COSTS.get(tool, 0))), tier, variant, frontage_side)
 			if not _action_history.is_empty():
@@ -2398,8 +2444,9 @@ func _spawn_ambient_person(anchor_key: String, index: int) -> Node3D:
 	var anchor: Vector2i = placement["anchor"]
 	var cells: Array[Vector2i] = placement["cells"]
 	var footprint := _footprint_from_cells(cells)
-	var frontage_side := str(placement.get("frontage_side", _preferred_frontage_side(anchor, footprint)))
-	var sidewalk_route := _build_person_route(anchor, footprint, frontage_side, index)
+	var tool := str(placement.get("tool", BUILD_TOOL_HOUSE))
+	var frontage_side := str(placement.get("frontage_side", _preferred_frontage_side(tool, anchor, footprint)))
+	var sidewalk_route := _build_person_route(anchor, footprint, frontage_side, index, tool)
 	if sidewalk_route.size() < 2:
 		var rotation_y := _tool_rotation_y(str(placement["tool"]), anchor, footprint, frontage_side)
 		var forward := Vector3(sin(rotation_y), 0.0, cos(rotation_y))
@@ -2525,45 +2572,46 @@ func _build_trolley_route(start_cell: Vector2i) -> Array[Vector3]:
 	return route
 
 
-func _frontage_road_cells(anchor: Vector2i, footprint: Vector2i, side: String) -> Array[Vector2i]:
+func _frontage_road_cells(anchor: Vector2i, footprint: Vector2i, side: String, tool: String = BUILD_TOOL_HOUSE) -> Array[Vector2i]:
 	var road_cells: Array[Vector2i] = []
+	var road_offset := _frontage_transport_offset(tool)
 	match side:
 		"north":
 			for dx in range(footprint.x):
-				var cell := Vector2i(anchor.x + dx, anchor.y - 1)
+				var cell := Vector2i(anchor.x + dx, anchor.y - road_offset)
 				if _road_cells.has(_cell_key(cell)):
 					road_cells.append(cell)
 		"south":
 			for dx in range(footprint.x):
-				var cell := Vector2i(anchor.x + dx, anchor.y + footprint.y)
+				var cell := Vector2i(anchor.x + dx, anchor.y + footprint.y - 1 + road_offset)
 				if _road_cells.has(_cell_key(cell)):
 					road_cells.append(cell)
 		"west":
 			for dz in range(footprint.y):
-				var cell := Vector2i(anchor.x - 1, anchor.y + dz)
+				var cell := Vector2i(anchor.x - road_offset, anchor.y + dz)
 				if _road_cells.has(_cell_key(cell)):
 					road_cells.append(cell)
 		"east":
 			for dz in range(footprint.y):
-				var cell := Vector2i(anchor.x + footprint.x, anchor.y + dz)
+				var cell := Vector2i(anchor.x + footprint.x - 1 + road_offset, anchor.y + dz)
 				if _road_cells.has(_cell_key(cell)):
 					road_cells.append(cell)
 	return road_cells
 
 
-func _build_person_route(anchor: Vector2i, footprint: Vector2i, frontage_side: String, index: int) -> Array[Vector3]:
-	var road_cells := _frontage_road_cells(anchor, footprint, frontage_side)
+func _build_person_route(anchor: Vector2i, footprint: Vector2i, frontage_side: String, index: int, tool: String = BUILD_TOOL_HOUSE) -> Array[Vector3]:
+	var road_cells := _frontage_road_cells(anchor, footprint, frontage_side, tool)
 	if road_cells.size() < 1:
 		return []
 	var start_cell := road_cells[index % road_cells.size()]
 	var component := _road_component_cells(start_cell)
 	if component.size() < 2:
-		return _build_sidewalk_route(anchor, footprint, frontage_side)
+		return _build_sidewalk_route(anchor, footprint, frontage_side, tool)
 	var far_a := _farthest_road_in_component(start_cell, component)
 	var far_b := _farthest_road_in_component(far_a, component)
 	var path := _road_path_between(far_a, far_b, component)
 	if path.size() < 2:
-		return _build_sidewalk_route(anchor, footprint, frontage_side)
+		return _build_sidewalk_route(anchor, footprint, frontage_side, tool)
 	var route: Array[Vector3] = []
 	var sidewalk_sign := 1.0 if index % 2 == 0 else -1.0
 	for i in range(path.size()):
@@ -2591,9 +2639,9 @@ func _build_person_route(anchor: Vector2i, footprint: Vector2i, frontage_side: S
 	return route
 
 
-func _build_sidewalk_route(anchor: Vector2i, footprint: Vector2i, frontage_side: String = "") -> Array[Vector3]:
-	var side := frontage_side if frontage_side != "" else _preferred_frontage_side(anchor, footprint)
-	var road_cells := _frontage_road_cells(anchor, footprint, side)
+func _build_sidewalk_route(anchor: Vector2i, footprint: Vector2i, frontage_side: String = "", tool: String = BUILD_TOOL_HOUSE) -> Array[Vector3]:
+	var side := frontage_side if frontage_side != "" else _preferred_frontage_side(tool, anchor, footprint)
+	var road_cells := _frontage_road_cells(anchor, footprint, side, tool)
 	if road_cells.size() < 1:
 		return []
 	road_cells.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
@@ -3740,61 +3788,63 @@ func _tool_rotation_y(tool: String, anchor: Vector2i, footprint: Vector2i, front
 	if tool == BUILD_TOOL_ROAD:
 		return 0.0
 
-	var preferred_side := frontage_side_override if frontage_side_override != "" else _preferred_frontage_side(anchor, footprint)
+	var preferred_side := frontage_side_override if frontage_side_override != "" else _preferred_frontage_side(tool, anchor, footprint)
 	var rotation := _rotation_for_side(preferred_side)
 	return rotation + float(BUILDING_FRONT_ROTATION_OFFSETS.get(tool, 0.0))
 
 
-func _transport_side_score(anchor: Vector2i, footprint: Vector2i, side: String) -> float:
+func _transport_side_score(tool: String, anchor: Vector2i, footprint: Vector2i, side: String) -> float:
 	var side_center := _frontage_side_center(anchor, footprint, side)
 	var adjacent_count := 0
 	var nearest_distance := INF
+	var min_offset := _frontage_transport_offset(tool)
+	var max_offset := min_offset + 2
 	match side:
 		"north":
 			for dx in range(footprint.x):
-				for offset in [1, 2, 3]:
+				for offset in range(min_offset, max_offset + 1):
 					var candidate := Vector2i(anchor.x + dx, anchor.y - offset)
 					if _road_cells.has(_cell_key(candidate)):
 						nearest_distance = minf(nearest_distance, side_center.distance_to(Vector2(_cell_to_world(candidate).x, _cell_to_world(candidate).z)))
-						if offset == 1:
+						if offset == min_offset:
 							adjacent_count += 1
 		"south":
 			for dx in range(footprint.x):
-				for offset in [1, 2, 3]:
-					var candidate := Vector2i(anchor.x + dx, anchor.y + footprint.y + offset)
+				for offset in range(min_offset, max_offset + 1):
+					var candidate := Vector2i(anchor.x + dx, anchor.y + footprint.y - 1 + offset)
 					if _road_cells.has(_cell_key(candidate)):
 						nearest_distance = minf(nearest_distance, side_center.distance_to(Vector2(_cell_to_world(candidate).x, _cell_to_world(candidate).z)))
-						if offset == 1:
+						if offset == min_offset:
 							adjacent_count += 1
 		"west":
 			for dz in range(footprint.y):
-				for offset in [1, 2, 3]:
+				for offset in range(min_offset, max_offset + 1):
 					var candidate := Vector2i(anchor.x - offset, anchor.y + dz)
 					if _road_cells.has(_cell_key(candidate)):
 						nearest_distance = minf(nearest_distance, side_center.distance_to(Vector2(_cell_to_world(candidate).x, _cell_to_world(candidate).z)))
-						if offset == 1:
+						if offset == min_offset:
 							adjacent_count += 1
 		"east":
 			for dz in range(footprint.y):
-				for offset in [1, 2, 3]:
-					var candidate := Vector2i(anchor.x + footprint.x + offset, anchor.y + dz)
+				for offset in range(min_offset, max_offset + 1):
+					var candidate := Vector2i(anchor.x + footprint.x - 1 + offset, anchor.y + dz)
 					if _road_cells.has(_cell_key(candidate)):
 						nearest_distance = minf(nearest_distance, side_center.distance_to(Vector2(_cell_to_world(candidate).x, _cell_to_world(candidate).z)))
-						if offset == 1:
+						if offset == min_offset:
 							adjacent_count += 1
 	if nearest_distance == INF:
 		return -9999.0
 	return float(adjacent_count) * 100.0 - nearest_distance
 
 
-func _preferred_frontage_side(anchor: Vector2i, footprint: Vector2i) -> String:
+func _preferred_frontage_side(tool: String, anchor: Vector2i, footprint: Vector2i) -> String:
 	var sides := ["south", "north", "east", "west"]
 	var best_touch := -1
 	var best_score := -INF
 	var best_side := "south"
 	for side in sides:
-		var touch := _adjacent_transport_count(anchor, footprint, side)
-		var score := _transport_side_score(anchor, footprint, side)
+		var touch := _adjacent_transport_count(tool, anchor, footprint, side)
+		var score := _transport_side_score(tool, anchor, footprint, side)
 		if touch > best_touch:
 			best_touch = touch
 			best_score = score
@@ -3852,24 +3902,25 @@ func _rotation_toward_nearest_transport(anchor: Vector2i, footprint: Vector2i) -
 	return 0.0 if nearest_direction.y > 0.0 else PI
 
 
-func _adjacent_transport_count(anchor: Vector2i, footprint: Vector2i, side: String) -> int:
+func _adjacent_transport_count(tool: String, anchor: Vector2i, footprint: Vector2i, side: String) -> int:
 	var count := 0
+	var road_offset := _frontage_transport_offset(tool)
 	match side:
 		"north":
 			for dx in range(footprint.x):
-				if _road_cells.has(_cell_key(Vector2i(anchor.x + dx, anchor.y - 1))):
+				if _road_cells.has(_cell_key(Vector2i(anchor.x + dx, anchor.y - road_offset))):
 					count += 1
 		"south":
 			for dx in range(footprint.x):
-				if _road_cells.has(_cell_key(Vector2i(anchor.x + dx, anchor.y + footprint.y))):
+				if _road_cells.has(_cell_key(Vector2i(anchor.x + dx, anchor.y + footprint.y - 1 + road_offset))):
 					count += 1
 		"west":
 			for dz in range(footprint.y):
-				if _road_cells.has(_cell_key(Vector2i(anchor.x - 1, anchor.y + dz))):
+				if _road_cells.has(_cell_key(Vector2i(anchor.x - road_offset, anchor.y + dz))):
 					count += 1
 		"east":
 			for dz in range(footprint.y):
-				if _road_cells.has(_cell_key(Vector2i(anchor.x + footprint.x, anchor.y + dz))):
+				if _road_cells.has(_cell_key(Vector2i(anchor.x + footprint.x - 1 + road_offset, anchor.y + dz))):
 					count += 1
 	return count
 
