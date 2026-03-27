@@ -92,6 +92,15 @@ const PROPERTY_FRONT_SETBACK_BY_TOOL := {
 	BUILD_TOOL_RESTAURANT: 0.95,
 	BUILD_TOOL_CORNER_STORE: 0.9,
 }
+const PROPERTY_LOT_SETBACK_BY_TOOL := {
+	BUILD_TOOL_HOUSE: 0.58,
+	BUILD_TOOL_POLICE: 0.46,
+	BUILD_TOOL_FIRE: 0.46,
+	BUILD_TOOL_BANK: 0.42,
+	BUILD_TOOL_GROCERY: 0.5,
+	BUILD_TOOL_RESTAURANT: 0.5,
+	BUILD_TOOL_CORNER_STORE: 0.42,
+}
 const PROPERTY_BUFFER_BY_TOOL := {
 	BUILD_TOOL_HOUSE: 1,
 	BUILD_TOOL_POLICE: 1,
@@ -1926,10 +1935,14 @@ func _spawn_building_for_tool(tool: String, world_position: Vector3, rotation_y:
 			node = _spawn_house_tile(world_position, false)
 	node.rotation_degrees.y = rad_to_deg(rotation_y)
 	if _tool_requires_road(tool):
+		var lot_root := _property_lot_root(node)
+		var lot_setback := float(PROPERTY_LOT_SETBACK_BY_TOOL.get(tool, 0.0))
+		if lot_setback > 0.0:
+			lot_root.translate_object_local(Vector3(0.0, 0.0, -lot_setback))
 		var setback := float(PROPERTY_FRONT_SETBACK_BY_TOOL.get(tool, PROPERTY_FRONT_SETBACK))
 		var structure_root := _property_structure_root(node)
 		structure_root.translate_object_local(Vector3(0.0, 0.0, -setback))
-		_upgrade_debug("spawn building tool=%s applied setback=%.2f" % [tool, setback])
+		_upgrade_debug("spawn building tool=%s applied lot_setback=%.2f structure_setback=%.2f" % [tool, lot_setback, setback])
 	_apply_property_tier_visuals(node, tool, tier, variant)
 	node.set_meta("tier", tier)
 	node.set_meta("variant", variant)
