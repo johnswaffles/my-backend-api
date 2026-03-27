@@ -84,13 +84,13 @@ const SAVE_PATH := "user://cozy_builder_save.json"
 const MUSIC_STREAM_PATH := "res://assets/audio/neon-dreams.mp3"
 const PROPERTY_FRONT_SETBACK := 1.0
 const PROPERTY_FRONT_SETBACK_BY_TOOL := {
-	BUILD_TOOL_HOUSE: 0.8,
-	BUILD_TOOL_POLICE: 0.8,
-	BUILD_TOOL_FIRE: 0.8,
-	BUILD_TOOL_BANK: 0.8,
-	BUILD_TOOL_GROCERY: 0.8,
-	BUILD_TOOL_RESTAURANT: 0.8,
-	BUILD_TOOL_CORNER_STORE: 0.8,
+	BUILD_TOOL_HOUSE: 0.95,
+	BUILD_TOOL_POLICE: 0.9,
+	BUILD_TOOL_FIRE: 0.9,
+	BUILD_TOOL_BANK: 0.9,
+	BUILD_TOOL_GROCERY: 0.95,
+	BUILD_TOOL_RESTAURANT: 0.95,
+	BUILD_TOOL_CORNER_STORE: 0.9,
 }
 const PROPERTY_BUFFER_BY_TOOL := {
 	BUILD_TOOL_HOUSE: 1,
@@ -1927,13 +1927,44 @@ func _spawn_building_for_tool(tool: String, world_position: Vector3, rotation_y:
 	node.rotation_degrees.y = rad_to_deg(rotation_y)
 	if _tool_requires_road(tool):
 		var setback := float(PROPERTY_FRONT_SETBACK_BY_TOOL.get(tool, PROPERTY_FRONT_SETBACK))
-		node.translate_object_local(Vector3(0.0, 0.0, -setback))
+		var structure_root := _property_structure_root(node)
+		structure_root.translate_object_local(Vector3(0.0, 0.0, -setback))
 		_upgrade_debug("spawn building tool=%s applied setback=%.2f" % [tool, setback])
 	_apply_property_tier_visuals(node, tool, tier, variant)
 	node.set_meta("tier", tier)
 	node.set_meta("variant", variant)
 	_upgrade_debug("spawn building complete node=%s tier_meta=%d variant_meta=%d" % [str(node), int(node.get_meta("tier", -1)), int(node.get_meta("variant", -1))])
 	return node
+
+
+func _create_property_roots(position_3d: Vector3) -> Dictionary:
+	var root := Node3D.new()
+	root.position = position_3d
+	building_root.add_child(root)
+
+	var lot_root := Node3D.new()
+	lot_root.name = "LotRoot"
+	root.add_child(lot_root)
+
+	var structure_root := Node3D.new()
+	structure_root.name = "StructureRoot"
+	root.add_child(structure_root)
+
+	return {
+		"root": root,
+		"lot": lot_root,
+		"structure": structure_root,
+	}
+
+
+func _property_lot_root(root: Node3D) -> Node3D:
+	var lot_root := root.get_node_or_null("LotRoot") as Node3D
+	return lot_root if lot_root != null else root
+
+
+func _property_structure_root(root: Node3D) -> Node3D:
+	var structure_root := root.get_node_or_null("StructureRoot") as Node3D
+	return structure_root if structure_root != null else root
 
 
 func _adjust_zoom(delta_amount: float) -> void:
@@ -3028,20 +3059,21 @@ func _add_village_house_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var has_shed: bool = bool(profile["shed"])
 	var has_trellis: bool = bool(profile["trellis"])
 	var fence_width: float = max(4.8, float(profile["fence_width"]) + 0.9)
-	var root := Node3D.new()
-	root.position = position_3d
-	building_root.add_child(root)
+	var property_roots := _create_property_roots(position_3d)
+	var root := property_roots["root"] as Node3D
+	var lot_root := property_roots["lot"] as Node3D
+	var structure_root := property_roots["structure"] as Node3D
 	_add_parcel_shadow(root, Vector2(5.7, 5.7), 0.26)
 
-	_add_box(Vector3(0.0, 0.015, 0.28), Vector3(5.34, 0.04, 5.14), _make_material("8da56b", 0.98), root)
-	_add_box(Vector3(0.0, 0.02, 1.72), Vector3(4.84, 0.03, 1.44), _make_material("d8c6a7", 0.9), root)
-	_add_box(Vector3(0.0, 0.028, 1.12), Vector3(5.02, 0.025, 0.42), _make_material("c2b39b", 0.88), root)
+	_add_box(Vector3(0.0, 0.015, 0.28), Vector3(5.34, 0.04, 5.14), _make_material("8da56b", 0.98), lot_root)
+	_add_box(Vector3(0.0, 0.02, 1.72), Vector3(4.84, 0.03, 1.44), _make_material("d8c6a7", 0.9), lot_root)
+	_add_box(Vector3(0.0, 0.028, 1.12), Vector3(5.02, 0.025, 0.42), _make_material("c2b39b", 0.88), lot_root)
 	if has_garage:
 		var drive_x := 1.08 * garage_side
-		_add_box(Vector3(drive_x * 1.18, 0.021, 0.74), Vector3(1.34, 0.028, 3.28), _make_material("b8a58b", 0.9), root)
-		_add_town_path(Vector3(drive_x * 1.18, 0.03, 1.2), Vector2(0.9, 2.42), root)
+		_add_box(Vector3(drive_x * 1.18, 0.021, 0.74), Vector3(1.34, 0.028, 3.28), _make_material("b8a58b", 0.9), lot_root)
+		_add_town_path(Vector3(drive_x * 1.18, 0.03, 1.2), Vector2(0.9, 2.42), lot_root)
 	else:
-		_add_town_path(Vector3(entry_offset, 0.03, 1.18), Vector2(0.74, 2.1), root)
+		_add_town_path(Vector3(entry_offset, 0.03, 1.18), Vector2(0.74, 2.1), lot_root)
 
 	var plaster := _make_material_from_color(palette.wall.lightened(0.02), 0.95)
 	var timber := _make_material("8d6848", 0.88)
@@ -3050,79 +3082,79 @@ func _add_village_house_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var trim_material := _make_material_from_color(palette.trim, 0.88)
 
 	var house_z := -1.18
-	_add_soft_block(Vector3(0.0, height * 0.5 + 0.06, house_z), Vector3(width, height, depth), plaster, root, 0.22)
+	_add_soft_block(Vector3(0.0, height * 0.5 + 0.06, house_z), Vector3(width, height, depth), plaster, structure_root, 0.22)
 	if has_wing:
-		_add_soft_block(Vector3(-0.96, height * 0.42 + 0.04, house_z + 0.34), Vector3(width * 0.42, height * 0.68, depth * 0.82), plaster, root, 0.16)
+		_add_soft_block(Vector3(-0.96, height * 0.42 + 0.04, house_z + 0.34), Vector3(width * 0.42, height * 0.68, depth * 0.82), plaster, structure_root, 0.16)
 	if has_garage:
-		_add_soft_block(Vector3(garage_side * 1.22, 0.42, house_z + 0.3), Vector3(1.24, 0.72, 1.68), _make_material_from_color(palette.wall.darkened(0.04), 0.93), root, 0.12)
-		_add_box(Vector3(garage_side * 1.22, 0.28, house_z + 1.0), Vector3(0.8, 0.52, 0.06), _make_material("f0eadc", 0.9), root)
-		_add_box(Vector3(garage_side * 1.22, 0.62, house_z + 1.02), Vector3(0.84, 0.06, 0.06), _make_material("d0c5b5", 0.86), root)
+		_add_soft_block(Vector3(garage_side * 1.22, 0.42, house_z + 0.3), Vector3(1.24, 0.72, 1.68), _make_material_from_color(palette.wall.darkened(0.04), 0.93), structure_root, 0.12)
+		_add_box(Vector3(garage_side * 1.22, 0.28, house_z + 1.0), Vector3(0.8, 0.52, 0.06), _make_material("f0eadc", 0.9), structure_root)
+		_add_box(Vector3(garage_side * 1.22, 0.62, house_z + 1.02), Vector3(0.84, 0.06, 0.06), _make_material("d0c5b5", 0.86), structure_root)
 	if has_bay:
-		_add_soft_block(Vector3(0.74, 0.52, house_z + 0.66), Vector3(0.54, 0.64, 0.56), plaster, root, 0.12)
+		_add_soft_block(Vector3(0.74, 0.52, house_z + 0.66), Vector3(0.54, 0.64, 0.56), plaster, structure_root, 0.12)
 
-	_add_gabled_roof(Vector3(0.0, height + roof_lift, house_z), Vector3(width + roof_overhang, 0.34, depth + roof_overhang), roof_material, root, roof_tilt)
+	_add_gabled_roof(Vector3(0.0, height + roof_lift, house_z), Vector3(width + roof_overhang, 0.34, depth + roof_overhang), roof_material, structure_root, roof_tilt)
 	if has_wing:
-		_add_gabled_roof(Vector3(-0.96, height * 0.78 + 0.26, house_z + 0.34), Vector3(width * 0.56, 0.24, depth * 0.92), _make_material_from_color(palette.roof.lightened(0.04), 0.74), root, roof_tilt - 2.0)
+		_add_gabled_roof(Vector3(-0.96, height * 0.78 + 0.26, house_z + 0.34), Vector3(width * 0.56, 0.24, depth * 0.92), _make_material_from_color(palette.roof.lightened(0.04), 0.74), structure_root, roof_tilt - 2.0)
 	if has_garage:
-		_add_gabled_roof(Vector3(garage_side * 1.22, 0.84, house_z + 0.3), Vector3(1.44, 0.18, 1.92), _make_material_from_color(palette.roof.darkened(0.05), 0.74), root, max(12.0, roof_tilt - 5.0))
+		_add_gabled_roof(Vector3(garage_side * 1.22, 0.84, house_z + 0.3), Vector3(1.44, 0.18, 1.92), _make_material_from_color(palette.roof.darkened(0.05), 0.74), structure_root, max(12.0, roof_tilt - 5.0))
 
 	for timber_x in [-0.58, 0.0, 0.58]:
-		_add_box(Vector3(timber_x, 0.54, house_z + 0.88), Vector3(0.12, 0.9, 0.1), timber, root)
-	_add_box(Vector3(entry_offset, 0.12, house_z + 1.08), Vector3(max(0.74, width * porch_width), 0.1, porch_depth), porch_wood, root)
-	_add_round_canopy(Vector3(entry_offset, 0.46, house_z + 1.12), Vector3(max(0.82, width * porch_width), 0.14, 0.32), _make_material_from_color(palette.accent, 0.5), root)
-	_add_box(Vector3(entry_offset, 0.06, house_z + 1.42), Vector3(max(0.42, width * 0.24), 0.08, 0.28), _make_material("d7c7b0", 0.9), root)
+		_add_box(Vector3(timber_x, 0.54, house_z + 0.88), Vector3(0.12, 0.9, 0.1), timber, structure_root)
+	_add_box(Vector3(entry_offset, 0.12, house_z + 1.08), Vector3(max(0.74, width * porch_width), 0.1, porch_depth), porch_wood, structure_root)
+	_add_round_canopy(Vector3(entry_offset, 0.46, house_z + 1.12), Vector3(max(0.82, width * porch_width), 0.14, 0.32), _make_material_from_color(palette.accent, 0.5), structure_root)
+	_add_box(Vector3(entry_offset, 0.06, house_z + 1.42), Vector3(max(0.42, width * 0.24), 0.08, 0.28), _make_material("d7c7b0", 0.9), structure_root)
 
-	_add_box(Vector3(entry_offset, 0.32, house_z + 0.76), Vector3(width * 0.18, 0.62, 0.08), _make_material("6c4d32", 0.86), root)
-	_add_box(Vector3(entry_offset, 0.26, house_z + 1.08), Vector3(width * 0.12, 0.46, 0.02), _make_material("f4efe1", 0.88), root)
+	_add_box(Vector3(entry_offset, 0.32, house_z + 0.76), Vector3(width * 0.18, 0.62, 0.08), _make_material("6c4d32", 0.86), structure_root)
+	_add_box(Vector3(entry_offset, 0.26, house_z + 1.08), Vector3(width * 0.12, 0.46, 0.02), _make_material("f4efe1", 0.88), structure_root)
 	for window_pos in [
 		Vector3(-0.62, 0.5, house_z + 0.82),
 		Vector3(0.66, 0.5, house_z + 0.82),
 		Vector3(-0.58, 0.56, house_z - 0.28),
 		Vector3(0.6, 0.56, house_z - 0.28),
 	]:
-		_add_box(window_pos, Vector3(0.26, 0.34, 0.06), _window_material, root)
-		_add_box(window_pos + Vector3(-0.16, 0.0, 0.0), Vector3(0.05, 0.36, 0.05), timber, root)
-		_add_box(window_pos + Vector3(0.16, 0.0, 0.0), Vector3(0.05, 0.36, 0.05), timber, root)
+		_add_box(window_pos, Vector3(0.26, 0.34, 0.06), _window_material, structure_root)
+		_add_box(window_pos + Vector3(-0.16, 0.0, 0.0), Vector3(0.05, 0.36, 0.05), timber, structure_root)
+		_add_box(window_pos + Vector3(0.16, 0.0, 0.0), Vector3(0.05, 0.36, 0.05), timber, structure_root)
 	if has_bay:
-		_add_box(Vector3(0.74, 0.54, house_z + 0.86), Vector3(0.34, 0.3, 0.06), _window_material, root)
+		_add_box(Vector3(0.74, 0.54, house_z + 0.86), Vector3(0.34, 0.3, 0.06), _window_material, structure_root)
 
-	_add_box(Vector3(0.0, 0.8, house_z - depth * 0.46), Vector3(width * 0.18, 0.78, depth * 0.06), timber, root)
+	_add_box(Vector3(0.0, 0.8, house_z - depth * 0.46), Vector3(width * 0.18, 0.78, depth * 0.06), timber, structure_root)
 	for dormer_index in range(dormers):
 		var spacing := 0.52 if dormers > 1 else 0.0
 		var dormer_x := (float(dormer_index) - float(dormers - 1) * 0.5) * spacing
-		_add_dormer(Vector3(dormer_x, height + roof_lift + 0.14, house_z + 0.12), palette.trim, palette.roof, root)
+		_add_dormer(Vector3(dormer_x, height + roof_lift + 0.14, house_z + 0.12), palette.trim, palette.roof, structure_root)
 	if not has_garage:
-		_add_garden_path(root, width * 0.24, 2.46)
-	_add_picket_fence(root, Vector3(0.0, 0.0, 1.86), fence_width)
-	_add_box(Vector3(-2.28, 0.18, -0.12), Vector3(0.04, 0.32, 4.02), _make_material("efe3cf", 0.86), root)
-	_add_box(Vector3(2.28, 0.18, -0.12), Vector3(0.04, 0.32, 4.02), _make_material("efe3cf", 0.86), root)
-	_add_box(Vector3(0.0, 0.18, -2.14), Vector3(4.54, 0.32, 0.04), _make_material("efe3cf", 0.86), root)
-	_add_flower_box_local(Vector3(entry_offset - 0.32, 0.18, house_z + 0.76), palette.accent, root)
-	_add_flower_box_local(Vector3(entry_offset + 0.4, 0.18, house_z + 0.76), palette.trim, root)
-	_add_shrub_cluster(Vector3(-1.7, 0.0, 1.36), palette.accent, root, 6)
-	_add_shrub_cluster(Vector3(1.7, 0.0, 1.36), palette.trim, root, 6)
-	_add_hedge_strip_local(Vector3(0.0, 0.08, -1.98), 4.12, palette.accent.darkened(0.18), root)
-	_add_local_flower_patch(Vector3(1.56, 0.05, 1.12), 9, _make_material_from_color(palette.trim, 0.8), root)
-	_add_local_flower_patch(Vector3(-1.56, 0.05, 1.06), 8, _make_material_from_color(palette.accent, 0.8), root)
-	_add_box(Vector3(-1.96, 0.26, 1.88), Vector3(0.16, 0.34, 0.12), _make_material("8c6f4f", 0.84), root)
-	_add_box(Vector3(-1.96, 0.38, 1.84), Vector3(0.22, 0.16, 0.04), _make_material("f4efe4", 0.86), root)
-	_add_bench_local(Vector3(1.46, 0.02, 1.26), -0.2, root)
+		_add_garden_path(lot_root, width * 0.24, 2.46)
+	_add_picket_fence(lot_root, Vector3(0.0, 0.0, 1.86), fence_width)
+	_add_box(Vector3(-2.28, 0.18, -0.12), Vector3(0.04, 0.32, 4.02), _make_material("efe3cf", 0.86), lot_root)
+	_add_box(Vector3(2.28, 0.18, -0.12), Vector3(0.04, 0.32, 4.02), _make_material("efe3cf", 0.86), lot_root)
+	_add_box(Vector3(0.0, 0.18, -2.14), Vector3(4.54, 0.32, 0.04), _make_material("efe3cf", 0.86), lot_root)
+	_add_flower_box_local(Vector3(entry_offset - 0.32, 0.18, house_z + 0.76), palette.accent, lot_root)
+	_add_flower_box_local(Vector3(entry_offset + 0.4, 0.18, house_z + 0.76), palette.trim, lot_root)
+	_add_shrub_cluster(Vector3(-1.7, 0.0, 1.36), palette.accent, lot_root, 6)
+	_add_shrub_cluster(Vector3(1.7, 0.0, 1.36), palette.trim, lot_root, 6)
+	_add_hedge_strip_local(Vector3(0.0, 0.08, -1.98), 4.12, palette.accent.darkened(0.18), lot_root)
+	_add_local_flower_patch(Vector3(1.56, 0.05, 1.12), 9, _make_material_from_color(palette.trim, 0.8), lot_root)
+	_add_local_flower_patch(Vector3(-1.56, 0.05, 1.06), 8, _make_material_from_color(palette.accent, 0.8), lot_root)
+	_add_box(Vector3(-1.96, 0.26, 1.88), Vector3(0.16, 0.34, 0.12), _make_material("8c6f4f", 0.84), lot_root)
+	_add_box(Vector3(-1.96, 0.38, 1.84), Vector3(0.22, 0.16, 0.04), _make_material("f4efe4", 0.86), lot_root)
+	_add_bench_local(Vector3(1.46, 0.02, 1.26), -0.2, lot_root)
 	if has_pool:
-		_add_box(Vector3(1.38, 0.03, -0.74), Vector3(1.42, 0.05, 1.04), _make_material("5f9fb2", 0.46), root)
-		_add_box(Vector3(1.38, 0.04, -0.74), Vector3(1.22, 0.02, 0.86), _make_transparent_material(Color("c4f6ff"), 0.3, 0.16), root)
+		_add_box(Vector3(1.38, 0.03, -0.74), Vector3(1.42, 0.05, 1.04), _make_material("5f9fb2", 0.46), lot_root)
+		_add_box(Vector3(1.38, 0.04, -0.74), Vector3(1.22, 0.02, 0.86), _make_transparent_material(Color("c4f6ff"), 0.3, 0.16), lot_root)
 	else:
-		_add_box(Vector3(1.38, 0.03, -0.66), Vector3(1.52, 0.04, 1.22), _make_material("8ea06a", 0.96), root)
+		_add_box(Vector3(1.38, 0.03, -0.66), Vector3(1.52, 0.04, 1.22), _make_material("8ea06a", 0.96), lot_root)
 		for gx in [-0.24, 0.0, 0.24]:
-			_add_box(Vector3(1.38 + gx * 1.2, 0.08, -0.66), Vector3(0.04, 0.12, 0.92), _make_material("7a5e3f", 0.84), root)
+			_add_box(Vector3(1.38 + gx * 1.2, 0.08, -0.66), Vector3(0.04, 0.12, 0.92), _make_material("7a5e3f", 0.84), lot_root)
 	if has_shed:
-		_add_soft_block(Vector3(-1.52, 0.36, -1.46), Vector3(0.62, 0.58, 0.58), _make_material("c9b79f", 0.92), root, 0.08)
-		_add_gabled_roof(Vector3(-1.52, 0.72, -1.46), Vector3(0.76, 0.16, 0.74), _make_material_from_color(palette.roof.darkened(0.08), 0.74), root, 18.0)
+		_add_soft_block(Vector3(-1.52, 0.36, -1.46), Vector3(0.62, 0.58, 0.58), _make_material("c9b79f", 0.92), lot_root, 0.08)
+		_add_gabled_roof(Vector3(-1.52, 0.72, -1.46), Vector3(0.76, 0.16, 0.74), _make_material_from_color(palette.roof.darkened(0.08), 0.74), lot_root, 18.0)
 	if has_trellis:
-		_add_box(Vector3(-1.58, 0.44, 1.18), Vector3(0.08, 0.84, 0.08), timber, root)
-		_add_box(Vector3(-1.12, 0.44, 1.18), Vector3(0.08, 0.84, 0.08), timber, root)
-		_add_box(Vector3(-1.35, 0.82, 1.18), Vector3(0.62, 0.06, 0.08), timber, root)
+		_add_box(Vector3(-1.58, 0.44, 1.18), Vector3(0.08, 0.84, 0.08), timber, lot_root)
+		_add_box(Vector3(-1.12, 0.44, 1.18), Vector3(0.08, 0.84, 0.08), timber, lot_root)
+		_add_box(Vector3(-1.35, 0.82, 1.18), Vector3(0.62, 0.06, 0.08), timber, lot_root)
 	if int(variant) % 2 == 0:
-		_add_box(Vector3(0.96, height + 0.58, house_z - 0.48), Vector3(0.22, 0.72, 0.22), _stone_material, root)
+		_add_box(Vector3(0.96, height + 0.58, house_z - 0.48), Vector3(0.22, 0.72, 0.22), _stone_material, structure_root)
 	return root
 
 
@@ -3131,27 +3163,28 @@ func _add_police_station_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var width := 2.8 + float(variant % 3) * 0.18
 	var depth := 1.92 + float(variant % 2) * 0.18
 	var height := 1.06 + float(int(variant / 4)) * 0.08
-	var root := Node3D.new()
-	root.position = position_3d
-	building_root.add_child(root)
+	var property_roots := _create_property_roots(position_3d)
+	var root := property_roots["root"] as Node3D
+	var lot_root := property_roots["lot"] as Node3D
+	var structure_root := property_roots["structure"] as Node3D
 	_add_parcel_shadow(root, Vector2(4.9, 3.8), 0.24)
 
-	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(4.6, 0.04, 3.5), _make_material("cbd4b5", 0.98), root)
-	_add_town_path(Vector3(0.0, 0.02, 1.22), Vector2(2.1, 0.56), root)
-	_add_soft_block(Vector3(-0.28, height * 0.5 + 0.05, -0.26), Vector3(width, height, depth), _make_material_from_color(palette.wall, 0.88), root, 0.2)
-	_add_soft_block(Vector3(1.22, 0.66, -0.6), Vector3(1.12, 0.86, 1.2), _make_material_from_color(palette.trim.darkened(0.03), 0.86), root, 0.12)
-	_add_gabled_roof(Vector3(-0.28, height + 0.18, -0.26), Vector3(width + 0.18, 0.18, depth + 0.22), _make_material_from_color(palette.roof, 0.78), root, 10.0)
-	_add_box(Vector3(-0.28, 0.56, 0.86), Vector3(width * 0.72, 0.1, 0.06), _make_material_from_color(palette.accent, 0.46), root)
-	_add_box(Vector3(-0.28, 0.24, 0.84), Vector3(width * 0.18, 0.42, 0.05), _window_material, root)
-	_add_round_canopy(Vector3(-0.28, 0.36, 1.02), Vector3(width * 0.5, 0.18, 0.22), _make_material_from_color(palette.trim, 0.52), root)
-	_add_local_cylinder(Vector3(0.58, 1.8, -0.62), 0.11, 0.11, 0.22, _make_material_from_color(palette.accent, 0.42), root)
-	_add_frontage_detail_cluster(root, width, 1.28, palette.accent, "badge")
-	_add_box(Vector3(1.48, 0.52, -0.66), Vector3(0.12, 1.0, 1.36), _make_material("6b7384", 0.88), root)
-	_add_box(Vector3(1.78, 0.52, -0.66), Vector3(0.12, 1.0, 1.36), _make_material("6b7384", 0.88), root)
-	_add_box(Vector3(1.63, 1.0, -0.66), Vector3(0.46, 0.08, 1.36), _make_material("6b7384", 0.88), root)
-	_add_box(Vector3(1.63, 0.06, -0.68), Vector3(1.16, 0.04, 1.5), _make_material("9f8b74", 0.9), root)
-	_add_shrub_cluster(Vector3(-1.08, 0.0, 1.14), palette.accent, root, 3)
-	_add_shrub_cluster(Vector3(0.68, 0.0, 1.14), palette.trim, root, 3)
+	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(4.6, 0.04, 3.5), _make_material("cbd4b5", 0.98), lot_root)
+	_add_town_path(Vector3(0.0, 0.02, 1.22), Vector2(2.1, 0.56), lot_root)
+	_add_soft_block(Vector3(-0.28, height * 0.5 + 0.05, -0.26), Vector3(width, height, depth), _make_material_from_color(palette.wall, 0.88), structure_root, 0.2)
+	_add_soft_block(Vector3(1.22, 0.66, -0.6), Vector3(1.12, 0.86, 1.2), _make_material_from_color(palette.trim.darkened(0.03), 0.86), structure_root, 0.12)
+	_add_gabled_roof(Vector3(-0.28, height + 0.18, -0.26), Vector3(width + 0.18, 0.18, depth + 0.22), _make_material_from_color(palette.roof, 0.78), structure_root, 10.0)
+	_add_box(Vector3(-0.28, 0.56, 0.86), Vector3(width * 0.72, 0.1, 0.06), _make_material_from_color(palette.accent, 0.46), structure_root)
+	_add_box(Vector3(-0.28, 0.24, 0.84), Vector3(width * 0.18, 0.42, 0.05), _window_material, structure_root)
+	_add_round_canopy(Vector3(-0.28, 0.36, 1.02), Vector3(width * 0.5, 0.18, 0.22), _make_material_from_color(palette.trim, 0.52), structure_root)
+	_add_local_cylinder(Vector3(0.58, 1.8, -0.62), 0.11, 0.11, 0.22, _make_material_from_color(palette.accent, 0.42), structure_root)
+	_add_frontage_detail_cluster(lot_root, width, 1.28, palette.accent, "badge")
+	_add_box(Vector3(1.48, 0.52, -0.66), Vector3(0.12, 1.0, 1.36), _make_material("6b7384", 0.88), structure_root)
+	_add_box(Vector3(1.78, 0.52, -0.66), Vector3(0.12, 1.0, 1.36), _make_material("6b7384", 0.88), structure_root)
+	_add_box(Vector3(1.63, 1.0, -0.66), Vector3(0.46, 0.08, 1.36), _make_material("6b7384", 0.88), structure_root)
+	_add_box(Vector3(1.63, 0.06, -0.68), Vector3(1.16, 0.04, 1.5), _make_material("9f8b74", 0.9), structure_root)
+	_add_shrub_cluster(Vector3(-1.08, 0.0, 1.14), palette.accent, lot_root, 3)
+	_add_shrub_cluster(Vector3(0.68, 0.0, 1.14), palette.trim, lot_root, 3)
 	return root
 
 
@@ -3160,29 +3193,30 @@ func _add_fire_station_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var width := 2.9 + float(variant % 2) * 0.24
 	var depth := 2.1 + float(int(variant / 3) % 2) * 0.16
 	var height := 1.06 + float(int(variant / 5)) * 0.12
-	var root := Node3D.new()
-	root.position = position_3d
-	building_root.add_child(root)
+	var property_roots := _create_property_roots(position_3d)
+	var root := property_roots["root"] as Node3D
+	var lot_root := property_roots["lot"] as Node3D
+	var structure_root := property_roots["structure"] as Node3D
 	_add_parcel_shadow(root, Vector2(5.0, 3.9), 0.24)
 
-	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(4.8, 0.04, 3.6), _make_material("c9c7b2", 0.98), root)
-	_add_box(Vector3(0.0, 0.035, 0.88), Vector3(3.4, 0.03, 1.38), _make_material("7c857a", 0.94), root)
-	_add_soft_block(Vector3(0.0, height * 0.5 + 0.05, -0.38), Vector3(width, height, depth), _make_material_from_color(palette.wall, 0.88), root, 0.18)
-	_add_soft_block(Vector3(width * 0.36, 1.08, -0.72), Vector3(0.66, 1.82, 0.66), _make_material_from_color(palette.trim, 0.84), root, 0.11)
-	_add_gabled_roof(Vector3(0.0, height + 0.18, -0.38), Vector3(width + 0.16, 0.18, depth + 0.22), _make_material_from_color(palette.roof, 0.78), root, 10.0)
+	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(4.8, 0.04, 3.6), _make_material("c9c7b2", 0.98), lot_root)
+	_add_box(Vector3(0.0, 0.035, 0.88), Vector3(3.4, 0.03, 1.38), _make_material("7c857a", 0.94), lot_root)
+	_add_soft_block(Vector3(0.0, height * 0.5 + 0.05, -0.38), Vector3(width, height, depth), _make_material_from_color(palette.wall, 0.88), structure_root, 0.18)
+	_add_soft_block(Vector3(width * 0.36, 1.08, -0.72), Vector3(0.66, 1.82, 0.66), _make_material_from_color(palette.trim, 0.84), structure_root, 0.11)
+	_add_gabled_roof(Vector3(0.0, height + 0.18, -0.38), Vector3(width + 0.16, 0.18, depth + 0.22), _make_material_from_color(palette.roof, 0.78), structure_root, 10.0)
 	for i in [-1, 0, 1]:
-		_add_box(Vector3(i * width * 0.24, 0.3, 0.46), Vector3(width * 0.18, 0.56, 0.06), _make_material_from_color(palette.trim, 0.74), root)
-		_add_box(Vector3(i * width * 0.24, 0.62, 0.46), Vector3(width * 0.18, 0.08, 0.07), _make_material_from_color(palette.accent, 0.44), root)
-	_add_box(Vector3(0.0, 0.84, 0.5), Vector3(width * 0.54, 0.12, 0.06), _make_material_from_color(palette.accent, 0.4), root)
-	_add_local_cylinder(Vector3(width * 0.36, 2.08, -0.74), 0.1, 0.1, 0.28, _make_material_from_color(palette.accent, 0.46), root)
-	_add_frontage_detail_cluster(root, width, 1.3, palette.accent, "fire")
-	_add_hydrant_local(Vector3(-1.24, 0.08, 1.34), root)
+		_add_box(Vector3(i * width * 0.24, 0.3, 0.46), Vector3(width * 0.18, 0.56, 0.06), _make_material_from_color(palette.trim, 0.74), structure_root)
+		_add_box(Vector3(i * width * 0.24, 0.62, 0.46), Vector3(width * 0.18, 0.08, 0.07), _make_material_from_color(palette.accent, 0.44), structure_root)
+	_add_box(Vector3(0.0, 0.84, 0.5), Vector3(width * 0.54, 0.12, 0.06), _make_material_from_color(palette.accent, 0.4), structure_root)
+	_add_local_cylinder(Vector3(width * 0.36, 2.08, -0.74), 0.1, 0.1, 0.28, _make_material_from_color(palette.accent, 0.46), structure_root)
+	_add_frontage_detail_cluster(lot_root, width, 1.3, palette.accent, "fire")
+	_add_hydrant_local(Vector3(-1.24, 0.08, 1.34), lot_root)
 	for truck_x in [-0.86, 0.0, 0.86]:
 		var truck_color := _make_material("c64b41", 0.74)
-		_add_soft_block(Vector3(truck_x, 0.12, 1.06), Vector3(0.52, 0.2, 0.88), truck_color, root, 0.06)
-		_add_soft_block(Vector3(truck_x, 0.26, 0.94), Vector3(0.32, 0.12, 0.34), _make_material("f4efe6", 0.82), root, 0.04)
-	_add_shrub_cluster(Vector3(-1.08, 0.0, 1.2), palette.accent, root, 3)
-	_add_shrub_cluster(Vector3(1.08, 0.0, 1.2), palette.trim, root, 3)
+		_add_soft_block(Vector3(truck_x, 0.12, 1.06), Vector3(0.52, 0.2, 0.88), truck_color, lot_root, 0.06)
+		_add_soft_block(Vector3(truck_x, 0.26, 0.94), Vector3(0.32, 0.12, 0.34), _make_material("f4efe6", 0.82), lot_root, 0.04)
+	_add_shrub_cluster(Vector3(-1.08, 0.0, 1.2), palette.accent, lot_root, 3)
+	_add_shrub_cluster(Vector3(1.08, 0.0, 1.2), palette.trim, lot_root, 3)
 	return root
 
 
@@ -3191,24 +3225,25 @@ func _add_bank_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var width := 2.62 + float(variant % 3) * 0.16
 	var depth := 1.82 + float(variant % 2) * 0.12
 	var height := 0.98 + float(int(variant / 4)) * 0.1
-	var root := Node3D.new()
-	root.position = position_3d
-	building_root.add_child(root)
+	var property_roots := _create_property_roots(position_3d)
+	var root := property_roots["root"] as Node3D
+	var lot_root := property_roots["lot"] as Node3D
+	var structure_root := property_roots["structure"] as Node3D
 	_add_parcel_shadow(root, Vector2(3.9, 2.9), 0.22)
 
-	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(3.8, 0.04, 2.7), _make_material("d9d2bf", 0.98), root)
-	_add_box(Vector3(0.0, 0.03, 0.8), Vector3(2.4, 0.03, 0.9), _make_material("ede8da", 0.9), root)
-	_add_soft_block(Vector3(0.0, height * 0.5 + 0.05, -0.24), Vector3(width, height, depth), _make_material_from_color(palette.wall, 0.88), root, 0.18)
-	_add_gabled_roof(Vector3(0.0, height + 0.18, -0.24), Vector3(width + 0.18, 0.2, depth + 0.18), _make_material_from_color(palette.roof, 0.76), root, 9.0)
+	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(3.8, 0.04, 2.7), _make_material("d9d2bf", 0.98), lot_root)
+	_add_box(Vector3(0.0, 0.03, 0.8), Vector3(2.4, 0.03, 0.9), _make_material("ede8da", 0.9), lot_root)
+	_add_soft_block(Vector3(0.0, height * 0.5 + 0.05, -0.24), Vector3(width, height, depth), _make_material_from_color(palette.wall, 0.88), structure_root, 0.18)
+	_add_gabled_roof(Vector3(0.0, height + 0.18, -0.24), Vector3(width + 0.18, 0.2, depth + 0.18), _make_material_from_color(palette.roof, 0.76), structure_root, 9.0)
 	for sx in [-1, 0, 1]:
-		_add_local_cylinder(Vector3(sx * width * 0.18, 0.34, 0.7), 0.08, 0.08, 0.58, _make_material_from_color(palette.trim, 0.84), root)
-	_add_box(Vector3(0.0, 0.78, 0.72), Vector3(width * 0.52, 0.1, 0.06), _make_material_from_color(palette.accent, 0.46), root)
-	_add_box(Vector3(0.0, 0.28, 0.68), Vector3(width * 0.16, 0.42, 0.05), _window_material, root)
-	_add_round_canopy(Vector3(0.0, 0.28, 0.92), Vector3(width * 0.44, 0.14, 0.18), _make_material_from_color(palette.trim, 0.48), root)
-	_add_local_sphere(Vector3(0.0, 1.18, -0.12), 0.18, 0.22, _make_material_from_color(palette.accent, 0.36), root)
-	_add_frontage_detail_cluster(root, width, 1.24, palette.accent, "vault")
-	_add_shrub_cluster(Vector3(-1.06, 0.0, 1.04), palette.accent, root, 3)
-	_add_shrub_cluster(Vector3(1.06, 0.0, 1.04), palette.trim, root, 3)
+		_add_local_cylinder(Vector3(sx * width * 0.18, 0.34, 0.7), 0.08, 0.08, 0.58, _make_material_from_color(palette.trim, 0.84), structure_root)
+	_add_box(Vector3(0.0, 0.78, 0.72), Vector3(width * 0.52, 0.1, 0.06), _make_material_from_color(palette.accent, 0.46), structure_root)
+	_add_box(Vector3(0.0, 0.28, 0.68), Vector3(width * 0.16, 0.42, 0.05), _window_material, structure_root)
+	_add_round_canopy(Vector3(0.0, 0.28, 0.92), Vector3(width * 0.44, 0.14, 0.18), _make_material_from_color(palette.trim, 0.48), structure_root)
+	_add_local_sphere(Vector3(0.0, 1.18, -0.12), 0.18, 0.22, _make_material_from_color(palette.accent, 0.36), structure_root)
+	_add_frontage_detail_cluster(lot_root, width, 1.24, palette.accent, "vault")
+	_add_shrub_cluster(Vector3(-1.06, 0.0, 1.04), palette.accent, lot_root, 3)
+	_add_shrub_cluster(Vector3(1.06, 0.0, 1.04), palette.trim, lot_root, 3)
 	return root
 
 
@@ -3217,36 +3252,37 @@ func _add_grocery_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var width := 3.0 + float(variant % 3) * 0.16
 	var depth := 2.02 + float(int(variant / 3) % 2) * 0.16
 	var height := 0.96 + float(int(variant / 5)) * 0.1
-	var root := Node3D.new()
-	root.position = position_3d
-	building_root.add_child(root)
+	var property_roots := _create_property_roots(position_3d)
+	var root := property_roots["root"] as Node3D
+	var lot_root := property_roots["lot"] as Node3D
+	var structure_root := property_roots["structure"] as Node3D
 	_add_parcel_shadow(root, Vector2(5.0, 3.9), 0.24)
 
-	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(4.8, 0.04, 3.6), _make_material("d5d1bc", 0.98), root)
-	_add_box(Vector3(0.0, 0.028, 0.72), Vector3(3.5, 0.03, 1.4), _make_material("7b7f81", 0.94), root)
+	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(4.8, 0.04, 3.6), _make_material("d5d1bc", 0.98), lot_root)
+	_add_box(Vector3(0.0, 0.028, 0.72), Vector3(3.5, 0.03, 1.4), _make_material("7b7f81", 0.94), lot_root)
 	for lane in [-1.0, 0.0, 1.0]:
-		_add_box(Vector3(lane * 0.92, 0.045, 0.72), Vector3(0.08, 0.01, 1.16), _road_mark_material, root)
+		_add_box(Vector3(lane * 0.92, 0.045, 0.72), Vector3(0.08, 0.01, 1.16), _road_mark_material, lot_root)
 	for stop_z in [0.2, 0.72, 1.24]:
-		_add_box(Vector3(-1.56, 0.045, stop_z), Vector3(0.34, 0.01, 0.04), _road_mark_material, root)
-		_add_box(Vector3(-0.52, 0.045, stop_z), Vector3(0.34, 0.01, 0.04), _road_mark_material, root)
-		_add_box(Vector3(0.52, 0.045, stop_z), Vector3(0.34, 0.01, 0.04), _road_mark_material, root)
-		_add_box(Vector3(1.56, 0.045, stop_z), Vector3(0.34, 0.01, 0.04), _road_mark_material, root)
-	_add_soft_block(Vector3(0.0, height * 0.5 + 0.05, -0.48), Vector3(width, height, depth), _make_material_from_color(palette.wall, 0.9), root, 0.18)
-	_add_gabled_roof(Vector3(0.0, height + 0.16, -0.48), Vector3(width + 0.18, 0.18, depth + 0.2), _make_material_from_color(palette.roof, 0.76), root, 8.0)
-	_add_round_canopy(Vector3(0.0, 0.4, 0.46), Vector3(width * 0.92, 0.18, 0.24), _make_material_from_color(palette.accent, 0.46), root)
-	_add_box(Vector3(0.0, 0.26, 0.34), Vector3(width * 0.52, 0.34, 0.05), _window_material, root)
-	_add_box(Vector3(0.0, 0.78, 0.38), Vector3(width * 0.56, 0.1, 0.05), _make_material_from_color(palette.trim, 0.42), root)
+		_add_box(Vector3(-1.56, 0.045, stop_z), Vector3(0.34, 0.01, 0.04), _road_mark_material, lot_root)
+		_add_box(Vector3(-0.52, 0.045, stop_z), Vector3(0.34, 0.01, 0.04), _road_mark_material, lot_root)
+		_add_box(Vector3(0.52, 0.045, stop_z), Vector3(0.34, 0.01, 0.04), _road_mark_material, lot_root)
+		_add_box(Vector3(1.56, 0.045, stop_z), Vector3(0.34, 0.01, 0.04), _road_mark_material, lot_root)
+	_add_soft_block(Vector3(0.0, height * 0.5 + 0.05, -0.48), Vector3(width, height, depth), _make_material_from_color(palette.wall, 0.9), structure_root, 0.18)
+	_add_gabled_roof(Vector3(0.0, height + 0.16, -0.48), Vector3(width + 0.18, 0.18, depth + 0.2), _make_material_from_color(palette.roof, 0.76), structure_root, 8.0)
+	_add_round_canopy(Vector3(0.0, 0.4, 0.46), Vector3(width * 0.92, 0.18, 0.24), _make_material_from_color(palette.accent, 0.46), structure_root)
+	_add_box(Vector3(0.0, 0.26, 0.34), Vector3(width * 0.52, 0.34, 0.05), _window_material, structure_root)
+	_add_box(Vector3(0.0, 0.78, 0.38), Vector3(width * 0.56, 0.1, 0.05), _make_material_from_color(palette.trim, 0.42), structure_root)
 	for produce_data in [
 		{"pos": Vector3(-width * 0.28, 0.12, 0.74), "color": Color("cb644c")},
 		{"pos": Vector3(-width * 0.1, 0.12, 0.74), "color": Color("7da85b")},
 		{"pos": Vector3(width * 0.08, 0.12, 0.74), "color": Color("f0be63")},
 		{"pos": Vector3(width * 0.26, 0.12, 0.74), "color": Color("6ca8c4")}
 	]:
-		_add_box(produce_data.pos, Vector3(0.18, 0.14, 0.18), _make_material_from_color(produce_data.color, 0.82), root)
-	_add_crate_stack_local(Vector3(-width * 0.42, 0.08, 0.92), palette.accent, root)
-	_add_frontage_detail_cluster(root, width, 1.24, palette.accent, "grocer")
-	_add_shrub_cluster(Vector3(-1.42, 0.0, 1.34), palette.trim, root, 2)
-	_add_shrub_cluster(Vector3(1.42, 0.0, 1.34), palette.accent, root, 2)
+		_add_box(produce_data.pos, Vector3(0.18, 0.14, 0.18), _make_material_from_color(produce_data.color, 0.82), structure_root)
+	_add_crate_stack_local(Vector3(-width * 0.42, 0.08, 0.92), palette.accent, lot_root)
+	_add_frontage_detail_cluster(lot_root, width, 1.24, palette.accent, "grocer")
+	_add_shrub_cluster(Vector3(-1.42, 0.0, 1.34), palette.trim, lot_root, 2)
+	_add_shrub_cluster(Vector3(1.42, 0.0, 1.34), palette.accent, lot_root, 2)
 	return root
 
 
@@ -3255,27 +3291,28 @@ func _add_restaurant_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var width := 2.6 + float(variant % 3) * 0.16
 	var depth := 1.84 + float(variant % 2) * 0.16
 	var height := 0.96 + float(int(variant / 4)) * 0.08
-	var root := Node3D.new()
-	root.position = position_3d
-	building_root.add_child(root)
+	var property_roots := _create_property_roots(position_3d)
+	var root := property_roots["root"] as Node3D
+	var lot_root := property_roots["lot"] as Node3D
+	var structure_root := property_roots["structure"] as Node3D
 	_add_parcel_shadow(root, Vector2(4.1, 3.0), 0.22)
 
-	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(3.8, 0.04, 2.8), _make_material("d9d0b9", 0.98), root)
-	_add_box(Vector3(0.0, 0.028, 0.88), Vector3(2.8, 0.03, 1.0), _make_material("d8cbb8", 0.92), root)
-	_add_soft_block(Vector3(0.0, height * 0.5 + 0.05, -0.26), Vector3(width, height, depth), _make_material_from_color(palette.wall, 0.88), root, 0.18)
-	_add_gabled_roof(Vector3(0.0, height + 0.18, -0.26), Vector3(width + 0.16, 0.2, depth + 0.2), _make_material_from_color(palette.roof, 0.74), root, 11.0)
-	_add_round_canopy(Vector3(0.0, 0.42, 0.72), Vector3(width * 0.8, 0.2, 0.24), _make_material_from_color(palette.accent, 0.48), root)
-	_add_box(Vector3(0.0, 0.26, 0.58), Vector3(width * 0.48, 0.36, 0.05), _window_material, root)
-	_add_box(Vector3(0.0, 0.82, 0.62), Vector3(width * 0.5, 0.1, 0.05), _make_material_from_color(palette.trim, 0.42), root)
+	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(3.8, 0.04, 2.8), _make_material("d9d0b9", 0.98), lot_root)
+	_add_box(Vector3(0.0, 0.028, 0.88), Vector3(2.8, 0.03, 1.0), _make_material("d8cbb8", 0.92), lot_root)
+	_add_soft_block(Vector3(0.0, height * 0.5 + 0.05, -0.26), Vector3(width, height, depth), _make_material_from_color(palette.wall, 0.88), structure_root, 0.18)
+	_add_gabled_roof(Vector3(0.0, height + 0.18, -0.26), Vector3(width + 0.16, 0.2, depth + 0.2), _make_material_from_color(palette.roof, 0.74), structure_root, 11.0)
+	_add_round_canopy(Vector3(0.0, 0.42, 0.72), Vector3(width * 0.8, 0.2, 0.24), _make_material_from_color(palette.accent, 0.48), structure_root)
+	_add_box(Vector3(0.0, 0.26, 0.58), Vector3(width * 0.48, 0.36, 0.05), _window_material, structure_root)
+	_add_box(Vector3(0.0, 0.82, 0.62), Vector3(width * 0.5, 0.1, 0.05), _make_material_from_color(palette.trim, 0.42), structure_root)
 	for patio_x in [-0.34, 0.0, 0.34]:
-		_add_local_cylinder(Vector3(patio_x * width, 0.12, 1.1), 0.04, 0.04, 0.18, _make_material_from_color(palette.trim, 0.7), root)
-		var umbrella := _add_local_sphere(Vector3(patio_x * width, 0.28, 1.1), 0.13, 0.16, _make_material_from_color(palette.accent, 0.46), root)
+		_add_local_cylinder(Vector3(patio_x * width, 0.12, 1.1), 0.04, 0.04, 0.18, _make_material_from_color(palette.trim, 0.7), lot_root)
+		var umbrella := _add_local_sphere(Vector3(patio_x * width, 0.28, 1.1), 0.13, 0.16, _make_material_from_color(palette.accent, 0.46), lot_root)
 		umbrella.scale = Vector3(1.4, 0.3, 1.4)
-	_add_box(Vector3(width * 0.28, height + 0.42, -0.46), Vector3(0.12, 0.4, 0.12), _stone_material, root)
-	_add_string_lights_local(root, 1.18, width * 0.78)
-	_add_frontage_detail_cluster(root, width, 1.22, palette.accent, "bistro")
-	_add_shrub_cluster(Vector3(-1.18, 0.0, 1.18), palette.trim, root, 2)
-	_add_shrub_cluster(Vector3(1.18, 0.0, 1.18), palette.accent, root, 2)
+	_add_box(Vector3(width * 0.28, height + 0.42, -0.46), Vector3(0.12, 0.4, 0.12), _stone_material, structure_root)
+	_add_string_lights_local(lot_root, 1.18, width * 0.78)
+	_add_frontage_detail_cluster(lot_root, width, 1.22, palette.accent, "bistro")
+	_add_shrub_cluster(Vector3(-1.18, 0.0, 1.18), palette.trim, lot_root, 2)
+	_add_shrub_cluster(Vector3(1.18, 0.0, 1.18), palette.accent, lot_root, 2)
 	return root
 
 
@@ -3284,44 +3321,45 @@ func _add_corner_store_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var width := 2.28 + float(variant % 3) * 0.14
 	var depth := 1.74 + float(int(variant / 3) % 2) * 0.12
 	var height := 0.92 + float(int(variant / 5)) * 0.1
-	var root := Node3D.new()
-	root.position = position_3d
-	building_root.add_child(root)
+	var property_roots := _create_property_roots(position_3d)
+	var root := property_roots["root"] as Node3D
+	var lot_root := property_roots["lot"] as Node3D
+	var structure_root := property_roots["structure"] as Node3D
 	_add_parcel_shadow(root, Vector2(4.0, 2.95), 0.22)
 
-	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(3.8, 0.04, 2.8), _make_material("d5cfbc", 0.98), root)
-	_add_box(Vector3(0.9, 0.028, 0.64), Vector3(1.42, 0.03, 1.18), _make_material("7e8082", 0.94), root)
-	_add_soft_block(Vector3(-0.18, height * 0.5 + 0.05, -0.24), Vector3(width, height, depth), _make_material_from_color(palette.wall, 0.9), root, 0.18)
-	_add_gabled_roof(Vector3(-0.18, height + 0.18, -0.24), Vector3(width + 0.14, 0.18, depth + 0.18), _make_material_from_color(palette.roof, 0.76), root, 10.0)
-	_add_round_canopy(Vector3(-0.18, 0.36, 0.66), Vector3(width * 0.94, 0.18, 0.24), _make_material_from_color(palette.accent, 0.46), root)
-	_add_box(Vector3(-width * 0.18, 0.24, 0.56), Vector3(width * 0.2, 0.34, 0.05), _window_material, root)
-	_add_box(Vector3(width * 0.18, 0.24, 0.56), Vector3(width * 0.2, 0.34, 0.05), _window_material, root)
-	_add_box(Vector3(-0.18, 0.82, 0.6), Vector3(width * 0.46, 0.1, 0.05), _make_material_from_color(palette.trim, 0.42), root)
+	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(3.8, 0.04, 2.8), _make_material("d5cfbc", 0.98), lot_root)
+	_add_box(Vector3(0.9, 0.028, 0.64), Vector3(1.42, 0.03, 1.18), _make_material("7e8082", 0.94), lot_root)
+	_add_soft_block(Vector3(-0.18, height * 0.5 + 0.05, -0.24), Vector3(width, height, depth), _make_material_from_color(palette.wall, 0.9), structure_root, 0.18)
+	_add_gabled_roof(Vector3(-0.18, height + 0.18, -0.24), Vector3(width + 0.14, 0.18, depth + 0.18), _make_material_from_color(palette.roof, 0.76), structure_root, 10.0)
+	_add_round_canopy(Vector3(-0.18, 0.36, 0.66), Vector3(width * 0.94, 0.18, 0.24), _make_material_from_color(palette.accent, 0.46), structure_root)
+	_add_box(Vector3(-width * 0.18, 0.24, 0.56), Vector3(width * 0.2, 0.34, 0.05), _window_material, structure_root)
+	_add_box(Vector3(width * 0.18, 0.24, 0.56), Vector3(width * 0.2, 0.34, 0.05), _window_material, structure_root)
+	_add_box(Vector3(-0.18, 0.82, 0.6), Vector3(width * 0.46, 0.1, 0.05), _make_material_from_color(palette.trim, 0.42), structure_root)
 	if variant % 2 == 1:
-		_add_soft_block(Vector3(width * 0.34, 0.56, -0.42), Vector3(0.46, 0.68, 0.52), _make_material_from_color(palette.trim, 0.84), root, 0.1)
-	_add_frontage_detail_cluster(root, width, 1.18, palette.accent, "corner")
-	_add_crate_stack_local(Vector3(0.78, 0.08, 0.98), palette.trim, root)
-	_add_shrub_cluster(Vector3(-1.02, 0.0, 1.1), palette.accent, root, 2)
-	_add_shrub_cluster(Vector3(0.42, 0.0, 1.1), palette.trim, root, 2)
+		_add_soft_block(Vector3(width * 0.34, 0.56, -0.42), Vector3(0.46, 0.68, 0.52), _make_material_from_color(palette.trim, 0.84), structure_root, 0.1)
+	_add_frontage_detail_cluster(lot_root, width, 1.18, palette.accent, "corner")
+	_add_crate_stack_local(Vector3(0.78, 0.08, 0.98), palette.trim, lot_root)
+	_add_shrub_cluster(Vector3(-1.02, 0.0, 1.1), palette.accent, lot_root, 2)
+	_add_shrub_cluster(Vector3(0.42, 0.0, 1.1), palette.trim, lot_root, 2)
 	return root
 
 
 func _add_park_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var palette := _cozy_palette("grocery", variant)
-	var root := Node3D.new()
-	root.position = position_3d
-	building_root.add_child(root)
+	var property_roots := _create_property_roots(position_3d)
+	var root := property_roots["root"] as Node3D
+	var lot_root := property_roots["lot"] as Node3D
 	_add_parcel_shadow(root, Vector2(3.8, 2.9), 0.18)
 
-	_add_box(Vector3(0.0, 0.02, 0.0), Vector3(3.6, 0.05, 2.7), _make_material("86a65c", 0.96), root)
-	_add_box(Vector3(0.0, 0.04, 0.0), Vector3(2.8, 0.03, 0.24), _make_material("d8c7ab", 0.9), root)
-	_add_box(Vector3(0.0, 0.04, 0.0), Vector3(0.24, 0.03, 2.1), _make_material("d8c7ab", 0.9), root)
-	_add_local_sphere(Vector3(0.0, 0.08, 0.0), 0.17, 0.08, _make_material_from_color(palette.accent, 0.44), root)
-	_add_bench_local(Vector3(-0.78, 0.0, 0.0), PI * 0.5, root)
-	_add_bench_local(Vector3(0.78, 0.0, 0.0), -PI * 0.5, root)
-	_add_local_tree(Vector3(-1.06, 0.0, -0.72), root)
-	_add_local_tree(Vector3(1.06, 0.0, 0.62), root)
-	_add_local_flower_patch(Vector3(0.82, 0.05, -0.54), 6, _make_material_from_color(palette.trim, 0.8), root)
+	_add_box(Vector3(0.0, 0.02, 0.0), Vector3(3.6, 0.05, 2.7), _make_material("86a65c", 0.96), lot_root)
+	_add_box(Vector3(0.0, 0.04, 0.0), Vector3(2.8, 0.03, 0.24), _make_material("d8c7ab", 0.9), lot_root)
+	_add_box(Vector3(0.0, 0.04, 0.0), Vector3(0.24, 0.03, 2.1), _make_material("d8c7ab", 0.9), lot_root)
+	_add_local_sphere(Vector3(0.0, 0.08, 0.0), 0.17, 0.08, _make_material_from_color(palette.accent, 0.44), lot_root)
+	_add_bench_local(Vector3(-0.78, 0.0, 0.0), PI * 0.5, lot_root)
+	_add_bench_local(Vector3(0.78, 0.0, 0.0), -PI * 0.5, lot_root)
+	_add_local_tree(Vector3(-1.06, 0.0, -0.72), lot_root)
+	_add_local_tree(Vector3(1.06, 0.0, 0.62), lot_root)
+	_add_local_flower_patch(Vector3(0.82, 0.05, -0.54), 6, _make_material_from_color(palette.trim, 0.8), lot_root)
 	return root
 
 
@@ -3346,6 +3384,8 @@ func _apply_property_tier_visuals(root: Node3D, tool: String, tier: int, variant
 func _apply_house_tier_visuals(root: Node3D, tier: int, variant: int, profile: Dictionary) -> void:
 	_upgrade_debug("apply house tier visuals tier=%d variant=%d profile=%s" % [tier, variant, str(profile)])
 	var palette := _cozy_palette("house", variant)
+	var lot_root := _property_lot_root(root)
+	var structure_root := _property_structure_root(root)
 	var roof_trim := _make_material_from_color(palette.trim.lightened(0.04), 0.88)
 	var roof_detail := _make_material_from_color(palette.roof.darkened(0.03), 0.74)
 	var yard_trim := _make_material_from_color(palette.accent.lightened(0.08), 0.92)
@@ -3353,157 +3393,160 @@ func _apply_house_tier_visuals(root: Node3D, tier: int, variant: int, profile: D
 
 	if tier >= 2:
 		if bool(profile.get("roof_trim", false)):
-			_add_box(Vector3(0.0, 0.26, 1.72), Vector3(1.28, 0.05, 0.05), roof_trim, root)
+			_add_box(Vector3(0.0, 0.26, 1.72), Vector3(1.28, 0.05, 0.05), roof_trim, structure_root)
 		if bool(profile.get("frontage_steps", false)):
-			_add_box(Vector3(0.0, 0.09, 1.48), Vector3(0.52, 0.08, 0.18), fence_material, root)
-			_add_box(Vector3(0.0, 0.04, 1.62), Vector3(0.36, 0.03, 0.12), _make_material("d9cbb7", 0.88), root)
-			_add_box(Vector3(0.0, 0.03, 1.76), Vector3(0.26, 0.02, 0.24), _make_material("d8c7ab", 0.92), root)
+			_add_box(Vector3(0.0, 0.09, 1.48), Vector3(0.52, 0.08, 0.18), fence_material, lot_root)
+			_add_box(Vector3(0.0, 0.04, 1.62), Vector3(0.36, 0.03, 0.12), _make_material("d9cbb7", 0.88), lot_root)
+			_add_box(Vector3(0.0, 0.03, 1.76), Vector3(0.26, 0.02, 0.24), _make_material("d8c7ab", 0.92), lot_root)
 		if bool(profile.get("frontage_path", false)):
-			_add_town_path(Vector3(0.0, 0.03, 1.92), Vector2(0.86, 0.2), root)
+			_add_town_path(Vector3(0.0, 0.03, 1.92), Vector2(0.86, 0.2), lot_root)
 		if bool(profile.get("landscaping", false)):
-			_add_flower_box_local(Vector3(-0.92, 0.18, 1.38), palette.accent, root)
-			_add_flower_box_local(Vector3(0.92, 0.18, 1.38), palette.trim, root)
-			_add_flower_box_local(Vector3(-0.52, 0.18, 1.62), palette.accent.lightened(0.06), root)
-			_add_flower_box_local(Vector3(0.52, 0.18, 1.62), palette.trim.lightened(0.06), root)
-			_add_shrub_cluster(Vector3(-1.74, 0.0, 1.44), palette.accent, root, 3)
-			_add_shrub_cluster(Vector3(1.74, 0.0, 1.44), palette.trim, root, 3)
+			_add_flower_box_local(Vector3(-0.92, 0.18, 1.38), palette.accent, lot_root)
+			_add_flower_box_local(Vector3(0.92, 0.18, 1.38), palette.trim, lot_root)
+			_add_flower_box_local(Vector3(-0.52, 0.18, 1.62), palette.accent.lightened(0.06), lot_root)
+			_add_flower_box_local(Vector3(0.52, 0.18, 1.62), palette.trim.lightened(0.06), lot_root)
+			_add_shrub_cluster(Vector3(-1.74, 0.0, 1.44), palette.accent, lot_root, 3)
+			_add_shrub_cluster(Vector3(1.74, 0.0, 1.44), palette.trim, lot_root, 3)
 		if bool(profile.get("fence_upgrade", false)):
-			_add_box(Vector3(0.0, 0.2, 1.82), Vector3(1.2, 0.08, 0.06), fence_material, root)
+			_add_box(Vector3(0.0, 0.2, 1.82), Vector3(1.2, 0.08, 0.06), fence_material, lot_root)
 
 	if tier >= 3:
 		if bool(profile.get("roof_dormer", false)):
-			_add_dormer(Vector3(0.0, 1.76, 0.16), palette.trim, palette.roof, root)
+			_add_dormer(Vector3(0.0, 1.76, 0.16), palette.trim, palette.roof, structure_root)
 		if bool(profile.get("side_annex", false)):
 			var side := -1.0 if posmod(variant, 2) == 0 else 1.0
-			_add_soft_block(Vector3(side * 1.46, 0.48, 0.2), Vector3(0.82, 0.78, 1.02), _make_material_from_color(palette.wall.darkened(0.02), 0.94), root, 0.14)
-			_add_gabled_roof(Vector3(side * 1.46, 1.02, 0.2), Vector3(0.96, 0.14, 1.14), roof_detail, root, 13.0)
+			_add_soft_block(Vector3(side * 1.46, 0.48, 0.2), Vector3(0.82, 0.78, 1.02), _make_material_from_color(palette.wall.darkened(0.02), 0.94), structure_root, 0.14)
+			_add_gabled_roof(Vector3(side * 1.46, 1.02, 0.2), Vector3(0.96, 0.14, 1.14), roof_detail, structure_root, 13.0)
 		if bool(profile.get("roof_dormer", false)):
-			_add_dormer(Vector3(-0.44, 1.76, 0.16), palette.trim, palette.roof, root)
-			_add_dormer(Vector3(0.48, 1.76, 0.16), palette.trim, palette.roof, root)
+			_add_dormer(Vector3(-0.44, 1.76, 0.16), palette.trim, palette.roof, structure_root)
+			_add_dormer(Vector3(0.48, 1.76, 0.16), palette.trim, palette.roof, structure_root)
 		if bool(profile.get("garden_extension", false)):
-			_add_hedge_strip_local(Vector3(0.0, 0.08, -1.84), 4.26, palette.accent.darkened(0.14), root)
-			_add_bench_local(Vector3(-1.04, 0.02, 1.58), 0.18, root)
-			_add_bench_local(Vector3(1.04, 0.02, 1.58), -0.18, root)
+			_add_hedge_strip_local(Vector3(0.0, 0.08, -1.84), 4.26, palette.accent.darkened(0.14), lot_root)
+			_add_bench_local(Vector3(-1.04, 0.02, 1.58), 0.18, lot_root)
+			_add_bench_local(Vector3(1.04, 0.02, 1.58), -0.18, lot_root)
 
 	if tier >= 4:
 		match posmod(variant, 3):
 			0:
-				_add_soft_block(Vector3(0.72, 0.38, -1.0), Vector3(0.86, 0.58, 0.72), _make_material_from_color(palette.wall.lightened(0.05), 0.94), root, 0.1)
-				_add_gabled_roof(Vector3(0.72, 0.86, -1.0), Vector3(1.0, 0.12, 0.86), roof_detail, root, 18.0)
+				_add_soft_block(Vector3(0.72, 0.38, -1.0), Vector3(0.86, 0.58, 0.72), _make_material_from_color(palette.wall.lightened(0.05), 0.94), structure_root, 0.1)
+				_add_gabled_roof(Vector3(0.72, 0.86, -1.0), Vector3(1.0, 0.12, 0.86), roof_detail, structure_root, 18.0)
 			1:
-				_add_box(Vector3(-1.0, 0.07, -0.98), Vector3(1.68, 0.04, 1.02), _make_material("c9d7be", 0.96), root)
-				_add_round_canopy(Vector3(-0.52, 0.34, -0.78), Vector3(1.2, 0.14, 0.22), yard_trim, root)
+				_add_box(Vector3(-1.0, 0.07, -0.98), Vector3(1.68, 0.04, 1.02), _make_material("c9d7be", 0.96), lot_root)
+				_add_round_canopy(Vector3(-0.52, 0.34, -0.78), Vector3(1.2, 0.14, 0.22), yard_trim, lot_root)
 			2:
-				_add_box(Vector3(0.82, 0.06, -1.34), Vector3(1.04, 0.04, 0.74), _make_material("b7cbb1", 0.96), root)
-				_add_town_path(Vector3(0.82, 0.03, -1.34), Vector2(0.92, 0.38), root)
-		_add_shrub_cluster(Vector3(-1.58, 0.0, -0.96), palette.trim, root, 4)
-		_add_shrub_cluster(Vector3(1.58, 0.0, -0.96), palette.accent, root, 4)
-		_add_box(Vector3(0.0, 0.34, -2.06), Vector3(0.16, 0.46, 0.16), _stone_material, root)
+				_add_box(Vector3(0.82, 0.06, -1.34), Vector3(1.04, 0.04, 0.74), _make_material("b7cbb1", 0.96), lot_root)
+				_add_town_path(Vector3(0.82, 0.03, -1.34), Vector2(0.92, 0.38), lot_root)
+		_add_shrub_cluster(Vector3(-1.58, 0.0, -0.96), palette.trim, lot_root, 4)
+		_add_shrub_cluster(Vector3(1.58, 0.0, -0.96), palette.accent, lot_root, 4)
+		_add_box(Vector3(0.0, 0.34, -2.06), Vector3(0.16, 0.46, 0.16), _stone_material, lot_root)
 
 
 func _apply_service_tier_visuals(root: Node3D, tool: String, tier: int, variant: int, profile: Dictionary) -> void:
 	var palette: Dictionary = _cozy_palette(tool, variant)
 	var accent: Color = palette["accent"]
 	var trim: Color = palette["trim"]
+	var lot_root := _property_lot_root(root)
+	var structure_root := _property_structure_root(root)
 
 	if tier >= 2:
 		if bool(profile.get("landscaping", false)):
-			_add_shrub_cluster(Vector3(-1.16, 0.0, 1.22), trim, root, 3)
-			_add_shrub_cluster(Vector3(1.16, 0.0, 1.22), accent, root, 3)
-		_add_town_path(Vector3(0.0, 0.03, 1.44), Vector2(1.1, 0.32), root)
-		_add_front_lanterns(root, 1.38, 0.72)
+			_add_shrub_cluster(Vector3(-1.16, 0.0, 1.22), trim, lot_root, 3)
+			_add_shrub_cluster(Vector3(1.16, 0.0, 1.22), accent, lot_root, 3)
+		_add_town_path(Vector3(0.0, 0.03, 1.44), Vector2(1.1, 0.32), lot_root)
+		_add_front_lanterns(lot_root, 1.38, 0.72)
 
 	if tier >= 3:
 		match tool:
 			BUILD_TOOL_POLICE:
 				if bool(profile.get("tower", false)):
-					_add_box(Vector3(0.96, 0.26, -0.9), Vector3(0.36, 0.52, 0.5), _make_material_from_color(palette.trim, 0.82), root)
-					_add_gabled_roof(Vector3(0.96, 0.6, -0.9), Vector3(0.46, 0.1, 0.58), _make_material_from_color(palette.roof.darkened(0.02), 0.74), root, 16.0)
+					_add_box(Vector3(0.96, 0.26, -0.9), Vector3(0.36, 0.52, 0.5), _make_material_from_color(palette.trim, 0.82), structure_root)
+					_add_gabled_roof(Vector3(0.96, 0.6, -0.9), Vector3(0.46, 0.1, 0.58), _make_material_from_color(palette.roof.darkened(0.02), 0.74), structure_root, 16.0)
 				if bool(profile.get("badge_plaza", false)):
-					_add_box(Vector3(-1.24, 0.08, 1.42), Vector3(1.48, 0.08, 0.06), _make_material_from_color(accent, 0.38), root)
+					_add_box(Vector3(-1.24, 0.08, 1.42), Vector3(1.48, 0.08, 0.06), _make_material_from_color(accent, 0.38), lot_root)
 			BUILD_TOOL_FIRE:
 				if bool(profile.get("bay_extend", false)):
-					_add_box(Vector3(1.08, 0.14, 0.92), Vector3(0.72, 0.12, 1.22), _make_material_from_color(palette.trim.darkened(0.04), 0.84), root)
+					_add_box(Vector3(1.08, 0.14, 0.92), Vector3(0.72, 0.12, 1.22), _make_material_from_color(palette.trim.darkened(0.04), 0.84), structure_root)
 				if bool(profile.get("apron", false)):
-					_add_hydrant_local(Vector3(-1.34, 0.08, 1.32), root)
+					_add_hydrant_local(Vector3(-1.34, 0.08, 1.32), lot_root)
 			BUILD_TOOL_BANK:
 				if bool(profile.get("side_wing", false)):
-					_add_soft_block(Vector3(1.1, 0.72, -0.62), Vector3(0.72, 0.56, 0.9), _make_material_from_color(palette.wall.lightened(0.02), 0.9), root, 0.12)
-					_add_gabled_roof(Vector3(1.1, 1.1, -0.62), Vector3(0.92, 0.12, 1.08), _make_material_from_color(palette.roof.darkened(0.01), 0.76), root, 10.0)
+					_add_soft_block(Vector3(1.1, 0.72, -0.62), Vector3(0.72, 0.56, 0.9), _make_material_from_color(palette.wall.lightened(0.02), 0.9), structure_root, 0.12)
+					_add_gabled_roof(Vector3(1.1, 1.1, -0.62), Vector3(0.92, 0.12, 1.08), _make_material_from_color(palette.roof.darkened(0.01), 0.76), structure_root, 10.0)
 				if bool(profile.get("grand_plaza", false)):
-					_add_box(Vector3(-1.14, 0.08, 1.18), Vector3(1.64, 0.08, 0.06), _make_material_from_color(trim, 0.42), root)
+					_add_box(Vector3(-1.14, 0.08, 1.18), Vector3(1.64, 0.08, 0.06), _make_material_from_color(trim, 0.42), lot_root)
 			BUILD_TOOL_GROCERY:
 				if bool(profile.get("parking", false)):
-					_add_box(Vector3(1.34, 0.04, 0.78), Vector3(1.18, 0.04, 0.84), _road_mark_material, root)
+					_add_box(Vector3(1.34, 0.04, 0.78), Vector3(1.18, 0.04, 0.84), _road_mark_material, lot_root)
 				if bool(profile.get("service_wing", false)):
-					_add_crate_stack_local(Vector3(-1.48, 0.08, 1.02), accent, root)
+					_add_crate_stack_local(Vector3(-1.48, 0.08, 1.02), accent, lot_root)
 				if bool(profile.get("awning", false)):
-					_add_box(Vector3(0.0, 0.03, 1.34), Vector3(1.4, 0.04, 0.08), _make_material_from_color(trim, 0.42), root)
+					_add_box(Vector3(0.0, 0.03, 1.34), Vector3(1.4, 0.04, 0.08), _make_material_from_color(trim, 0.42), structure_root)
 			BUILD_TOOL_RESTAURANT:
 				if bool(profile.get("patio", false)):
-					_add_box(Vector3(-0.84, 0.08, 1.12), Vector3(1.42, 0.04, 0.08), _make_material_from_color(accent, 0.42), root)
-					_add_box(Vector3(0.84, 0.08, 1.12), Vector3(1.42, 0.04, 0.08), _make_material_from_color(accent, 0.42), root)
+					_add_box(Vector3(-0.84, 0.08, 1.12), Vector3(1.42, 0.04, 0.08), _make_material_from_color(accent, 0.42), lot_root)
+					_add_box(Vector3(0.84, 0.08, 1.12), Vector3(1.42, 0.04, 0.08), _make_material_from_color(accent, 0.42), lot_root)
 				if bool(profile.get("pergola", false)):
-					_add_box(Vector3(0.0, 0.04, 1.44), Vector3(1.34, 0.04, 0.08), _make_material_from_color(trim, 0.42), root)
+					_add_box(Vector3(0.0, 0.04, 1.44), Vector3(1.34, 0.04, 0.08), _make_material_from_color(trim, 0.42), lot_root)
 			BUILD_TOOL_CORNER_STORE:
 				if bool(profile.get("corner_awning", false)):
-					_add_box(Vector3(-1.08, 0.08, 1.12), Vector3(1.28, 0.04, 0.08), _make_material_from_color(accent, 0.42), root)
+					_add_box(Vector3(-1.08, 0.08, 1.12), Vector3(1.28, 0.04, 0.08), _make_material_from_color(accent, 0.42), structure_root)
 				if bool(profile.get("delivery_nook", false)):
-					_add_crate_stack_local(Vector3(0.84, 0.08, 1.02), trim, root)
+					_add_crate_stack_local(Vector3(0.84, 0.08, 1.02), trim, lot_root)
 
 	if tier >= 4:
 		match tool:
 			BUILD_TOOL_POLICE:
 				if bool(profile.get("fenceyard", false)):
-					_add_box(Vector3(-1.36, 0.08, 1.5), Vector3(2.16, 0.08, 0.06), _make_material_from_color(accent, 0.4), root)
-					_add_shrub_cluster(Vector3(-1.42, 0.0, -0.78), trim, root, 4)
+					_add_box(Vector3(-1.36, 0.08, 1.5), Vector3(2.16, 0.08, 0.06), _make_material_from_color(accent, 0.4), lot_root)
+					_add_shrub_cluster(Vector3(-1.42, 0.0, -0.78), trim, lot_root, 4)
 			BUILD_TOOL_FIRE:
 				if bool(profile.get("apron", false)):
-					_add_box(Vector3(-1.18, 0.08, 1.48), Vector3(2.24, 0.08, 0.06), _make_material_from_color(accent, 0.4), root)
-					_add_box(Vector3(0.0, 0.08, 1.64), Vector3(1.54, 0.04, 0.12), _make_material_from_color(trim, 0.44), root)
+					_add_box(Vector3(-1.18, 0.08, 1.48), Vector3(2.24, 0.08, 0.06), _make_material_from_color(accent, 0.4), lot_root)
+					_add_box(Vector3(0.0, 0.08, 1.64), Vector3(1.54, 0.04, 0.12), _make_material_from_color(trim, 0.44), lot_root)
 			BUILD_TOOL_BANK:
-				_add_frontage_detail_cluster(root, 2.0, 1.34, accent, "vault")
+				_add_frontage_detail_cluster(lot_root, 2.0, 1.34, accent, "vault")
 				if bool(profile.get("landscaping", false)):
-					_add_shrub_cluster(Vector3(0.0, 0.0, 1.46), trim, root, 4)
+					_add_shrub_cluster(Vector3(0.0, 0.0, 1.46), trim, lot_root, 4)
 			BUILD_TOOL_GROCERY:
 				if bool(profile.get("parking", false)):
-					_add_box(Vector3(0.0, 0.04, 0.38), Vector3(2.0, 0.03, 1.32), _road_mark_material, root)
+					_add_box(Vector3(0.0, 0.04, 0.38), Vector3(2.0, 0.03, 1.32), _road_mark_material, lot_root)
 				if bool(profile.get("landscaping", false)):
-					_add_box(Vector3(-1.36, 0.08, 1.34), Vector3(0.32, 0.32, 0.12), _make_material_from_color(accent, 0.66), root)
-					_add_box(Vector3(1.36, 0.08, 1.34), Vector3(0.32, 0.32, 0.12), _make_material_from_color(accent, 0.66), root)
+					_add_box(Vector3(-1.36, 0.08, 1.34), Vector3(0.32, 0.32, 0.12), _make_material_from_color(accent, 0.66), lot_root)
+					_add_box(Vector3(1.36, 0.08, 1.34), Vector3(0.32, 0.32, 0.12), _make_material_from_color(accent, 0.66), lot_root)
 			BUILD_TOOL_RESTAURANT:
 				if bool(profile.get("garden_room", false)):
-					_add_box(Vector3(0.0, 0.08, 1.62), Vector3(1.86, 0.04, 0.08), _make_material_from_color(accent, 0.42), root)
-					_add_bench_local(Vector3(-0.84, 0.02, 1.58), 0.0, root)
-					_add_bench_local(Vector3(0.84, 0.02, 1.58), 0.0, root)
+					_add_box(Vector3(0.0, 0.08, 1.62), Vector3(1.86, 0.04, 0.08), _make_material_from_color(accent, 0.42), lot_root)
+					_add_bench_local(Vector3(-0.84, 0.02, 1.58), 0.0, lot_root)
+					_add_bench_local(Vector3(0.84, 0.02, 1.58), 0.0, lot_root)
 			BUILD_TOOL_CORNER_STORE:
 				if bool(profile.get("side_sign", false)):
-					_add_box(Vector3(0.76, 0.08, 1.48), Vector3(0.18, 0.34, 0.12), _make_material_from_color(trim, 0.82), root)
+					_add_box(Vector3(0.76, 0.08, 1.48), Vector3(0.18, 0.34, 0.12), _make_material_from_color(trim, 0.82), structure_root)
 				if bool(profile.get("landscaping", false)):
-					_add_shrub_cluster(Vector3(-0.92, 0.0, 1.36), accent, root, 4)
+					_add_shrub_cluster(Vector3(-0.92, 0.0, 1.36), accent, lot_root, 4)
 
 
 func _apply_park_tier_visuals(root: Node3D, tier: int, variant: int, profile: Dictionary) -> void:
 	var palette := _cozy_palette("house", variant)
+	var lot_root := _property_lot_root(root)
 	if tier >= 2:
 		if bool(profile.get("extra_trees", false)):
-			_add_wildflower_cluster(Vector3(-0.88, 0.06, -0.56), 5, _make_material_from_color(palette.accent, 0.8), root, 0.12)
-			_add_wildflower_cluster(Vector3(0.88, 0.06, 0.56), 5, _make_material_from_color(palette.trim, 0.8), root, 0.12)
+			_add_wildflower_cluster(Vector3(-0.88, 0.06, -0.56), 5, _make_material_from_color(palette.accent, 0.8), lot_root, 0.12)
+			_add_wildflower_cluster(Vector3(0.88, 0.06, 0.56), 5, _make_material_from_color(palette.trim, 0.8), lot_root, 0.12)
 		if bool(profile.get("paths", false)):
-			_add_box(Vector3(0.0, 0.04, 0.86), Vector3(0.18, 0.02, 0.96), _make_material("d8c7ab", 0.9), root)
-			_add_box(Vector3(0.0, 0.04, -0.86), Vector3(0.18, 0.02, 0.96), _make_material("d8c7ab", 0.9), root)
+			_add_box(Vector3(0.0, 0.04, 0.86), Vector3(0.18, 0.02, 0.96), _make_material("d8c7ab", 0.9), lot_root)
+			_add_box(Vector3(0.0, 0.04, -0.86), Vector3(0.18, 0.02, 0.96), _make_material("d8c7ab", 0.9), lot_root)
 	if tier >= 3:
 		if bool(profile.get("gazebo", false)):
-			_add_soft_block(Vector3(-0.54, 0.1, 0.08), Vector3(0.44, 0.32, 0.44), _make_material_from_color(palette.wall, 0.88), root, 0.08)
-			_add_gabled_roof(Vector3(-0.54, 0.3, 0.08), Vector3(0.56, 0.08, 0.56), _make_material_from_color(palette.roof, 0.74), root, 18.0)
-		_add_bench_local(Vector3(0.52, 0.0, -0.16), -0.9, root)
+			_add_soft_block(Vector3(-0.54, 0.1, 0.08), Vector3(0.44, 0.32, 0.44), _make_material_from_color(palette.wall, 0.88), lot_root, 0.08)
+			_add_gabled_roof(Vector3(-0.54, 0.3, 0.08), Vector3(0.56, 0.08, 0.56), _make_material_from_color(palette.roof, 0.74), lot_root, 18.0)
+		_add_bench_local(Vector3(0.52, 0.0, -0.16), -0.9, lot_root)
 	if tier >= 4:
 		if bool(profile.get("fountain", false)):
-			_add_local_sphere(Vector3(0.0, 0.14, 0.0), 0.22, 0.16, _make_material_from_color(palette.accent, 0.44), root)
+			_add_local_sphere(Vector3(0.0, 0.14, 0.0), 0.22, 0.16, _make_material_from_color(palette.accent, 0.44), lot_root)
 		if bool(profile.get("paths", false)):
-			_add_box(Vector3(0.0, 0.06, 0.0), Vector3(0.82, 0.03, 0.82), _make_material_from_color(palette.trim, 0.56), root)
-			_add_box(Vector3(0.0, 0.12, 0.0), Vector3(0.08, 0.24, 1.34), _make_material("d8c7ab", 0.9), root)
-			_add_box(Vector3(0.0, 0.12, 0.0), Vector3(1.34, 0.24, 0.08), _make_material("d8c7ab", 0.9), root)
+			_add_box(Vector3(0.0, 0.06, 0.0), Vector3(0.82, 0.03, 0.82), _make_material_from_color(palette.trim, 0.56), lot_root)
+			_add_box(Vector3(0.0, 0.12, 0.0), Vector3(0.08, 0.24, 1.34), _make_material("d8c7ab", 0.9), lot_root)
+			_add_box(Vector3(0.0, 0.12, 0.0), Vector3(1.34, 0.24, 0.08), _make_material("d8c7ab", 0.9), lot_root)
 
 
 func _add_town_path(center: Vector3, size: Vector2, parent: Node = null) -> void:
