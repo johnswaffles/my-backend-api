@@ -84,13 +84,13 @@ const SAVE_PATH := "user://cozy_builder_save.json"
 const MUSIC_STREAM_PATH := "res://assets/audio/neon-dreams.mp3"
 const PROPERTY_FRONT_SETBACK := 1.0
 const PROPERTY_FRONT_SETBACK_BY_TOOL := {
-	BUILD_TOOL_HOUSE: 1.6,
-	BUILD_TOOL_POLICE: 1.35,
-	BUILD_TOOL_FIRE: 1.35,
-	BUILD_TOOL_BANK: 1.55,
-	BUILD_TOOL_GROCERY: 1.65,
-	BUILD_TOOL_RESTAURANT: 1.45,
-	BUILD_TOOL_CORNER_STORE: 1.45,
+	BUILD_TOOL_HOUSE: 0.8,
+	BUILD_TOOL_POLICE: 0.8,
+	BUILD_TOOL_FIRE: 0.8,
+	BUILD_TOOL_BANK: 0.8,
+	BUILD_TOOL_GROCERY: 0.8,
+	BUILD_TOOL_RESTAURANT: 0.8,
+	BUILD_TOOL_CORNER_STORE: 0.8,
 }
 const PROPERTY_BUFFER_BY_TOOL := {
 	BUILD_TOOL_HOUSE: 1,
@@ -1235,19 +1235,6 @@ func _property_reserved_cells(anchor: Vector2i, footprint: Vector2i, frontage_si
 		for x in range(min_x, max_x + 1):
 			if x >= anchor.x and x < anchor.x + footprint.x and y >= anchor.y and y < anchor.y + footprint.y:
 				continue
-			match frontage_side:
-				"north":
-					if y < anchor.y:
-						continue
-				"south":
-					if y >= anchor.y + footprint.y:
-						continue
-				"west":
-					if x < anchor.x:
-						continue
-				"east":
-					if x >= anchor.x + footprint.x:
-						continue
 			reserved.append(Vector2i(x, y))
 	return reserved
 
