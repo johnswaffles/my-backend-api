@@ -81,7 +81,7 @@ const BUILDING_MAX_TIERS := {
 	BUILD_TOOL_PARK: 4,
 }
 const SAVE_PATH := "user://cozy_builder_save.json"
-const MUSIC_STREAM_PATH := "res://assets/audio/neon-dreams.mp3"
+const MUSIC_STREAM_PATH := "res://assets/audio/Sunrise Over Tiny Blocks (2).mp3"
 const PROPERTY_FRONT_SETBACK := 1.0
 const PROPERTY_FRONT_SETBACK_BY_TOOL := {
 	BUILD_TOOL_HOUSE: 0.95,
@@ -226,7 +226,7 @@ var _zoom_out_button: Button
 var _nature_root: Node3D
 var _music_player: AudioStreamPlayer
 var _music_button: Button
-var _music_enabled := false
+var _music_enabled := true
 
 
 func _ready() -> void:
@@ -400,6 +400,8 @@ func _create_runtime_helpers() -> void:
 	_music_player.volume_db = -12.0
 	add_child(_music_player)
 	_load_music_stream()
+	if _music_player.stream != null:
+		_music_player.play()
 
 
 func _build_hud() -> void:
@@ -487,7 +489,7 @@ func _build_hud() -> void:
 	top_row.add_child(_fullscreen_button)
 
 	_music_button = Button.new()
-	_music_button.text = "Music Off"
+	_music_button.text = "Music On"
 	_music_button.custom_minimum_size = Vector2(88, 0)
 	_music_button.pressed.connect(_toggle_music)
 	top_row.add_child(_music_button)
