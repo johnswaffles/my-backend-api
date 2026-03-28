@@ -764,7 +764,11 @@ func _update_hover_from_mouse() -> void:
 	if not is_instance_valid(camera):
 		return
 	var pick := _pick_grid_cell(get_viewport().get_mouse_position())
+	var inspect_mode := _build_tool == BUILD_TOOL_INSPECT or _build_tool == BUILD_TOOL_BULLDOZE
 	if pick.is_empty():
+		if inspect_mode and _selected_anchor_key != "" and _placements.has(_selected_anchor_key):
+			_sync_hover_to_selected_placement()
+			return
 		_clear_hover()
 		return
 
@@ -775,7 +779,6 @@ func _update_hover_from_mouse() -> void:
 	var cells: Array[Vector2i] = hover_layout.get("cells", _cells_for_anchor(anchor, footprint))
 	var world := _anchor_to_world(anchor, footprint)
 	var valid := false
-	var inspect_mode := _build_tool == BUILD_TOOL_INSPECT or _build_tool == BUILD_TOOL_BULLDOZE
 	var pointer_over_hud := _is_pointer_over_hud()
 	if inspect_mode:
 		var found_anchor := _find_anchor_for_cell(cell)
@@ -787,9 +790,11 @@ func _update_hover_from_mouse() -> void:
 			valid = true
 			_set_selected_anchor(found_anchor)
 		elif _selected_anchor_key != "":
+			_sync_hover_to_selected_placement()
 			valid = true
 			if DEBUG_UPGRADES:
 				_upgrade_debug("inspect hover kept selection cell=%s selected=%s hud=%s" % [str(cell), _selected_anchor_key, str(pointer_over_hud)])
+			return
 		elif not pointer_over_hud:
 			_upgrade_debug("inspect hover cleared selection cell=%s hud=%s selected_before=%s" % [str(cell), str(pointer_over_hud), _selected_anchor_key])
 			_clear_selected_anchor()
@@ -866,6 +871,25 @@ func _clear_hover() -> void:
 		_ghost_root.visible = false
 	if _hint_label:
 		_hint_label.text = "Use the build buttons or keys 1-0 and P, then click or press Space to place. Q/E rotates. Cmd/Ctrl+Z undoes. Right drag pans."
+
+
+func _sync_hover_to_selected_placement() -> void:
+	if _selected_anchor_key == "" or not _placements.has(_selected_anchor_key):
+		return
+	var placement: Dictionary = _placements[_selected_anchor_key]
+	var anchor: Vector2i = placement["anchor"]
+	var cells: Array[Vector2i] = placement["cells"]
+	_hovered_cell = anchor
+	_hover_anchor = anchor
+	_hover_cells = cells
+	_hover_frontage_side = str(placement.get("frontage_side", "south"))
+	_hover_active = true
+	_hover_can_build = true
+	_update_hover_tiles(cells, true)
+	if _ghost_root:
+		_ghost_root.visible = false
+	if _hint_label:
+		_hint_label.text = "Selected %s. Click or press Space to %s it." % [_selection_name(), "inspect" if _build_tool == BUILD_TOOL_INSPECT else "remove"]
 
 
 func _cancel_road_line() -> void:
@@ -2324,21 +2348,19 @@ func _clear_nature_for_cells(cells: Array[Vector2i]) -> void:
 			_nature_features.remove_at(i)
 			continue
 		var radius: float = float(feature.get_meta("clear_radius", 0.72))
+		var feature_center := Vector2(feature.global_position.x, feature.global_position.z)
 		for cell in cells:
-			var feature_center := Vector2(feature.global_position.x, feature.global_position.z)
-			var world_center := _cell_to_world(cell)
-			if feature_center.distance_to(Vector2(world_center.x, world_center.z)) < radius:
+			if _circle_overlaps_cell(feature_center, radius, cell):
 				feature.queue_free()
 				_nature_features.remove_at(i)
 				break
 	for cell in cells:
-		var world_center := _cell_to_world(cell)
 		for i in range(_grass_clumps.size() - 1, -1, -1):
 			var clump := _grass_clumps[i]
 			if not is_instance_valid(clump):
 				_grass_clumps.remove_at(i)
 				continue
-			if Vector2(clump.position.x, clump.position.z).distance_to(Vector2(world_center.x, world_center.z)) < 0.72:
+			if _circle_overlaps_cell(Vector2(clump.position.x, clump.position.z), 0.72, cell):
 				clump.queue_free()
 				_grass_clumps.remove_at(i)
 		for j in range(_meadow_patches.size() - 1, -1, -1):
@@ -2347,7 +2369,7 @@ func _clear_nature_for_cells(cells: Array[Vector2i]) -> void:
 				_meadow_patches.remove_at(j)
 				continue
 			var radius: float = float(patch.get_meta("radius", 1.0))
-			if Vector2(patch.position.x, patch.position.z).distance_to(Vector2(world_center.x, world_center.z)) < radius:
+			if _circle_overlaps_cell(Vector2(patch.position.x, patch.position.z), radius, cell):
 				patch.queue_free()
 				_meadow_patches.remove_at(j)
 
@@ -2355,6 +2377,18 @@ func _clear_nature_for_cells(cells: Array[Vector2i]) -> void:
 func _register_nature_feature(node: Node3D, clear_radius: float) -> void:
 	node.set_meta("clear_radius", clear_radius)
 	_nature_features.append(node)
+
+
+func _circle_overlaps_cell(center: Vector2, radius: float, cell: Vector2i) -> bool:
+	var world_center := _cell_to_world(cell)
+	var half: float = 0.5
+	var min_x: float = world_center.x - half
+	var max_x: float = world_center.x + half
+	var min_y: float = world_center.z - half
+	var max_y: float = world_center.z + half
+	var nearest_x: float = clampf(center.x, min_x, max_x)
+	var nearest_y: float = clampf(center.y, min_y, max_y)
+	return center.distance_to(Vector2(nearest_x, nearest_y)) <= radius
 
 
 func _clear_ambient_life() -> void:
