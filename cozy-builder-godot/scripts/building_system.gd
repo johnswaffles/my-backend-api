@@ -370,22 +370,22 @@ func _input(event: InputEvent) -> void:
 
 
 func _build_materials() -> void:
-	_ground_material_a = _make_material("8f9f68", 0.98)
-	_ground_material_b = _make_material("7f8f5d", 0.98)
-	_ground_material_c = _make_material("b0bf82", 0.98)
-	_soil_material = _make_material("6f5037", 0.99)
-	_stone_material = _make_material("d7c9b8", 0.94)
-	_water_material = _make_material("5f8fa0", 0.3, 0.0, true, "e0f5f7", 0.08)
-	_road_material = _make_material("5f636b", 0.98)
-	_road_mark_material = _make_material("f4d56e", 0.8)
-	_sidewalk_material = _make_material("d7cab8", 0.93)
-	_window_material = _make_material("ffcc78", 0.18, 0.0, true, "ffbf69", 0.48)
-	_leaf_material = _make_material("729252", 0.98)
-	_trunk_material = _make_material("7b5640", 0.94)
-	_flower_material_pink = _make_material("dc94b0", 0.82)
-	_flower_material_blue = _make_material("90b4de", 0.82)
-	_meadow_material = _make_material("a7b06f", 0.99)
-	_grass_blade_material = _make_material("78954d", 0.98)
+	_ground_material_a = _make_material("7d8753", 0.98)
+	_ground_material_b = _make_material("6f784a", 0.98)
+	_ground_material_c = _make_material("95a16a", 0.98)
+	_soil_material = _make_material("5c4631", 0.99)
+	_stone_material = _make_material("d8c8b6", 0.94)
+	_water_material = _make_material("587f92", 0.34, 0.0, true, "d5f0f6", 0.12)
+	_road_material = _make_material("474b53", 0.98)
+	_road_mark_material = _make_material("e0be57", 0.82)
+	_sidewalk_material = _make_material("cdbca4", 0.94)
+	_window_material = _make_material("ffb85b", 0.16, 0.0, true, "ffd18a", 0.78)
+	_leaf_material = _make_material("5f7f4a", 0.98)
+	_trunk_material = _make_material("6d4d39", 0.94)
+	_flower_material_pink = _make_material("d98fae", 0.82)
+	_flower_material_blue = _make_material("89afd9", 0.82)
+	_meadow_material = _make_material("9ca464", 0.99)
+	_grass_blade_material = _make_material("6d8646", 0.98)
 	_soft_shadow_material = _make_transparent_material(Color(0.08, 0.06, 0.04, 1.0), 1.0, 0.18)
 	_hover_material_valid = _make_transparent_material(Color("76e5c7"), 0.24, 0.34)
 	_hover_material_invalid = _make_transparent_material(Color("f29a8d"), 0.24, 0.34)
@@ -4131,6 +4131,8 @@ func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = [
 			_add_box(Vector3(x, 0.104, 0.0), Vector3(0.16, 0.01, 3.56), sidewalk_material, root)
 		for rail_x in [-0.18, 0.18]:
 			_add_box(Vector3(rail_x, 0.108, 0.0), Vector3(0.05, 0.012, 3.56), rail_material, root)
+		if not preview and posmod(cell.x + cell.y, 2) == 0:
+			_add_road_lamp_local(Vector3(2.42, 0.0, 0.98), root)
 	elif horizontal_straight:
 		for x in [-1.24, -0.44, 0.44, 1.24]:
 			_add_box(Vector3(x, 0.12, 0.0), Vector3(0.3, 0.01, 0.16), lane_material, root)
@@ -4138,6 +4140,8 @@ func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = [
 			_add_box(Vector3(0.0, 0.104, z), Vector3(3.56, 0.01, 0.16), sidewalk_material, root)
 		for rail_z in [-0.18, 0.18]:
 			_add_box(Vector3(0.0, 0.108, rail_z), Vector3(3.56, 0.012, 0.05), rail_material, root)
+		if not preview and posmod(cell.x + cell.y, 2) == 1:
+			_add_road_lamp_local(Vector3(-0.98, 0.0, 2.42), root)
 	elif intersection:
 		_add_box(Vector3(0.0, 0.074, 0.0), Vector3(4.18, 0.07, 4.18), road_material, root)
 		_add_box(Vector3(0.0, 0.094, 0.0), Vector3(3.82, 0.024, 3.82), road_top_material, root)
@@ -4150,10 +4154,17 @@ func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = [
 		for rail_offset in [-0.18, 0.18]:
 			_add_box(Vector3(rail_offset, 0.108, 0.0), Vector3(0.05, 0.012, 4.18), rail_material, root)
 			_add_box(Vector3(0.0, 0.108, rail_offset), Vector3(4.18, 0.012, 0.05), rail_material, root)
+		if not preview:
+			_add_road_lamp_local(Vector3(2.38, 0.0, 2.38), root)
+			_add_road_lamp_local(Vector3(-2.38, 0.0, 2.38), root)
+			_add_road_lamp_local(Vector3(2.38, 0.0, -2.38), root)
+			_add_road_lamp_local(Vector3(-2.38, 0.0, -2.38), root)
 	else:
 		_add_box(Vector3(0.0, 0.12, 0.0), Vector3(0.18, 0.01, 0.18), lane_material, root)
 		_add_box(Vector3(-0.18, 0.108, 0.0), Vector3(0.05, 0.012, 0.84), rail_material, root)
 		_add_box(Vector3(0.18, 0.108, 0.0), Vector3(0.05, 0.012, 0.84), rail_material, root)
+		if not preview:
+			_add_road_lamp_local(Vector3(2.2, 0.0, 0.98), root)
 
 	return root
 
@@ -4470,8 +4481,10 @@ func _add_service_steps(parent: Node, z_position: float, width: float) -> void:
 
 func _add_front_lanterns(parent: Node, z_position: float, width: float) -> void:
 	for side in [-1.0, 1.0]:
-		_add_local_cylinder(Vector3(side * width * 0.5, 0.38, z_position), 0.03, 0.03, 0.76, _road_material, parent)
-		_add_box(Vector3(side * width * 0.5, 0.82, z_position), Vector3(0.12, 0.1, 0.12), _window_material, parent)
+		var lamp_x := side * width * 0.5
+		_add_local_cylinder(Vector3(lamp_x, 0.38, z_position), 0.03, 0.03, 0.76, _road_material, parent)
+		_add_box(Vector3(lamp_x, 0.82, z_position), Vector3(0.12, 0.1, 0.12), _window_material, parent)
+		_add_lantern_glow_local(Vector3(lamp_x, 0.88, z_position), parent)
 
 
 func _add_frontage_detail_cluster(parent: Node, width: float, z_position: float, accent: Color, kind: String) -> void:
@@ -4587,6 +4600,7 @@ func _add_shore_detail(position_3d: Vector3) -> void:
 func _add_lamp(position_3d: Vector3) -> void:
 	_add_cylinder(position_3d + Vector3(0.0, 0.54, 0.0), 0.04, 0.04, 1.08, _road_material)
 	_add_box(position_3d + Vector3(0.0, 1.12, 0.0), Vector3(0.18, 0.1, 0.18), _window_material, building_root)
+	_add_lantern_glow_local(position_3d + Vector3(0.0, 1.12, 0.0), building_root)
 
 
 func _add_bench(position_3d: Vector3, rotation_y: float) -> void:
@@ -4603,6 +4617,25 @@ func _add_bench_local(position_3d: Vector3, rotation_y: float, parent: Node) -> 
 	bench.rotation_degrees.y = rotation_y
 	var back := _add_box(position_3d + Vector3(0.0, 0.28, -0.07), Vector3(0.48, 0.18, 0.06), seat_material, parent)
 	back.rotation_degrees.y = rotation_y
+
+
+func _add_lantern_glow_local(position_3d: Vector3, parent: Node) -> void:
+	var light := OmniLight3D.new()
+	light.position = position_3d
+	light.light_color = Color(1.0, 0.73, 0.42)
+	light.light_energy = 0.7
+	light.omni_range = 4.0
+	light.shadow_enabled = false
+	parent.add_child(light)
+
+
+func _add_road_lamp_local(position_3d: Vector3, parent: Node) -> void:
+	var lamp_root := Node3D.new()
+	lamp_root.position = position_3d
+	parent.add_child(lamp_root)
+	_add_cylinder(Vector3(0.0, 0.54, 0.0), 0.04, 0.04, 1.08, _road_material, lamp_root)
+	_add_box(Vector3(0.0, 1.12, 0.0), Vector3(0.18, 0.1, 0.18), _window_material, lamp_root)
+	_add_lantern_glow_local(Vector3(0.0, 1.12, 0.0), lamp_root)
 
 
 func _add_local_tree(position_3d: Vector3, parent: Node) -> void:
@@ -4824,7 +4857,7 @@ func _animate_windows() -> void:
 		var window_band := _window_bands[i]
 		var material := window_band.material_override as StandardMaterial3D
 		if material:
-			material.emission_energy_multiplier = 0.48 + (sin(time * 1.08 + i * 0.72) * 0.5 + 0.5) * 0.34
+			material.emission_energy_multiplier = 0.82 + (sin(time * 0.92 + i * 0.72) * 0.5 + 0.5) * 0.62
 
 
 func _animate_grass() -> void:
