@@ -4481,7 +4481,7 @@ func _add_service_steps(parent: Node, z_position: float, width: float) -> void:
 
 func _add_front_lanterns(parent: Node, z_position: float, width: float) -> void:
 	for side in [-1.0, 1.0]:
-		var lamp_x := side * width * 0.5
+		var lamp_x: float = side * width * 0.5
 		_add_local_cylinder(Vector3(lamp_x, 0.38, z_position), 0.03, 0.03, 0.76, _road_material, parent)
 		_add_box(Vector3(lamp_x, 0.82, z_position), Vector3(0.12, 0.1, 0.12), _window_material, parent)
 		_add_lantern_glow_local(Vector3(lamp_x, 0.88, z_position), parent)
@@ -4633,7 +4633,7 @@ func _add_road_lamp_local(position_3d: Vector3, parent: Node) -> void:
 	var lamp_root := Node3D.new()
 	lamp_root.position = position_3d
 	parent.add_child(lamp_root)
-	_add_cylinder(Vector3(0.0, 0.54, 0.0), 0.04, 0.04, 1.08, _road_material, lamp_root)
+	_add_local_cylinder(Vector3(0.0, 0.54, 0.0), 0.04, 0.04, 1.08, _road_material, lamp_root)
 	_add_box(Vector3(0.0, 1.12, 0.0), Vector3(0.18, 0.1, 0.18), _window_material, lamp_root)
 	_add_lantern_glow_local(Vector3(0.0, 1.12, 0.0), lamp_root)
 
