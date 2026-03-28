@@ -3647,12 +3647,7 @@ func _apply_service_tier_visuals(root: Node3D, tool: String, tier: int, variant:
 		match tool:
 			BUILD_TOOL_POLICE:
 				if bool(profile.get("parking_expand", false)):
-					var parking_material := _make_material("7a8088", 0.94)
-					_add_box(Vector3(1.34, 0.03, -0.28), Vector3(1.42, 0.03, 1.62), parking_material, lot_root)
-					_add_box(Vector3(1.34, 0.035, -0.28), Vector3(1.24, 0.01, 1.48), _road_mark_material, lot_root)
-					for lane_z in [-0.76, -0.24, 0.28, 0.8]:
-						_add_box(Vector3(0.96, 0.045, lane_z), Vector3(0.36, 0.01, 0.08), _road_mark_material, lot_root)
-						_add_box(Vector3(1.72, 0.045, lane_z), Vector3(0.36, 0.01, 0.08), _road_mark_material, lot_root)
+					_add_police_parking_lot(Vector3(1.38, 0.0, -0.26), Vector3(1.62, 1.0, 1.78), lot_root)
 			BUILD_TOOL_FIRE:
 				if bool(profile.get("bay_extend", false)):
 					_add_box(Vector3(1.08, 0.14, 0.92), Vector3(0.72, 0.12, 1.22), _make_material_from_color(palette.trim.darkened(0.04), 0.84), structure_root)
@@ -4231,6 +4226,61 @@ func _add_frontage_detail_cluster(parent: Node, width: float, z_position: float,
 	_add_service_steps(parent, z_position + 0.08, width * 0.48)
 	_add_front_lanterns(parent, z_position + 0.2, width * 0.56)
 	_add_signboard_local(Vector3(0.0, 0.98, z_position + 0.24), Vector2(maxf(0.78, width * 0.34), 0.16), accent, kind, parent)
+
+
+func _add_police_car_local(position_3d: Vector3, rotation_y: float, parent: Node) -> void:
+	var root := Node3D.new()
+	root.position = position_3d
+	root.rotation.y = rotation_y
+	parent.add_child(root)
+	_add_shadow_disc_local(Vector3(0.0, 0.005, 0.0), Vector2(0.44, 0.7), 0.18, root)
+	var body_material := _make_material("244b7c", 0.7)
+	var light_material := _make_material("f4efe6", 0.82)
+	var window_material := _make_transparent_material(Color("cde9ff"), 0.26, 0.18)
+	var tire_material := _make_material("26252b", 0.98)
+	var stripe_material := _make_material("e6e0d4", 0.8)
+	_add_soft_block(Vector3(0.0, 0.12, 0.0), Vector3(0.42, 0.14, 0.68), body_material, root, 0.06)
+	_add_soft_block(Vector3(0.0, 0.2, -0.02), Vector3(0.26, 0.1, 0.28), light_material, root, 0.04)
+	_add_box(Vector3(0.0, 0.22, -0.02), Vector3(0.18, 0.06, 0.18), window_material, root)
+	_add_box(Vector3(0.0, 0.17, 0.22), Vector3(0.22, 0.03, 0.03), stripe_material, root)
+	_add_box(Vector3(0.0, 0.17, -0.22), Vector3(0.22, 0.03, 0.03), stripe_material, root)
+	_add_box(Vector3(0.0, 0.29, 0.14), Vector3(0.14, 0.03, 0.08), light_material, root)
+	_add_box(Vector3(0.0, 0.29, -0.14), Vector3(0.14, 0.03, 0.08), light_material, root)
+	for wheel_data in [
+		Vector3(-0.15, 0.06, -0.22),
+		Vector3(0.15, 0.06, -0.22),
+		Vector3(-0.15, 0.06, 0.22),
+		Vector3(0.15, 0.06, 0.22),
+	]:
+		var wheel := _add_local_cylinder(wheel_data, 0.05, 0.05, 0.04, tire_material, root)
+		wheel.rotation_degrees.z = 90.0
+
+
+func _add_police_parking_lot(center: Vector3, size: Vector3, parent: Node) -> void:
+	var lot_root := Node3D.new()
+	lot_root.position = center
+	parent.add_child(lot_root)
+	_add_shadow_disc_local(Vector3(0.0, 0.0, 0.0), Vector2(size.x * 1.0, size.z * 0.96), 0.1, lot_root)
+	var apron_material := _make_material("d7d2ca", 0.94)
+	var asphalt_material := _make_material("717881", 0.96)
+	var curb_material := _make_material("ece7dd", 0.92)
+	var line_material := _make_material("f1e29a", 0.94)
+	var stop_material := _make_material("f5f0e6", 0.94)
+	var border_size := Vector3(size.x + 0.18, 0.02, size.z + 0.18)
+	_add_box(Vector3(0.0, 0.018, 0.0), border_size, apron_material, lot_root)
+	_add_box(Vector3(0.0, 0.045, 0.0), Vector3(size.x, 0.03, size.z), asphalt_material, lot_root)
+	_add_box(Vector3(0.0, 0.07, -size.z * 0.5 + 0.07), Vector3(size.x * 0.92, 0.015, 0.08), curb_material, lot_root)
+	_add_box(Vector3(0.0, 0.07, size.z * 0.5 - 0.07), Vector3(size.x * 0.92, 0.015, 0.08), curb_material, lot_root)
+	_add_box(Vector3(-size.x * 0.5 + 0.07, 0.07, 0.0), Vector3(0.08, 0.015, size.z * 0.84), curb_material, lot_root)
+	_add_box(Vector3(size.x * 0.5 - 0.07, 0.07, 0.0), Vector3(0.08, 0.015, size.z * 0.84), curb_material, lot_root)
+	_add_box(Vector3(0.0, 0.074, 0.0), Vector3(size.x * 0.72, 0.01, 0.04), line_material, lot_root)
+	_add_box(Vector3(-0.34, 0.074, -0.16), Vector3(0.04, 0.01, 0.36), stop_material, lot_root)
+	_add_box(Vector3(0.0, 0.074, -0.16), Vector3(0.04, 0.01, 0.36), stop_material, lot_root)
+	_add_box(Vector3(0.34, 0.074, -0.16), Vector3(0.04, 0.01, 0.36), stop_material, lot_root)
+	_add_box(Vector3(0.68, 0.074, -0.16), Vector3(0.04, 0.01, 0.36), stop_material, lot_root)
+	_add_box(Vector3(0.48, 0.074, 0.24), Vector3(0.04, 0.01, 0.26), line_material, lot_root)
+	_add_box(Vector3(0.48, 0.074, -0.52), Vector3(0.04, 0.01, 0.16), line_material, lot_root)
+	_add_police_car_local(Vector3(0.44, 0.015, -0.1), 0.0, lot_root)
 
 
 func _add_signboard_local(position_3d: Vector3, size: Vector2, accent: Color, kind: String, parent: Node) -> void:
