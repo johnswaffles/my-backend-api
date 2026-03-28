@@ -1589,22 +1589,30 @@ func _upgrade_selected_property() -> void:
 	])
 	_money -= upgrade_cost
 	_upgrade_debug("upgrade money deducted cost=%d remaining=%d" % [upgrade_cost, _money])
-	if tool == BUILD_TOOL_HOUSE and is_instance_valid(existing_node):
+	if (tool == BUILD_TOOL_HOUSE or tool == BUILD_TOOL_POLICE) and is_instance_valid(existing_node):
 		var before_global := existing_node.global_position
-		_rebuild_house_visuals_in_place(existing_node, next_tier, variant)
+		if tool == BUILD_TOOL_HOUSE:
+			_rebuild_house_visuals_in_place(existing_node, next_tier, variant)
+		else:
+			_rebuild_police_visuals_in_place(existing_node, next_tier, variant)
 		var after_global := existing_node.global_position
 		placement["node"] = existing_node
 		placement["tier"] = next_tier
 		placement["variant"] = variant
 		placement["frontage_side"] = frontage_side
 		_placements[anchor_key] = placement
-		print("[HOUSE UPGRADE VERIFY] anchor=%s before=%s after=%s identical=%s" % [
+		print("[%s UPGRADE VERIFY] anchor=%s before=%s after=%s identical=%s" % [
+			"POLICE" if tool == BUILD_TOOL_POLICE else "HOUSE",
 			anchor_key,
 			str(before_global),
 			str(after_global),
 			str(before_global.is_equal_approx(after_global))
 		])
-		_upgrade_debug("upgrade rebuilt house in place anchor=%s tier=%d" % [anchor_key, next_tier])
+		_upgrade_debug("upgrade rebuilt %s in place anchor=%s tier=%d" % [
+			tool,
+			anchor_key,
+			next_tier
+		])
 	else:
 		_remove_selected_placement(false, false)
 		_upgrade_debug("upgrade after remove money=%d selected=%s placement_exists=%s" % [
@@ -1896,9 +1904,12 @@ func _undo_last_action() -> void:
 			var variant := int(placement.get("variant", -1))
 			var frontage_side := str(placement.get("frontage_side", ""))
 			var from_tier := int(action.get("from_tier", 1))
-			if tool == BUILD_TOOL_HOUSE and is_instance_valid(placement.get("node") as Node3D):
+			if (tool == BUILD_TOOL_HOUSE or tool == BUILD_TOOL_POLICE) and is_instance_valid(placement.get("node") as Node3D):
 				var node := placement.get("node") as Node3D
-				_rebuild_house_visuals_in_place(node, from_tier, variant)
+				if tool == BUILD_TOOL_HOUSE:
+					_rebuild_house_visuals_in_place(node, from_tier, variant)
+				else:
+					_rebuild_police_visuals_in_place(node, from_tier, variant)
 				placement["tier"] = from_tier
 				placement["variant"] = variant
 				placement["frontage_side"] = frontage_side
@@ -2096,6 +2107,16 @@ func _rebuild_house_visuals_in_place(root: Node3D, tier: int, variant: int) -> v
 	var structure_root := _property_structure_root(root)
 	_populate_village_house_variant(root, lot_root, structure_root, variant)
 	_apply_property_tier_visuals(root, BUILD_TOOL_HOUSE, tier, variant)
+	root.set_meta("tier", tier)
+	root.set_meta("variant", variant)
+
+
+func _rebuild_police_visuals_in_place(root: Node3D, tier: int, variant: int) -> void:
+	_clear_property_visuals(root)
+	var lot_root := _property_lot_root(root)
+	var structure_root := _property_structure_root(root)
+	_populate_police_station_variant(root, lot_root, structure_root, variant)
+	_apply_property_tier_visuals(root, BUILD_TOOL_POLICE, tier, variant)
 	root.set_meta("tier", tier)
 	root.set_meta("variant", variant)
 
@@ -3306,15 +3327,11 @@ func _add_village_house_variant(position_3d: Vector3, variant: int) -> Node3D:
 	return root
 
 
-func _add_police_station_variant(position_3d: Vector3, variant: int) -> Node3D:
+func _populate_police_station_variant(root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int) -> void:
 	var palette := _cozy_palette("police", variant)
 	var width := 2.8 + float(variant % 3) * 0.18
 	var depth := 1.92 + float(variant % 2) * 0.18
 	var height := 1.06 + float(int(variant / 4)) * 0.08
-	var property_roots := _create_property_roots(position_3d)
-	var root := property_roots["root"] as Node3D
-	var lot_root := property_roots["lot"] as Node3D
-	var structure_root := property_roots["structure"] as Node3D
 	_add_parcel_shadow(root, Vector2(4.9, 3.8), 0.24)
 
 	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(4.6, 0.04, 3.5), _make_material("cbd4b5", 0.98), lot_root)
@@ -3333,6 +3350,14 @@ func _add_police_station_variant(position_3d: Vector3, variant: int) -> Node3D:
 	_add_box(Vector3(1.63, 0.06, -0.68), Vector3(1.16, 0.04, 1.5), _make_material("9f8b74", 0.9), structure_root)
 	_add_shrub_cluster(Vector3(-1.08, 0.0, 1.14), palette.accent, lot_root, 3)
 	_add_shrub_cluster(Vector3(0.68, 0.0, 1.14), palette.trim, lot_root, 3)
+	
+
+func _add_police_station_variant(position_3d: Vector3, variant: int) -> Node3D:
+	var property_roots := _create_property_roots(position_3d)
+	var root := property_roots["root"] as Node3D
+	var lot_root := property_roots["lot"] as Node3D
+	var structure_root := property_roots["structure"] as Node3D
+	_populate_police_station_variant(root, lot_root, structure_root, variant)
 	return root
 
 
