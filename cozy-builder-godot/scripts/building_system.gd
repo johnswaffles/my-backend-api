@@ -1558,29 +1558,47 @@ func _upgrade_selected_property() -> void:
 	var frontage_side := str(placement.get("frontage_side", ""))
 	var base_cost := int(placement["cost"])
 	var next_tier := current_tier + 1
+	var existing_node := placement.get("node") as Node3D
 
 	_upgrade_debug("upgrade begin anchor=%s tool=%s current_tier=%d next_tier=%d variant=%d frontage=%s cells=%s" % [
 		anchor_key, tool, current_tier, next_tier, variant, frontage_side, str(cells)
 	])
-	_remove_selected_placement(false, false)
-	_upgrade_debug("upgrade after remove money=%d selected=%s placement_exists=%s" % [
-		_money,
-		_selected_anchor_key,
-		str(_placements.has(anchor_key))
-	])
 	_money -= upgrade_cost
 	_upgrade_debug("upgrade money deducted cost=%d remaining=%d" % [upgrade_cost, _money])
-	var node := _spawn_building_for_tool(tool, _anchor_to_world(anchor, _footprint_from_cells(cells)), _tool_rotation_y(tool, anchor, _footprint_from_cells(cells), frontage_side), next_tier, variant)
-	_upgrade_debug("upgrade spawned node=%s next_tier=%d" % [str(node), next_tier])
-	_register_placement(anchor, cells, tool, node, base_cost, next_tier, variant, frontage_side)
-	_upgrade_debug("upgrade registered placement anchor=%s selected_now=%s placement=%s" % [
-		anchor_key,
-		_selected_anchor_key,
-		_placement_debug_string(_placements.get(anchor_key, {}))
-	])
-	if _selected_anchor_key != anchor_key:
-		_set_selected_anchor(anchor_key)
-		_upgrade_debug("upgrade restored selection anchor=%s" % anchor_key)
+	if tool == BUILD_TOOL_HOUSE and is_instance_valid(existing_node):
+		var before_global := existing_node.global_position
+		_rebuild_house_visuals_in_place(existing_node, next_tier, variant)
+		var after_global := existing_node.global_position
+		placement["node"] = existing_node
+		placement["tier"] = next_tier
+		placement["variant"] = variant
+		placement["frontage_side"] = frontage_side
+		_placements[anchor_key] = placement
+		print("[HOUSE UPGRADE VERIFY] anchor=%s before=%s after=%s identical=%s" % [
+			anchor_key,
+			str(before_global),
+			str(after_global),
+			str(before_global.is_equal_approx(after_global))
+		])
+		_upgrade_debug("upgrade rebuilt house in place anchor=%s tier=%d" % [anchor_key, next_tier])
+	else:
+		_remove_selected_placement(false, false)
+		_upgrade_debug("upgrade after remove money=%d selected=%s placement_exists=%s" % [
+			_money,
+			_selected_anchor_key,
+			str(_placements.has(anchor_key))
+		])
+		var node := _spawn_building_for_tool(tool, _anchor_to_world(anchor, _footprint_from_cells(cells)), _tool_rotation_y(tool, anchor, _footprint_from_cells(cells), frontage_side), next_tier, variant)
+		_upgrade_debug("upgrade spawned node=%s next_tier=%d" % [str(node), next_tier])
+		_register_placement(anchor, cells, tool, node, base_cost, next_tier, variant, frontage_side)
+		_upgrade_debug("upgrade registered placement anchor=%s selected_now=%s placement=%s" % [
+			anchor_key,
+			_selected_anchor_key,
+			_placement_debug_string(_placements.get(anchor_key, {}))
+		])
+		if _selected_anchor_key != anchor_key:
+			_set_selected_anchor(anchor_key)
+			_upgrade_debug("upgrade restored selection anchor=%s" % anchor_key)
 	_action_history.append({
 		"type": "upgrade",
 		"anchor_key": anchor_key,
@@ -1851,14 +1869,22 @@ func _undo_last_action() -> void:
 			_selected_anchor_key = anchor_key
 			var placement: Dictionary = _placements[anchor_key]
 			var tool := str(placement["tool"])
-			var anchor: Vector2i = placement["anchor"]
-			var cells: Array[Vector2i] = placement["cells"]
 			var variant := int(placement.get("variant", -1))
 			var frontage_side := str(placement.get("frontage_side", ""))
 			var from_tier := int(action.get("from_tier", 1))
-			_remove_selected_placement(false, false)
-			var node := _spawn_building_for_tool(tool, _anchor_to_world(anchor, _footprint_from_cells(cells)), _tool_rotation_y(tool, anchor, _footprint_from_cells(cells), frontage_side), from_tier, variant)
-			_register_placement(anchor, cells, tool, node, int(action.get("base_cost", placement.get("cost", 0))), from_tier, variant, frontage_side)
+			if tool == BUILD_TOOL_HOUSE and is_instance_valid(placement.get("node") as Node3D):
+				var node := placement.get("node") as Node3D
+				_rebuild_house_visuals_in_place(node, from_tier, variant)
+				placement["tier"] = from_tier
+				placement["variant"] = variant
+				placement["frontage_side"] = frontage_side
+				_placements[anchor_key] = placement
+			else:
+				var anchor: Vector2i = placement["anchor"]
+				var cells: Array[Vector2i] = placement["cells"]
+				_remove_selected_placement(false, false)
+				var node := _spawn_building_for_tool(tool, _anchor_to_world(anchor, _footprint_from_cells(cells)), _tool_rotation_y(tool, anchor, _footprint_from_cells(cells), frontage_side), from_tier, variant)
+				_register_placement(anchor, cells, tool, node, int(action.get("base_cost", placement.get("cost", 0))), from_tier, variant, frontage_side)
 		if not _action_history.is_empty():
 			_action_history.pop_back()
 	_recalculate_cashflow()
@@ -2024,6 +2050,30 @@ func _property_lot_root(root: Node3D) -> Node3D:
 func _property_structure_root(root: Node3D) -> Node3D:
 	var structure_root := root.get_node_or_null("StructureRoot") as Node3D
 	return structure_root if structure_root != null else root
+
+
+func _clear_property_visuals(root: Node3D) -> void:
+	var lot_root := _property_lot_root(root)
+	var structure_root := _property_structure_root(root)
+	for child in root.get_children():
+		if child == lot_root or child == structure_root:
+			continue
+		root.remove_child(child)
+		child.free()
+	for visual_root in [lot_root, structure_root]:
+		for child in visual_root.get_children():
+			visual_root.remove_child(child)
+			child.free()
+
+
+func _rebuild_house_visuals_in_place(root: Node3D, tier: int, variant: int) -> void:
+	_clear_property_visuals(root)
+	var lot_root := _property_lot_root(root)
+	var structure_root := _property_structure_root(root)
+	_populate_village_house_variant(root, lot_root, structure_root, variant)
+	_apply_property_tier_visuals(root, BUILD_TOOL_HOUSE, tier, variant)
+	root.set_meta("tier", tier)
+	root.set_meta("variant", variant)
 
 
 func _adjust_zoom(delta_amount: float) -> void:
@@ -3099,7 +3149,7 @@ func _house_variant_profile(variant: int) -> Dictionary:
 	return profiles[posmod(variant, profiles.size())]
 
 
-func _add_village_house_variant(position_3d: Vector3, variant: int) -> Node3D:
+func _populate_village_house_variant(root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int) -> void:
 	var palette := _cozy_palette("house", variant)
 	var profile := _house_variant_profile(variant)
 	var width: float = float(profile["width"])
@@ -3120,12 +3170,7 @@ func _add_village_house_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var has_shed: bool = bool(profile["shed"])
 	var has_trellis: bool = bool(profile["trellis"])
 	var fence_width: float = max(4.8, float(profile["fence_width"]) + 0.9)
-	var property_roots := _create_property_roots(position_3d)
-	var root := property_roots["root"] as Node3D
-	var lot_root := property_roots["lot"] as Node3D
-	var structure_root := property_roots["structure"] as Node3D
 	_add_parcel_shadow(root, Vector2(5.7, 5.7), 0.26)
-
 	_add_box(Vector3(0.0, 0.015, 0.28), Vector3(5.34, 0.04, 5.14), _make_material("8da56b", 0.98), lot_root)
 	_add_box(Vector3(0.0, 0.02, 1.72), Vector3(4.84, 0.03, 1.44), _make_material("d8c6a7", 0.9), lot_root)
 	_add_box(Vector3(0.0, 0.028, 1.12), Vector3(5.02, 0.025, 0.42), _make_material("c2b39b", 0.88), lot_root)
@@ -3216,6 +3261,14 @@ func _add_village_house_variant(position_3d: Vector3, variant: int) -> Node3D:
 		_add_box(Vector3(-1.35, 0.82, 1.18), Vector3(0.62, 0.06, 0.08), timber, lot_root)
 	if int(variant) % 2 == 0:
 		_add_box(Vector3(0.96, height + 0.58, house_z - 0.48), Vector3(0.22, 0.72, 0.22), _stone_material, structure_root)
+
+
+func _add_village_house_variant(position_3d: Vector3, variant: int) -> Node3D:
+	var property_roots := _create_property_roots(position_3d)
+	var root := property_roots["root"] as Node3D
+	var lot_root := property_roots["lot"] as Node3D
+	var structure_root := property_roots["structure"] as Node3D
+	_populate_village_house_variant(root, lot_root, structure_root, variant)
 	return root
 
 
