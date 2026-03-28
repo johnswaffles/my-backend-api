@@ -9,7 +9,6 @@ const MIN_ZOOM := 14.0
 const MAX_ZOOM := 72.0
 const BUILD_TOOL_ROAD := "road"
 const BUILD_TOOL_HOUSE := "house"
-const BUILD_TOOL_POLICE := "police"
 const BUILD_TOOL_FIRE := "fire"
 const BUILD_TOOL_BANK := "bank"
 const BUILD_TOOL_GROCERY := "grocery"
@@ -21,7 +20,6 @@ const BUILD_TOOL_BULLDOZE := "bulldoze"
 const BUILD_TOOL_SEQUENCE := [
 	BUILD_TOOL_ROAD,
 	BUILD_TOOL_HOUSE,
-	BUILD_TOOL_POLICE,
 	BUILD_TOOL_FIRE,
 	BUILD_TOOL_BANK,
 	BUILD_TOOL_GROCERY,
@@ -34,7 +32,6 @@ const BUILD_TOOL_SEQUENCE := [
 const BUILD_TOOL_LABELS := {
 	BUILD_TOOL_ROAD: "Road",
 	BUILD_TOOL_HOUSE: "House",
-	BUILD_TOOL_POLICE: "Police",
 	BUILD_TOOL_FIRE: "Fire",
 	BUILD_TOOL_BANK: "Bank",
 	BUILD_TOOL_GROCERY: "Grocery",
@@ -47,7 +44,6 @@ const BUILD_TOOL_LABELS := {
 const BUILD_TOOL_COSTS := {
 	BUILD_TOOL_ROAD: 35,
 	BUILD_TOOL_HOUSE: 900,
-	BUILD_TOOL_POLICE: 3200,
 	BUILD_TOOL_FIRE: 3400,
 	BUILD_TOOL_BANK: 2600,
 	BUILD_TOOL_GROCERY: 2200,
@@ -57,7 +53,6 @@ const BUILD_TOOL_COSTS := {
 }
 const BUILDING_MAX_TIERS := {
 	BUILD_TOOL_HOUSE: 4,
-	BUILD_TOOL_POLICE: 4,
 	BUILD_TOOL_FIRE: 4,
 	BUILD_TOOL_BANK: 4,
 	BUILD_TOOL_GROCERY: 4,
@@ -201,18 +196,16 @@ func _input(event: InputEvent) -> void:
 			KEY_2:
 				_set_build_tool(BUILD_TOOL_HOUSE)
 			KEY_3:
-				_set_build_tool(BUILD_TOOL_POLICE)
-			KEY_4:
 				_set_build_tool(BUILD_TOOL_FIRE)
-			KEY_5:
+			KEY_4:
 				_set_build_tool(BUILD_TOOL_BANK)
-			KEY_6:
+			KEY_5:
 				_set_build_tool(BUILD_TOOL_GROCERY)
-			KEY_7:
+			KEY_6:
 				_set_build_tool(BUILD_TOOL_RESTAURANT)
-			KEY_8:
+			KEY_7:
 				_set_build_tool(BUILD_TOOL_CORNER_STORE)
-			KEY_P:
+			KEY_8:
 				_set_build_tool(BUILD_TOOL_PARK)
 			KEY_9:
 				_set_build_tool(BUILD_TOOL_INSPECT)
@@ -347,7 +340,6 @@ func _build_hud() -> void:
 	for tool in [
 		BUILD_TOOL_ROAD,
 		BUILD_TOOL_HOUSE,
-		BUILD_TOOL_POLICE,
 		BUILD_TOOL_FIRE,
 		BUILD_TOOL_BANK,
 		BUILD_TOOL_GROCERY,
@@ -524,8 +516,6 @@ func _tool_dropdown_label(tool: String) -> String:
 			return "Build: Road"
 		BUILD_TOOL_HOUSE:
 			return "Build: House"
-		BUILD_TOOL_POLICE:
-			return "Build: Police"
 		BUILD_TOOL_FIRE:
 			return "Build: Fire"
 		BUILD_TOOL_BANK:
@@ -747,7 +737,7 @@ func _tool_footprint(tool: String) -> Vector2i:
 			return Vector2i(1, 1)
 		BUILD_TOOL_HOUSE:
 			return Vector2i(4, 3)
-		BUILD_TOOL_POLICE, BUILD_TOOL_FIRE, BUILD_TOOL_GROCERY:
+		BUILD_TOOL_FIRE, BUILD_TOOL_GROCERY:
 			return Vector2i(5, 4)
 		BUILD_TOOL_BANK, BUILD_TOOL_RESTAURANT, BUILD_TOOL_CORNER_STORE, BUILD_TOOL_PARK:
 			return Vector2i(4, 3)
@@ -795,7 +785,6 @@ func _cells_touch_road(cells: Array[Vector2i]) -> bool:
 func _tool_requires_road(tool: String) -> bool:
 	return tool in [
 		BUILD_TOOL_HOUSE,
-		BUILD_TOOL_POLICE,
 		BUILD_TOOL_FIRE,
 		BUILD_TOOL_BANK,
 		BUILD_TOOL_GROCERY,
@@ -939,7 +928,7 @@ func _build_stats_text() -> String:
 			homes += 1
 		elif tool in [BUILD_TOOL_BANK, BUILD_TOOL_GROCERY, BUILD_TOOL_RESTAURANT, BUILD_TOOL_CORNER_STORE]:
 			shops += 1
-		elif tool in [BUILD_TOOL_POLICE, BUILD_TOOL_FIRE]:
+		elif tool == BUILD_TOOL_FIRE:
 			civics += 1
 		elif tool == BUILD_TOOL_PARK:
 			parks += 1
@@ -960,7 +949,7 @@ func _recalculate_cashflow() -> void:
 			homes += 1
 		elif tool in [BUILD_TOOL_BANK, BUILD_TOOL_GROCERY, BUILD_TOOL_RESTAURANT, BUILD_TOOL_CORNER_STORE]:
 			shops += 1
-		elif tool in [BUILD_TOOL_POLICE, BUILD_TOOL_FIRE]:
+		elif tool == BUILD_TOOL_FIRE:
 			civics += 1
 		elif tool == BUILD_TOOL_PARK:
 			parks += 1
@@ -1127,9 +1116,6 @@ func _spawn_generic_building_preview(tool: String) -> Node3D:
 	var roof_size := Vector3(1.52, 0.18, 1.3)
 
 	match tool:
-		BUILD_TOOL_POLICE:
-			body_size = Vector3(1.52, 0.94, 1.26)
-			roof_size = Vector3(1.64, 0.18, 1.38)
 		BUILD_TOOL_FIRE:
 			body_size = Vector3(1.58, 0.96, 1.34)
 			roof_size = Vector3(1.72, 0.18, 1.44)
@@ -1160,8 +1146,6 @@ func _spawn_building_for_tool(tool: String, world_position: Vector3, rotation_y:
 	match tool:
 		BUILD_TOOL_HOUSE:
 			node = _add_village_house_variant(world_position, variant)
-		BUILD_TOOL_POLICE:
-			node = _add_police_station_variant(world_position, variant)
 		BUILD_TOOL_FIRE:
 			node = _add_fire_station_variant(world_position, variant)
 		BUILD_TOOL_BANK:
@@ -1879,10 +1863,6 @@ func _cozy_palette(kind: String, variant: int) -> Dictionary:
 	var accents := ["76d9c4", "ef9d6a", "8aaede", "d46e62"]
 
 	match kind:
-		"police":
-			walls = ["d7e2ee", "e2ebf3", "cadbeb", "eff4f8"]
-			roofs = ["5e6e8a", "7386a2", "4e607a", "6a7990"]
-			accents = ["6cb6ff", "7fd3f4", "9db7ff", "4fa6de"]
 		"fire":
 			walls = ["f4ded0", "f1d1c4", "e7c8ba", "f7e6dc"]
 			roofs = ["9b4e45", "b45f4c", "8c3f39", "7e5248"]
@@ -1969,36 +1949,6 @@ func _add_village_house_variant(position_3d: Vector3, variant: int) -> Node3D:
 		_add_box(Vector3(1.24, 0.03, -0.22), Vector3(1.34, 0.04, 1.0), _make_material("8c9a55", 0.96), root)
 		for gx in [-0.26, 0.0, 0.26]:
 			_add_box(Vector3(1.24 + gx, 0.08, -0.22), Vector3(0.04, 0.12, 0.8), _make_material("7a5e3f", 0.84), root)
-	return root
-
-
-func _add_police_station_variant(position_3d: Vector3, variant: int) -> Node3D:
-	var palette := _cozy_palette("police", variant)
-	var width := 2.8 + float(variant % 3) * 0.18
-	var depth := 1.92 + float(variant % 2) * 0.18
-	var height := 1.06 + float(int(variant / 4)) * 0.08
-	var root := Node3D.new()
-	root.position = position_3d
-	building_root.add_child(root)
-
-	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(4.6, 0.04, 3.5), _make_material("cbd4b5", 0.98), root)
-	_add_town_path(Vector3(0.0, 0.02, 1.22), Vector2(2.1, 0.56), root)
-	_add_soft_block(Vector3(-0.28, height * 0.5 + 0.05, -0.26), Vector3(width, height, depth), _make_material_from_color(palette.wall, 0.88), root, 0.2)
-	_add_soft_block(Vector3(1.22, 0.66, -0.6), Vector3(1.12, 0.86, 1.2), _make_material_from_color(palette.trim.darkened(0.03), 0.86), root, 0.12)
-	_add_gabled_roof(Vector3(-0.28, height + 0.18, -0.26), Vector3(width + 0.18, 0.18, depth + 0.22), _make_material_from_color(palette.roof, 0.78), root, 10.0)
-	_add_box(Vector3(-0.28, 0.56, 0.86), Vector3(width * 0.72, 0.1, 0.06), _make_material_from_color(palette.accent, 0.46), root)
-	_add_box(Vector3(-0.28, 0.24, 0.84), Vector3(width * 0.18, 0.42, 0.05), _window_material, root)
-	_add_round_canopy(Vector3(-0.28, 0.36, 1.02), Vector3(width * 0.5, 0.18, 0.22), _make_material_from_color(palette.trim, 0.52), root)
-	_add_local_cylinder(Vector3(0.58, 1.8, -0.62), 0.11, 0.11, 0.22, _make_material_from_color(palette.accent, 0.42), root)
-	_add_service_steps(root, 1.16, width * 0.44)
-	_add_front_lanterns(root, 1.28, width * 0.54)
-	_add_signboard_local(Vector3(-0.28, 0.98, 1.12), Vector2(0.86, 0.16), palette.accent, "badge", root)
-	_add_box(Vector3(1.48, 0.52, -0.66), Vector3(0.12, 1.0, 1.36), _make_material("6b7384", 0.88), root)
-	_add_box(Vector3(1.78, 0.52, -0.66), Vector3(0.12, 1.0, 1.36), _make_material("6b7384", 0.88), root)
-	_add_box(Vector3(1.63, 1.0, -0.66), Vector3(0.46, 0.08, 1.36), _make_material("6b7384", 0.88), root)
-	_add_box(Vector3(1.63, 0.06, -0.68), Vector3(1.16, 0.04, 1.5), _make_material("9f8b74", 0.9), root)
-	_add_shrub_cluster(Vector3(-1.08, 0.0, 1.14), palette.accent, root, 3)
-	_add_shrub_cluster(Vector3(0.68, 0.0, 1.14), palette.trim, root, 3)
 	return root
 
 

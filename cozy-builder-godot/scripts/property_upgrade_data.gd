@@ -5,7 +5,6 @@ const MAX_TIER := 4
 
 const UPGRADEABLE_TOOLS := {
 	"house": true,
-	"police": true,
 	"fire": true,
 	"bank": true,
 	"grocery": true,
@@ -16,7 +15,6 @@ const UPGRADEABLE_TOOLS := {
 
 const UPGRADE_COST_FACTORS := {
 	"house": [0.0, 0.58, 0.82, 1.06],
-	"police": [0.0, 0.62, 0.90, 1.15],
 	"fire": [0.0, 0.62, 0.90, 1.15],
 	"bank": [0.0, 0.60, 0.86, 1.12],
 	"grocery": [0.0, 0.58, 0.84, 1.10],
@@ -31,12 +29,6 @@ const TOOL_YIELDS := {
 		"jobs": [0, 0, 0, 0],
 		"cashflow": [168, 228, 302, 388],
 		"appeal": [6, 9, 13, 17],
-	},
-	"police": {
-		"population": [0, 0, 0, 0],
-		"jobs": [14, 16, 18, 21],
-		"cashflow": [-38, -42, -47, -53],
-		"appeal": [16, 22, 29, 37],
 	},
 	"fire": {
 		"population": [0, 0, 0, 0],
@@ -73,6 +65,42 @@ const TOOL_YIELDS := {
 		"jobs": [0, 0, 0, 0],
 		"cashflow": [-8, -10, -12, -14],
 		"appeal": [28, 42, 56, 72],
+	},
+	"pond_small": {
+		"population": [0, 0, 0, 0],
+		"jobs": [0, 0, 0, 0],
+		"cashflow": [0, 0, 0, 0],
+		"appeal": [7, 7, 7, 7],
+	},
+	"pond_medium": {
+		"population": [0, 0, 0, 0],
+		"jobs": [0, 0, 0, 0],
+		"cashflow": [0, 0, 0, 0],
+		"appeal": [11, 11, 11, 11],
+	},
+	"pond_large": {
+		"population": [0, 0, 0, 0],
+		"jobs": [0, 0, 0, 0],
+		"cashflow": [0, 0, 0, 0],
+		"appeal": [16, 16, 16, 16],
+	},
+	"forest_small": {
+		"population": [0, 0, 0, 0],
+		"jobs": [0, 0, 0, 0],
+		"cashflow": [0, 0, 0, 0],
+		"appeal": [8, 8, 8, 8],
+	},
+	"forest_medium": {
+		"population": [0, 0, 0, 0],
+		"jobs": [0, 0, 0, 0],
+		"cashflow": [0, 0, 0, 0],
+		"appeal": [12, 12, 12, 12],
+	},
+	"forest_large": {
+		"population": [0, 0, 0, 0],
+		"jobs": [0, 0, 0, 0],
+		"cashflow": [0, 0, 0, 0],
+		"appeal": [18, 18, 18, 18],
 	},
 }
 
@@ -118,12 +146,6 @@ const VISUAL_PROFILES := {
 			"garden_extension": true,
 			"landscaping": true,
 		},
-	},
-	"police": {
-		1: {"front_hall": false, "tower": false, "service_wing": false, "rear_hall": false, "parking_expand": false, "second_story": false, "landscaping": false},
-		2: {"front_hall": true, "tower": true, "service_wing": true, "rear_hall": true, "parking_expand": false, "second_story": false, "landscaping": false},
-		3: {"front_hall": true, "tower": true, "service_wing": true, "rear_hall": true, "parking_expand": true, "second_story": false, "landscaping": false},
-		4: {"front_hall": true, "tower": true, "service_wing": true, "rear_hall": true, "parking_expand": true, "second_story": true, "landscaping": false},
 	},
 	"fire": {
 		1: {"front_hall": false, "bay_extend": false, "hose_tower": false, "parking_expand": false, "second_story": false, "landscaping": false},
