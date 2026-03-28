@@ -863,7 +863,7 @@ func _update_hover_from_mouse() -> void:
 		if _build_tool == BUILD_TOOL_ROAD:
 			valid = _road_start_can_be_selected(anchor)
 		else:
-			valid = _cells_are_buildable(cells)
+			valid = _cells_are_buildable(cells, _build_tool)
 			var hover_side := str(hover_layout.get("frontage_side", _preferred_frontage_side(_build_tool, anchor, footprint)))
 			if valid and _tool_requires_road(_build_tool) and not _placement_has_required_frontage(_build_tool, anchor, footprint, hover_side):
 				valid = false
@@ -1232,13 +1232,13 @@ func _resolve_hover_layout(tool: String, cell: Vector2i) -> Dictionary:
 					continue
 				var anchor := Vector2i(ax, ay)
 				var cells := _cells_for_anchor(anchor, footprint)
-				if not _cells_are_buildable(cells):
+				if not _cells_are_buildable(cells, tool):
 					continue
 				var side := _preferred_frontage_side(tool, anchor, footprint)
 				if not _placement_has_required_frontage(tool, anchor, footprint, side):
 					continue
 				var reserved_cells := _property_reserved_cells(anchor, footprint, side, tool)
-				if not reserved_cells.is_empty() and not _cells_are_buildable(reserved_cells):
+				if not reserved_cells.is_empty() and not _cells_are_buildable(reserved_cells, tool):
 					continue
 				var touch := _adjacent_transport_count(tool, anchor, footprint, side)
 				var score := _transport_side_score(tool, anchor, footprint, side)
@@ -1282,10 +1282,16 @@ func _cells_for_anchor(anchor: Vector2i, footprint: Vector2i) -> Array[Vector2i]
 	return cells
 
 
-func _cells_are_buildable(cells: Array[Vector2i]) -> bool:
+func _cells_are_buildable(cells: Array[Vector2i], tool: String = "") -> bool:
 	for cell in cells:
 		var key := _cell_key(cell)
-		if _reserved_cells.has(key) or _occupied_cells.has(key):
+		if _reserved_cells.has(key):
+			return false
+		if _occupied_cells.has(key):
+			if tool != "" and _is_forest_tool(tool):
+				var occupied_tool := str(_occupied_cells[key])
+				if _is_forest_tool(occupied_tool):
+					continue
 			return false
 	return true
 
@@ -1387,6 +1393,14 @@ func _tool_requires_road(tool: String) -> bool:
 		BUILD_TOOL_GROCERY,
 		BUILD_TOOL_RESTAURANT,
 		BUILD_TOOL_CORNER_STORE,
+	]
+
+
+func _is_forest_tool(tool: String) -> bool:
+	return tool in [
+		BUILD_TOOL_FOREST_SMALL,
+		BUILD_TOOL_FOREST_MEDIUM,
+		BUILD_TOOL_FOREST_LARGE,
 	]
 
 
@@ -2588,7 +2602,8 @@ func _rebuild_ambient_life() -> void:
 		if not _placements.has(anchor_key):
 			continue
 		var placement: Dictionary = _placements[anchor_key]
-		if str(placement["tool"]) == BUILD_TOOL_ROAD:
+		var tool := str(placement["tool"])
+		if tool == BUILD_TOOL_ROAD or SCENIC_TOOL_SPECS.has(tool):
 			continue
 		var person := _spawn_ambient_person(anchor_key, spawned_people)
 		_life_root.add_child(person)
