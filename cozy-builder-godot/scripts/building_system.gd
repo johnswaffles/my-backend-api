@@ -2449,6 +2449,7 @@ func _try_load_game(force_feedback: bool = false) -> void:
 	_clear_selected_anchor()
 	_recalculate_cashflow()
 	_rebuild_ambient_life()
+	_refresh_road_lights()
 	_refresh_tool_ui()
 	_update_hover_from_mouse()
 	_update_camera(true)
@@ -2467,6 +2468,7 @@ func _new_map() -> void:
 	_reset_camera_view()
 	_recalculate_cashflow()
 	_rebuild_ambient_life()
+	_refresh_road_lights()
 	_refresh_tool_ui()
 	_update_hover_from_mouse()
 	if _hint_label:
@@ -3090,7 +3092,6 @@ func _spawn_house_tile(world_position: Vector3, preview: bool) -> Node3D:
 	var wall_material: Material = _ghost_base_material if preview else _make_material("efe4d5", 0.88)
 	var roof_material: Material = _ghost_accent_material if preview else _make_material("b66f4d", 0.74)
 	var pad_material: Material = _ghost_base_material if preview else _make_material("ddd3c6", 0.9)
-	var window_material: Material = _ghost_accent_material if preview else _window_material
 
 	_add_box(Vector3(0.0, 0.02, 0.42), Vector3(4.6, 0.04, 4.6), pad_material, root)
 	_add_box(Vector3(0.0, 0.5, -0.56), Vector3(1.62, 0.92, 1.34), wall_material, root)
@@ -3099,10 +3100,14 @@ func _spawn_house_tile(world_position: Vector3, preview: bool) -> Node3D:
 	var roof_b := _add_box(Vector3(0.0, 1.0, -0.78), Vector3(1.84, 0.16, 0.82), roof_material, root)
 	roof_a.rotation_degrees = Vector3(0.0, 0.0, -7.0)
 	roof_b.rotation_degrees = Vector3(0.0, 0.0, 7.0)
-	_add_box(Vector3(-0.42, 0.46, -0.06), Vector3(0.24, 0.28, 0.05), window_material, root)
-	_add_box(Vector3(0.42, 0.46, -0.06), Vector3(0.24, 0.28, 0.05), window_material, root)
-	_add_box(Vector3(0.84, 0.42, -0.02), Vector3(0.16, 0.24, 0.05), window_material, root)
-	_add_round_canopy(Vector3(0.0, 0.24, 0.42), Vector3(0.78, 0.12, 0.22), _ghost_accent_material if preview else _window_material, root)
+	var window_material: Material = _ghost_accent_material if preview else _window_material
+	_add_window_band_local(Vector3(-0.46, 0.5, -0.12), Vector3(0.28, 0.34, 0.05), root, window_material)
+	_add_window_band_local(Vector3(0.46, 0.5, -0.12), Vector3(0.28, 0.34, 0.05), root, window_material)
+	_add_window_band_local(Vector3(-0.66, 0.44, -0.88), Vector3(0.22, 0.28, 0.05), root, window_material)
+	_add_window_band_local(Vector3(0.66, 0.44, -0.88), Vector3(0.22, 0.28, 0.05), root, window_material)
+	_add_window_band_local(Vector3(0.84, 0.42, -0.02), Vector3(0.18, 0.24, 0.05), root, window_material)
+	_add_round_canopy(Vector3(0.0, 0.24, 0.42), Vector3(0.78, 0.12, 0.22), window_material, root)
+	_add_house_front_lamp_local(Vector3(1.14, 0.0, 1.48), root, preview)
 	return root
 
 
@@ -3436,14 +3441,14 @@ func _populate_village_house_variant(root: Node3D, lot_root: Node3D, structure_r
 		Vector3(-0.58, 0.56, house_z - 0.28),
 		Vector3(0.6, 0.56, house_z - 0.28),
 	]:
-		_add_box(window_pos, Vector3(0.26, 0.34, 0.06), _window_material, structure_root)
+		_add_window_band_local(window_pos, Vector3(0.26, 0.34, 0.05), structure_root)
 		_add_box(window_pos + Vector3(-0.16, 0.0, 0.0), Vector3(0.05, 0.36, 0.05), timber, structure_root)
 		_add_box(window_pos + Vector3(0.16, 0.0, 0.0), Vector3(0.05, 0.36, 0.05), timber, structure_root)
-	_add_box(Vector3(0.0, 0.56, house_z + 0.48), Vector3(0.42, 0.38, 0.06), _window_material, structure_root)
+	_add_window_band_local(Vector3(0.0, 0.56, house_z + 0.48), Vector3(0.42, 0.38, 0.05), structure_root)
 	_add_box(Vector3(-0.24, 0.56, house_z + 0.48), Vector3(0.04, 0.4, 0.04), timber, structure_root)
 	_add_box(Vector3(0.24, 0.56, house_z + 0.48), Vector3(0.04, 0.4, 0.04), timber, structure_root)
 	if has_bay:
-		_add_box(Vector3(0.74, 0.54, house_z + 0.86), Vector3(0.34, 0.3, 0.06), _window_material, structure_root)
+		_add_window_band_local(Vector3(0.74, 0.54, house_z + 0.86), Vector3(0.34, 0.3, 0.05), structure_root)
 
 	_add_box(Vector3(0.0, 0.8, house_z - depth * 0.46), Vector3(width * 0.18, 0.78, depth * 0.06), timber, structure_root)
 	for dormer_index in range(dormers):
@@ -3458,6 +3463,7 @@ func _populate_village_house_variant(root: Node3D, lot_root: Node3D, structure_r
 	_add_box(Vector3(0.0, 0.18, -2.14), Vector3(4.54, 0.32, 0.04), _make_material("efe3cf", 0.86), lot_root)
 	_add_flower_box_local(Vector3(entry_offset - 0.32, 0.18, house_z + 0.76), palette.accent, lot_root)
 	_add_flower_box_local(Vector3(entry_offset + 0.4, 0.18, house_z + 0.76), palette.trim, lot_root)
+	_add_house_front_lamp_local(Vector3(1.18, 0.0, 1.56), lot_root, false)
 	_add_shrub_cluster(Vector3(-1.7, 0.0, 1.36), palette.accent, lot_root, 6)
 	_add_shrub_cluster(Vector3(1.7, 0.0, 1.36), palette.trim, lot_root, 6)
 	_add_hedge_strip_local(Vector3(0.0, 0.08, -1.98), 4.12, palette.accent.darkened(0.18), lot_root)
@@ -3821,6 +3827,10 @@ func _apply_house_tier_visuals(root: Node3D, tier: int, variant: int, profile: D
 			_add_box(Vector3(0.0, 0.03, 1.76), Vector3(0.26, 0.02, 0.24), _make_material("d8c7ab", 0.92), lot_root)
 		if bool(profile.get("frontage_path", false)):
 			_add_town_path(Vector3(0.0, 0.03, 1.92), Vector2(0.86, 0.2), lot_root)
+		if bool(profile.get("wall_windows", false)):
+			_add_window_band_local(Vector3(-0.58, 0.5, -0.36), Vector3(0.28, 0.34, 0.05), structure_root)
+			_add_window_band_local(Vector3(0.58, 0.5, -0.36), Vector3(0.28, 0.34, 0.05), structure_root)
+			_add_window_band_local(Vector3(0.0, 0.58, -0.68), Vector3(0.42, 0.28, 0.05), structure_root)
 		if bool(profile.get("landscaping", false)):
 			_add_flower_box_local(Vector3(-0.92, 0.18, 1.38), palette.accent, lot_root)
 			_add_flower_box_local(Vector3(0.92, 0.18, 1.38), palette.trim, lot_root)
@@ -3832,19 +3842,20 @@ func _apply_house_tier_visuals(root: Node3D, tier: int, variant: int, profile: D
 			_add_box(Vector3(0.0, 0.2, 1.82), Vector3(1.2, 0.08, 0.06), fence_material, lot_root)
 
 	if tier >= 3:
-		if bool(profile.get("roof_dormer", false)):
-			_add_dormer(Vector3(0.0, 1.76, 0.16), palette.trim, palette.roof, structure_root)
 		if bool(profile.get("side_annex", false)):
 			var side := -1.0 if posmod(variant, 2) == 0 else 1.0
 			_add_soft_block(Vector3(side * 1.46, 0.48, 0.2), Vector3(0.82, 0.78, 1.02), _make_material_from_color(palette.wall.darkened(0.02), 0.94), structure_root, 0.14)
 			_add_gabled_roof(Vector3(side * 1.46, 1.02, 0.2), Vector3(0.96, 0.14, 1.14), roof_detail, structure_root, 13.0)
-		if bool(profile.get("roof_dormer", false)):
-			_add_dormer(Vector3(-0.44, 1.76, 0.16), palette.trim, palette.roof, structure_root)
-			_add_dormer(Vector3(0.48, 1.76, 0.16), palette.trim, palette.roof, structure_root)
+			if bool(profile.get("wall_windows", false)):
+				_add_window_band_local(Vector3(side * 1.48, 0.56, 0.72), Vector3(0.22, 0.3, 0.05), structure_root)
+				_add_window_band_local(Vector3(side * 1.48, 0.9, 0.72), Vector3(0.2, 0.2, 0.05), structure_root)
 		if bool(profile.get("garden_extension", false)):
 			_add_hedge_strip_local(Vector3(0.0, 0.08, -1.84), 4.26, palette.accent.darkened(0.14), lot_root)
 			_add_bench_local(Vector3(-1.04, 0.02, 1.58), 0.18, lot_root)
 			_add_bench_local(Vector3(1.04, 0.02, 1.58), -0.18, lot_root)
+		if bool(profile.get("wall_windows", false)):
+			_add_window_band_local(Vector3(-0.38, 0.92, -0.48), Vector3(0.22, 0.24, 0.05), structure_root)
+			_add_window_band_local(Vector3(0.38, 0.92, -0.48), Vector3(0.22, 0.24, 0.05), structure_root)
 
 	if tier >= 4:
 		match posmod(variant, 3):
@@ -3857,6 +3868,10 @@ func _apply_house_tier_visuals(root: Node3D, tier: int, variant: int, profile: D
 			2:
 				_add_box(Vector3(0.82, 0.06, -1.34), Vector3(1.04, 0.04, 0.74), _make_material("b7cbb1", 0.96), lot_root)
 				_add_town_path(Vector3(0.82, 0.03, -1.34), Vector2(0.92, 0.38), lot_root)
+		if bool(profile.get("wall_windows", false)):
+			_add_window_band_local(Vector3(0.0, 1.02, -0.52), Vector3(0.48, 0.22, 0.05), structure_root)
+			_add_window_band_local(Vector3(-0.5, 1.02, -0.52), Vector3(0.2, 0.22, 0.05), structure_root)
+			_add_window_band_local(Vector3(0.5, 1.02, -0.52), Vector3(0.2, 0.22, 0.05), structure_root)
 		_add_shrub_cluster(Vector3(-1.58, 0.0, -0.96), palette.trim, lot_root, 4)
 		_add_shrub_cluster(Vector3(1.58, 0.0, -0.96), palette.accent, lot_root, 4)
 		_add_box(Vector3(0.0, 0.34, -2.06), Vector3(0.16, 0.46, 0.16), _stone_material, lot_root)
@@ -4492,6 +4507,25 @@ func _add_front_lanterns(parent: Node, z_position: float, width: float) -> void:
 		_add_lantern_glow_local(Vector3(lamp_x, 0.88, z_position), parent)
 
 
+func _add_house_front_lamp_local(position_3d: Vector3, parent: Node, preview: bool = false) -> void:
+	var lamp_root := Node3D.new()
+	lamp_root.position = position_3d
+	parent.add_child(lamp_root)
+	var pole_material := _ghost_base_material if preview else _make_material("f3eee5", 0.86)
+	var lamp_material := _ghost_accent_material if preview else _make_material("fdf9f0", 0.18, 0.0, true, "fff6de", 0.92)
+	_add_local_cylinder(Vector3(0.0, 0.72, 0.0), 0.035, 0.035, 1.42, pole_material, lamp_root)
+	_add_box(Vector3(0.0, 1.44, 0.0), Vector3(0.18, 0.12, 0.18), lamp_material, lamp_root)
+	_add_box(Vector3(0.0, 1.22, 0.0), Vector3(0.24, 0.06, 0.24), lamp_material, lamp_root)
+	if not preview:
+		var light := OmniLight3D.new()
+		light.position = Vector3(0.0, 1.34, 0.0)
+		light.light_color = Color(1.0, 0.98, 0.94)
+		light.light_energy = 1.45
+		light.omni_range = 6.2
+		light.shadow_enabled = false
+		lamp_root.add_child(light)
+
+
 func _add_frontage_detail_cluster(parent: Node, width: float, z_position: float, accent: Color, kind: String) -> void:
 	var pad_width: float = maxf(0.82, width * 0.46)
 	_add_town_path(Vector3(0.0, 0.03, z_position), Vector2(pad_width, 0.34), parent)
@@ -4750,6 +4784,13 @@ func _add_window_band(position_3d: Vector3, size: Vector3) -> void:
 	_window_bands.append(band)
 
 
+func _add_window_band_local(position_3d: Vector3, size: Vector3, parent: Node, material: Material = null) -> MeshInstance3D:
+	var band_material: Material = material if material != null else _window_material
+	var band := _add_box(position_3d, size, band_material, parent)
+	_window_bands.append(band)
+	return band
+
+
 func _add_edge_post(position_3d: Vector3) -> void:
 	_add_cylinder(position_3d + Vector3(0.0, 0.16, 0.0), 0.03, 0.03, 0.34, _stone_material)
 
@@ -4929,11 +4970,16 @@ func _animate_clouds(delta: float) -> void:
 
 func _animate_windows() -> void:
 	var time := Time.get_ticks_msec() * 0.001
-	for i in range(_window_bands.size()):
+	var i := 0
+	while i < _window_bands.size():
 		var window_band := _window_bands[i]
+		if not is_instance_valid(window_band):
+			_window_bands.remove_at(i)
+			continue
 		var material := window_band.material_override as StandardMaterial3D
 		if material:
 			material.emission_energy_multiplier = 0.82 + (sin(time * 0.92 + i * 0.72) * 0.5 + 0.5) * 0.62
+		i += 1
 
 
 func _animate_grass() -> void:
