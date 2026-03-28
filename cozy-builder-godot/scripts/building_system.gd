@@ -1173,9 +1173,6 @@ func _resolve_hover_layout(tool: String, cell: Vector2i) -> Dictionary:
 			"frontage_side": "south",
 		}
 
-	if tool != BUILD_TOOL_HOUSE:
-		return _resolve_simple_roadside_layout(tool, cell, base_footprint)
-
 	var candidate_footprints: Array[Vector2i] = [base_footprint]
 	var rotated_footprint := Vector2i(base_footprint.y, base_footprint.x)
 	if rotated_footprint != base_footprint:
@@ -1223,42 +1220,6 @@ func _resolve_hover_layout(tool: String, cell: Vector2i) -> Dictionary:
 		"footprint": fallback_footprint,
 		"cells": _cells_for_anchor(fallback_anchor, fallback_footprint),
 		"frontage_side": _preferred_frontage_side(tool, fallback_anchor, fallback_footprint),
-	}
-
-
-func _resolve_simple_roadside_layout(tool: String, cell: Vector2i, base_footprint: Vector2i) -> Dictionary:
-	var candidate_footprints: Array[Vector2i] = [base_footprint]
-	var rotated_footprint := Vector2i(base_footprint.y, base_footprint.x)
-	if rotated_footprint != base_footprint:
-		candidate_footprints.append(rotated_footprint)
-
-	for footprint in candidate_footprints:
-		var anchor := _anchor_for_hover_cell(cell, footprint)
-		if anchor.x < 0 or anchor.y < 0 or anchor.x + footprint.x > GRID_SIZE or anchor.y + footprint.y > GRID_SIZE:
-			continue
-		var cells := _cells_for_anchor(anchor, footprint)
-		if not _cells_are_buildable(cells):
-			continue
-		var side := _preferred_frontage_side(tool, anchor, footprint)
-		if not _placement_has_required_frontage(tool, anchor, footprint, side):
-			continue
-		var reserved_cells := _property_reserved_cells(anchor, footprint, side, tool)
-		if not reserved_cells.is_empty() and not _cells_are_buildable(reserved_cells):
-			continue
-		return {
-			"anchor": anchor,
-			"footprint": footprint,
-			"cells": cells,
-			"frontage_side": side,
-		}
-
-	var fallback_anchor := _anchor_for_hover_cell(cell, base_footprint)
-	var fallback_side := _preferred_frontage_side(tool, fallback_anchor, base_footprint)
-	return {
-		"anchor": fallback_anchor,
-		"footprint": base_footprint,
-		"cells": _cells_for_anchor(fallback_anchor, base_footprint),
-		"frontage_side": fallback_side,
 	}
 
 
@@ -1328,7 +1289,7 @@ func _frontage_transport_offset(tool: String) -> int:
 		return HOUSE_FRONT_BUFFER_CELLS + 1
 	if tool == BUILD_TOOL_POLICE:
 		return 2
-	return 1
+	return 2
 
 
 func _frontage_buffer_cells(tool: String, anchor: Vector2i, footprint: Vector2i, side: String) -> Array[Vector2i]:
