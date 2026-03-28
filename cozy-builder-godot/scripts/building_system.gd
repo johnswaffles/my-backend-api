@@ -1595,26 +1595,33 @@ func _upgrade_selected_property() -> void:
 	])
 	_money -= upgrade_cost
 	_upgrade_debug("upgrade money deducted cost=%d remaining=%d" % [upgrade_cost, _money])
-	if (tool == BUILD_TOOL_HOUSE or tool == BUILD_TOOL_POLICE or tool == BUILD_TOOL_FIRE) and is_instance_valid(existing_node):
+	if (tool == BUILD_TOOL_HOUSE or tool == BUILD_TOOL_POLICE or tool == BUILD_TOOL_FIRE or tool == BUILD_TOOL_BANK or tool == BUILD_TOOL_GROCERY or tool == BUILD_TOOL_RESTAURANT or tool == BUILD_TOOL_CORNER_STORE) and is_instance_valid(existing_node):
 		var before_global := existing_node.global_position
+		var before_rotation := existing_node.global_rotation_degrees
 		if tool == BUILD_TOOL_HOUSE:
 			_rebuild_house_visuals_in_place(existing_node, next_tier, variant)
 		elif tool == BUILD_TOOL_POLICE:
 			_rebuild_police_visuals_in_place(existing_node, next_tier, variant)
-		else:
+		elif tool == BUILD_TOOL_FIRE:
 			_rebuild_fire_visuals_in_place(existing_node, next_tier, variant)
+		else:
+			_rebuild_service_visuals_in_place(existing_node, tool, next_tier, variant)
 		var after_global := existing_node.global_position
+		var after_rotation := existing_node.global_rotation_degrees
 		placement["node"] = existing_node
 		placement["tier"] = next_tier
 		placement["variant"] = variant
 		placement["frontage_side"] = frontage_side
 		_placements[anchor_key] = placement
-		print("[%s UPGRADE VERIFY] anchor=%s before=%s after=%s identical=%s" % [
-			"POLICE" if tool == BUILD_TOOL_POLICE else "FIRE" if tool == BUILD_TOOL_FIRE else "HOUSE",
+		print("[%s UPGRADE VERIFY] anchor=%s before_pos=%s after_pos=%s before_rot=%s after_rot=%s identical_pos=%s identical_rot=%s" % [
+			"POLICE" if tool == BUILD_TOOL_POLICE else "FIRE" if tool == BUILD_TOOL_FIRE else "BANK" if tool == BUILD_TOOL_BANK else "GROCERY" if tool == BUILD_TOOL_GROCERY else "RESTAURANT" if tool == BUILD_TOOL_RESTAURANT else "CORNER",
 			anchor_key,
 			str(before_global),
 			str(after_global),
-			str(before_global.is_equal_approx(after_global))
+			str(before_rotation),
+			str(after_rotation),
+			str(before_global.is_equal_approx(after_global)),
+			str(before_rotation.is_equal_approx(after_rotation))
 		])
 		_upgrade_debug("upgrade rebuilt %s in place anchor=%s tier=%d" % [
 			tool,
@@ -1912,14 +1919,16 @@ func _undo_last_action() -> void:
 			var variant := int(placement.get("variant", -1))
 			var frontage_side := str(placement.get("frontage_side", ""))
 			var from_tier := int(action.get("from_tier", 1))
-			if (tool == BUILD_TOOL_HOUSE or tool == BUILD_TOOL_POLICE or tool == BUILD_TOOL_FIRE) and is_instance_valid(placement.get("node") as Node3D):
+			if (tool == BUILD_TOOL_HOUSE or tool == BUILD_TOOL_POLICE or tool == BUILD_TOOL_FIRE or tool == BUILD_TOOL_BANK or tool == BUILD_TOOL_GROCERY or tool == BUILD_TOOL_RESTAURANT or tool == BUILD_TOOL_CORNER_STORE) and is_instance_valid(placement.get("node") as Node3D):
 				var node := placement.get("node") as Node3D
 				if tool == BUILD_TOOL_HOUSE:
 					_rebuild_house_visuals_in_place(node, from_tier, variant)
 				elif tool == BUILD_TOOL_POLICE:
 					_rebuild_police_visuals_in_place(node, from_tier, variant)
-				else:
+				elif tool == BUILD_TOOL_FIRE:
 					_rebuild_fire_visuals_in_place(node, from_tier, variant)
+				else:
+					_rebuild_service_visuals_in_place(node, tool, from_tier, variant)
 				placement["tier"] = from_tier
 				placement["variant"] = variant
 				placement["frontage_side"] = frontage_side
@@ -2139,6 +2148,43 @@ func _rebuild_fire_visuals_in_place(root: Node3D, tier: int, variant: int) -> vo
 	_apply_property_tier_visuals(root, BUILD_TOOL_FIRE, tier, variant)
 	root.set_meta("tier", tier)
 	root.set_meta("variant", variant)
+
+
+func _populate_service_variant(tool: String, root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int) -> void:
+	match tool:
+		BUILD_TOOL_BANK:
+			_populate_bank_variant(root, lot_root, structure_root, variant)
+		BUILD_TOOL_GROCERY:
+			_populate_grocery_variant(root, lot_root, structure_root, variant)
+		BUILD_TOOL_RESTAURANT:
+			_populate_restaurant_variant(root, lot_root, structure_root, variant)
+		BUILD_TOOL_CORNER_STORE:
+			_populate_corner_store_variant(root, lot_root, structure_root, variant)
+		_:
+			pass
+
+
+func _rebuild_service_visuals_in_place(root: Node3D, tool: String, tier: int, variant: int) -> void:
+	var before_global := root.global_position
+	var before_rotation := root.global_rotation_degrees
+	_clear_property_visuals(root)
+	var lot_root := _property_lot_root(root)
+	var structure_root := _property_structure_root(root)
+	_populate_service_variant(tool, root, lot_root, structure_root, variant)
+	_apply_property_tier_visuals(root, tool, tier, variant)
+	root.set_meta("tier", tier)
+	root.set_meta("variant", variant)
+	var after_global := root.global_position
+	var after_rotation := root.global_rotation_degrees
+	print("[%s UPGRADE VERIFY] before_pos=%s after_pos=%s before_rot=%s after_rot=%s identical_pos=%s identical_rot=%s" % [
+		tool.to_upper(),
+		str(before_global),
+		str(after_global),
+		str(before_rotation),
+		str(after_rotation),
+		str(before_global.is_equal_approx(after_global)),
+		str(before_rotation.is_equal_approx(after_rotation))
+	])
 
 
 func _adjust_zoom(delta_amount: float) -> void:
@@ -3419,15 +3465,11 @@ func _add_fire_station_variant(position_3d: Vector3, variant: int) -> Node3D:
 	return root
 
 
-func _add_bank_variant(position_3d: Vector3, variant: int) -> Node3D:
+func _populate_bank_variant(root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int) -> void:
 	var palette := _cozy_palette("bank", variant)
 	var width := 2.62 + float(variant % 3) * 0.16
 	var depth := 1.82 + float(variant % 2) * 0.12
 	var height := 0.98 + float(int(variant / 4)) * 0.1
-	var property_roots := _create_property_roots(position_3d)
-	var root := property_roots["root"] as Node3D
-	var lot_root := property_roots["lot"] as Node3D
-	var structure_root := property_roots["structure"] as Node3D
 	_add_parcel_shadow(root, Vector2(3.9, 2.9), 0.22)
 
 	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(3.8, 0.04, 2.7), _make_material("d9d2bf", 0.98), lot_root)
@@ -3443,18 +3485,22 @@ func _add_bank_variant(position_3d: Vector3, variant: int) -> Node3D:
 	_add_frontage_detail_cluster(lot_root, width, 1.24, palette.accent, "vault")
 	_add_shrub_cluster(Vector3(-1.06, 0.0, 1.04), palette.accent, lot_root, 3)
 	_add_shrub_cluster(Vector3(1.06, 0.0, 1.04), palette.trim, lot_root, 3)
-	return root
 
 
-func _add_grocery_variant(position_3d: Vector3, variant: int) -> Node3D:
-	var palette := _cozy_palette("grocery", variant)
-	var width := 3.0 + float(variant % 3) * 0.16
-	var depth := 2.02 + float(int(variant / 3) % 2) * 0.16
-	var height := 0.96 + float(int(variant / 5)) * 0.1
+func _add_bank_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var property_roots := _create_property_roots(position_3d)
 	var root := property_roots["root"] as Node3D
 	var lot_root := property_roots["lot"] as Node3D
 	var structure_root := property_roots["structure"] as Node3D
+	_populate_bank_variant(root, lot_root, structure_root, variant)
+	return root
+
+
+func _populate_grocery_variant(root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int) -> void:
+	var palette := _cozy_palette("grocery", variant)
+	var width := 3.0 + float(variant % 3) * 0.16
+	var depth := 2.02 + float(int(variant / 3) % 2) * 0.16
+	var height := 0.96 + float(int(variant / 5)) * 0.1
 	_add_parcel_shadow(root, Vector2(5.0, 3.9), 0.24)
 
 	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(4.8, 0.04, 3.6), _make_material("d5d1bc", 0.98), lot_root)
@@ -3482,18 +3528,22 @@ func _add_grocery_variant(position_3d: Vector3, variant: int) -> Node3D:
 	_add_frontage_detail_cluster(lot_root, width, 1.24, palette.accent, "grocer")
 	_add_shrub_cluster(Vector3(-1.42, 0.0, 1.34), palette.trim, lot_root, 2)
 	_add_shrub_cluster(Vector3(1.42, 0.0, 1.34), palette.accent, lot_root, 2)
-	return root
 
 
-func _add_restaurant_variant(position_3d: Vector3, variant: int) -> Node3D:
-	var palette := _cozy_palette("restaurant", variant)
-	var width := 2.6 + float(variant % 3) * 0.16
-	var depth := 1.84 + float(variant % 2) * 0.16
-	var height := 0.96 + float(int(variant / 4)) * 0.08
+func _add_grocery_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var property_roots := _create_property_roots(position_3d)
 	var root := property_roots["root"] as Node3D
 	var lot_root := property_roots["lot"] as Node3D
 	var structure_root := property_roots["structure"] as Node3D
+	_populate_grocery_variant(root, lot_root, structure_root, variant)
+	return root
+
+
+func _populate_restaurant_variant(root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int) -> void:
+	var palette := _cozy_palette("restaurant", variant)
+	var width := 2.6 + float(variant % 3) * 0.16
+	var depth := 1.84 + float(variant % 2) * 0.16
+	var height := 0.96 + float(int(variant / 4)) * 0.08
 	_add_parcel_shadow(root, Vector2(4.1, 3.0), 0.22)
 
 	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(3.8, 0.04, 2.8), _make_material("d9d0b9", 0.98), lot_root)
@@ -3512,18 +3562,22 @@ func _add_restaurant_variant(position_3d: Vector3, variant: int) -> Node3D:
 	_add_frontage_detail_cluster(lot_root, width, 1.22, palette.accent, "bistro")
 	_add_shrub_cluster(Vector3(-1.18, 0.0, 1.18), palette.trim, lot_root, 2)
 	_add_shrub_cluster(Vector3(1.18, 0.0, 1.18), palette.accent, lot_root, 2)
-	return root
 
 
-func _add_corner_store_variant(position_3d: Vector3, variant: int) -> Node3D:
-	var palette := _cozy_palette("corner_store", variant)
-	var width := 2.28 + float(variant % 3) * 0.14
-	var depth := 1.74 + float(int(variant / 3) % 2) * 0.12
-	var height := 0.92 + float(int(variant / 5)) * 0.1
+func _add_restaurant_variant(position_3d: Vector3, variant: int) -> Node3D:
 	var property_roots := _create_property_roots(position_3d)
 	var root := property_roots["root"] as Node3D
 	var lot_root := property_roots["lot"] as Node3D
 	var structure_root := property_roots["structure"] as Node3D
+	_populate_restaurant_variant(root, lot_root, structure_root, variant)
+	return root
+
+
+func _populate_corner_store_variant(root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int) -> void:
+	var palette := _cozy_palette("corner_store", variant)
+	var width := 2.28 + float(variant % 3) * 0.14
+	var depth := 1.74 + float(int(variant / 3) % 2) * 0.12
+	var height := 0.92 + float(int(variant / 5)) * 0.1
 	_add_parcel_shadow(root, Vector2(4.0, 2.95), 0.22)
 
 	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(3.8, 0.04, 2.8), _make_material("d5cfbc", 0.98), lot_root)
@@ -3540,6 +3594,14 @@ func _add_corner_store_variant(position_3d: Vector3, variant: int) -> Node3D:
 	_add_crate_stack_local(Vector3(0.78, 0.08, 0.98), palette.trim, lot_root)
 	_add_shrub_cluster(Vector3(-1.02, 0.0, 1.1), palette.accent, lot_root, 2)
 	_add_shrub_cluster(Vector3(0.42, 0.0, 1.1), palette.trim, lot_root, 2)
+
+
+func _add_corner_store_variant(position_3d: Vector3, variant: int) -> Node3D:
+	var property_roots := _create_property_roots(position_3d)
+	var root := property_roots["root"] as Node3D
+	var lot_root := property_roots["lot"] as Node3D
+	var structure_root := property_roots["structure"] as Node3D
+	_populate_corner_store_variant(root, lot_root, structure_root, variant)
 	return root
 
 
