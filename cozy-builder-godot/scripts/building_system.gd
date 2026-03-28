@@ -1593,12 +1593,14 @@ func _upgrade_selected_property() -> void:
 	])
 	_money -= upgrade_cost
 	_upgrade_debug("upgrade money deducted cost=%d remaining=%d" % [upgrade_cost, _money])
-	if (tool == BUILD_TOOL_HOUSE or tool == BUILD_TOOL_POLICE) and is_instance_valid(existing_node):
+	if (tool == BUILD_TOOL_HOUSE or tool == BUILD_TOOL_POLICE or tool == BUILD_TOOL_FIRE) and is_instance_valid(existing_node):
 		var before_global := existing_node.global_position
 		if tool == BUILD_TOOL_HOUSE:
 			_rebuild_house_visuals_in_place(existing_node, next_tier, variant)
-		else:
+		elif tool == BUILD_TOOL_POLICE:
 			_rebuild_police_visuals_in_place(existing_node, next_tier, variant)
+		else:
+			_rebuild_fire_visuals_in_place(existing_node, next_tier, variant)
 		var after_global := existing_node.global_position
 		placement["node"] = existing_node
 		placement["tier"] = next_tier
@@ -1606,7 +1608,7 @@ func _upgrade_selected_property() -> void:
 		placement["frontage_side"] = frontage_side
 		_placements[anchor_key] = placement
 		print("[%s UPGRADE VERIFY] anchor=%s before=%s after=%s identical=%s" % [
-			"POLICE" if tool == BUILD_TOOL_POLICE else "HOUSE",
+			"POLICE" if tool == BUILD_TOOL_POLICE else "FIRE" if tool == BUILD_TOOL_FIRE else "HOUSE",
 			anchor_key,
 			str(before_global),
 			str(after_global),
@@ -1908,12 +1910,14 @@ func _undo_last_action() -> void:
 			var variant := int(placement.get("variant", -1))
 			var frontage_side := str(placement.get("frontage_side", ""))
 			var from_tier := int(action.get("from_tier", 1))
-			if (tool == BUILD_TOOL_HOUSE or tool == BUILD_TOOL_POLICE) and is_instance_valid(placement.get("node") as Node3D):
+			if (tool == BUILD_TOOL_HOUSE or tool == BUILD_TOOL_POLICE or tool == BUILD_TOOL_FIRE) and is_instance_valid(placement.get("node") as Node3D):
 				var node := placement.get("node") as Node3D
 				if tool == BUILD_TOOL_HOUSE:
 					_rebuild_house_visuals_in_place(node, from_tier, variant)
-				else:
+				elif tool == BUILD_TOOL_POLICE:
 					_rebuild_police_visuals_in_place(node, from_tier, variant)
+				else:
+					_rebuild_fire_visuals_in_place(node, from_tier, variant)
 				placement["tier"] = from_tier
 				placement["variant"] = variant
 				placement["frontage_side"] = frontage_side
@@ -2121,6 +2125,16 @@ func _rebuild_police_visuals_in_place(root: Node3D, tier: int, variant: int) -> 
 	var structure_root := _property_structure_root(root)
 	_populate_police_station_variant(root, lot_root, structure_root, variant)
 	_apply_property_tier_visuals(root, BUILD_TOOL_POLICE, tier, variant)
+	root.set_meta("tier", tier)
+	root.set_meta("variant", variant)
+
+
+func _rebuild_fire_visuals_in_place(root: Node3D, tier: int, variant: int) -> void:
+	_clear_property_visuals(root)
+	var lot_root := _property_lot_root(root)
+	var structure_root := _property_structure_root(root)
+	_populate_fire_station_variant(root, lot_root, structure_root, variant)
+	_apply_property_tier_visuals(root, BUILD_TOOL_FIRE, tier, variant)
 	root.set_meta("tier", tier)
 	root.set_meta("variant", variant)
 
@@ -3360,15 +3374,11 @@ func _add_police_station_variant(position_3d: Vector3, variant: int) -> Node3D:
 	return root
 
 
-func _add_fire_station_variant(position_3d: Vector3, variant: int) -> Node3D:
+func _populate_fire_station_variant(root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int) -> void:
 	var palette := _cozy_palette("fire", variant)
 	var width := 2.9 + float(variant % 2) * 0.24
 	var depth := 2.1 + float(int(variant / 3) % 2) * 0.16
 	var height := 1.06 + float(int(variant / 5)) * 0.12
-	var property_roots := _create_property_roots(position_3d)
-	var root := property_roots["root"] as Node3D
-	var lot_root := property_roots["lot"] as Node3D
-	var structure_root := property_roots["structure"] as Node3D
 	_add_parcel_shadow(root, Vector2(5.0, 3.9), 0.24)
 
 	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(4.8, 0.04, 3.6), _make_material("c9c7b2", 0.98), lot_root)
@@ -3389,6 +3399,14 @@ func _add_fire_station_variant(position_3d: Vector3, variant: int) -> Node3D:
 		_add_soft_block(Vector3(truck_x, 0.26, 0.94), Vector3(0.32, 0.12, 0.34), _make_material("f4efe6", 0.82), lot_root, 0.04)
 	_add_shrub_cluster(Vector3(-1.08, 0.0, 1.2), palette.accent, lot_root, 3)
 	_add_shrub_cluster(Vector3(1.08, 0.0, 1.2), palette.trim, lot_root, 3)
+
+
+func _add_fire_station_variant(position_3d: Vector3, variant: int) -> Node3D:
+	var property_roots := _create_property_roots(position_3d)
+	var root := property_roots["root"] as Node3D
+	var lot_root := property_roots["lot"] as Node3D
+	var structure_root := property_roots["structure"] as Node3D
+	_populate_fire_station_variant(root, lot_root, structure_root, variant)
 	return root
 
 
@@ -3642,6 +3660,17 @@ func _apply_service_tier_visuals(root: Node3D, tool: String, tier: int, variant:
 			if bool(profile.get("rear_hall", false)):
 				_add_soft_block(Vector3(0.0, 0.22, -1.04), Vector3(1.46, 0.38, 0.74), _make_material_from_color(palette.wall.lightened(0.03), 0.92), structure_root, 0.12)
 				_add_gabled_roof(Vector3(0.0, 0.52, -1.04), Vector3(1.62, 0.08, 0.82), _make_material_from_color(palette.roof.darkened(0.02), 0.76), structure_root, 10.0)
+		elif tool == BUILD_TOOL_FIRE:
+			if bool(profile.get("front_hall", false)):
+				_add_soft_block(Vector3(0.0, 0.3, 0.82), Vector3(1.44, 0.5, 0.7), _make_material_from_color(palette.wall.lightened(0.04), 0.94), structure_root, 0.12)
+				_add_gabled_roof(Vector3(0.0, 0.66, 0.82), Vector3(1.56, 0.12, 0.8), _make_material_from_color(palette.roof.darkened(0.02), 0.78), structure_root, 11.0)
+				_add_box(Vector3(0.0, 0.14, 1.12), Vector3(0.42, 0.44, 0.06), _window_material, structure_root)
+				_add_box(Vector3(0.0, 0.04, 1.3), Vector3(0.98, 0.04, 0.08), _make_material_from_color(accent, 0.46), lot_root)
+				_add_service_steps(lot_root, 1.38, 0.92)
+			if bool(profile.get("bay_extend", false)):
+				_add_soft_block(Vector3(1.0, 0.34, -0.08), Vector3(0.92, 0.62, 1.14), _make_material_from_color(palette.trim.darkened(0.01), 0.9), structure_root, 0.1)
+				_add_gabled_roof(Vector3(1.0, 0.76, -0.08), Vector3(1.04, 0.12, 1.24), _make_material_from_color(palette.roof.darkened(0.02), 0.76), structure_root, 11.0)
+				_add_box(Vector3(1.0, 0.36, 0.46), Vector3(0.36, 0.5, 0.05), _window_material, structure_root)
 
 	if tier >= 3:
 		match tool:
@@ -3650,9 +3679,13 @@ func _apply_service_tier_visuals(root: Node3D, tool: String, tier: int, variant:
 					_add_police_parking_lot(Vector3(1.38, 0.0, -0.26), Vector3(1.62, 1.0, 1.78), lot_root)
 			BUILD_TOOL_FIRE:
 				if bool(profile.get("bay_extend", false)):
-					_add_box(Vector3(1.08, 0.14, 0.92), Vector3(0.72, 0.12, 1.22), _make_material_from_color(palette.trim.darkened(0.04), 0.84), structure_root)
-				if bool(profile.get("apron", false)):
-					_add_hydrant_local(Vector3(-1.34, 0.08, 1.32), lot_root)
+					_add_soft_block(Vector3(-1.02, 0.34, -0.12), Vector3(0.82, 0.56, 1.02), _make_material_from_color(palette.wall.darkened(0.01), 0.92), structure_root, 0.1)
+					_add_gabled_roof(Vector3(-1.02, 0.72, -0.12), Vector3(0.96, 0.12, 1.14), _make_material_from_color(palette.roof.darkened(0.02), 0.76), structure_root, 11.0)
+				if bool(profile.get("hose_tower", false)):
+					_add_soft_block(Vector3(1.02, 0.48, -0.78), Vector3(0.5, 0.96, 0.5), _make_material_from_color(palette.trim.darkened(0.01), 0.9), structure_root, 0.1)
+					_add_gabled_roof(Vector3(1.02, 1.08, -0.78), Vector3(0.6, 0.1, 0.6), _make_material_from_color(palette.roof.darkened(0.03), 0.76), structure_root, 14.0)
+				if bool(profile.get("parking_expand", false)):
+					_add_fire_parking_lot(Vector3(1.22, 0.0, -0.18), Vector3(1.84, 1.0, 1.7), lot_root)
 			BUILD_TOOL_BANK:
 				if bool(profile.get("side_wing", false)):
 					_add_soft_block(Vector3(1.1, 0.72, -0.62), Vector3(0.72, 0.56, 0.9), _make_material_from_color(palette.wall.lightened(0.02), 0.9), structure_root, 0.12)
@@ -3688,9 +3721,15 @@ func _apply_service_tier_visuals(root: Node3D, tool: String, tier: int, variant:
 					_add_box(Vector3(0.0, 1.22, -0.54), Vector3(0.42, 0.18, 0.06), _window_material, structure_root)
 					_add_box(Vector3(0.0, 0.96, 0.82), Vector3(1.02, 0.06, 0.1), _make_material_from_color(accent, 0.42), lot_root)
 			BUILD_TOOL_FIRE:
-				if bool(profile.get("apron", false)):
-					_add_box(Vector3(-1.18, 0.08, 1.48), Vector3(2.24, 0.08, 0.06), _make_material_from_color(accent, 0.4), lot_root)
-					_add_box(Vector3(0.0, 0.08, 1.64), Vector3(1.54, 0.04, 0.12), _make_material_from_color(trim, 0.44), lot_root)
+				if bool(profile.get("second_story", false)):
+					_add_soft_block(Vector3(0.0, 1.2, -0.08), Vector3(1.62, 0.78, 1.22), _make_material_from_color(palette.wall.lightened(0.06), 0.94), structure_root, 0.12)
+					_add_gabled_roof(Vector3(0.0, 1.82, -0.08), Vector3(1.82, 0.14, 1.36), _make_material_from_color(palette.roof.darkened(0.02), 0.76), structure_root, 12.0)
+					_add_box(Vector3(0.0, 1.02, 0.5), Vector3(0.52, 0.22, 0.06), _window_material, structure_root)
+					_add_box(Vector3(0.0, 1.2, -0.6), Vector3(0.44, 0.18, 0.06), _window_material, structure_root)
+				if bool(profile.get("parking_expand", false)):
+					_add_box(Vector3(-1.08, 0.08, 1.5), Vector3(2.28, 0.08, 0.06), _make_material_from_color(accent, 0.4), lot_root)
+					_add_box(Vector3(0.0, 0.08, 1.68), Vector3(1.62, 0.04, 0.12), _make_material_from_color(trim, 0.44), lot_root)
+					_add_fire_truck_local(Vector3(-0.34, 0.02, 0.38), 0.0, lot_root)
 			BUILD_TOOL_BANK:
 				_add_frontage_detail_cluster(lot_root, 2.0, 1.34, accent, "vault")
 				if bool(profile.get("landscaping", false)):
@@ -4281,6 +4320,56 @@ func _add_police_parking_lot(center: Vector3, size: Vector3, parent: Node) -> vo
 	_add_box(Vector3(0.48, 0.074, 0.24), Vector3(0.04, 0.01, 0.26), line_material, lot_root)
 	_add_box(Vector3(0.48, 0.074, -0.52), Vector3(0.04, 0.01, 0.16), line_material, lot_root)
 	_add_police_car_local(Vector3(0.44, 0.015, -0.1), 0.0, lot_root)
+
+
+func _add_fire_truck_local(position_3d: Vector3, rotation_y: float, parent: Node) -> void:
+	var root := Node3D.new()
+	root.position = position_3d
+	root.rotation.y = rotation_y
+	parent.add_child(root)
+	_add_shadow_disc_local(Vector3(0.0, 0.005, 0.0), Vector2(0.52, 0.92), 0.18, root)
+	var body_material := _make_material("c85243", 0.76)
+	var cab_material := _make_material("f2efe5", 0.88)
+	var stripe_material := _make_material("f1d072", 0.84)
+	var tire_material := _make_material("26252b", 0.98)
+	_add_soft_block(Vector3(0.0, 0.14, 0.0), Vector3(0.5, 0.16, 0.86), body_material, root, 0.06)
+	_add_soft_block(Vector3(0.0, 0.24, -0.2), Vector3(0.38, 0.12, 0.32), cab_material, root, 0.05)
+	_add_box(Vector3(0.0, 0.18, 0.26), Vector3(0.3, 0.04, 0.04), stripe_material, root)
+	_add_box(Vector3(0.0, 0.26, -0.38), Vector3(0.22, 0.03, 0.08), stripe_material, root)
+	for wheel_data in [
+		Vector3(-0.18, 0.07, -0.3),
+		Vector3(0.18, 0.07, -0.3),
+		Vector3(-0.18, 0.07, 0.32),
+		Vector3(0.18, 0.07, 0.32),
+	]:
+		var wheel := _add_local_cylinder(wheel_data, 0.055, 0.055, 0.04, tire_material, root)
+		wheel.rotation_degrees.z = 90.0
+
+
+func _add_fire_parking_lot(center: Vector3, size: Vector3, parent: Node) -> void:
+	var lot_root := Node3D.new()
+	lot_root.position = center
+	parent.add_child(lot_root)
+	_add_shadow_disc_local(Vector3(0.0, 0.0, 0.0), Vector2(size.x * 0.98, size.z * 0.92), 0.1, lot_root)
+	var apron_material := _make_material("d8d2c8", 0.94)
+	var asphalt_material := _make_material("6f767f", 0.96)
+	var curb_material := _make_material("ece7dd", 0.92)
+	var line_material := _make_material("f1d072", 0.94)
+	var stop_material := _make_material("f6f0e5", 0.94)
+	var border_size := Vector3(size.x + 0.16, 0.02, size.z + 0.16)
+	_add_box(Vector3(0.0, 0.018, 0.0), border_size, apron_material, lot_root)
+	_add_box(Vector3(0.0, 0.045, 0.0), Vector3(size.x, 0.03, size.z), asphalt_material, lot_root)
+	_add_box(Vector3(0.0, 0.07, -size.z * 0.5 + 0.07), Vector3(size.x * 0.9, 0.015, 0.08), curb_material, lot_root)
+	_add_box(Vector3(0.0, 0.07, size.z * 0.5 - 0.07), Vector3(size.x * 0.9, 0.015, 0.08), curb_material, lot_root)
+	_add_box(Vector3(-size.x * 0.5 + 0.07, 0.07, 0.0), Vector3(0.08, 0.015, size.z * 0.82), curb_material, lot_root)
+	_add_box(Vector3(size.x * 0.5 - 0.07, 0.07, 0.0), Vector3(0.08, 0.015, size.z * 0.82), curb_material, lot_root)
+	_add_box(Vector3(-0.26, 0.074, 0.08), Vector3(0.04, 0.01, 0.36), stop_material, lot_root)
+	_add_box(Vector3(0.0, 0.074, 0.08), Vector3(0.04, 0.01, 0.36), stop_material, lot_root)
+	_add_box(Vector3(0.26, 0.074, 0.08), Vector3(0.04, 0.01, 0.36), stop_material, lot_root)
+	_add_box(Vector3(0.54, 0.074, 0.08), Vector3(0.04, 0.01, 0.36), stop_material, lot_root)
+	_add_box(Vector3(0.42, 0.074, -0.54), Vector3(0.04, 0.01, 0.16), line_material, lot_root)
+	_add_box(Vector3(0.42, 0.074, 0.54), Vector3(0.04, 0.01, 0.16), line_material, lot_root)
+	_add_fire_truck_local(Vector3(0.4, 0.015, -0.06), 0.0, lot_root)
 
 
 func _add_signboard_local(position_3d: Vector3, size: Vector2, accent: Color, kind: String, parent: Node) -> void:

@@ -126,10 +126,10 @@ const VISUAL_PROFILES := {
 		4: {"front_hall": true, "tower": true, "service_wing": true, "rear_hall": true, "parking_expand": true, "second_story": true, "landscaping": false},
 	},
 	"fire": {
-		1: {"apron": false, "hose_tower": false, "bay_extend": false, "landscaping": false},
-		2: {"apron": true, "hose_tower": false, "bay_extend": true, "landscaping": true},
-		3: {"apron": true, "hose_tower": true, "bay_extend": true, "landscaping": true},
-		4: {"apron": true, "hose_tower": true, "bay_extend": true, "landscaping": true},
+		1: {"front_hall": false, "bay_extend": false, "hose_tower": false, "parking_expand": false, "second_story": false, "landscaping": false},
+		2: {"front_hall": true, "bay_extend": true, "hose_tower": false, "parking_expand": false, "second_story": false, "landscaping": false},
+		3: {"front_hall": true, "bay_extend": true, "hose_tower": true, "parking_expand": true, "second_story": false, "landscaping": false},
+		4: {"front_hall": true, "bay_extend": true, "hose_tower": true, "parking_expand": true, "second_story": true, "landscaping": false},
 	},
 	"bank": {
 		1: {"column_entry": false, "side_wing": false, "grand_plaza": false, "landscaping": false},
