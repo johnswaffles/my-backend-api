@@ -347,22 +347,22 @@ func _input(event: InputEvent) -> void:
 
 
 func _build_materials() -> void:
-	_ground_material_a = _make_material("95a86d", 0.98)
-	_ground_material_b = _make_material("869a62", 0.98)
-	_ground_material_c = _make_material("a6b37a", 0.98)
-	_soil_material = _make_material("726346", 0.99)
-	_stone_material = _make_material("c9bba6", 0.94)
-	_water_material = _make_material("5c98a8", 0.34, 0.0, true, "d0edf1", 0.03)
-	_road_material = _make_material("5f666f", 0.9)
-	_road_mark_material = _make_material("f0c44b", 0.76)
-	_sidewalk_material = _make_material("d8d2c6", 0.92)
-	_window_material = _make_material("f3d29a", 0.42, 0.0, true, "ffd48e", 0.14)
-	_leaf_material = _make_material("6f8a50", 0.98)
-	_trunk_material = _make_material("765239", 0.94)
-	_flower_material_pink = _make_material("c98ba4", 0.82)
-	_flower_material_blue = _make_material("86a7cf", 0.82)
-	_meadow_material = _make_material("aaae73", 0.99)
-	_grass_blade_material = _make_material("72924b", 0.98)
+	_ground_material_a = _make_material("8fa56e", 0.98)
+	_ground_material_b = _make_material("81985f", 0.98)
+	_ground_material_c = _make_material("a7b77f", 0.98)
+	_soil_material = _make_material("72543a", 0.99)
+	_stone_material = _make_material("d0c2ad", 0.94)
+	_water_material = _make_material("5b8c98", 0.32, 0.0, true, "d6eef2", 0.04)
+	_road_material = _make_material("646872", 0.94)
+	_road_mark_material = _make_material("f2cb61", 0.78)
+	_sidewalk_material = _make_material("ddd3c5", 0.92)
+	_window_material = _make_material("f8cf86", 0.26, 0.0, true, "ffcf7c", 0.18)
+	_leaf_material = _make_material("6e8c51", 0.98)
+	_trunk_material = _make_material("77543b", 0.94)
+	_flower_material_pink = _make_material("d891ad", 0.82)
+	_flower_material_blue = _make_material("8dafd9", 0.82)
+	_meadow_material = _make_material("a4ab72", 0.99)
+	_grass_blade_material = _make_material("75934a", 0.98)
 	_soft_shadow_material = _make_transparent_material(Color(0.08, 0.06, 0.04, 1.0), 1.0, 0.18)
 	_hover_material_valid = _make_transparent_material(Color("76e5c7"), 0.24, 0.34)
 	_hover_material_invalid = _make_transparent_material(Color("f29a8d"), 0.24, 0.34)
@@ -2900,32 +2900,39 @@ func _update_day_night_visuals() -> void:
 		return
 	var cycle := fmod(float(_day - 1) + _simulation_clock / 7.5, 6.0) / 6.0
 	var sun_wave := sin(cycle * TAU)
-	var warm_strength: float = clampf(0.52 + sun_wave * 0.34, 0.18, 0.92)
-	var sky_top: Color = Color(0.32, 0.44, 0.6).lerp(Color(0.89, 0.67, 0.42), warm_strength * 0.46)
-	var sky_horizon: Color = Color(0.8, 0.88, 0.9).lerp(Color(0.98, 0.87, 0.68), warm_strength * 0.5)
+	var warm_strength: float = clampf(0.46 + sun_wave * 0.3, 0.14, 0.88)
+	var dusk_ratio := 1.0 - warm_strength
+	var sky_top: Color = Color(0.16, 0.2, 0.28).lerp(Color(0.9, 0.62, 0.4), warm_strength * 0.74)
+	var sky_horizon: Color = Color(0.56, 0.58, 0.56).lerp(Color(0.98, 0.78, 0.56), warm_strength * 0.84)
 	if world_environment and world_environment.environment:
 		var env: Environment = world_environment.environment
 		env.background_mode = Environment.BG_COLOR
-		env.background_color = sky_top.lerp(sky_horizon, 0.74)
-		env.ambient_light_color = sky_top.lerp(Color(1.0, 0.92, 0.82), 0.38)
-		env.ambient_light_energy = 0.42 + warm_strength * 0.24
+		env.background_color = sky_top.lerp(sky_horizon, 0.72)
+		env.ambient_light_color = sky_top.lerp(Color(1.0, 0.9, 0.8), 0.24)
+		env.ambient_light_energy = 0.15 + warm_strength * 0.12
 		env.fog_enabled = true
 		env.fog_light_color = sky_horizon
-		env.fog_light_energy = 0.28 + warm_strength * 0.18
-		env.fog_density = 0.003
+		env.fog_light_energy = 0.07 + warm_strength * 0.08
+		env.fog_density = 0.001 + dusk_ratio * 0.00055
+		env.glow_bloom = 0.05 + dusk_ratio * 0.05
+		env.glow_intensity = 0.06 + dusk_ratio * 0.08
+		env.adjustment_enabled = true
+		env.adjustment_brightness = 0.86 + warm_strength * 0.05
+		env.adjustment_contrast = 1.18 + dusk_ratio * 0.04
+		env.adjustment_saturation = 1.04
 	if sun:
-		sun.light_color = Color(1.0, 0.84, 0.66).lerp(Color(1.0, 0.66, 0.42), warm_strength * 0.7)
-		sun.light_energy = 0.74 + warm_strength * 0.68
-		sun.rotation_degrees = Vector3(-48.0 - warm_strength * 18.0, -32.0, 0.0)
+		sun.light_color = Color(1.0, 0.83, 0.65).lerp(Color(1.0, 0.7, 0.42), warm_strength * 0.7)
+		sun.light_energy = 0.6 + warm_strength * 0.38
+		sun.rotation_degrees = Vector3(-43.0 - warm_strength * 15.0, -32.0, 0.0)
 	if fill_light:
-		fill_light.light_color = Color(0.78, 0.88, 1.0).lerp(Color(1.0, 0.78, 0.58), warm_strength * 0.5)
-		fill_light.light_energy = 0.2 + warm_strength * 0.22
+		fill_light.light_color = Color(0.5, 0.61, 0.74).lerp(Color(0.92, 0.74, 0.56), warm_strength * 0.28)
+		fill_light.light_energy = 0.08 + warm_strength * 0.08
 
 	for band in _window_bands:
 		if is_instance_valid(band):
 			var material := band.material_override as StandardMaterial3D
 			if material:
-				material.emission_energy_multiplier = 0.1 + (1.0 - warm_strength) * 0.75
+				material.emission_energy_multiplier = 0.18 + dusk_ratio * 0.95
 
 
 func _spawn_road_tile(world_position: Vector3, preview: bool) -> Node3D:
@@ -2942,9 +2949,9 @@ func _spawn_road_tile(world_position: Vector3, preview: bool) -> Node3D:
 func _spawn_house_tile(world_position: Vector3, preview: bool) -> Node3D:
 	var root := Node3D.new()
 	root.position = world_position
-	var wall_material: Material = _ghost_base_material if preview else _make_material("f1e6d4", 0.86)
-	var roof_material: Material = _ghost_accent_material if preview else _make_material("b97554", 0.74)
-	var pad_material: Material = _ghost_base_material if preview else _make_material("d7d8cf", 0.88)
+	var wall_material: Material = _ghost_base_material if preview else _make_material("efe4d5", 0.88)
+	var roof_material: Material = _ghost_accent_material if preview else _make_material("b66f4d", 0.74)
+	var pad_material: Material = _ghost_base_material if preview else _make_material("ddd3c6", 0.9)
 
 	_add_box(Vector3(0.0, 0.02, 0.42), Vector3(4.6, 0.04, 4.6), pad_material, root)
 	_add_box(Vector3(0.0, 0.5, -0.56), Vector3(1.62, 0.92, 1.34), wall_material, root)
