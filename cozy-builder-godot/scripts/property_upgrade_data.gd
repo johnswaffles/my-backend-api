@@ -120,10 +120,10 @@ const VISUAL_PROFILES := {
 		},
 	},
 	"police": {
-		1: {"badge_plaza": false, "tower": false, "service_wing": false, "front_hall": false, "rear_hall": false},
-		2: {"badge_plaza": false, "tower": false, "service_wing": false, "front_hall": true, "rear_hall": false},
-		3: {"badge_plaza": true, "tower": true, "service_wing": true, "front_hall": true, "rear_hall": false},
-		4: {"badge_plaza": true, "tower": true, "service_wing": true, "front_hall": true, "rear_hall": true},
+		1: {"front_hall": false, "tower": false, "service_wing": false, "rear_hall": false, "parking_expand": false, "second_story": false, "landscaping": false},
+		2: {"front_hall": true, "tower": true, "service_wing": true, "rear_hall": true, "parking_expand": false, "second_story": false, "landscaping": false},
+		3: {"front_hall": true, "tower": true, "service_wing": true, "rear_hall": true, "parking_expand": true, "second_story": false, "landscaping": false},
+		4: {"front_hall": true, "tower": true, "service_wing": true, "rear_hall": true, "parking_expand": true, "second_story": true, "landscaping": false},
 	},
 	"fire": {
 		1: {"apron": false, "hose_tower": false, "bay_extend": false, "landscaping": false},
