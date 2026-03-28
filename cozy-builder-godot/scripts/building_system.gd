@@ -183,6 +183,7 @@ var _placements: Dictionary = {}
 var _cell_anchor_lookup: Dictionary = {}
 var _road_cells: Dictionary = {}
 var _road_nodes: Dictionary = {}
+var _road_light_nodes: Dictionary = {}
 var _action_history: Array[Dictionary] = []
 var _variant_cycle: Dictionary = {}
 var _loaded_save := false
@@ -222,6 +223,7 @@ var _ambient_people: Array[Node3D] = []
 var _hover_root: Node3D
 var _ghost_root: Node3D
 var _ghost_nodes: Dictionary = {}
+var _road_lights_root: Node3D
 var _life_root: Node3D
 var _hud_layer: CanvasLayer
 var _hud_margin: MarginContainer
@@ -409,6 +411,9 @@ func _build_world() -> void:
 func _create_runtime_helpers() -> void:
 	_hover_root = Node3D.new()
 	grid_root.add_child(_hover_root)
+
+	_road_lights_root = Node3D.new()
+	grid_root.add_child(_road_lights_root)
 
 	_ghost_root = Node3D.new()
 	_ghost_root.visible = false
@@ -1472,6 +1477,7 @@ func _register_placement(anchor: Vector2i, cells: Array[Vector2i], tool: String,
 	})
 	_set_selected_anchor(anchor_key)
 	_upgrade_debug("register placement selected=%s selection_cells=%s" % [_selected_anchor_key, str(_selection_cells)])
+	_refresh_road_lights()
 
 
 func _find_anchor_for_cell(cell: Vector2i) -> String:
@@ -1884,6 +1890,7 @@ func _remove_selected_placement(refund: bool, record_action: bool = true) -> voi
 	_upgrade_debug("remove selected placement complete selected=%s money=%d" % [_selected_anchor_key, _money])
 	_recalculate_cashflow()
 	_rebuild_ambient_life()
+	_refresh_road_lights()
 	_refresh_tool_ui()
 	_update_hover_from_mouse()
 
@@ -1938,6 +1945,7 @@ func _remove_road_at_cell(cell: Vector2i, refund: bool, record_action: bool = tr
 	_clear_selected_anchor()
 	_recalculate_cashflow()
 	_rebuild_ambient_life()
+	_refresh_road_lights()
 	_refresh_tool_ui()
 	_update_hover_from_mouse()
 
@@ -2484,6 +2492,7 @@ func _clear_map_data() -> void:
 	_cell_anchor_lookup.clear()
 	_road_cells.clear()
 	_road_nodes.clear()
+	_clear_road_lights()
 	_action_history.clear()
 	_variant_cycle.clear()
 	_clear_selected_anchor()
@@ -3081,6 +3090,7 @@ func _spawn_house_tile(world_position: Vector3, preview: bool) -> Node3D:
 	var wall_material: Material = _ghost_base_material if preview else _make_material("efe4d5", 0.88)
 	var roof_material: Material = _ghost_accent_material if preview else _make_material("b66f4d", 0.74)
 	var pad_material: Material = _ghost_base_material if preview else _make_material("ddd3c6", 0.9)
+	var window_material: Material = _ghost_accent_material if preview else _window_material
 
 	_add_box(Vector3(0.0, 0.02, 0.42), Vector3(4.6, 0.04, 4.6), pad_material, root)
 	_add_box(Vector3(0.0, 0.5, -0.56), Vector3(1.62, 0.92, 1.34), wall_material, root)
@@ -3089,6 +3099,9 @@ func _spawn_house_tile(world_position: Vector3, preview: bool) -> Node3D:
 	var roof_b := _add_box(Vector3(0.0, 1.0, -0.78), Vector3(1.84, 0.16, 0.82), roof_material, root)
 	roof_a.rotation_degrees = Vector3(0.0, 0.0, -7.0)
 	roof_b.rotation_degrees = Vector3(0.0, 0.0, 7.0)
+	_add_box(Vector3(-0.42, 0.46, -0.06), Vector3(0.24, 0.28, 0.05), window_material, root)
+	_add_box(Vector3(0.42, 0.46, -0.06), Vector3(0.24, 0.28, 0.05), window_material, root)
+	_add_box(Vector3(0.84, 0.42, -0.02), Vector3(0.16, 0.24, 0.05), window_material, root)
 	_add_round_canopy(Vector3(0.0, 0.24, 0.42), Vector3(0.78, 0.12, 0.22), _ghost_accent_material if preview else _window_material, root)
 	return root
 
@@ -3426,6 +3439,9 @@ func _populate_village_house_variant(root: Node3D, lot_root: Node3D, structure_r
 		_add_box(window_pos, Vector3(0.26, 0.34, 0.06), _window_material, structure_root)
 		_add_box(window_pos + Vector3(-0.16, 0.0, 0.0), Vector3(0.05, 0.36, 0.05), timber, structure_root)
 		_add_box(window_pos + Vector3(0.16, 0.0, 0.0), Vector3(0.05, 0.36, 0.05), timber, structure_root)
+	_add_box(Vector3(0.0, 0.56, house_z + 0.48), Vector3(0.42, 0.38, 0.06), _window_material, structure_root)
+	_add_box(Vector3(-0.24, 0.56, house_z + 0.48), Vector3(0.04, 0.4, 0.04), timber, structure_root)
+	_add_box(Vector3(0.24, 0.56, house_z + 0.48), Vector3(0.04, 0.4, 0.04), timber, structure_root)
 	if has_bay:
 		_add_box(Vector3(0.74, 0.54, house_z + 0.86), Vector3(0.34, 0.3, 0.06), _window_material, structure_root)
 
@@ -4131,8 +4147,6 @@ func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = [
 			_add_box(Vector3(x, 0.104, 0.0), Vector3(0.16, 0.01, 3.56), sidewalk_material, root)
 		for rail_x in [-0.18, 0.18]:
 			_add_box(Vector3(rail_x, 0.108, 0.0), Vector3(0.05, 0.012, 3.56), rail_material, root)
-		if not preview and posmod(cell.x + cell.y, 2) == 0:
-			_add_road_lamp_local(Vector3(2.42, 0.0, 0.98), root)
 	elif horizontal_straight:
 		for x in [-1.24, -0.44, 0.44, 1.24]:
 			_add_box(Vector3(x, 0.12, 0.0), Vector3(0.3, 0.01, 0.16), lane_material, root)
@@ -4140,8 +4154,6 @@ func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = [
 			_add_box(Vector3(0.0, 0.104, z), Vector3(3.56, 0.01, 0.16), sidewalk_material, root)
 		for rail_z in [-0.18, 0.18]:
 			_add_box(Vector3(0.0, 0.108, rail_z), Vector3(3.56, 0.012, 0.05), rail_material, root)
-		if not preview and posmod(cell.x + cell.y, 2) == 1:
-			_add_road_lamp_local(Vector3(-0.98, 0.0, 2.42), root)
 	elif intersection:
 		_add_box(Vector3(0.0, 0.074, 0.0), Vector3(4.18, 0.07, 4.18), road_material, root)
 		_add_box(Vector3(0.0, 0.094, 0.0), Vector3(3.82, 0.024, 3.82), road_top_material, root)
@@ -4154,17 +4166,10 @@ func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = [
 		for rail_offset in [-0.18, 0.18]:
 			_add_box(Vector3(rail_offset, 0.108, 0.0), Vector3(0.05, 0.012, 4.18), rail_material, root)
 			_add_box(Vector3(0.0, 0.108, rail_offset), Vector3(4.18, 0.012, 0.05), rail_material, root)
-		if not preview:
-			_add_road_lamp_local(Vector3(2.38, 0.0, 2.38), root)
-			_add_road_lamp_local(Vector3(-2.38, 0.0, 2.38), root)
-			_add_road_lamp_local(Vector3(2.38, 0.0, -2.38), root)
-			_add_road_lamp_local(Vector3(-2.38, 0.0, -2.38), root)
 	else:
 		_add_box(Vector3(0.0, 0.12, 0.0), Vector3(0.18, 0.01, 0.18), lane_material, root)
 		_add_box(Vector3(-0.18, 0.108, 0.0), Vector3(0.05, 0.012, 0.84), rail_material, root)
 		_add_box(Vector3(0.18, 0.108, 0.0), Vector3(0.05, 0.012, 0.84), rail_material, root)
-		if not preview:
-			_add_road_lamp_local(Vector3(2.2, 0.0, 0.98), root)
 
 	return root
 
@@ -4636,6 +4641,77 @@ func _add_road_lamp_local(position_3d: Vector3, parent: Node) -> void:
 	_add_local_cylinder(Vector3(0.0, 0.54, 0.0), 0.04, 0.04, 1.08, _road_material, lamp_root)
 	_add_box(Vector3(0.0, 1.12, 0.0), Vector3(0.18, 0.1, 0.18), _window_material, lamp_root)
 	_add_lantern_glow_local(Vector3(0.0, 1.12, 0.0), lamp_root)
+
+
+func _clear_road_lights() -> void:
+	for node_variant in _road_light_nodes.values():
+		var node := node_variant as Node
+		if is_instance_valid(node):
+			node.queue_free()
+	_road_light_nodes.clear()
+
+
+func _refresh_road_lights() -> void:
+	if not is_instance_valid(_road_lights_root):
+		return
+	_clear_road_lights()
+	var road_keys: Array = _road_cells.keys()
+	road_keys.sort()
+	for road_key_variant in road_keys:
+		var cell := _anchor_key_to_cell(str(road_key_variant))
+		if not _road_cells.has(_cell_key(cell)):
+			continue
+		var north := _road_cells.has(_cell_key(Vector2i(cell.x, cell.y - 1)))
+		var east := _road_cells.has(_cell_key(Vector2i(cell.x + 1, cell.y)))
+		var south := _road_cells.has(_cell_key(Vector2i(cell.x, cell.y + 1)))
+		var west := _road_cells.has(_cell_key(Vector2i(cell.x - 1, cell.y)))
+		var vertical_straight := north and south and not east and not west
+		var horizontal_straight := east and west and not north and not south
+		if not vertical_straight and not horizontal_straight:
+			continue
+		if posmod(cell.x + cell.y, 2) != 0:
+			continue
+		if vertical_straight:
+			if not _road_lamp_clearance_is_free(cell, true):
+				continue
+			var vertical_z := 0.98 if posmod(cell.x + cell.y, 4) == 0 else -0.98
+			var vertical_offset := Vector3(2.42, 0.0, vertical_z)
+			_place_road_light(cell, vertical_offset, "v_%s" % _cell_key(cell))
+		elif horizontal_straight:
+			if not _road_lamp_clearance_is_free(cell, false):
+				continue
+			var horizontal_x := -0.98 if posmod(cell.x + cell.y, 4) == 0 else 0.98
+			var horizontal_offset := Vector3(horizontal_x, 0.0, 2.42)
+			_place_road_light(cell, horizontal_offset, "h_%s" % _cell_key(cell))
+
+
+func _road_lamp_clearance_is_free(cell: Vector2i, vertical: bool) -> bool:
+	var side_sign := 1 if posmod(cell.x + cell.y, 4) == 0 else -1
+	if vertical:
+		var side_x := cell.x + side_sign
+		for dz in [-1, 0, 1]:
+			var candidate := Vector2i(side_x, cell.y + dz)
+			var key := _cell_key(candidate)
+			if _occupied_cells.has(key) or _reserved_cells.has(key):
+				return false
+	else:
+		var side_y := cell.y + side_sign
+		for dx in [-1, 0, 1]:
+			var candidate := Vector2i(cell.x + dx, side_y)
+			var key := _cell_key(candidate)
+			if _occupied_cells.has(key) or _reserved_cells.has(key):
+				return false
+	return true
+
+
+func _place_road_light(cell: Vector2i, local_offset: Vector3, key: String) -> void:
+	var lamp_root := Node3D.new()
+	lamp_root.position = _cell_to_world(cell) + local_offset
+	_road_lights_root.add_child(lamp_root)
+	_add_local_cylinder(Vector3(0.0, 0.54, 0.0), 0.04, 0.04, 1.08, _road_material, lamp_root)
+	_add_box(Vector3(0.0, 1.12, 0.0), Vector3(0.18, 0.1, 0.18), _window_material, lamp_root)
+	_add_lantern_glow_local(Vector3(0.0, 1.12, 0.0), lamp_root)
+	_road_light_nodes[key] = lamp_root
 
 
 func _add_local_tree(position_3d: Vector3, parent: Node) -> void:
