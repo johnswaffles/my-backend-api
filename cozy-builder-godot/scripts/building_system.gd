@@ -86,8 +86,8 @@ const PROPERTY_FRONT_SETBACK := 1.0
 const PROPERTY_FRONT_SETBACK_BY_TOOL := {
 	BUILD_TOOL_HOUSE: 0.95,
 	BUILD_TOOL_POLICE: 1.32,
-	BUILD_TOOL_FIRE: 0.9,
-	BUILD_TOOL_BANK: 0.9,
+	BUILD_TOOL_FIRE: 0.84,
+	BUILD_TOOL_BANK: 0.82,
 	BUILD_TOOL_GROCERY: 0.95,
 	BUILD_TOOL_RESTAURANT: 0.95,
 	BUILD_TOOL_CORNER_STORE: 0.9,
@@ -95,8 +95,8 @@ const PROPERTY_FRONT_SETBACK_BY_TOOL := {
 const PROPERTY_LOT_SETBACK_BY_TOOL := {
 	BUILD_TOOL_HOUSE: 0.58,
 	BUILD_TOOL_POLICE: 0.98,
-	BUILD_TOOL_FIRE: 0.46,
-	BUILD_TOOL_BANK: 0.42,
+	BUILD_TOOL_FIRE: 0.34,
+	BUILD_TOOL_BANK: 0.28,
 	BUILD_TOOL_GROCERY: 0.5,
 	BUILD_TOOL_RESTAURANT: 0.5,
 	BUILD_TOOL_CORNER_STORE: 0.42,
@@ -104,8 +104,8 @@ const PROPERTY_LOT_SETBACK_BY_TOOL := {
 const PROPERTY_BUFFER_BY_TOOL := {
 	BUILD_TOOL_HOUSE: 1,
 	BUILD_TOOL_POLICE: 1,
-	BUILD_TOOL_FIRE: 1,
-	BUILD_TOOL_BANK: 1,
+	BUILD_TOOL_FIRE: 0,
+	BUILD_TOOL_BANK: 0,
 	BUILD_TOOL_GROCERY: 1,
 	BUILD_TOOL_RESTAURANT: 1,
 	BUILD_TOOL_CORNER_STORE: 1,
@@ -3694,11 +3694,17 @@ func _apply_service_tier_visuals(root: Node3D, tool: String, tier: int, variant:
 				if bool(profile.get("parking_expand", false)):
 					_add_fire_parking_lot(Vector3(1.22, 0.0, -0.18), Vector3(1.84, 1.0, 1.7), lot_root)
 			BUILD_TOOL_BANK:
+				if bool(profile.get("front_hall", false)):
+					_add_frontage_detail_cluster(lot_root, 2.0, 1.34, accent, "vault")
 				if bool(profile.get("side_wing", false)):
 					_add_soft_block(Vector3(1.1, 0.72, -0.62), Vector3(0.72, 0.56, 0.9), _make_material_from_color(palette.wall.lightened(0.02), 0.9), structure_root, 0.12)
 					_add_gabled_roof(Vector3(1.1, 1.1, -0.62), Vector3(0.92, 0.12, 1.08), _make_material_from_color(palette.roof.darkened(0.01), 0.76), structure_root, 10.0)
-				if bool(profile.get("grand_plaza", false)):
-					_add_box(Vector3(-1.14, 0.08, 1.18), Vector3(1.64, 0.08, 0.06), _make_material_from_color(trim, 0.42), lot_root)
+				if bool(profile.get("plaza", false)):
+					_add_box(Vector3(0.0, 0.04, 0.92), Vector3(2.1, 0.03, 0.68), _make_material("d8d1c2", 0.94), lot_root)
+					_add_box(Vector3(-0.84, 0.05, 1.14), Vector3(0.12, 0.08, 0.42), _make_material("f1eadc", 0.92), lot_root)
+					_add_box(Vector3(0.84, 0.05, 1.14), Vector3(0.12, 0.08, 0.42), _make_material("f1eadc", 0.92), lot_root)
+				if bool(profile.get("landscaping", false)):
+					_add_shrub_cluster(Vector3(0.0, 0.0, 1.46), trim, lot_root, 4)
 			BUILD_TOOL_GROCERY:
 				if bool(profile.get("parking", false)):
 					_add_box(Vector3(1.34, 0.04, 0.78), Vector3(1.18, 0.04, 0.84), _road_mark_material, lot_root)
@@ -3738,9 +3744,29 @@ func _apply_service_tier_visuals(root: Node3D, tool: String, tier: int, variant:
 					_add_box(Vector3(0.0, 0.08, 1.68), Vector3(1.62, 0.04, 0.12), _make_material_from_color(trim, 0.44), lot_root)
 					_add_fire_truck_local(Vector3(-0.34, 0.02, 0.38), 0.0, lot_root)
 			BUILD_TOOL_BANK:
-				_add_frontage_detail_cluster(lot_root, 2.0, 1.34, accent, "vault")
+				if bool(profile.get("front_hall", false)):
+					_add_soft_block(Vector3(0.0, 0.34, 0.72), Vector3(1.64, 0.52, 0.74), _make_material_from_color(palette.wall.lightened(0.06), 0.94), structure_root, 0.12)
+					_add_gabled_roof(Vector3(0.0, 0.72, 0.72), Vector3(1.78, 0.12, 0.84), _make_material_from_color(palette.roof.darkened(0.01), 0.78), structure_root, 11.0)
+					for col_x in [-0.58, -0.2, 0.2, 0.58]:
+						_add_local_cylinder(Vector3(col_x, 0.22, 1.0), 0.06, 0.06, 0.5, _make_material_from_color(trim, 0.84), structure_root)
+					_add_box(Vector3(0.0, 0.16, 1.16), Vector3(0.46, 0.42, 0.06), _window_material, structure_root)
+					_add_box(Vector3(0.0, 0.04, 1.36), Vector3(1.18, 0.04, 0.08), _make_material_from_color(accent, 0.46), lot_root)
+				if bool(profile.get("plaza", false)):
+					_add_box(Vector3(0.0, 0.03, 1.58), Vector3(2.0, 0.03, 0.62), _make_material("d8d1c2", 0.94), lot_root)
+					_add_box(Vector3(-0.76, 0.05, 1.72), Vector3(0.12, 0.08, 0.34), _make_material("f1eadc", 0.92), lot_root)
+					_add_box(Vector3(0.76, 0.05, 1.72), Vector3(0.12, 0.08, 0.34), _make_material("f1eadc", 0.92), lot_root)
+				if bool(profile.get("side_wing", false)):
+					var side := -1.0 if posmod(variant, 2) == 0 else 1.0
+					_add_soft_block(Vector3(side * 1.12, 0.52, -0.18), Vector3(0.84, 0.72, 1.1), _make_material_from_color(palette.wall.darkened(0.02), 0.92), structure_root, 0.12)
+					_add_gabled_roof(Vector3(side * 1.12, 1.0, -0.18), Vector3(0.98, 0.12, 1.22), _make_material_from_color(palette.roof.darkened(0.01), 0.76), structure_root, 10.0)
+				if bool(profile.get("upper_story", false)):
+					_add_soft_block(Vector3(0.0, 1.18, -0.04), Vector3(1.5, 0.76, 1.08), _make_material_from_color(palette.wall.lightened(0.05), 0.93), structure_root, 0.12)
+					_add_gabled_roof(Vector3(0.0, 1.76, -0.04), Vector3(1.68, 0.12, 1.2), _make_material_from_color(palette.roof.darkened(0.02), 0.76), structure_root, 13.0)
+					_add_box(Vector3(0.0, 1.0, 0.48), Vector3(0.44, 0.2, 0.06), _window_material, structure_root)
+					_add_box(Vector3(0.0, 1.16, -0.52), Vector3(0.4, 0.18, 0.06), _window_material, structure_root)
 				if bool(profile.get("landscaping", false)):
-					_add_shrub_cluster(Vector3(0.0, 0.0, 1.46), trim, lot_root, 4)
+					_add_shrub_cluster(Vector3(-1.12, 0.0, 1.26), trim, lot_root, 2)
+					_add_shrub_cluster(Vector3(1.12, 0.0, 1.26), accent, lot_root, 2)
 			BUILD_TOOL_GROCERY:
 				if bool(profile.get("parking", false)):
 					_add_box(Vector3(0.0, 0.04, 0.38), Vector3(2.0, 0.03, 1.32), _road_mark_material, lot_root)

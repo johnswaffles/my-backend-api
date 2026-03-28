@@ -132,10 +132,10 @@ const VISUAL_PROFILES := {
 		4: {"front_hall": true, "bay_extend": true, "hose_tower": true, "parking_expand": true, "second_story": true, "landscaping": false},
 	},
 	"bank": {
-		1: {"column_entry": false, "side_wing": false, "grand_plaza": false, "landscaping": false},
-		2: {"column_entry": true, "side_wing": false, "grand_plaza": true, "landscaping": true},
-		3: {"column_entry": true, "side_wing": true, "grand_plaza": true, "landscaping": true},
-		4: {"column_entry": true, "side_wing": true, "grand_plaza": true, "landscaping": true},
+		1: {"front_hall": false, "side_wing": false, "plaza": false, "upper_story": false, "landscaping": false},
+		2: {"front_hall": true, "side_wing": false, "plaza": true, "upper_story": false, "landscaping": false},
+		3: {"front_hall": true, "side_wing": true, "plaza": true, "upper_story": false, "landscaping": true},
+		4: {"front_hall": true, "side_wing": true, "plaza": true, "upper_story": true, "landscaping": true},
 	},
 	"grocery": {
 		1: {"awning": false, "service_wing": false, "parking": false, "landscaping": false},
