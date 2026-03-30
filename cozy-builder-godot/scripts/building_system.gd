@@ -3872,15 +3872,20 @@ func _apply_house_tier_visuals(root: Node3D, tier: int, variant: int, profile: D
 	if tier >= 4:
 		var second_story_wall := _make_material_from_color(palette.wall.lightened(0.06), 0.94)
 		var second_story_roof := _make_material_from_color(palette.roof.darkened(0.01), 0.76)
-		_add_soft_block(Vector3(0.0, height + roof_lift + 0.72, house_z - 0.12), Vector3(width * 0.84, 0.92, depth * 0.82), second_story_wall, structure_root, 0.12)
-		_add_gabled_roof(Vector3(0.0, height + roof_lift + 1.3, house_z - 0.12), Vector3(width * 0.96, 0.16, depth * 0.98), second_story_roof, structure_root, roof_tilt - 3.0)
+		var upper_width := 1.72
+		var upper_depth := 1.5
+		var upper_height := 0.92
+		var upper_y := 1.82
+		var upper_z := -0.02
+		_add_soft_block(Vector3(0.0, upper_y + upper_height * 0.5, upper_z), Vector3(upper_width, upper_height, upper_depth), second_story_wall, structure_root, 0.12)
+		_add_gabled_roof(Vector3(0.0, upper_y + upper_height + 0.32, upper_z), Vector3(upper_width + 0.18, 0.16, upper_depth + 0.16), second_story_roof, structure_root, 17.0)
 		if bool(profile.get("wall_windows", false)):
-			_add_window_band_local(Vector3(-0.54, height + roof_lift + 0.72, house_z - 0.52), Vector3(0.24, 0.3, 0.05), structure_root)
-			_add_window_band_local(Vector3(0.54, height + roof_lift + 0.72, house_z - 0.52), Vector3(0.24, 0.3, 0.05), structure_root)
-			_add_window_band_local(Vector3(-0.7, height + roof_lift + 0.72, house_z + 0.08), Vector3(0.2, 0.28, 0.05), structure_root)
-			_add_window_band_local(Vector3(0.7, height + roof_lift + 0.72, house_z + 0.08), Vector3(0.2, 0.28, 0.05), structure_root)
-			_add_window_band_local(Vector3(0.0, height + roof_lift + 0.92, house_z - 0.5), Vector3(0.42, 0.24, 0.05), structure_root)
-		_add_box(Vector3(0.0, height + roof_lift + 0.04, house_z - 0.08), Vector3(width * 0.66, 0.08, depth * 0.62), _make_material("d8c7ab", 0.9), structure_root)
+			_add_window_band_local(Vector3(-0.54, upper_y + 0.06, upper_z - 0.38), Vector3(0.24, 0.3, 0.05), structure_root)
+			_add_window_band_local(Vector3(0.54, upper_y + 0.06, upper_z - 0.38), Vector3(0.24, 0.3, 0.05), structure_root)
+			_add_window_band_local(Vector3(-0.7, upper_y + 0.08, upper_z + 0.06), Vector3(0.2, 0.28, 0.05), structure_root)
+			_add_window_band_local(Vector3(0.7, upper_y + 0.08, upper_z + 0.06), Vector3(0.2, 0.28, 0.05), structure_root)
+			_add_window_band_local(Vector3(0.0, upper_y + 0.26, upper_z - 0.44), Vector3(0.42, 0.24, 0.05), structure_root)
+		_add_box(Vector3(0.0, upper_y - 0.2, upper_z - 0.02), Vector3(1.5, 0.08, 1.1), _make_material("d8c7ab", 0.9), structure_root)
 		_add_shrub_cluster(Vector3(-1.58, 0.0, -0.96), palette.trim, lot_root, 4)
 		_add_shrub_cluster(Vector3(1.58, 0.0, -0.96), palette.accent, lot_root, 4)
 		_add_box(Vector3(0.0, 0.34, -2.06), Vector3(0.16, 0.46, 0.16), _stone_material, lot_root)
