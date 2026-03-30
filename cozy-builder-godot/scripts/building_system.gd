@@ -4810,17 +4810,26 @@ func _add_window_band_local(position_3d: Vector3, size: Vector3, parent: Node, m
 
 
 func _add_light_pool_local(position_3d: Vector3, parent: Node, glow_color: Color, alpha: float, energy: float, radius: float, height: float) -> void:
-	var decal := Decal.new()
-	decal.position = position_3d
-	decal.size = Vector3(maxf(2.2, radius * 5.0), 0.12, maxf(2.2, radius * 5.0))
-	decal.texture_emission = _ensure_lamp_glow_texture(glow_color, alpha)
-	decal.emission_energy = energy
-	decal.albedo_mix = 0.0
-	decal.normal_fade = 0.0
-	decal.upper_fade = 0.0
-	decal.lower_fade = 0.0
-	decal.distance_fade_enabled = false
-	parent.add_child(decal)
+	var glow := MeshInstance3D.new()
+	var mesh := PlaneMesh.new()
+	mesh.size = Vector2(maxf(2.6, radius * 5.8), maxf(2.6, radius * 5.8))
+	glow.mesh = mesh
+	var material := StandardMaterial3D.new()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	material.albedo_color = Color(glow_color.r, glow_color.g, glow_color.b, 1.0)
+	material.albedo_texture = _ensure_lamp_glow_texture(glow_color, alpha)
+	material.emission_enabled = true
+	material.emission = glow_color
+	material.emission_energy_multiplier = energy
+	material.roughness = 1.0
+	material.metallic_specular = 0.0
+	glow.material_override = material
+	glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	glow.position = position_3d + Vector3(0.0, 0.012, 0.0)
+	glow.rotation_degrees.x = -90.0
+	parent.add_child(glow)
 
 
 func _ensure_lamp_glow_texture(glow_color: Color, alpha: float) -> Texture2D:
