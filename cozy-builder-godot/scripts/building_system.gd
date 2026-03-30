@@ -4676,7 +4676,7 @@ func _add_lantern_glow_local(position_3d: Vector3, parent: Node) -> void:
 	bulb.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var glow := Sprite3D.new()
 	glow.texture = _ensure_lamp_glow_texture(Color(1.0, 0.74, 0.38), 0.34)
-	glow.billboard = SpriteBase3D.BILLBOARD_ENABLED
+	glow.billboard = 1
 	glow.no_depth_test = true
 	glow.shaded = false
 	glow.double_sided = true
