@@ -198,6 +198,7 @@ var _road_material: StandardMaterial3D
 var _road_mark_material: StandardMaterial3D
 var _sidewalk_material: StandardMaterial3D
 var _window_material: StandardMaterial3D
+var _street_lamp_bulb_material: StandardMaterial3D
 var _leaf_material: StandardMaterial3D
 var _trunk_material: StandardMaterial3D
 var _flower_material_pink: StandardMaterial3D
@@ -383,6 +384,7 @@ func _build_materials() -> void:
 	_road_mark_material = _make_material("e0be57", 0.82)
 	_sidewalk_material = _make_material("cdbca4", 0.94)
 	_window_material = _make_material("ffb85b", 0.16, 0.0, true, "ffd18a", 1.08)
+	_street_lamp_bulb_material = _make_material("fff4d8", 0.04, 0.0, true, "ffe7a8", 4.2)
 	_leaf_material = _make_material("5f7f4a", 0.98)
 	_trunk_material = _make_material("6d4d39", 0.94)
 	_flower_material_pink = _make_material("d98fae", 0.82)
@@ -4681,7 +4683,22 @@ func _add_lantern_glow_local(position_3d: Vector3, parent: Node) -> void:
 	light.omni_range = 5.8
 	light.shadow_enabled = false
 	parent.add_child(light)
-	_add_light_pool_local(Vector3(position_3d.x, 0.03, position_3d.z), parent, Color(1.0, 0.74, 0.38), 0.18, 1.15, 0.5, 2.5)
+	var bulb := _add_local_sphere(position_3d + Vector3(0.0, 0.05, 0.0), 0.06, 0.06, _street_lamp_bulb_material, parent)
+	bulb.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var glow := Sprite3D.new()
+	glow.texture = _ensure_lamp_glow_texture(Color(1.0, 0.74, 0.38), 0.22)
+	glow.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	glow.no_depth_test = true
+	glow.shaded = false
+	glow.double_sided = true
+	glow.fixed_size = false
+	glow.centered = true
+	glow.pixel_size = 0.01
+	glow.scale = Vector3(4.8, 1.0, 4.8)
+	glow.position = position_3d + Vector3(0.0, 0.04, 0.0)
+	glow.modulate = Color(1.0, 0.78, 0.4, 1.0)
+	glow.render_priority = 8
+	parent.add_child(glow)
 
 
 func _add_road_lamp_local(position_3d: Vector3, parent: Node) -> void:
@@ -4689,7 +4706,6 @@ func _add_road_lamp_local(position_3d: Vector3, parent: Node) -> void:
 	lamp_root.position = position_3d
 	parent.add_child(lamp_root)
 	_add_local_cylinder(Vector3(0.0, 0.54, 0.0), 0.04, 0.04, 1.08, _road_material, lamp_root)
-	_add_box(Vector3(0.0, 1.12, 0.0), Vector3(0.18, 0.1, 0.18), _window_material, lamp_root)
 	_add_lantern_glow_local(Vector3(0.0, 1.12, 0.0), lamp_root)
 
 
@@ -4761,7 +4777,6 @@ func _place_road_light(cell: Vector2i, local_offset: Vector3, key: String) -> vo
 	lamp_root.position = _cell_to_world(cell) + local_offset
 	_road_lights_root.add_child(lamp_root)
 	_add_local_cylinder(Vector3(0.0, 0.54, 0.0), 0.04, 0.04, 1.08, _road_material, lamp_root)
-	_add_box(Vector3(0.0, 1.12, 0.0), Vector3(0.18, 0.1, 0.18), _window_material, lamp_root)
 	_add_lantern_glow_local(Vector3(0.0, 1.12, 0.0), lamp_root)
 	_road_light_nodes[key] = lamp_root
 
@@ -4807,29 +4822,6 @@ func _add_window_band_local(position_3d: Vector3, size: Vector3, parent: Node, m
 	var band := _add_box(position_3d, size, band_material, parent)
 	_window_bands.append(band)
 	return band
-
-
-func _add_light_pool_local(position_3d: Vector3, parent: Node, glow_color: Color, alpha: float, energy: float, radius: float, height: float) -> void:
-	var glow := MeshInstance3D.new()
-	var mesh := PlaneMesh.new()
-	mesh.size = Vector2(maxf(2.8, radius * 6.0), maxf(2.8, radius * 6.0))
-	glow.mesh = mesh
-	var material := StandardMaterial3D.new()
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	material.albedo_color = Color(glow_color.r, glow_color.g, glow_color.b, 1.0)
-	material.albedo_texture = _ensure_lamp_glow_texture(glow_color, alpha)
-	material.emission_enabled = true
-	material.emission = glow_color
-	material.emission_energy_multiplier = energy * 1.1
-	material.roughness = 1.0
-	material.metallic_specular = 0.0
-	glow.material_override = material
-	glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	glow.position = Vector3(position_3d.x, 0.104, position_3d.z)
-	glow.rotation_degrees.x = -90.0
-	parent.add_child(glow)
 
 
 func _ensure_lamp_glow_texture(glow_color: Color, alpha: float) -> Texture2D:
