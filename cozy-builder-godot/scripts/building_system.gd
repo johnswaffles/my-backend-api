@@ -4827,7 +4827,7 @@ func _add_light_pool_local(position_3d: Vector3, parent: Node, glow_color: Color
 	material.metallic_specular = 0.0
 	glow.material_override = material
 	glow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	glow.position = position_3d + Vector3(0.0, 0.104, 0.0)
+	glow.position = Vector3(position_3d.x, 0.104, position_3d.z)
 	glow.rotation_degrees.x = -90.0
 	parent.add_child(glow)
 
