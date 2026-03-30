@@ -21,8 +21,8 @@ func apply_cycle(day: int, simulation_clock: float, window_bands: Array, town_li
 		env.fog_light_color = sky_horizon
 		env.fog_light_energy = 0.12 + town_strength * 0.05
 		env.fog_density = 0.001 + night_strength * 0.0009
-		env.glow_bloom = 0.1 + town_strength * 0.08
-		env.glow_intensity = 0.16 + town_strength * 0.12
+		env.glow_bloom = 0.11 + town_strength * 0.08
+		env.glow_intensity = 0.18 + town_strength * 0.12
 		env.adjustment_enabled = true
 		env.adjustment_brightness = 0.82 + town_strength * 0.08
 		env.adjustment_contrast = 1.1 + night_strength * 0.06
