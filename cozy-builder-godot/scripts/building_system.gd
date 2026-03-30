@@ -4519,8 +4519,6 @@ func _add_service_steps(parent: Node, z_position: float, width: float) -> void:
 func _add_front_lanterns(parent: Node, z_position: float, width: float) -> void:
 	for side in [-1.0, 1.0]:
 		var lamp_x: float = side * width * 0.5
-		_add_local_cylinder(Vector3(lamp_x, 0.38, z_position), 0.03, 0.03, 0.76, _road_material, parent)
-		_add_box(Vector3(lamp_x, 0.82, z_position), Vector3(0.12, 0.1, 0.12), _window_material, parent)
 		_add_lantern_glow_local(Vector3(lamp_x, 0.88, z_position), parent)
 
 
@@ -4529,18 +4527,9 @@ func _add_house_front_lamp_local(position_3d: Vector3, parent: Node, preview: bo
 	lamp_root.position = position_3d
 	parent.add_child(lamp_root)
 	var pole_material := _ghost_base_material if preview else _make_material("f3eee5", 0.86)
-	var lamp_material := _ghost_accent_material if preview else _make_material("fdf9f0", 0.18, 0.0, true, "fff6de", 0.92)
 	_add_local_cylinder(Vector3(0.0, 0.72, 0.0), 0.035, 0.035, 1.42, pole_material, lamp_root)
-	_add_box(Vector3(0.0, 1.44, 0.0), Vector3(0.18, 0.12, 0.18), lamp_material, lamp_root)
-	_add_box(Vector3(0.0, 1.22, 0.0), Vector3(0.24, 0.06, 0.24), lamp_material, lamp_root)
 	if not preview:
-		var light := OmniLight3D.new()
-		light.position = Vector3(0.0, 1.34, 0.0)
-		light.light_color = Color(1.0, 0.98, 0.94)
-		light.light_energy = 1.45
-		light.omni_range = 6.2
-		light.shadow_enabled = false
-		lamp_root.add_child(light)
+		_add_lantern_glow_local(Vector3(0.0, 1.42, 0.0), lamp_root)
 
 
 func _add_frontage_detail_cluster(parent: Node, width: float, z_position: float, accent: Color, kind: String) -> void:
@@ -4677,25 +4666,25 @@ func _add_bench_local(position_3d: Vector3, rotation_y: float, parent: Node) -> 
 
 func _add_lantern_glow_local(position_3d: Vector3, parent: Node) -> void:
 	var light := OmniLight3D.new()
-	light.position = position_3d + Vector3(0.0, 0.08, 0.0)
+	light.position = position_3d + Vector3(0.0, 0.1, 0.0)
 	light.light_color = Color(1.0, 0.73, 0.42)
-	light.light_energy = 1.45
-	light.omni_range = 5.8
+	light.light_energy = 1.65
+	light.omni_range = 6.2
 	light.shadow_enabled = false
 	parent.add_child(light)
-	var bulb := _add_local_sphere(position_3d + Vector3(0.0, 0.05, 0.0), 0.06, 0.06, _street_lamp_bulb_material, parent)
+	var bulb := _add_local_sphere(position_3d + Vector3(0.0, 0.06, 0.0), 0.08, 0.08, _street_lamp_bulb_material, parent)
 	bulb.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var glow := Sprite3D.new()
-	glow.texture = _ensure_lamp_glow_texture(Color(1.0, 0.74, 0.38), 0.22)
-	glow.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	glow.texture = _ensure_lamp_glow_texture(Color(1.0, 0.74, 0.38), 0.34)
+	glow.billboard = SpriteBase3D.BILLBOARD_ENABLED
 	glow.no_depth_test = true
 	glow.shaded = false
 	glow.double_sided = true
-	glow.fixed_size = false
+	glow.fixed_size = true
 	glow.centered = true
-	glow.pixel_size = 0.01
-	glow.scale = Vector3(4.8, 1.0, 4.8)
-	glow.position = position_3d + Vector3(0.0, 0.04, 0.0)
+	glow.pixel_size = 0.012
+	glow.scale = Vector3(1.0, 1.0, 1.0)
+	glow.position = position_3d + Vector3(0.0, 0.06, 0.0)
 	glow.modulate = Color(1.0, 0.78, 0.4, 1.0)
 	glow.render_priority = 8
 	parent.add_child(glow)
