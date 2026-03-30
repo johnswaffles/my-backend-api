@@ -209,6 +209,7 @@ var _hover_material_valid: StandardMaterial3D
 var _hover_material_invalid: StandardMaterial3D
 var _ghost_base_material: StandardMaterial3D
 var _ghost_accent_material: StandardMaterial3D
+var _lamp_glow_texture: Texture2D
 
 var _clouds: Array[Node3D] = []
 var _window_bands: Array[MeshInstance3D] = []
@@ -4680,6 +4681,7 @@ func _add_lantern_glow_local(position_3d: Vector3, parent: Node) -> void:
 	light.omni_range = 5.8
 	light.shadow_enabled = false
 	parent.add_child(light)
+	_add_light_pool_local(Vector3(position_3d.x, 0.03, position_3d.z), parent, Color(1.0, 0.74, 0.38), 0.18, 1.15, 0.5, 2.5)
 
 
 func _add_road_lamp_local(position_3d: Vector3, parent: Node) -> void:
@@ -4805,6 +4807,38 @@ func _add_window_band_local(position_3d: Vector3, size: Vector3, parent: Node, m
 	var band := _add_box(position_3d, size, band_material, parent)
 	_window_bands.append(band)
 	return band
+
+
+func _add_light_pool_local(position_3d: Vector3, parent: Node, glow_color: Color, alpha: float, energy: float, radius: float, height: float) -> void:
+	var decal := Decal.new()
+	decal.position = position_3d
+	decal.size = Vector3(maxf(2.2, radius * 5.0), 0.12, maxf(2.2, radius * 5.0))
+	decal.texture_emission = _ensure_lamp_glow_texture(glow_color, alpha)
+	decal.emission_energy = energy
+	decal.albedo_mix = 0.0
+	decal.normal_fade = 0.0
+	decal.upper_fade = 0.0
+	decal.lower_fade = 0.0
+	decal.distance_fade_enabled = false
+	parent.add_child(decal)
+
+
+func _ensure_lamp_glow_texture(glow_color: Color, alpha: float) -> Texture2D:
+	if _lamp_glow_texture == null:
+		var size := 64
+		var image := Image.create(size, size, false, Image.FORMAT_RGBA8)
+		image.lock()
+		var center := Vector2((size - 1) * 0.5, (size - 1) * 0.5)
+		for y in range(size):
+			for x in range(size):
+				var dist := center.distance_to(Vector2(float(x), float(y))) / center.x
+				var falloff := clampf(1.0 - dist, 0.0, 1.0)
+				falloff = pow(falloff, 1.9)
+				var glow_alpha := alpha * maxf(falloff, clampf(1.0 - dist * 1.1, 0.0, 1.0) * 0.4)
+				image.set_pixel(x, y, Color(glow_color.r, glow_color.g, glow_color.b, glow_alpha))
+		image.unlock()
+		_lamp_glow_texture = ImageTexture.create_from_image(image)
+	return _lamp_glow_texture
 
 
 func _add_edge_post(position_3d: Vector3) -> void:
