@@ -107,7 +107,7 @@ const SCENIC_TOOL_SPECS := {
 	BUILD_TOOL_FOREST_LARGE: {"label": "Large Forest", "footprint": Vector2i(6, 6), "kind": "forest", "tree_count": 15, "cost": 560, "appeal": 18},
 }
 const SAVE_PATH := "user://cozy_builder_save.json"
-const MUSIC_STREAM_PATH := "res://assets/audio/cozy soundtrack.m4a"
+const MUSIC_STREAM_PATH := "res://assets/audio/Sunrise Over Tiny Blocks (2).mp3"
 const PROPERTY_FRONT_SETBACK := 1.0
 const PROPERTY_FRONT_SETBACK_BY_TOOL := {
 	BUILD_TOOL_HOUSE: 0.95,
@@ -3043,33 +3043,31 @@ func _update_day_night_visuals() -> void:
 	var town_strength := _town_light_strength()
 	var cycle := fmod(float(_day - 1) + _simulation_clock / 7.5, 6.0) / 6.0
 	var moon_wave := sin(cycle * TAU)
-	var night_strength: float = clampf(1.0 - town_strength * 0.54 + moon_wave * 0.025, 0.18, 1.0)
+	var night_strength: float = clampf(1.0 - town_strength * 0.28 + moon_wave * 0.02, 0.22, 1.0)
 	var sky_top: Color = Color(0.05, 0.06, 0.09).lerp(Color(0.11, 0.13, 0.19), town_strength * 0.64)
 	var sky_horizon: Color = Color(0.09, 0.08, 0.11).lerp(Color(0.34, 0.24, 0.22), town_strength * 0.56)
 	if world_environment and world_environment.environment:
 		var env: Environment = world_environment.environment
 		env.background_mode = Environment.BG_COLOR
 		env.background_color = sky_top.lerp(sky_horizon, 0.68)
-		env.ambient_light_color = sky_top.lerp(Color(0.86, 0.76, 0.7), 0.16)
-		env.ambient_light_energy = 0.14 + town_strength * 0.12
-		env.fog_enabled = true
-		env.fog_light_color = sky_horizon
-		env.fog_light_energy = 0.12 + town_strength * 0.05
-		env.fog_density = 0.001 + night_strength * 0.0009
-		env.glow_bloom = 0.1 + town_strength * 0.08
-		env.glow_intensity = 0.16 + town_strength * 0.13
+		env.ambient_light_color = sky_top.lerp(Color(0.84, 0.77, 0.72), 0.1)
+		env.ambient_light_energy = 0.11 + town_strength * 0.07
+		env.fog_enabled = false
+		env.fog_density = 0.0
+		env.glow_bloom = 0.05 + town_strength * 0.03
+		env.glow_intensity = 0.06 + town_strength * 0.04
 		env.adjustment_enabled = true
-		env.adjustment_brightness = 0.82 + town_strength * 0.08
-		env.adjustment_contrast = 1.1 + night_strength * 0.06
+		env.adjustment_brightness = 0.94 + town_strength * 0.03
+		env.adjustment_contrast = 1.02 + night_strength * 0.04
 		env.adjustment_saturation = 1.04
 	if sun:
 		sun.light_color = Color(0.5, 0.6, 0.84).lerp(Color(1.0, 0.82, 0.56), town_strength * 0.62)
-		sun.light_energy = 0.22 + town_strength * 0.3
+		sun.light_energy = 0.3 + town_strength * 0.18
 		sun.rotation_degrees = Vector3(-62.0, -30.0, 0.0)
-		sun.shadow_blur = 0.96
+		sun.shadow_blur = 0.92
 	if fill_light:
 		fill_light.light_color = Color(0.26, 0.34, 0.54).lerp(Color(0.96, 0.84, 0.64), town_strength * 0.42)
-		fill_light.light_energy = 0.08 + town_strength * 0.08
+		fill_light.light_energy = 0.1 + town_strength * 0.05
 
 	for band in _window_bands:
 		if is_instance_valid(band):
@@ -3097,8 +3095,7 @@ func _town_light_strength() -> float:
 		if tool == BUILD_TOOL_ROAD or SCENIC_TOOL_SPECS.has(tool):
 			continue
 		active_count += 1
-	var road_light_count := _road_light_nodes.size()
-	return clampf(0.06 + float(active_count) * 0.12 + float(road_light_count) * 0.045, 0.0, 1.0)
+	return clampf(0.08 + float(active_count) * 0.05, 0.0, 0.4)
 
 
 func _spawn_house_tile(world_position: Vector3, preview: bool) -> Node3D:
