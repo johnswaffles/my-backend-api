@@ -4812,15 +4812,14 @@ func _add_window_band_local(position_3d: Vector3, size: Vector3, parent: Node, m
 
 func _add_light_pool_local(position_3d: Vector3, parent: Node, glow_color: Color, alpha: float, energy: float, radius: float, height: float) -> void:
 	var pool := MeshInstance3D.new()
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = radius
-	mesh.bottom_radius = radius
-	mesh.height = maxf(0.02, height)
+	var mesh := PlaneMesh.new()
+	mesh.size = Vector2(radius * 2.5, radius * 2.5)
 	pool.mesh = mesh
 	var material := StandardMaterial3D.new()
 	material.albedo_color = Color(glow_color.r, glow_color.g, glow_color.b, alpha)
 	material.roughness = 1.0
 	material.metallic_specular = 0.0
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	material.cull_mode = BaseMaterial3D.CULL_DISABLED
 	material.emission_enabled = true
@@ -4829,6 +4828,8 @@ func _add_light_pool_local(position_3d: Vector3, parent: Node, glow_color: Color
 	pool.material_override = material
 	pool.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	pool.position = position_3d + Vector3(0.0, 0.01, 0.0)
+	pool.rotation_degrees.x = -90.0
+	pool.scale = Vector3(1.0, 1.0, 1.0)
 	parent.add_child(pool)
 
 
