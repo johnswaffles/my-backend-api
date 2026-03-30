@@ -107,7 +107,7 @@ const SCENIC_TOOL_SPECS := {
 	BUILD_TOOL_FOREST_LARGE: {"label": "Large Forest", "footprint": Vector2i(6, 6), "kind": "forest", "tree_count": 15, "cost": 560, "appeal": 18},
 }
 const SAVE_PATH := "user://cozy_builder_save.json"
-const MUSIC_STREAM_PATH := "res://assets/audio/Sunrise Over Tiny Blocks (2).mp3"
+const MUSIC_STREAM_PATH := "res://assets/audio/cozy soundtrack.m4a"
 const PROPERTY_FRONT_SETBACK := 1.0
 const PROPERTY_FRONT_SETBACK_BY_TOOL := {
 	BUILD_TOOL_HOUSE: 0.95,
