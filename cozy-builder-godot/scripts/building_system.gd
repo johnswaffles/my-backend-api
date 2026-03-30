@@ -3040,39 +3040,39 @@ func _update_day_night_visuals() -> void:
 	var town_strength := _town_light_strength()
 	var cycle := fmod(float(_day - 1) + _simulation_clock / 7.5, 6.0) / 6.0
 	var moon_wave := sin(cycle * TAU)
-	var night_strength: float = clampf(1.0 - town_strength * 0.76 + moon_wave * 0.03, 0.08, 1.0)
-	var sky_top: Color = Color(0.025, 0.03, 0.06).lerp(Color(0.08, 0.1, 0.16), town_strength * 0.7)
-	var sky_horizon: Color = Color(0.06, 0.05, 0.09).lerp(Color(0.28, 0.2, 0.22), town_strength * 0.64)
+	var night_strength: float = clampf(1.0 - town_strength * 0.54 + moon_wave * 0.025, 0.18, 1.0)
+	var sky_top: Color = Color(0.05, 0.06, 0.09).lerp(Color(0.11, 0.13, 0.19), town_strength * 0.64)
+	var sky_horizon: Color = Color(0.09, 0.08, 0.11).lerp(Color(0.34, 0.24, 0.22), town_strength * 0.56)
 	if world_environment and world_environment.environment:
 		var env: Environment = world_environment.environment
 		env.background_mode = Environment.BG_COLOR
 		env.background_color = sky_top.lerp(sky_horizon, 0.68)
-		env.ambient_light_color = sky_top.lerp(Color(0.84, 0.72, 0.66), 0.2)
-		env.ambient_light_energy = 0.03 + town_strength * 0.17
+		env.ambient_light_color = sky_top.lerp(Color(0.86, 0.76, 0.7), 0.16)
+		env.ambient_light_energy = 0.14 + town_strength * 0.12
 		env.fog_enabled = true
 		env.fog_light_color = sky_horizon
-		env.fog_light_energy = 0.08 + town_strength * 0.07
-		env.fog_density = 0.0017 + night_strength * 0.0016
-		env.glow_bloom = 0.14 + town_strength * 0.1
-		env.glow_intensity = 0.22 + town_strength * 0.18
+		env.fog_light_energy = 0.12 + town_strength * 0.05
+		env.fog_density = 0.001 + night_strength * 0.0009
+		env.glow_bloom = 0.1 + town_strength * 0.08
+		env.glow_intensity = 0.16 + town_strength * 0.13
 		env.adjustment_enabled = true
-		env.adjustment_brightness = 0.58 + town_strength * 0.22
-		env.adjustment_contrast = 1.34 + night_strength * 0.12
-		env.adjustment_saturation = 1.06
+		env.adjustment_brightness = 0.82 + town_strength * 0.08
+		env.adjustment_contrast = 1.1 + night_strength * 0.06
+		env.adjustment_saturation = 1.04
 	if sun:
-		sun.light_color = Color(0.48, 0.58, 0.84).lerp(Color(1.0, 0.8, 0.52), town_strength * 0.68)
-		sun.light_energy = 0.08 + town_strength * 0.48
+		sun.light_color = Color(0.5, 0.6, 0.84).lerp(Color(1.0, 0.82, 0.56), town_strength * 0.62)
+		sun.light_energy = 0.22 + town_strength * 0.3
 		sun.rotation_degrees = Vector3(-62.0, -30.0, 0.0)
 		sun.shadow_blur = 0.96
 	if fill_light:
-		fill_light.light_color = Color(0.24, 0.32, 0.52).lerp(Color(0.96, 0.82, 0.62), town_strength * 0.48)
-		fill_light.light_energy = 0.04 + town_strength * 0.12
+		fill_light.light_color = Color(0.26, 0.34, 0.54).lerp(Color(0.96, 0.84, 0.64), town_strength * 0.42)
+		fill_light.light_energy = 0.08 + town_strength * 0.08
 
 	for band in _window_bands:
 		if is_instance_valid(band):
 			var material := band.material_override as StandardMaterial3D
 			if material:
-				material.emission_energy_multiplier = 0.95 + town_strength * 1.0 + night_strength * 0.32
+				material.emission_energy_multiplier = 1.08 + town_strength * 0.96 + night_strength * 0.22
 
 
 func _spawn_road_tile(world_position: Vector3, preview: bool) -> Node3D:
@@ -4811,25 +4811,14 @@ func _add_window_band_local(position_3d: Vector3, size: Vector3, parent: Node, m
 
 
 func _add_light_pool_local(position_3d: Vector3, parent: Node, glow_color: Color, alpha: float, energy: float, radius: float, height: float) -> void:
-	var pool := MeshInstance3D.new()
-	var mesh := PlaneMesh.new()
-	mesh.size = Vector2(radius * 2.5, radius * 2.5)
-	pool.mesh = mesh
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Color(glow_color.r, glow_color.g, glow_color.b, alpha)
-	material.roughness = 1.0
-	material.metallic_specular = 0.0
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	material.emission_enabled = true
-	material.emission = glow_color
-	material.emission_energy_multiplier = energy
-	pool.material_override = material
-	pool.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	pool.position = position_3d + Vector3(0.0, 0.01, 0.0)
-	pool.rotation_degrees.x = -90.0
-	pool.scale = Vector3(1.0, 1.0, 1.0)
+	var pool := SpotLight3D.new()
+	pool.position = position_3d + Vector3(0.0, 0.2, 0.0)
+	pool.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
+	pool.light_color = glow_color
+	pool.light_energy = energy
+	pool.spot_range = maxf(4.4, radius * 11.0)
+	pool.spot_angle = 72.0
+	pool.shadow_enabled = false
 	parent.add_child(pool)
 
 

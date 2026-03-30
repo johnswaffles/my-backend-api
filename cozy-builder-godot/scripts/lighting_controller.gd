@@ -16,27 +16,27 @@ func apply_cycle(day: int, simulation_clock: float, window_bands: Array, town_li
 		var env: Environment = world_environment.environment
 		env.background_mode = Environment.BG_SKY
 		env.ambient_light_color = sky_top.lerp(Color(0.86, 0.76, 0.7), 0.16)
-		env.ambient_light_energy = 0.11 + town_strength * 0.14
+		env.ambient_light_energy = 0.14 + town_strength * 0.12
 		env.fog_enabled = true
 		env.fog_light_color = sky_horizon
-		env.fog_light_energy = 0.11 + town_strength * 0.05
-		env.fog_density = 0.0011 + night_strength * 0.001
+		env.fog_light_energy = 0.12 + town_strength * 0.05
+		env.fog_density = 0.001 + night_strength * 0.0009
 		env.glow_bloom = 0.1 + town_strength * 0.08
-		env.glow_intensity = 0.16 + town_strength * 0.13
+		env.glow_intensity = 0.16 + town_strength * 0.12
 		env.adjustment_enabled = true
-		env.adjustment_brightness = 0.76 + town_strength * 0.1
-		env.adjustment_contrast = 1.14 + night_strength * 0.07
+		env.adjustment_brightness = 0.82 + town_strength * 0.08
+		env.adjustment_contrast = 1.1 + night_strength * 0.06
 		env.adjustment_saturation = 1.04
 	if sun:
 		sun.light_color = Color(0.5, 0.6, 0.84).lerp(Color(1.0, 0.82, 0.56), town_strength * 0.62)
-		sun.light_energy = 0.22 + town_strength * 0.3
+		sun.light_energy = 0.26 + town_strength * 0.26
 		sun.rotation_degrees = Vector3(-62.0, -30.0, 0.0)
 		sun.shadow_blur = 0.96
 	if fill_light:
 		fill_light.light_color = Color(0.26, 0.34, 0.54).lerp(Color(0.96, 0.84, 0.64), town_strength * 0.42)
-		fill_light.light_energy = 0.08 + town_strength * 0.08
+		fill_light.light_energy = 0.09 + town_strength * 0.07
 	for band in window_bands:
 		if is_instance_valid(band):
 			var material := band.material_override as StandardMaterial3D
 			if material:
-				material.emission_energy_multiplier = 1.08 + town_strength * 1.0 + night_strength * 0.22
+				material.emission_energy_multiplier = 1.08 + town_strength * 0.96 + night_strength * 0.22

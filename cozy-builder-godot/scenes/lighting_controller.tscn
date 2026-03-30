@@ -18,7 +18,7 @@ background_mode = 2
 sky = SubResource("2")
 ambient_light_source = 3
 ambient_light_color = Color(0.0745098, 0.0862745, 0.117647, 1)
-ambient_light_energy = 0.11
+ambient_light_energy = 0.14
 reflected_light_source = 1
 tonemap_mode = 2
 glow_enabled = true
@@ -26,11 +26,11 @@ glow_bloom = 0.1
 glow_intensity = 0.16
 fog_enabled = true
 fog_light_color = Color(0.282353, 0.223529, 0.231373, 1)
-fog_light_energy = 0.11
-fog_density = 0.0011
+fog_light_energy = 0.12
+fog_density = 0.001
 adjustment_enabled = true
-adjustment_brightness = 0.76
-adjustment_contrast = 1.14
+adjustment_brightness = 0.82
+adjustment_contrast = 1.1
 adjustment_saturation = 1.04
 
 [node name="LightingController" type="Node3D"]
@@ -42,7 +42,7 @@ environment = SubResource("3")
 [node name="Sun" type="DirectionalLight3D" parent="."]
 rotation_degrees = Vector3(-68, -32, 0)
 light_color = Color(0.560784, 0.65098, 0.839216, 1)
-light_energy = 0.22
+light_energy = 0.26
 shadow_enabled = true
 directional_shadow_mode = 2
 directional_shadow_max_distance = 180.0
@@ -54,5 +54,5 @@ shadow_normal_bias = 1.8
 [node name="FillLight" type="DirectionalLight3D" parent="."]
 rotation_degrees = Vector3(-18, 136, 0)
 light_color = Color(0.235294, 0.313726, 0.505882, 1)
-light_energy = 0.08
+light_energy = 0.09
 shadow_enabled = false
