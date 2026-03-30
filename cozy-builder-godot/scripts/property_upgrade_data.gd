@@ -149,6 +149,7 @@ const VISUAL_PROFILES := {
 			"roof_dormer": false,
 			"wall_windows": true,
 			"front_lamp": true,
+			"second_story": true,
 			"side_annex": true,
 			"fence_upgrade": true,
 			"garden_extension": true,

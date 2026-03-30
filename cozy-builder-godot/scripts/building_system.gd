@@ -381,7 +381,7 @@ func _build_materials() -> void:
 	_road_material = _make_material("474b53", 0.98)
 	_road_mark_material = _make_material("e0be57", 0.82)
 	_sidewalk_material = _make_material("cdbca4", 0.94)
-	_window_material = _make_material("ffb85b", 0.16, 0.0, true, "ffd18a", 0.78)
+	_window_material = _make_material("ffb85b", 0.16, 0.0, true, "ffd18a", 1.08)
 	_leaf_material = _make_material("5f7f4a", 0.98)
 	_trunk_material = _make_material("6d4d39", 0.94)
 	_flower_material_pink = _make_material("d98fae", 0.82)
@@ -3035,44 +3035,44 @@ func _sample_ping_pong_route(route_points: Array[Vector3], route_length: float, 
 
 func _update_day_night_visuals() -> void:
 	if lighting_controller and lighting_controller.has_method("apply_cycle"):
-		lighting_controller.call("apply_cycle", _day, _simulation_clock, _window_bands)
+		lighting_controller.call("apply_cycle", _day, _simulation_clock, _window_bands, _town_light_strength())
 		return
+	var town_strength := _town_light_strength()
 	var cycle := fmod(float(_day - 1) + _simulation_clock / 7.5, 6.0) / 6.0
-	var sun_wave := sin(cycle * TAU)
-	var dusk_strength: float = clampf(0.66 + sun_wave * 0.2, 0.32, 0.92)
-	var night_strength := 1.0 - dusk_strength
-	var sky_top: Color = Color(0.1, 0.13, 0.2).lerp(Color(0.34, 0.24, 0.42), dusk_strength * 0.34)
-	var sky_horizon: Color = Color(0.26, 0.24, 0.32).lerp(Color(0.96, 0.7, 0.43), dusk_strength * 0.8)
+	var moon_wave := sin(cycle * TAU)
+	var night_strength: float = clampf(1.0 - town_strength * 0.76 + moon_wave * 0.03, 0.08, 1.0)
+	var sky_top: Color = Color(0.025, 0.03, 0.06).lerp(Color(0.08, 0.1, 0.16), town_strength * 0.7)
+	var sky_horizon: Color = Color(0.06, 0.05, 0.09).lerp(Color(0.28, 0.2, 0.22), town_strength * 0.64)
 	if world_environment and world_environment.environment:
 		var env: Environment = world_environment.environment
 		env.background_mode = Environment.BG_COLOR
-		env.background_color = sky_top.lerp(sky_horizon, 0.72)
-		env.ambient_light_color = sky_top.lerp(Color(0.95, 0.84, 0.72), 0.18)
-		env.ambient_light_energy = 0.16 + dusk_strength * 0.12
+		env.background_color = sky_top.lerp(sky_horizon, 0.68)
+		env.ambient_light_color = sky_top.lerp(Color(0.84, 0.72, 0.66), 0.2)
+		env.ambient_light_energy = 0.03 + town_strength * 0.17
 		env.fog_enabled = true
 		env.fog_light_color = sky_horizon
-		env.fog_light_energy = 0.12 + night_strength * 0.1
-		env.fog_density = 0.0014 + night_strength * 0.0011
-		env.glow_bloom = 0.08 + night_strength * 0.08
-		env.glow_intensity = 0.14 + night_strength * 0.14
+		env.fog_light_energy = 0.08 + town_strength * 0.07
+		env.fog_density = 0.0017 + night_strength * 0.0016
+		env.glow_bloom = 0.14 + town_strength * 0.1
+		env.glow_intensity = 0.22 + town_strength * 0.18
 		env.adjustment_enabled = true
-		env.adjustment_brightness = 0.83 + dusk_strength * 0.08
-		env.adjustment_contrast = 1.18 + night_strength * 0.14
-		env.adjustment_saturation = 1.08
+		env.adjustment_brightness = 0.58 + town_strength * 0.22
+		env.adjustment_contrast = 1.34 + night_strength * 0.12
+		env.adjustment_saturation = 1.06
 	if sun:
-		sun.light_color = Color(1.0, 0.84, 0.66).lerp(Color(1.0, 0.68, 0.4), dusk_strength * 0.78)
-		sun.light_energy = 0.72 + dusk_strength * 0.45
-		sun.rotation_degrees = Vector3(-47.0 - dusk_strength * 18.0, -30.0, 0.0)
-		sun.shadow_blur = 0.82
+		sun.light_color = Color(0.48, 0.58, 0.84).lerp(Color(1.0, 0.8, 0.52), town_strength * 0.68)
+		sun.light_energy = 0.08 + town_strength * 0.48
+		sun.rotation_degrees = Vector3(-62.0, -30.0, 0.0)
+		sun.shadow_blur = 0.96
 	if fill_light:
-		fill_light.light_color = Color(0.42, 0.54, 0.7).lerp(Color(0.92, 0.78, 0.58), dusk_strength * 0.36)
-		fill_light.light_energy = 0.12 + dusk_strength * 0.1
+		fill_light.light_color = Color(0.24, 0.32, 0.52).lerp(Color(0.96, 0.82, 0.62), town_strength * 0.48)
+		fill_light.light_energy = 0.04 + town_strength * 0.12
 
 	for band in _window_bands:
 		if is_instance_valid(band):
 			var material := band.material_override as StandardMaterial3D
 			if material:
-				material.emission_energy_multiplier = 0.35 + night_strength * 1.12
+				material.emission_energy_multiplier = 0.95 + town_strength * 1.0 + night_strength * 0.32
 
 
 func _spawn_road_tile(world_position: Vector3, preview: bool) -> Node3D:
@@ -3084,6 +3084,18 @@ func _spawn_road_tile(world_position: Vector3, preview: bool) -> Node3D:
 	var root := _build_road_tile_mesh(cell, preview, extra)
 	root.position = world_position
 	return root
+
+
+func _town_light_strength() -> float:
+	var active_count := 0
+	for placement_variant in _placements.values():
+		var placement: Dictionary = placement_variant
+		var tool := str(placement.get("tool", ""))
+		if tool == BUILD_TOOL_ROAD or SCENIC_TOOL_SPECS.has(tool):
+			continue
+		active_count += 1
+	var road_light_count := _road_light_nodes.size()
+	return clampf(0.06 + float(active_count) * 0.12 + float(road_light_count) * 0.045, 0.0, 1.0)
 
 
 func _spawn_house_tile(world_position: Vector3, preview: bool) -> Node3D:
@@ -3858,20 +3870,17 @@ func _apply_house_tier_visuals(root: Node3D, tier: int, variant: int, profile: D
 			_add_window_band_local(Vector3(0.38, 0.92, -0.48), Vector3(0.22, 0.24, 0.05), structure_root)
 
 	if tier >= 4:
-		match posmod(variant, 3):
-			0:
-				_add_soft_block(Vector3(0.72, 0.38, -1.0), Vector3(0.86, 0.58, 0.72), _make_material_from_color(palette.wall.lightened(0.05), 0.94), structure_root, 0.1)
-				_add_gabled_roof(Vector3(0.72, 0.86, -1.0), Vector3(1.0, 0.12, 0.86), roof_detail, structure_root, 18.0)
-			1:
-				_add_box(Vector3(-1.0, 0.07, -0.98), Vector3(1.68, 0.04, 1.02), _make_material("c9d7be", 0.96), lot_root)
-				_add_round_canopy(Vector3(-0.52, 0.34, -0.78), Vector3(1.2, 0.14, 0.22), yard_trim, lot_root)
-			2:
-				_add_box(Vector3(0.82, 0.06, -1.34), Vector3(1.04, 0.04, 0.74), _make_material("b7cbb1", 0.96), lot_root)
-				_add_town_path(Vector3(0.82, 0.03, -1.34), Vector2(0.92, 0.38), lot_root)
+		var second_story_wall := _make_material_from_color(palette.wall.lightened(0.06), 0.94)
+		var second_story_roof := _make_material_from_color(palette.roof.darkened(0.01), 0.76)
+		_add_soft_block(Vector3(0.0, height + roof_lift + 0.72, house_z - 0.12), Vector3(width * 0.84, 0.92, depth * 0.82), second_story_wall, structure_root, 0.12)
+		_add_gabled_roof(Vector3(0.0, height + roof_lift + 1.3, house_z - 0.12), Vector3(width * 0.96, 0.16, depth * 0.98), second_story_roof, structure_root, roof_tilt - 3.0)
 		if bool(profile.get("wall_windows", false)):
-			_add_window_band_local(Vector3(0.0, 1.02, -0.52), Vector3(0.48, 0.22, 0.05), structure_root)
-			_add_window_band_local(Vector3(-0.5, 1.02, -0.52), Vector3(0.2, 0.22, 0.05), structure_root)
-			_add_window_band_local(Vector3(0.5, 1.02, -0.52), Vector3(0.2, 0.22, 0.05), structure_root)
+			_add_window_band_local(Vector3(-0.54, height + roof_lift + 0.72, house_z - 0.52), Vector3(0.24, 0.3, 0.05), structure_root)
+			_add_window_band_local(Vector3(0.54, height + roof_lift + 0.72, house_z - 0.52), Vector3(0.24, 0.3, 0.05), structure_root)
+			_add_window_band_local(Vector3(-0.7, height + roof_lift + 0.72, house_z + 0.08), Vector3(0.2, 0.28, 0.05), structure_root)
+			_add_window_band_local(Vector3(0.7, height + roof_lift + 0.72, house_z + 0.08), Vector3(0.2, 0.28, 0.05), structure_root)
+			_add_window_band_local(Vector3(0.0, height + roof_lift + 0.92, house_z - 0.5), Vector3(0.42, 0.24, 0.05), structure_root)
+		_add_box(Vector3(0.0, height + roof_lift + 0.04, house_z - 0.08), Vector3(width * 0.66, 0.08, depth * 0.62), _make_material("d8c7ab", 0.9), structure_root)
 		_add_shrub_cluster(Vector3(-1.58, 0.0, -0.96), palette.trim, lot_root, 4)
 		_add_shrub_cluster(Vector3(1.58, 0.0, -0.96), palette.accent, lot_root, 4)
 		_add_box(Vector3(0.0, 0.34, -2.06), Vector3(0.16, 0.46, 0.16), _stone_material, lot_root)
@@ -4705,22 +4714,24 @@ func _refresh_road_lights() -> void:
 			continue
 		if posmod(cell.x + cell.y, 2) != 0:
 			continue
-		if vertical_straight:
-			if not _road_lamp_clearance_is_free(cell, true):
-				continue
-			var vertical_z := 0.98 if posmod(cell.x + cell.y, 4) == 0 else -0.98
-			var vertical_offset := Vector3(2.42, 0.0, vertical_z)
-			_place_road_light(cell, vertical_offset, "v_%s" % _cell_key(cell))
-		elif horizontal_straight:
-			if not _road_lamp_clearance_is_free(cell, false):
-				continue
-			var horizontal_x := -0.98 if posmod(cell.x + cell.y, 4) == 0 else 0.98
-			var horizontal_offset := Vector3(horizontal_x, 0.0, 2.42)
-			_place_road_light(cell, horizontal_offset, "h_%s" % _cell_key(cell))
+		var preferred_sign := 1 if posmod(cell.x + cell.y, 4) == 0 else -1
+		var candidate_signs := [preferred_sign, -preferred_sign]
+		for side_sign in candidate_signs:
+			if vertical_straight:
+				if not _road_lamp_clearance_is_free(cell, true, side_sign):
+					continue
+				_place_road_light(cell, Vector3(2.82 * float(side_sign), 0.0, 0.0), "v_%s_%d" % [_cell_key(cell), side_sign])
+				break
+			elif horizontal_straight:
+				if not _road_lamp_clearance_is_free(cell, false, side_sign):
+					continue
+				_place_road_light(cell, Vector3(0.0, 0.0, 2.82 * float(side_sign)), "h_%s_%d" % [_cell_key(cell), side_sign])
+				break
 
 
-func _road_lamp_clearance_is_free(cell: Vector2i, vertical: bool) -> bool:
-	var side_sign := 1 if posmod(cell.x + cell.y, 4) == 0 else -1
+func _road_lamp_clearance_is_free(cell: Vector2i, vertical: bool, side_sign: int = 0) -> bool:
+	if side_sign == 0:
+		side_sign = 1 if posmod(cell.x + cell.y, 4) == 0 else -1
 	if vertical:
 		var side_x := cell.x + side_sign
 		for dz in [-1, 0, 1]:
