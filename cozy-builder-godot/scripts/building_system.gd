@@ -4676,10 +4676,11 @@ func _add_lantern_glow_local(position_3d: Vector3, parent: Node) -> void:
 	var light := OmniLight3D.new()
 	light.position = position_3d
 	light.light_color = Color(1.0, 0.73, 0.42)
-	light.light_energy = 0.7
-	light.omni_range = 4.0
+	light.light_energy = 1.25
+	light.omni_range = 5.2
 	light.shadow_enabled = false
 	parent.add_child(light)
+	_add_light_pool_local(position_3d, parent, Color(1.0, 0.74, 0.38), 0.18, 1.15, 0.5, 2.5)
 
 
 func _add_road_lamp_local(position_3d: Vector3, parent: Node) -> void:
@@ -4689,6 +4690,7 @@ func _add_road_lamp_local(position_3d: Vector3, parent: Node) -> void:
 	_add_local_cylinder(Vector3(0.0, 0.54, 0.0), 0.04, 0.04, 1.08, _road_material, lamp_root)
 	_add_box(Vector3(0.0, 1.12, 0.0), Vector3(0.18, 0.1, 0.18), _window_material, lamp_root)
 	_add_lantern_glow_local(Vector3(0.0, 1.12, 0.0), lamp_root)
+	_add_light_pool_local(Vector3(0.0, 0.03, 0.0), lamp_root, Color(1.0, 0.78, 0.42), 0.16, 1.65, 0.68, 1.8)
 
 
 func _clear_road_lights() -> void:
@@ -4761,6 +4763,7 @@ func _place_road_light(cell: Vector2i, local_offset: Vector3, key: String) -> vo
 	_add_local_cylinder(Vector3(0.0, 0.54, 0.0), 0.04, 0.04, 1.08, _road_material, lamp_root)
 	_add_box(Vector3(0.0, 1.12, 0.0), Vector3(0.18, 0.1, 0.18), _window_material, lamp_root)
 	_add_lantern_glow_local(Vector3(0.0, 1.12, 0.0), lamp_root)
+	_add_light_pool_local(Vector3(0.0, 0.03, 0.0), lamp_root, Color(1.0, 0.78, 0.42), 0.16, 1.65, 0.68, 1.8)
 	_road_light_nodes[key] = lamp_root
 
 
@@ -4805,6 +4808,28 @@ func _add_window_band_local(position_3d: Vector3, size: Vector3, parent: Node, m
 	var band := _add_box(position_3d, size, band_material, parent)
 	_window_bands.append(band)
 	return band
+
+
+func _add_light_pool_local(position_3d: Vector3, parent: Node, glow_color: Color, alpha: float, energy: float, radius: float, height: float) -> void:
+	var pool := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = radius
+	mesh.bottom_radius = radius
+	mesh.height = height
+	pool.mesh = mesh
+	var material := StandardMaterial3D.new()
+	material.albedo_color = Color(glow_color.r, glow_color.g, glow_color.b, alpha)
+	material.roughness = 1.0
+	material.metallic_specular = 0.0
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	material.emission_enabled = true
+	material.emission = glow_color
+	material.emission_energy_multiplier = energy
+	pool.material_override = material
+	pool.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	pool.position = position_3d
+	parent.add_child(pool)
 
 
 func _add_edge_post(position_3d: Vector3) -> void:
