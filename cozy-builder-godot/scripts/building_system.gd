@@ -4815,7 +4815,7 @@ func _add_light_pool_local(position_3d: Vector3, parent: Node, glow_color: Color
 	var mesh := CylinderMesh.new()
 	mesh.top_radius = radius
 	mesh.bottom_radius = radius
-	mesh.height = height
+	mesh.height = maxf(0.02, height)
 	pool.mesh = mesh
 	var material := StandardMaterial3D.new()
 	material.albedo_color = Color(glow_color.r, glow_color.g, glow_color.b, alpha)
@@ -4828,7 +4828,7 @@ func _add_light_pool_local(position_3d: Vector3, parent: Node, glow_color: Color
 	material.emission_energy_multiplier = energy
 	pool.material_override = material
 	pool.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	pool.position = position_3d
+	pool.position = position_3d + Vector3(0.0, 0.01, 0.0)
 	parent.add_child(pool)
 
 
