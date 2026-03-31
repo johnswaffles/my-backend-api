@@ -17,7 +17,7 @@ func apply_cycle(day: int, simulation_clock: float, window_bands: Array, town_li
 		env.background_mode = Environment.BG_SKY
 		env.background_color = sky_top.lerp(sky_horizon, 0.08)
 		env.ambient_light_color = sky_top.lerp(Color(0.56, 0.56, 0.56), 0.02)
-		env.ambient_light_energy = 0.02 + town_strength * 0.005
+		env.ambient_light_energy = 0.024 + town_strength * 0.006
 		env.fog_enabled = false
 		env.fog_density = 0.0
 		env.glow_bloom = 0.0
