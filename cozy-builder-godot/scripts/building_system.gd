@@ -4814,7 +4814,9 @@ func _refresh_road_lights() -> void:
 		var horizontal_straight := east and west and not north and not south
 		if not vertical_straight and not horizontal_straight:
 			continue
-		if posmod(cell.x + cell.y, 2) != 0:
+		if _road_light_has_nearby_junction(cell):
+			continue
+		if posmod(cell.x + cell.y, 3) != 0:
 			continue
 		var preferred_sign := 1 if posmod(cell.x + cell.y, 4) == 0 else -1
 		var candidate_signs := [preferred_sign, -preferred_sign]
@@ -4829,6 +4831,29 @@ func _refresh_road_lights() -> void:
 					continue
 				_place_road_light(cell, Vector3(0.0, 0.0, 2.82 * float(side_sign)), "h_%s_%d" % [_cell_key(cell), side_sign])
 				break
+
+
+func _road_light_has_nearby_junction(cell: Vector2i) -> bool:
+	for dx in [-1, 0, 1]:
+		for dy in [-1, 0, 1]:
+			if dx == 0 and dy == 0:
+				continue
+			var neighbor := Vector2i(cell.x + dx, cell.y + dy)
+			if not _road_cells.has(_cell_key(neighbor)):
+				continue
+			if _road_light_is_junction_like(neighbor):
+				return true
+	return _road_light_is_junction_like(cell)
+
+
+func _road_light_is_junction_like(cell: Vector2i) -> bool:
+	var north := _road_cells.has(_cell_key(Vector2i(cell.x, cell.y - 1)))
+	var east := _road_cells.has(_cell_key(Vector2i(cell.x + 1, cell.y)))
+	var south := _road_cells.has(_cell_key(Vector2i(cell.x, cell.y + 1)))
+	var west := _road_cells.has(_cell_key(Vector2i(cell.x - 1, cell.y)))
+	var vertical_straight := north and south and not east and not west
+	var horizontal_straight := east and west and not north and not south
+	return not vertical_straight and not horizontal_straight
 
 
 func _road_lamp_clearance_is_free(cell: Vector2i, vertical: bool, side_sign: int = 0) -> bool:
