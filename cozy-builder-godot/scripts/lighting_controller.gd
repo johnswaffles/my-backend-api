@@ -7,7 +7,7 @@ extends Node3D
 
 func apply_cycle(day: int, simulation_clock: float, window_bands: Array, town_light_level: float = 0.0, ambient_light_scale: float = 1.0) -> void:
 	var town_strength: float = clampf(town_light_level, 0.0, 1.0)
-	var daylight_scale := clampf(ambient_light_scale, 0.5, 1.0)
+	var daylight_scale := clampf(ambient_light_scale, 0.0, 1.0)
 	var sky_top: Color = Color(0.34, 0.62, 0.95).lerp(Color(0.24, 0.44, 0.72), 1.0 - daylight_scale)
 	var sky_horizon: Color = Color(0.74, 0.88, 1.0).lerp(Color(0.54, 0.70, 0.90), 1.0 - daylight_scale)
 	if world_environment and world_environment.environment:

@@ -110,11 +110,11 @@ const SAVE_PATH := "user://cozy_builder_save.json"
 const MUSIC_STREAM_PATH := "res://assets/audio/Sunrise Over Tiny Blocks (2).mp3"
 const AMBIENT_LIGHT_PRESETS := [
 	{"label": "Daylight 100%", "scale": 1.0},
-	{"label": "Daylight 90%", "scale": 0.9},
 	{"label": "Daylight 80%", "scale": 0.8},
-	{"label": "Daylight 70%", "scale": 0.7},
 	{"label": "Daylight 60%", "scale": 0.6},
-	{"label": "Daylight 50%", "scale": 0.5},
+	{"label": "Daylight 40%", "scale": 0.4},
+	{"label": "Daylight 20%", "scale": 0.2},
+	{"label": "Daylight 0%", "scale": 0.0},
 ]
 const PROPERTY_FRONT_SETBACK := 1.0
 const PROPERTY_FRONT_SETBACK_BY_TOOL := {
@@ -710,7 +710,7 @@ func _refresh_ambient_dropdown() -> void:
 
 
 func _set_ambient_light_scale(scale: float) -> void:
-	_ambient_light_scale = clampf(scale, 0.5, 1.0)
+	_ambient_light_scale = clampf(scale, 0.0, 1.0)
 	_update_day_night_visuals()
 	_refresh_tool_ui()
 
@@ -723,8 +723,8 @@ func _on_ambient_dropdown_selected(index: int) -> void:
 
 func _normalize_ambient_light_scale(saved_scale: float) -> float:
 	if saved_scale > 1.0:
-		return clampf(1.0 - (saved_scale - 1.5) * 0.5, 0.5, 1.0)
-	return clampf(saved_scale, 0.5, 1.0)
+		return 1.0
+	return clampf(saved_scale, 0.0, 1.0)
 
 
 func _style_tool_button(button: Button, selected: bool) -> void:
@@ -3106,7 +3106,7 @@ func _update_day_night_visuals() -> void:
 		lighting_controller.call("apply_cycle", _day, _simulation_clock, _window_bands, _town_light_strength(), _ambient_light_scale)
 		return
 	var town_strength := _town_light_strength()
-	var daylight_scale := clampf(_ambient_light_scale, 0.5, 1.0)
+	var daylight_scale := clampf(_ambient_light_scale, 0.0, 1.0)
 	var sky_top: Color = Color(0.34, 0.62, 0.95).lerp(Color(0.24, 0.44, 0.72), 1.0 - daylight_scale)
 	var sky_horizon: Color = Color(0.74, 0.88, 1.0).lerp(Color(0.54, 0.70, 0.90), 1.0 - daylight_scale)
 	if world_environment and world_environment.environment:
