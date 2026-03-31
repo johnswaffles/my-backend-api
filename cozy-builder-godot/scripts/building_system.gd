@@ -110,10 +110,11 @@ const SAVE_PATH := "user://cozy_builder_save.json"
 const MUSIC_STREAM_PATH := "res://assets/audio/Sunrise Over Tiny Blocks (2).mp3"
 const AMBIENT_LIGHT_PRESETS := [
 	{"label": "Ambient Base", "scale": 1.0},
-	{"label": "Ambient +15%", "scale": 1.15},
-	{"label": "Ambient +30%", "scale": 1.3},
-	{"label": "Ambient +45%", "scale": 1.45},
 	{"label": "Ambient +60%", "scale": 1.6},
+	{"label": "Ambient +120%", "scale": 2.2},
+	{"label": "Ambient +180%", "scale": 2.8},
+	{"label": "Ambient +240%", "scale": 3.4},
+	{"label": "Ambient +300%", "scale": 4.0},
 ]
 const PROPERTY_FRONT_SETBACK := 1.0
 const PROPERTY_FRONT_SETBACK_BY_TOOL := {
@@ -709,7 +710,7 @@ func _refresh_ambient_dropdown() -> void:
 
 
 func _set_ambient_light_scale(scale: float) -> void:
-	_ambient_light_scale = clampf(scale, 1.0, 1.6)
+	_ambient_light_scale = clampf(scale, 1.0, 4.0)
 	_update_day_night_visuals()
 	_refresh_tool_ui()
 
