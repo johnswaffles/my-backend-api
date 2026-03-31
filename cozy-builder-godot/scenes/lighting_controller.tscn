@@ -3,10 +3,10 @@
 [ext_resource type="Script" path="res://scripts/lighting_controller.gd" id="1"]
 
 [sub_resource type="ProceduralSkyMaterial" id="1"]
-sky_top_color = Color(0.0196078, 0.027451, 0.0431373, 1)
-sky_horizon_color = Color(0.0509804, 0.0588235, 0.0784314, 1)
-ground_bottom_color = Color(0.00784314, 0.0117647, 0.0196078, 1)
-ground_horizon_color = Color(0.027451, 0.0313726, 0.0431373, 1)
+sky_top_color = Color(0.016, 0.022, 0.034, 1)
+sky_horizon_color = Color(0.03, 0.035, 0.05, 1)
+ground_bottom_color = Color(0.006, 0.01, 0.016, 1)
+ground_horizon_color = Color(0.018, 0.024, 0.036, 1)
 sun_angle_max = 6.0
 sun_curve = 0.12
 
@@ -17,8 +17,8 @@ sky_material = SubResource("1")
 background_mode = 2
 sky = SubResource("2")
 ambient_light_source = 3
-ambient_light_color = Color(0.133333, 0.156863, 0.196078, 1)
-ambient_light_energy = 0.012
+ambient_light_color = Color(0.016, 0.022, 0.034, 1)
+ambient_light_energy = 0.01
 reflected_light_source = 1
 tonemap_mode = 2
 glow_enabled = true
@@ -41,7 +41,7 @@ environment = SubResource("3")
 
 [node name="Sun" type="DirectionalLight3D" parent="."]
 rotation_degrees = Vector3(-68, -32, 0)
-light_color = Color(0.572549, 0.666667, 0.823529, 1)
+light_color = Color(0.56, 0.64, 0.8, 1)
 light_energy = 0.018
 shadow_enabled = true
 directional_shadow_mode = 2
@@ -53,6 +53,6 @@ shadow_normal_bias = 1.8
 
 [node name="FillLight" type="DirectionalLight3D" parent="."]
 rotation_degrees = Vector3(-18, 136, 0)
-light_color = Color(0.172549, 0.2, 0.313726, 1)
+light_color = Color(0.15, 0.18, 0.28, 1)
 light_energy = 0.004
 shadow_enabled = false

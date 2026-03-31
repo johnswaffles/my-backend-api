@@ -1619,15 +1619,15 @@ func _animate_life(delta: float) -> void:
 func _update_day_night_visuals() -> void:
 	var cycle := fmod(float(_day - 1) + _simulation_clock / 7.5, 6.0) / 6.0
 	var sun_wave := sin(cycle * TAU)
-	var warm_strength: float = clampf(0.18 + sun_wave * 0.06, 0.08, 0.26)
-	var sky_top: Color = Color(0.02, 0.027, 0.043).lerp(Color(0.03, 0.035, 0.052), warm_strength * 0.4)
-	var sky_horizon: Color = Color(0.025, 0.031, 0.046).lerp(Color(0.05, 0.056, 0.07), warm_strength * 0.35)
+	var warm_strength: float = clampf(0.16 + sun_wave * 0.04, 0.08, 0.22)
+	var sky_top: Color = Color(0.016, 0.022, 0.034).lerp(Color(0.022, 0.028, 0.042), warm_strength * 0.25)
+	var sky_horizon: Color = Color(0.018, 0.024, 0.036).lerp(Color(0.03, 0.035, 0.05), warm_strength * 0.2)
 	if world_environment and world_environment.environment:
 		var env: Environment = world_environment.environment
 		env.background_mode = Environment.BG_SKY
 		env.background_color = sky_top.lerp(sky_horizon, 0.05)
-		env.ambient_light_color = sky_top.lerp(Color(0.2, 0.24, 0.3), 0.04)
-		env.ambient_light_energy = 0.012 + warm_strength * 0.004
+		env.ambient_light_color = sky_top
+		env.ambient_light_energy = 0.01 + warm_strength * 0.0015
 		env.fog_enabled = false
 		env.fog_light_color = sky_horizon
 		env.fog_light_energy = 0.0
@@ -1636,14 +1636,14 @@ func _update_day_night_visuals() -> void:
 		env.glow_intensity = 0.0
 		env.adjustment_enabled = true
 		env.adjustment_brightness = 0.72
-		env.adjustment_contrast = 1.0
+		env.adjustment_contrast = 1.0 + warm_strength * 0.02
 		env.adjustment_saturation = 0.96
 	if sun:
-		sun.light_color = Color(0.58, 0.66, 0.82).lerp(Color(0.68, 0.66, 0.7), warm_strength * 0.12)
+		sun.light_color = Color(0.56, 0.64, 0.8).lerp(Color(0.64, 0.64, 0.68), warm_strength * 0.1)
 		sun.light_energy = 0.018 + warm_strength * 0.004
 		sun.rotation_degrees = Vector3(-62.0, -30.0, 0.0)
 	if fill_light:
-		fill_light.light_color = Color(0.17, 0.2, 0.31).lerp(Color(0.35, 0.34, 0.36), warm_strength * 0.08)
+		fill_light.light_color = Color(0.15, 0.18, 0.28).lerp(Color(0.28, 0.28, 0.3), warm_strength * 0.06)
 		fill_light.light_energy = 0.004 + warm_strength * 0.001
 
 	for band in _window_bands:

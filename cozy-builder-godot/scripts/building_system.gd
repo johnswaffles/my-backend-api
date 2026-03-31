@@ -109,11 +109,12 @@ const SCENIC_TOOL_SPECS := {
 const SAVE_PATH := "user://cozy_builder_save.json"
 const MUSIC_STREAM_PATH := "res://assets/audio/Sunrise Over Tiny Blocks (2).mp3"
 const AMBIENT_LIGHT_PRESETS := [
-	{"label": "Ambient Base (300%)", "scale": 4.0},
-	{"label": "Ambient +50% (350%)", "scale": 4.5},
-	{"label": "Ambient +100% (400%)", "scale": 5.0},
-	{"label": "Ambient +150% (450%)", "scale": 5.5},
-	{"label": "Ambient +200% (500%)", "scale": 6.0},
+	{"label": "Ambient Base", "scale": 1.0},
+	{"label": "Ambient +5%", "scale": 1.05},
+	{"label": "Ambient +10%", "scale": 1.1},
+	{"label": "Ambient +15%", "scale": 1.15},
+	{"label": "Ambient +20%", "scale": 1.2},
+	{"label": "Ambient +25%", "scale": 1.25},
 ]
 const PROPERTY_FRONT_SETBACK := 1.0
 const PROPERTY_FRONT_SETBACK_BY_TOOL := {
@@ -261,7 +262,7 @@ var _nature_root: Node3D
 var _music_player: AudioStreamPlayer
 var _music_button: Button
 var _ambient_dropdown: OptionButton
-var _ambient_light_scale := 4.0
+var _ambient_light_scale := 1.0
 var _music_enabled := true
 
 
@@ -709,7 +710,7 @@ func _refresh_ambient_dropdown() -> void:
 
 
 func _set_ambient_light_scale(scale: float) -> void:
-	_ambient_light_scale = clampf(scale, 4.0, 6.0)
+	_ambient_light_scale = clampf(scale, 1.0, 1.25)
 	_update_day_night_visuals()
 	_refresh_tool_ui()
 
@@ -2464,7 +2465,7 @@ func _try_load_game(force_feedback: bool = false) -> void:
 	_day = int(data.get("day", 1))
 	_simulation_clock = float(data.get("clock", 0.0))
 	_build_tool = str(data.get("build_tool", BUILD_TOOL_ROAD))
-	_set_ambient_light_scale(maxf(4.0, float(data.get("ambient_light_scale", 4.0))))
+	_set_ambient_light_scale(maxf(1.0, float(data.get("ambient_light_scale", 1.0))))
 	var focus_data: Array = data.get("focus", [0.0, 0.0, 0.0])
 	if focus_data.size() == 3:
 		_target_focus = Vector3(float(focus_data[0]), float(focus_data[1]), float(focus_data[2]))
@@ -2521,7 +2522,7 @@ func _new_map() -> void:
 	_day = 1
 	_simulation_clock = 0.0
 	_build_tool = BUILD_TOOL_ROAD
-	_set_ambient_light_scale(4.0)
+	_set_ambient_light_scale(1.0)
 	_variant_cycle.clear()
 	_loaded_save = false
 	_reset_camera_view()
@@ -3102,29 +3103,29 @@ func _update_day_night_visuals() -> void:
 	var cycle := fmod(float(_day - 1) + _simulation_clock / 7.5, 6.0) / 6.0
 	var moon_wave := sin(cycle * TAU)
 	var night_strength: float = clampf(1.0 - town_strength * 0.1 + moon_wave * 0.01, 0.32, 1.0)
-	var sky_top: Color = Color(0.05, 0.06, 0.09).lerp(Color(0.06, 0.07, 0.1), town_strength * 0.18)
-	var sky_horizon: Color = Color(0.06, 0.06, 0.08).lerp(Color(0.12, 0.1, 0.09), town_strength * 0.12)
+	var sky_top: Color = Color(0.016, 0.022, 0.034).lerp(Color(0.022, 0.028, 0.042), town_strength * 0.02)
+	var sky_horizon: Color = Color(0.018, 0.024, 0.036).lerp(Color(0.03, 0.035, 0.05), town_strength * 0.016)
 	if world_environment and world_environment.environment:
 		var env: Environment = world_environment.environment
 		env.background_mode = Environment.BG_SKY
 		env.background_color = sky_top.lerp(sky_horizon, 0.05)
-		env.ambient_light_color = sky_top.lerp(Color(0.2, 0.24, 0.3), 0.04)
-		env.ambient_light_energy = (0.012 + town_strength * 0.002) * _ambient_light_scale
+		env.ambient_light_color = sky_top
+		env.ambient_light_energy = (0.010 + town_strength * 0.0015) * _ambient_light_scale
 		env.fog_enabled = false
 		env.fog_density = 0.0
 		env.glow_bloom = 0.0
 		env.glow_intensity = 0.0
 		env.adjustment_enabled = true
-		env.adjustment_brightness = 0.72 + maxf(0.0, _ambient_light_scale - 1.0) * 0.16
+		env.adjustment_brightness = 0.72
 		env.adjustment_contrast = 1.0 + night_strength * 0.02
 		env.adjustment_saturation = 0.96
 	if sun:
-		sun.light_color = Color(0.58, 0.66, 0.82).lerp(Color(0.68, 0.66, 0.7), town_strength * 0.04)
+		sun.light_color = Color(0.56, 0.64, 0.8).lerp(Color(0.64, 0.64, 0.68), town_strength * 0.03)
 		sun.light_energy = 0.018 + town_strength * 0.004
 		sun.rotation_degrees = Vector3(-62.0, -30.0, 0.0)
 		sun.shadow_blur = 1.05
 	if fill_light:
-		fill_light.light_color = Color(0.17, 0.2, 0.31).lerp(Color(0.35, 0.34, 0.36), town_strength * 0.03)
+		fill_light.light_color = Color(0.15, 0.18, 0.28).lerp(Color(0.28, 0.28, 0.3), town_strength * 0.02)
 		fill_light.light_energy = 0.004 + town_strength * 0.001
 
 	for band in _window_bands:
