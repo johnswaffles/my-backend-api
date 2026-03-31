@@ -1627,7 +1627,7 @@ func _update_day_night_visuals() -> void:
 		env.background_mode = Environment.BG_SKY
 		env.background_color = sky_top.lerp(sky_horizon, 0.05)
 		env.ambient_light_color = sky_top
-		env.ambient_light_energy = 0.01 + warm_strength * 0.0015
+		env.ambient_light_energy = 0.015 + warm_strength * 0.0015
 		env.fog_enabled = false
 		env.fog_light_color = sky_horizon
 		env.fog_light_energy = 0.0
