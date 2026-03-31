@@ -109,12 +109,11 @@ const SCENIC_TOOL_SPECS := {
 const SAVE_PATH := "user://cozy_builder_save.json"
 const MUSIC_STREAM_PATH := "res://assets/audio/Sunrise Over Tiny Blocks (2).mp3"
 const AMBIENT_LIGHT_PRESETS := [
-	{"label": "Ambient Base", "scale": 1.0},
-	{"label": "Ambient +60%", "scale": 1.6},
-	{"label": "Ambient +120%", "scale": 2.2},
-	{"label": "Ambient +180%", "scale": 2.8},
-	{"label": "Ambient +240%", "scale": 3.4},
-	{"label": "Ambient +300%", "scale": 4.0},
+	{"label": "Ambient Base (300%)", "scale": 4.0},
+	{"label": "Ambient +50% (350%)", "scale": 4.5},
+	{"label": "Ambient +100% (400%)", "scale": 5.0},
+	{"label": "Ambient +150% (450%)", "scale": 5.5},
+	{"label": "Ambient +200% (500%)", "scale": 6.0},
 ]
 const PROPERTY_FRONT_SETBACK := 1.0
 const PROPERTY_FRONT_SETBACK_BY_TOOL := {
@@ -262,7 +261,7 @@ var _nature_root: Node3D
 var _music_player: AudioStreamPlayer
 var _music_button: Button
 var _ambient_dropdown: OptionButton
-var _ambient_light_scale := 1.0
+var _ambient_light_scale := 4.0
 var _music_enabled := true
 
 
@@ -710,7 +709,7 @@ func _refresh_ambient_dropdown() -> void:
 
 
 func _set_ambient_light_scale(scale: float) -> void:
-	_ambient_light_scale = clampf(scale, 1.0, 4.0)
+	_ambient_light_scale = clampf(scale, 4.0, 6.0)
 	_update_day_night_visuals()
 	_refresh_tool_ui()
 
@@ -2465,7 +2464,7 @@ func _try_load_game(force_feedback: bool = false) -> void:
 	_day = int(data.get("day", 1))
 	_simulation_clock = float(data.get("clock", 0.0))
 	_build_tool = str(data.get("build_tool", BUILD_TOOL_ROAD))
-	_set_ambient_light_scale(float(data.get("ambient_light_scale", 1.0)))
+	_set_ambient_light_scale(maxf(4.0, float(data.get("ambient_light_scale", 4.0))))
 	var focus_data: Array = data.get("focus", [0.0, 0.0, 0.0])
 	if focus_data.size() == 3:
 		_target_focus = Vector3(float(focus_data[0]), float(focus_data[1]), float(focus_data[2]))
@@ -2522,7 +2521,7 @@ func _new_map() -> void:
 	_day = 1
 	_simulation_clock = 0.0
 	_build_tool = BUILD_TOOL_ROAD
-	_set_ambient_light_scale(1.0)
+	_set_ambient_light_scale(4.0)
 	_variant_cycle.clear()
 	_loaded_save = false
 	_reset_camera_view()
