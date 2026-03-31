@@ -2828,7 +2828,7 @@ func _animate_life(delta: float) -> void:
 		car.set_meta("route_progress", progress)
 		var sample := _sample_ping_pong_route(route_points, route_length, progress)
 		car.position = sample["position"]
-		car.rotation.y = sample["heading"]
+		car.rotation.y = lerp_angle(car.rotation.y, float(sample["heading"]), min(1.0, delta * 10.0))
 
 	for trolley in _ambient_trolleys:
 		if not is_instance_valid(trolley):
@@ -2854,9 +2854,9 @@ func _animate_life(delta: float) -> void:
 		person.set_meta("route_progress", progress)
 		var sample := _sample_ping_pong_route(route_points, route_length, progress)
 		var next_position: Vector3 = sample["position"]
-		next_position.y += abs(sin(progress * 6.0)) * 0.025
+		next_position.y += abs(sin(progress * 6.0)) * 0.018
 		person.position = next_position
-		person.rotation.y = sample["heading"]
+		person.rotation.y = lerp_angle(person.rotation.y, float(sample["heading"]), min(1.0, delta * 12.0))
 
 
 func _build_car_route(start_cell: Vector2i, index: int) -> Array[Vector3]:

@@ -4,10 +4,20 @@ extends Node3D
 @onready var sun: DirectionalLight3D = $Sun
 @onready var fill_light: DirectionalLight3D = $FillLight
 
+var _last_town_light_level := -1.0
+var _last_ambient_light_scale := -1.0
+var _last_window_band_count := -1
+
 
 func apply_cycle(day: int, simulation_clock: float, window_bands: Array, town_light_level: float = 0.0, ambient_light_scale: float = 1.0) -> void:
 	var town_strength: float = clampf(town_light_level, 0.0, 1.0)
 	var daylight_scale := clampf(ambient_light_scale, 0.0, 1.0)
+	var window_band_count := window_bands.size()
+	if is_equal_approx(_last_town_light_level, town_strength) and is_equal_approx(_last_ambient_light_scale, daylight_scale) and _last_window_band_count == window_band_count:
+		return
+	_last_town_light_level = town_strength
+	_last_ambient_light_scale = daylight_scale
+	_last_window_band_count = window_band_count
 	var sky_top: Color = Color(0.34, 0.62, 0.95).lerp(Color(0.24, 0.44, 0.72), 1.0 - daylight_scale)
 	var sky_horizon: Color = Color(0.74, 0.88, 1.0).lerp(Color(0.54, 0.70, 0.90), 1.0 - daylight_scale)
 	if world_environment and world_environment.environment:

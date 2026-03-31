@@ -129,6 +129,7 @@ var _hover_tiles: Array[MeshInstance3D] = []
 var _meadow_patches: Array[MeshInstance3D] = []
 var _ambient_cars: Array[Node3D] = []
 var _ambient_people: Array[Node3D] = []
+var _last_daylight_scale := -1.0
 var _hover_root: Node3D
 var _ghost_root: Node3D
 var _ghost_nodes: Dictionary = {}
@@ -1515,7 +1516,7 @@ func _spawn_ambient_car(road_cell: Vector2i, index: int) -> Node3D:
 	root.set_meta("mode", "car")
 	root.set_meta("start", start)
 	root.set_meta("finish", finish)
-	root.set_meta("phase", randf_range(0.0, TAU))
+	root.set_meta("route_progress", randf_range(0.0, 2.0))
 	root.set_meta("speed", randf_range(0.5, 0.95))
 	root.set_meta("heading", forward_rotation)
 
@@ -1565,7 +1566,7 @@ func _spawn_ambient_person(anchor_key: String, index: int) -> Node3D:
 	root.set_meta("mode", "person")
 	root.set_meta("start", start)
 	root.set_meta("finish", finish)
-	root.set_meta("phase", randf_range(0.0, TAU))
+	root.set_meta("route_progress", randf_range(0.0, 2.0))
 	root.set_meta("speed", randf_range(0.45, 0.88))
 
 	var coat_palette := [
@@ -1591,33 +1592,34 @@ func _animate_life(delta: float) -> void:
 		if not is_instance_valid(car):
 			continue
 		var speed: float = float(car.get_meta("speed", 0.65))
-		var phase: float = float(car.get_meta("phase", 0.0)) + delta * speed
-		car.set_meta("phase", phase)
-		var motion := 0.5 + 0.5 * sin(phase)
+		var progress: float = float(car.get_meta("route_progress", 0.0)) + delta * speed
+		car.set_meta("route_progress", progress)
 		var start: Vector3 = car.get_meta("start", car.position)
 		var finish: Vector3 = car.get_meta("finish", car.position)
-		car.position = start.lerp(finish, motion)
-		car.rotation.y = float(car.get_meta("heading", car.rotation.y))
+		car.position = start.lerp(finish, progress)
+		car.rotation.y = lerp_angle(car.rotation.y, float(car.get_meta("heading", car.rotation.y)), min(1.0, delta * 10.0))
 
 	for person in _ambient_people:
 		if not is_instance_valid(person):
 			continue
 		var speed: float = float(person.get_meta("speed", 0.6))
-		var phase: float = float(person.get_meta("phase", 0.0)) + delta * speed
-		person.set_meta("phase", phase)
-		var motion := 0.5 + 0.5 * sin(phase)
+		var progress: float = float(person.get_meta("route_progress", 0.0)) + delta * speed
+		person.set_meta("route_progress", progress)
 		var start: Vector3 = person.get_meta("start", person.position)
 		var finish: Vector3 = person.get_meta("finish", person.position)
-		var next_position := start.lerp(finish, motion)
-		next_position.y += abs(sin(phase * 6.0)) * 0.025
+		var next_position := start.lerp(finish, progress)
+		next_position.y += abs(sin(progress * 6.0)) * 0.018
 		person.position = next_position
 		var look_direction := finish - start
 		if look_direction.length() > 0.01:
-			person.rotation.y = atan2(look_direction.x, look_direction.z) + (PI if cos(phase) < 0.0 else 0.0)
+			person.rotation.y = lerp_angle(person.rotation.y, atan2(look_direction.x, look_direction.z), min(1.0, delta * 12.0))
 
 
 func _update_day_night_visuals() -> void:
 	var daylight_scale := 1.0
+	if is_equal_approx(_last_daylight_scale, daylight_scale):
+		return
+	_last_daylight_scale = daylight_scale
 	var sky_top: Color = Color(0.34, 0.62, 0.95)
 	var sky_horizon: Color = Color(0.74, 0.88, 1.0)
 	if world_environment and world_environment.environment:
