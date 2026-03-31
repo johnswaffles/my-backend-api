@@ -5,7 +5,7 @@ extends Node3D
 @onready var fill_light: DirectionalLight3D = $FillLight
 
 
-func apply_cycle(day: int, simulation_clock: float, window_bands: Array, town_light_level: float = 0.0) -> void:
+func apply_cycle(day: int, simulation_clock: float, window_bands: Array, town_light_level: float = 0.0, ambient_light_scale: float = 1.0) -> void:
 	var cycle := fmod(float(day - 1) + simulation_clock / 7.5, 6.0) / 6.0
 	var moon_wave := sin(cycle * TAU)
 	var town_strength: float = clampf(town_light_level, 0.0, 1.0)
@@ -17,7 +17,7 @@ func apply_cycle(day: int, simulation_clock: float, window_bands: Array, town_li
 		env.background_mode = Environment.BG_SKY
 		env.background_color = sky_top.lerp(sky_horizon, 0.08)
 		env.ambient_light_color = sky_top.lerp(Color(0.56, 0.56, 0.56), 0.02)
-		env.ambient_light_energy = 0.024 + town_strength * 0.006
+		env.ambient_light_energy = (0.024 + town_strength * 0.006) * ambient_light_scale
 		env.fog_enabled = false
 		env.fog_density = 0.0
 		env.glow_bloom = 0.0

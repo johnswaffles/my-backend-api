@@ -108,6 +108,13 @@ const SCENIC_TOOL_SPECS := {
 }
 const SAVE_PATH := "user://cozy_builder_save.json"
 const MUSIC_STREAM_PATH := "res://assets/audio/Sunrise Over Tiny Blocks (2).mp3"
+const AMBIENT_LIGHT_PRESETS := [
+	{"label": "Ambient 50%", "scale": 0.5},
+	{"label": "Ambient 75%", "scale": 0.75},
+	{"label": "Ambient 100%", "scale": 1.0},
+	{"label": "Ambient 125%", "scale": 1.25},
+	{"label": "Ambient 150%", "scale": 1.5},
+]
 const PROPERTY_FRONT_SETBACK := 1.0
 const PROPERTY_FRONT_SETBACK_BY_TOOL := {
 	BUILD_TOOL_HOUSE: 0.95,
@@ -253,6 +260,8 @@ var _zoom_out_button: Button
 var _nature_root: Node3D
 var _music_player: AudioStreamPlayer
 var _music_button: Button
+var _ambient_dropdown: OptionButton
+var _ambient_light_scale := 1.0
 var _music_enabled := true
 
 
@@ -518,6 +527,15 @@ func _build_hud() -> void:
 	town_popup.id_pressed.connect(_on_town_menu_action)
 	top_row.add_child(_town_menu)
 
+	_ambient_dropdown = OptionButton.new()
+	_ambient_dropdown.custom_minimum_size = Vector2(118, 0)
+	for preset in AMBIENT_LIGHT_PRESETS:
+		var ambient_index := _ambient_dropdown.item_count
+		_ambient_dropdown.add_item(str(preset["label"]), ambient_index)
+		_ambient_dropdown.set_item_metadata(ambient_index, float(preset["scale"]))
+	_ambient_dropdown.item_selected.connect(_on_ambient_dropdown_selected)
+	top_row.add_child(_ambient_dropdown)
+
 	_fullscreen_button = Button.new()
 	_fullscreen_button.text = "Fullscreen"
 	_fullscreen_button.custom_minimum_size = Vector2(92, 0)
@@ -618,6 +636,8 @@ func _refresh_tool_ui() -> void:
 	if _music_button:
 		_style_tool_button(_music_button, _music_enabled)
 		_music_button.text = "Music On" if _music_enabled else "Music Off"
+	if _ambient_dropdown:
+		_refresh_ambient_dropdown()
 	if _place_button:
 		_style_tool_button(_place_button, true)
 	if _upgrade_button:
@@ -665,6 +685,39 @@ func _refresh_tool_ui() -> void:
 	if _ghost_root:
 		for tool in _ghost_nodes.keys():
 			_ghost_nodes[tool].visible = _build_tool == tool and BUILD_TOOL_COSTS.has(tool)
+
+
+func _ambient_index_for_scale(scale: float) -> int:
+	var best_index := 0
+	var best_distance := INF
+	for index in range(AMBIENT_LIGHT_PRESETS.size()):
+		var preset_scale := float(AMBIENT_LIGHT_PRESETS[index]["scale"])
+		var distance := absf(preset_scale - scale)
+		if distance < best_distance:
+			best_distance = distance
+			best_index = index
+	return best_index
+
+
+func _refresh_ambient_dropdown() -> void:
+	if not _ambient_dropdown:
+		return
+	var index := _ambient_index_for_scale(_ambient_light_scale)
+	if _ambient_dropdown.get_selected_id() != index:
+		_ambient_dropdown.select(index)
+	_style_tool_button(_ambient_dropdown, false)
+
+
+func _set_ambient_light_scale(scale: float) -> void:
+	_ambient_light_scale = clampf(scale, 0.5, 1.5)
+	_update_day_night_visuals()
+	_refresh_tool_ui()
+
+
+func _on_ambient_dropdown_selected(index: int) -> void:
+	if index < 0 or index >= AMBIENT_LIGHT_PRESETS.size():
+		return
+	_set_ambient_light_scale(float(AMBIENT_LIGHT_PRESETS[index]["scale"]))
 
 
 func _style_tool_button(button: Button, selected: bool) -> void:
@@ -2348,6 +2401,7 @@ func _save_game() -> void:
 		"day": _day,
 		"clock": _simulation_clock,
 		"build_tool": _build_tool,
+		"ambient_light_scale": _ambient_light_scale,
 		"focus": [_target_focus.x, _target_focus.y, _target_focus.z],
 		"zoom": _target_zoom,
 		"yaw": _target_camera_yaw,
@@ -2410,6 +2464,7 @@ func _try_load_game(force_feedback: bool = false) -> void:
 	_day = int(data.get("day", 1))
 	_simulation_clock = float(data.get("clock", 0.0))
 	_build_tool = str(data.get("build_tool", BUILD_TOOL_ROAD))
+	_set_ambient_light_scale(float(data.get("ambient_light_scale", 1.0)))
 	var focus_data: Array = data.get("focus", [0.0, 0.0, 0.0])
 	if focus_data.size() == 3:
 		_target_focus = Vector3(float(focus_data[0]), float(focus_data[1]), float(focus_data[2]))
@@ -2466,6 +2521,7 @@ func _new_map() -> void:
 	_day = 1
 	_simulation_clock = 0.0
 	_build_tool = BUILD_TOOL_ROAD
+	_set_ambient_light_scale(1.0)
 	_variant_cycle.clear()
 	_loaded_save = false
 	_reset_camera_view()
@@ -3038,7 +3094,7 @@ func _sample_ping_pong_route(route_points: Array[Vector3], route_length: float, 
 
 func _update_day_night_visuals() -> void:
 	if lighting_controller and lighting_controller.has_method("apply_cycle"):
-		lighting_controller.call("apply_cycle", _day, _simulation_clock, _window_bands, _town_light_strength())
+		lighting_controller.call("apply_cycle", _day, _simulation_clock, _window_bands, _town_light_strength(), _ambient_light_scale)
 		return
 	var town_strength := _town_light_strength()
 	var cycle := fmod(float(_day - 1) + _simulation_clock / 7.5, 6.0) / 6.0
@@ -3051,7 +3107,7 @@ func _update_day_night_visuals() -> void:
 		env.background_mode = Environment.BG_COLOR
 		env.background_color = sky_top.lerp(sky_horizon, 0.24)
 		env.ambient_light_color = sky_top.lerp(Color(0.72, 0.7, 0.68), 0.05)
-		env.ambient_light_energy = 0.048 + town_strength * 0.018
+		env.ambient_light_energy = (0.048 + town_strength * 0.018) * _ambient_light_scale
 		env.fog_enabled = false
 		env.fog_density = 0.0
 		env.glow_bloom = 0.005 + town_strength * 0.005
