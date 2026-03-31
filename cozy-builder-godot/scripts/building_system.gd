@@ -109,11 +109,11 @@ const SCENIC_TOOL_SPECS := {
 const SAVE_PATH := "user://cozy_builder_save.json"
 const MUSIC_STREAM_PATH := "res://assets/audio/Sunrise Over Tiny Blocks (2).mp3"
 const AMBIENT_LIGHT_PRESETS := [
-	{"label": "Ambient 50%", "scale": 0.5},
-	{"label": "Ambient 75%", "scale": 0.75},
-	{"label": "Ambient 100%", "scale": 1.0},
-	{"label": "Ambient 125%", "scale": 1.25},
-	{"label": "Ambient 150%", "scale": 1.5},
+	{"label": "Ambient Base", "scale": 1.0},
+	{"label": "Ambient +15%", "scale": 1.15},
+	{"label": "Ambient +30%", "scale": 1.3},
+	{"label": "Ambient +45%", "scale": 1.45},
+	{"label": "Ambient +60%", "scale": 1.6},
 ]
 const PROPERTY_FRONT_SETBACK := 1.0
 const PROPERTY_FRONT_SETBACK_BY_TOOL := {
@@ -709,7 +709,7 @@ func _refresh_ambient_dropdown() -> void:
 
 
 func _set_ambient_light_scale(scale: float) -> void:
-	_ambient_light_scale = clampf(scale, 0.5, 1.5)
+	_ambient_light_scale = clampf(scale, 1.0, 1.6)
 	_update_day_night_visuals()
 	_refresh_tool_ui()
 
@@ -3113,7 +3113,7 @@ func _update_day_night_visuals() -> void:
 		env.glow_bloom = 0.005 + town_strength * 0.005
 		env.glow_intensity = 0.01 + town_strength * 0.01
 		env.adjustment_enabled = true
-		env.adjustment_brightness = 1.0
+		env.adjustment_brightness = 1.0 + maxf(0.0, _ambient_light_scale - 1.0) * 0.45
 		env.adjustment_contrast = 0.98 + night_strength * 0.015
 		env.adjustment_saturation = 1.04
 	if sun:

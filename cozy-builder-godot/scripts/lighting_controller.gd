@@ -23,7 +23,7 @@ func apply_cycle(day: int, simulation_clock: float, window_bands: Array, town_li
 		env.glow_bloom = 0.0
 		env.glow_intensity = 0.0
 		env.adjustment_enabled = true
-		env.adjustment_brightness = 0.86
+		env.adjustment_brightness = 0.86 + maxf(0.0, ambient_light_scale - 1.0) * 0.45
 		env.adjustment_contrast = 0.95 + night_strength * 0.01
 		env.adjustment_saturation = 0.98
 	if sun:
