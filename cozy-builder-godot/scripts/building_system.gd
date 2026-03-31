@@ -2724,6 +2724,7 @@ func _spawn_ambient_car(road_cell: Vector2i, index: int) -> Node3D:
 	]:
 		var wheel := _add_local_cylinder(wheel_data, 0.05, 0.05, 0.04, tire_material, root)
 		wheel.rotation_degrees.z = 90.0
+	_add_vehicle_headlights_local(root, 0.39, 0.12, 0.15, 3.2, 0.34)
 	return root
 
 
@@ -2757,6 +2758,7 @@ func _spawn_ambient_trolley(road_cell: Vector2i) -> Node3D:
 		var wheel := _add_local_cylinder(wheel_data, 0.06, 0.06, 0.05, _make_material("26252b", 0.98), root)
 		wheel.rotation_degrees.z = 90.0
 	_add_local_cylinder(Vector3(0.0, 0.92, 0.0), 0.02, 0.02, 0.64, _make_material("55514c", 0.92), root)
+	_add_vehicle_headlights_local(root, 0.66, 0.18, 0.18, 4.0, 0.42)
 	return root
 
 
@@ -4742,6 +4744,36 @@ func _add_lantern_glow_local(position_3d: Vector3, parent: Node) -> void:
 	glow.modulate = Color(1.0, 0.78, 0.4, 0.42)
 	glow.render_priority = 8
 	parent.add_child(glow)
+	var ground_glow := Sprite3D.new()
+	ground_glow.texture = _ensure_lamp_glow_texture(Color(1.0, 0.76, 0.4), 0.2)
+	ground_glow.billboard = 1
+	ground_glow.no_depth_test = true
+	ground_glow.shaded = false
+	ground_glow.double_sided = true
+	ground_glow.fixed_size = true
+	ground_glow.centered = true
+	ground_glow.pixel_size = 0.012
+	ground_glow.scale = Vector3(1.9, 1.9, 1.9)
+	ground_glow.position = Vector3(position_3d.x, 0.08, position_3d.z)
+	ground_glow.modulate = Color(1.0, 0.83, 0.45, 0.32)
+	ground_glow.render_priority = 7
+	parent.add_child(ground_glow)
+
+
+func _add_vehicle_headlights_local(parent: Node, front_z: float, half_width: float, light_y: float, light_range: float, light_energy: float) -> void:
+	var headlight_material := _make_material("fff5dd", 0.04, 0.0, true, "fff0b9", 1.25)
+	for side_sign in [-1.0, 1.0]:
+		var head_position := Vector3(half_width * side_sign, light_y, front_z)
+		_add_local_sphere(head_position, 0.05, 0.05, headlight_material, parent)
+		var beam := SpotLight3D.new()
+		beam.position = head_position + Vector3(0.0, 0.02, 0.0)
+		beam.rotation_degrees = Vector3(0.0, 180.0, 0.0)
+		beam.light_color = Color(1.0, 0.97, 0.86)
+		beam.light_energy = light_energy
+		beam.spot_range = light_range
+		beam.spot_angle = 28.0
+		beam.shadow_enabled = false
+		parent.add_child(beam)
 
 
 func _add_road_lamp_local(position_3d: Vector3, parent: Node) -> void:
