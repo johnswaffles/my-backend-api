@@ -1619,32 +1619,38 @@ func _animate_life(delta: float) -> void:
 func _update_day_night_visuals() -> void:
 	var cycle := fmod(float(_day - 1) + _simulation_clock / 7.5, 6.0) / 6.0
 	var sun_wave := sin(cycle * TAU)
-	var warm_strength: float = clampf(0.52 + sun_wave * 0.34, 0.18, 0.92)
-	var sky_top: Color = Color(0.18, 0.29, 0.44).lerp(Color(0.88, 0.56, 0.3), warm_strength * 0.74)
-	var sky_horizon: Color = Color(0.63, 0.73, 0.8).lerp(Color(0.97, 0.77, 0.5), warm_strength * 0.8)
+	var warm_strength: float = clampf(0.18 + sun_wave * 0.06, 0.08, 0.26)
+	var sky_top: Color = Color(0.02, 0.027, 0.043).lerp(Color(0.03, 0.035, 0.052), warm_strength * 0.4)
+	var sky_horizon: Color = Color(0.025, 0.031, 0.046).lerp(Color(0.05, 0.056, 0.07), warm_strength * 0.35)
 	if world_environment and world_environment.environment:
 		var env: Environment = world_environment.environment
-		env.background_mode = Environment.BG_COLOR
-		env.background_color = sky_horizon
-		env.ambient_light_color = sky_top.lerp(Color(1.0, 0.92, 0.82), 0.38)
-		env.ambient_light_energy = 0.42 + warm_strength * 0.24
-		env.fog_enabled = true
+		env.background_mode = Environment.BG_SKY
+		env.background_color = sky_top.lerp(sky_horizon, 0.05)
+		env.ambient_light_color = sky_top.lerp(Color(0.2, 0.24, 0.3), 0.04)
+		env.ambient_light_energy = 0.012 + warm_strength * 0.004
+		env.fog_enabled = false
 		env.fog_light_color = sky_horizon
-		env.fog_light_energy = 0.28 + warm_strength * 0.18
-		env.fog_density = 0.003
+		env.fog_light_energy = 0.0
+		env.fog_density = 0.0
+		env.glow_bloom = 0.0
+		env.glow_intensity = 0.0
+		env.adjustment_enabled = true
+		env.adjustment_brightness = 0.72
+		env.adjustment_contrast = 1.0
+		env.adjustment_saturation = 0.96
 	if sun:
-		sun.light_color = Color(1.0, 0.84, 0.66).lerp(Color(1.0, 0.66, 0.42), warm_strength * 0.7)
-		sun.light_energy = 0.74 + warm_strength * 0.68
-		sun.rotation_degrees = Vector3(-48.0 - warm_strength * 18.0, -32.0, 0.0)
+		sun.light_color = Color(0.58, 0.66, 0.82).lerp(Color(0.68, 0.66, 0.7), warm_strength * 0.12)
+		sun.light_energy = 0.018 + warm_strength * 0.004
+		sun.rotation_degrees = Vector3(-62.0, -30.0, 0.0)
 	if fill_light:
-		fill_light.light_color = Color(0.78, 0.88, 1.0).lerp(Color(1.0, 0.78, 0.58), warm_strength * 0.5)
-		fill_light.light_energy = 0.2 + warm_strength * 0.22
+		fill_light.light_color = Color(0.17, 0.2, 0.31).lerp(Color(0.35, 0.34, 0.36), warm_strength * 0.08)
+		fill_light.light_energy = 0.004 + warm_strength * 0.001
 
 	for band in _window_bands:
 		if is_instance_valid(band):
 			var material := band.material_override as StandardMaterial3D
 			if material:
-				material.emission_energy_multiplier = 0.1 + (1.0 - warm_strength) * 0.75
+				material.emission_energy_multiplier = 0.1 + (1.0 - warm_strength) * 0.08
 
 
 func _spawn_road_tile(world_position: Vector3, preview: bool) -> Node3D:
