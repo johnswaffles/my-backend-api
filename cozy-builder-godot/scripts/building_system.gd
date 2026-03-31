@@ -4665,14 +4665,14 @@ func _add_lantern_glow_local(position_3d: Vector3, parent: Node) -> void:
 	var light := OmniLight3D.new()
 	light.position = position_3d + Vector3(0.0, 0.1, 0.0)
 	light.light_color = Color(1.0, 0.73, 0.42)
-		light.light_energy = 0.22
-		light.omni_range = 2.2
+	light.light_energy = 0.22
+	light.omni_range = 2.2
 	light.shadow_enabled = false
 	parent.add_child(light)
 	var bulb := _add_local_sphere(position_3d + Vector3(0.0, 0.06, 0.0), 0.08, 0.08, _street_lamp_bulb_material, parent)
 	bulb.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var glow := Sprite3D.new()
-		glow.texture = _ensure_lamp_glow_texture(Color(1.0, 0.74, 0.38), 0.06)
+	glow.texture = _ensure_lamp_glow_texture(Color(1.0, 0.74, 0.38), 0.06)
 	glow.billboard = 1
 	glow.no_depth_test = true
 	glow.shaded = false
@@ -4680,9 +4680,9 @@ func _add_lantern_glow_local(position_3d: Vector3, parent: Node) -> void:
 	glow.fixed_size = true
 	glow.centered = true
 	glow.pixel_size = 0.012
-		glow.scale = Vector3(0.78, 0.78, 0.78)
+	glow.scale = Vector3(0.78, 0.78, 0.78)
 	glow.position = position_3d + Vector3(0.0, 0.06, 0.0)
-		glow.modulate = Color(1.0, 0.78, 0.4, 0.42)
+	glow.modulate = Color(1.0, 0.78, 0.4, 0.42)
 	glow.render_priority = 8
 	parent.add_child(glow)
 
