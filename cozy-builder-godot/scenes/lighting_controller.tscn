@@ -3,12 +3,12 @@
 [ext_resource type="Script" path="res://scripts/lighting_controller.gd" id="1"]
 
 [sub_resource type="ProceduralSkyMaterial" id="1"]
-sky_top_color = Color(0.016, 0.022, 0.034, 1)
-sky_horizon_color = Color(0.03, 0.035, 0.05, 1)
-ground_bottom_color = Color(0.006, 0.01, 0.016, 1)
-ground_horizon_color = Color(0.018, 0.024, 0.036, 1)
-sun_angle_max = 6.0
-sun_curve = 0.12
+sky_top_color = Color(0.34, 0.62, 0.95, 1)
+sky_horizon_color = Color(0.74, 0.88, 1, 1)
+ground_bottom_color = Color(0.22, 0.32, 0.46, 1)
+ground_horizon_color = Color(0.56, 0.72, 0.9, 1)
+sun_angle_max = 25.0
+sun_curve = 0.4
 
 [sub_resource type="Sky" id="2"]
 sky_material = SubResource("1")
@@ -17,8 +17,8 @@ sky_material = SubResource("1")
 background_mode = 2
 sky = SubResource("2")
 ambient_light_source = 3
-ambient_light_color = Color(0.016, 0.022, 0.034, 1)
-ambient_light_energy = 0.015
+ambient_light_color = Color(0.54, 0.72, 0.91, 1)
+ambient_light_energy = 0.22
 reflected_light_source = 1
 tonemap_mode = 2
 glow_enabled = true
@@ -29,9 +29,9 @@ fog_light_color = Color(0.0901961, 0.109804, 0.141176, 1)
 fog_light_energy = 0.0
 fog_density = 0.0
 adjustment_enabled = true
-adjustment_brightness = 0.72
+adjustment_brightness = 1.0
 adjustment_contrast = 1.0
-adjustment_saturation = 0.96
+adjustment_saturation = 1.0
 
 [node name="LightingController" type="Node3D"]
 script = ExtResource("1")
@@ -41,18 +41,18 @@ environment = SubResource("3")
 
 [node name="Sun" type="DirectionalLight3D" parent="."]
 rotation_degrees = Vector3(-68, -32, 0)
-light_color = Color(0.56, 0.64, 0.8, 1)
-light_energy = 0.018
+light_color = Color(1, 0.98, 0.93, 1)
+light_energy = 1.35
 shadow_enabled = true
 directional_shadow_mode = 2
 directional_shadow_max_distance = 180.0
-shadow_blur = 1.0
+shadow_blur = 0.75
 directional_shadow_blend_splits = true
 shadow_bias = 0.04
 shadow_normal_bias = 1.8
 
 [node name="FillLight" type="DirectionalLight3D" parent="."]
 rotation_degrees = Vector3(-18, 136, 0)
-light_color = Color(0.15, 0.18, 0.28, 1)
-light_energy = 0.004
+light_color = Color(0.86, 0.93, 1, 1)
+light_energy = 0.2
 shadow_enabled = false

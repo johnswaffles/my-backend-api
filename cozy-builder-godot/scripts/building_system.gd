@@ -109,11 +109,12 @@ const SCENIC_TOOL_SPECS := {
 const SAVE_PATH := "user://cozy_builder_save.json"
 const MUSIC_STREAM_PATH := "res://assets/audio/Sunrise Over Tiny Blocks (2).mp3"
 const AMBIENT_LIGHT_PRESETS := [
-	{"label": "Ambient Base (150%)", "scale": 1.5},
-	{"label": "Ambient +25% (175%)", "scale": 1.75},
-	{"label": "Ambient +50% (200%)", "scale": 2.0},
-	{"label": "Ambient +75% (225%)", "scale": 2.25},
-	{"label": "Ambient +100% (250%)", "scale": 2.5},
+	{"label": "Daylight 100%", "scale": 1.0},
+	{"label": "Daylight 90%", "scale": 0.9},
+	{"label": "Daylight 80%", "scale": 0.8},
+	{"label": "Daylight 70%", "scale": 0.7},
+	{"label": "Daylight 60%", "scale": 0.6},
+	{"label": "Daylight 50%", "scale": 0.5},
 ]
 const PROPERTY_FRONT_SETBACK := 1.0
 const PROPERTY_FRONT_SETBACK_BY_TOOL := {
@@ -261,7 +262,7 @@ var _nature_root: Node3D
 var _music_player: AudioStreamPlayer
 var _music_button: Button
 var _ambient_dropdown: OptionButton
-var _ambient_light_scale := 1.5
+var _ambient_light_scale := 1.0
 var _music_enabled := true
 
 
@@ -709,7 +710,7 @@ func _refresh_ambient_dropdown() -> void:
 
 
 func _set_ambient_light_scale(scale: float) -> void:
-	_ambient_light_scale = clampf(scale, 1.5, 2.5)
+	_ambient_light_scale = clampf(scale, 0.5, 1.0)
 	_update_day_night_visuals()
 	_refresh_tool_ui()
 
@@ -718,6 +719,12 @@ func _on_ambient_dropdown_selected(index: int) -> void:
 	if index < 0 or index >= AMBIENT_LIGHT_PRESETS.size():
 		return
 	_set_ambient_light_scale(float(AMBIENT_LIGHT_PRESETS[index]["scale"]))
+
+
+func _normalize_ambient_light_scale(saved_scale: float) -> float:
+	if saved_scale > 1.0:
+		return clampf(1.0 - (saved_scale - 1.5) * 0.5, 0.5, 1.0)
+	return clampf(saved_scale, 0.5, 1.0)
 
 
 func _style_tool_button(button: Button, selected: bool) -> void:
@@ -2464,7 +2471,7 @@ func _try_load_game(force_feedback: bool = false) -> void:
 	_day = int(data.get("day", 1))
 	_simulation_clock = float(data.get("clock", 0.0))
 	_build_tool = str(data.get("build_tool", BUILD_TOOL_ROAD))
-	_set_ambient_light_scale(maxf(1.5, float(data.get("ambient_light_scale", 1.5))))
+	_set_ambient_light_scale(_normalize_ambient_light_scale(float(data.get("ambient_light_scale", 1.0))))
 	var focus_data: Array = data.get("focus", [0.0, 0.0, 0.0])
 	if focus_data.size() == 3:
 		_target_focus = Vector3(float(focus_data[0]), float(focus_data[1]), float(focus_data[2]))
@@ -2521,7 +2528,7 @@ func _new_map() -> void:
 	_day = 1
 	_simulation_clock = 0.0
 	_build_tool = BUILD_TOOL_ROAD
-	_set_ambient_light_scale(1.5)
+	_set_ambient_light_scale(1.0)
 	_variant_cycle.clear()
 	_loaded_save = false
 	_reset_camera_view()
@@ -3099,39 +3106,37 @@ func _update_day_night_visuals() -> void:
 		lighting_controller.call("apply_cycle", _day, _simulation_clock, _window_bands, _town_light_strength(), _ambient_light_scale)
 		return
 	var town_strength := _town_light_strength()
-	var cycle := fmod(float(_day - 1) + _simulation_clock / 7.5, 6.0) / 6.0
-	var moon_wave := sin(cycle * TAU)
-	var night_strength: float = clampf(1.0 - town_strength * 0.1 + moon_wave * 0.01, 0.32, 1.0)
-	var sky_top: Color = Color(0.016, 0.022, 0.034).lerp(Color(0.022, 0.028, 0.042), town_strength * 0.02)
-	var sky_horizon: Color = Color(0.018, 0.024, 0.036).lerp(Color(0.03, 0.035, 0.05), town_strength * 0.016)
+	var daylight_scale := clampf(_ambient_light_scale, 0.5, 1.0)
+	var sky_top: Color = Color(0.34, 0.62, 0.95).lerp(Color(0.24, 0.44, 0.72), 1.0 - daylight_scale)
+	var sky_horizon: Color = Color(0.74, 0.88, 1.0).lerp(Color(0.54, 0.70, 0.90), 1.0 - daylight_scale)
 	if world_environment and world_environment.environment:
 		var env: Environment = world_environment.environment
 		env.background_mode = Environment.BG_SKY
-		env.background_color = sky_top.lerp(sky_horizon, 0.05)
-		env.ambient_light_color = sky_top
-		env.ambient_light_energy = (0.010 + town_strength * 0.0015) * _ambient_light_scale
+		env.background_color = sky_top.lerp(sky_horizon, 0.08)
+		env.ambient_light_color = sky_top.lerp(sky_horizon, 0.35)
+		env.ambient_light_energy = 0.22 * daylight_scale
 		env.fog_enabled = false
 		env.fog_density = 0.0
 		env.glow_bloom = 0.0
 		env.glow_intensity = 0.0
 		env.adjustment_enabled = true
-		env.adjustment_brightness = 0.72
-		env.adjustment_contrast = 1.0 + night_strength * 0.02
-		env.adjustment_saturation = 0.96
+		env.adjustment_brightness = 1.0
+		env.adjustment_contrast = 1.0
+		env.adjustment_saturation = 1.0
 	if sun:
-		sun.light_color = Color(0.56, 0.64, 0.8).lerp(Color(0.64, 0.64, 0.68), town_strength * 0.03)
-		sun.light_energy = 0.018 + town_strength * 0.004
+		sun.light_color = Color(1.0, 0.98, 0.93).lerp(Color(0.92, 0.96, 1.0), town_strength * 0.02)
+		sun.light_energy = 1.35 * daylight_scale
 		sun.rotation_degrees = Vector3(-62.0, -30.0, 0.0)
-		sun.shadow_blur = 1.05
+		sun.shadow_blur = 0.75
 	if fill_light:
-		fill_light.light_color = Color(0.15, 0.18, 0.28).lerp(Color(0.28, 0.28, 0.3), town_strength * 0.02)
-		fill_light.light_energy = 0.004 + town_strength * 0.001
+		fill_light.light_color = Color(0.86, 0.93, 1.0).lerp(Color(0.78, 0.84, 0.92), town_strength * 0.02)
+		fill_light.light_energy = 0.2 * daylight_scale
 
 	for band in _window_bands:
 		if is_instance_valid(band):
 			var material := band.material_override as StandardMaterial3D
 			if material:
-				material.emission_energy_multiplier = 0.1 + town_strength * 0.03 + night_strength * 0.08
+				material.emission_energy_multiplier = 0.08 + town_strength * 0.025 + (1.0 - daylight_scale) * 0.08
 
 
 func _spawn_road_tile(world_position: Vector3, preview: bool) -> Node3D:
