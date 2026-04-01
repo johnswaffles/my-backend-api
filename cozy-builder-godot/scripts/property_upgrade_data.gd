@@ -2,6 +2,10 @@ extends RefCounted
 class_name PropertyUpgradeData
 
 const MAX_TIER := 4
+const HOUSE_MAX_TIER := 5
+
+const DEFAULT_TIER_LABELS := ["base", "refined", "developed", "grand"]
+const HOUSE_TIER_LABELS := ["base", "entry", "family", "two-story", "estate"]
 
 const UPGRADEABLE_TOOLS := {
 	"house": true,
@@ -14,7 +18,7 @@ const UPGRADEABLE_TOOLS := {
 }
 
 const UPGRADE_COST_FACTORS := {
-	"house": [0.0, 0.58, 0.82, 1.06],
+	"house": [0.0, 0.56, 0.80, 1.02, 1.22],
 	"fire": [0.0, 0.62, 0.90, 1.15],
 	"bank": [0.0, 0.60, 0.86, 1.12],
 	"grocery": [0.0, 0.58, 0.84, 1.10],
@@ -25,10 +29,10 @@ const UPGRADE_COST_FACTORS := {
 
 const TOOL_YIELDS := {
 	"house": {
-		"population": [14, 18, 23, 30],
-		"jobs": [0, 0, 0, 0],
-		"cashflow": [168, 228, 302, 388],
-		"appeal": [6, 9, 13, 17],
+		"population": [14, 18, 23, 29, 36],
+		"jobs": [0, 0, 0, 0, 0],
+		"cashflow": [168, 228, 302, 382, 474],
+		"appeal": [6, 9, 13, 17, 22],
 	},
 	"fire": {
 		"population": [0, 0, 0, 0],
@@ -110,50 +114,56 @@ const VISUAL_PROFILES := {
 			"frontage_path": false,
 			"frontage_steps": false,
 			"roof_trim": false,
-			"roof_dormer": false,
 			"wall_windows": false,
 			"front_lamp": true,
 			"side_annex": false,
-			"fence_upgrade": false,
-			"garden_extension": false,
-			"landscaping": false,
+			"second_story": false,
+			"upper_windows": false,
+			"roof_cap": false,
 		},
 		2: {
 			"frontage_path": false,
 			"frontage_steps": true,
 			"roof_trim": true,
-			"roof_dormer": false,
 			"wall_windows": true,
 			"front_lamp": true,
 			"side_annex": false,
-			"fence_upgrade": false,
-			"garden_extension": false,
-			"landscaping": false,
+			"second_story": false,
+			"upper_windows": false,
+			"roof_cap": false,
 		},
 		3: {
 			"frontage_path": false,
 			"frontage_steps": true,
 			"roof_trim": true,
-			"roof_dormer": false,
 			"wall_windows": true,
 			"front_lamp": true,
 			"side_annex": true,
-			"fence_upgrade": false,
-			"garden_extension": false,
-			"landscaping": false,
+			"second_story": false,
+			"upper_windows": true,
+			"roof_cap": false,
 		},
 		4: {
 			"frontage_path": false,
 			"frontage_steps": true,
 			"roof_trim": true,
-			"roof_dormer": false,
 			"wall_windows": true,
 			"front_lamp": true,
 			"second_story": true,
 			"side_annex": true,
-			"fence_upgrade": false,
-			"garden_extension": false,
-			"landscaping": false,
+			"upper_windows": true,
+			"roof_cap": false,
+		},
+		5: {
+			"frontage_path": false,
+			"frontage_steps": true,
+			"roof_trim": true,
+			"wall_windows": true,
+			"front_lamp": true,
+			"second_story": true,
+			"side_annex": true,
+			"upper_windows": true,
+			"roof_cap": true,
 		},
 	},
 	"fire": {
@@ -200,6 +210,8 @@ static func is_upgradeable(tool: String) -> bool:
 
 
 static func max_tier(tool: String) -> int:
+	if tool == "house":
+		return HOUSE_MAX_TIER
 	return MAX_TIER if is_upgradeable(tool) else 1
 
 
@@ -207,7 +219,7 @@ static func upgrade_cost(base_cost: int, tool: String, current_tier: int) -> int
 	if not is_upgradeable(tool):
 		return -1
 	var factors: Array = UPGRADE_COST_FACTORS.get(tool, [0.0, 0.60, 0.85, 1.10])
-	var index: int = clamp(current_tier, 1, MAX_TIER - 1)
+	var index: int = clamp(current_tier, 1, maxi(1, factors.size() - 1))
 	var factor := float(factors[index])
 	return maxi(1, int(round(float(base_cost) * factor)))
 
@@ -216,9 +228,11 @@ static func tier_yield(tool: String, tier: int) -> Dictionary:
 	if not TOOL_YIELDS.has(tool):
 		return {"population": 0, "jobs": 0, "cashflow": 0, "appeal": 0}
 	var profile: Dictionary = TOOL_YIELDS[tool]
-	var index: int = clamp(tier, 1, MAX_TIER) - 1
+	var population_values: Array = profile["population"]
+	var count := population_values.size()
+	var index: int = clamp(tier, 1, count) - 1
 	return {
-		"population": int(profile["population"][index]),
+		"population": int(population_values[index]),
 		"jobs": int(profile["jobs"][index]),
 		"cashflow": int(profile["cashflow"][index]),
 		"appeal": int(profile["appeal"][index]),
@@ -227,17 +241,20 @@ static func tier_yield(tool: String, tier: int) -> Dictionary:
 
 static func visual_profile(tool: String, tier: int) -> Dictionary:
 	if not VISUAL_PROFILES.has(tool):
-		var fallback_tier: int = clamp(tier, 1, MAX_TIER)
+		var fallback_tier: int = clamp(tier, 1, HOUSE_MAX_TIER if tool == "house" else MAX_TIER)
+		var fallback_labels := HOUSE_TIER_LABELS if tool == "house" else DEFAULT_TIER_LABELS
 		return {
 			"tier": fallback_tier,
 			"detail_level": fallback_tier - 1,
-			"tier_label": ["base", "refined", "developed", "grand"][fallback_tier - 1],
+			"tier_label": fallback_labels[fallback_tier - 1],
 		}
 	var tier_profiles: Dictionary = VISUAL_PROFILES[tool]
-	var clamped_tier: int = clamp(tier, 1, MAX_TIER)
+	var tier_cap: int = HOUSE_MAX_TIER if tool == "house" else MAX_TIER
+	var clamped_tier: int = clamp(tier, 1, tier_cap)
+	var tier_labels := HOUSE_TIER_LABELS if tool == "house" else DEFAULT_TIER_LABELS
 	var profile: Dictionary = tier_profiles.get(clamped_tier, {})
 	profile = profile.duplicate(true)
 	profile["tier"] = clamped_tier
 	profile["detail_level"] = clamped_tier - 1
-	profile["tier_label"] = ["base", "refined", "developed", "grand"][clamped_tier - 1]
+	profile["tier_label"] = tier_labels[clamped_tier - 1]
 	return profile
