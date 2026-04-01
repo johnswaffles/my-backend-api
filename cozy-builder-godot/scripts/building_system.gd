@@ -3502,18 +3502,12 @@ func _populate_village_house_variant(root: Node3D, lot_root: Node3D, structure_r
 	_add_house_front_door_local(Vector3(entry_offset, 0.0, house_z + 1.06), structure_root, false)
 	_add_box(Vector3(entry_offset, 0.06, house_z + 1.18), Vector3(max(0.42, width * porch_width * 0.84), 0.05, max(0.18, porch_depth * 0.26)), porch_wood, structure_root)
 	_add_window_band_local(Vector3(entry_offset, 0.82, house_z + 1.16), Vector3(0.14, 0.16, 0.05), structure_root)
-	_add_window_band_local(Vector3(-width * 0.52, 0.56, house_z + 0.18), Vector3(0.05, 0.3, 0.22), structure_root)
-	_add_window_band_local(Vector3(width * 0.52, 0.56, house_z + 0.18), Vector3(0.05, 0.3, 0.22), structure_root)
-	var facade_windows := [
-		Vector3(-0.72, 0.56, house_z + 0.76),
-		Vector3(0.72, 0.56, house_z + 0.76),
-		Vector3(-0.62, 0.52, house_z - 0.28),
-		Vector3(0.62, 0.52, house_z - 0.28),
-	]
-	for window_pos in facade_windows:
-		_add_window_band_local(window_pos, Vector3(0.26, 0.32, 0.05), structure_root)
-		_add_box(window_pos + Vector3(-0.16, 0.0, 0.0), Vector3(0.05, 0.34, 0.05), timber, structure_root)
-		_add_box(window_pos + Vector3(0.16, 0.0, 0.0), Vector3(0.05, 0.34, 0.05), timber, structure_root)
+	var front_window_z := house_z + 0.76
+	_add_house_wall_window_local(Vector3(-0.68, 0.56, front_window_z), Vector3(0.28, 0.34, 0.05), structure_root)
+	_add_house_wall_window_local(Vector3(0.68, 0.56, front_window_z), Vector3(0.28, 0.34, 0.05), structure_root)
+	var side_window_x := width * 0.52
+	_add_house_wall_window_local(Vector3(-side_window_x, 0.56, house_z + 0.18), Vector3(0.05, 0.34, 0.24), structure_root)
+	_add_house_wall_window_local(Vector3(side_window_x, 0.56, house_z + 0.18), Vector3(0.05, 0.34, 0.24), structure_root)
 	if has_wing:
 		_add_window_band_local(Vector3(-1.18, 0.54, house_z + 0.52), Vector3(0.2, 0.28, 0.05), structure_root)
 		_add_window_band_local(Vector3(-1.18, 0.84, house_z + 0.52), Vector3(0.16, 0.2, 0.05), structure_root)
@@ -3902,13 +3896,13 @@ func _apply_house_tier_visuals(root: Node3D, tier: int, variant: int, profile: D
 			_add_window_band_local(Vector3(0.76, upper_y + 0.08, upper_z + 0.08), Vector3(0.22, 0.3, 0.05), structure_root)
 			_add_window_band_local(Vector3(0.0, upper_y + 0.26, upper_z - 0.5), Vector3(0.48, 0.26, 0.05), structure_root)
 			_add_window_band_local(Vector3(0.0, upper_y + 0.26, upper_z + 0.28), Vector3(0.32, 0.2, 0.05), structure_root)
-			_add_window_band_local(Vector3(-upper_width * 0.56, upper_y + 0.12, upper_z + 0.02), Vector3(0.05, 0.28, 0.2), structure_root)
-			_add_window_band_local(Vector3(upper_width * 0.56, upper_y + 0.12, upper_z + 0.02), Vector3(0.05, 0.28, 0.2), structure_root)
 		if bool(profile.get("upper_windows", false)):
 			_add_window_band_local(Vector3(-0.72, upper_y + 0.16, upper_z + 0.42), Vector3(0.24, 0.24, 0.05), structure_root)
 			_add_window_band_local(Vector3(0.72, upper_y + 0.16, upper_z + 0.42), Vector3(0.24, 0.24, 0.05), structure_root)
 			_add_window_band_local(Vector3(-0.66, upper_y + 0.16, upper_z - 0.54), Vector3(0.2, 0.2, 0.05), structure_root)
 			_add_window_band_local(Vector3(0.66, upper_y + 0.16, upper_z - 0.54), Vector3(0.2, 0.2, 0.05), structure_root)
+			_add_house_wall_window_local(Vector3(-upper_width * 0.56, upper_y + 0.12, upper_z + 0.02), Vector3(0.05, 0.3, 0.24), structure_root)
+			_add_house_wall_window_local(Vector3(upper_width * 0.56, upper_y + 0.12, upper_z + 0.02), Vector3(0.05, 0.3, 0.24), structure_root)
 		_add_box(Vector3(0.0, upper_y - 0.22, upper_z - 0.02), Vector3(1.72, 0.08, 1.18), _make_material("d8c7ab", 0.9), structure_root)
 		_add_box(Vector3(-0.74, 1.54, -0.46), Vector3(0.18, 0.46, 0.18), _stone_material, structure_root)
 		_add_box(Vector3(0.74, 1.54, -0.46), Vector3(0.18, 0.46, 0.18), _stone_material, structure_root)
@@ -5019,6 +5013,21 @@ func _add_window_band_local(position_3d: Vector3, size: Vector3, parent: Node, m
 	var band := _add_box(position_3d, size, band_material, parent)
 	_window_bands.append(band)
 	return band
+
+
+func _add_house_wall_window_local(position_3d: Vector3, size: Vector3, parent: Node, preview: bool = false) -> void:
+	var window_root := Node3D.new()
+	window_root.position = position_3d
+	parent.add_child(window_root)
+	var frame_material := _ghost_base_material if preview else _make_material("efe3cf", 0.9)
+	var mullion_material := _ghost_base_material if preview else _make_material("8d6848", 0.84)
+	var glass_material := _ghost_accent_material if preview else _window_material
+	var frame_size := Vector3(size.x + 0.1, size.y + 0.08, maxf(size.z, 0.04))
+	_add_box(Vector3.ZERO, frame_size, frame_material, window_root)
+	_add_box(Vector3(0.0, 0.0, size.z * 0.06), Vector3(size.x, size.y, maxf(size.z * 0.4, 0.03)), glass_material, window_root)
+	if size.x >= 0.2:
+		_add_box(Vector3(-size.x * 0.18, 0.0, size.z * 0.08), Vector3(0.03, size.y * 0.84, maxf(size.z * 0.22, 0.02)), mullion_material, window_root)
+		_add_box(Vector3(size.x * 0.18, 0.0, size.z * 0.08), Vector3(0.03, size.y * 0.84, maxf(size.z * 0.22, 0.02)), mullion_material, window_root)
 
 
 func _ensure_lamp_glow_texture(glow_color: Color, alpha: float) -> Texture2D:
