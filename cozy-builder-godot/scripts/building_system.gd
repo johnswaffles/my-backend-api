@@ -3181,7 +3181,7 @@ func _spawn_house_tile(world_position: Vector3, preview: bool) -> Node3D:
 	_add_window_band_local(Vector3(-0.66, 0.44, -0.88), Vector3(0.22, 0.28, 0.05), root, window_material)
 	_add_window_band_local(Vector3(0.66, 0.44, -0.88), Vector3(0.22, 0.28, 0.05), root, window_material)
 	_add_window_band_local(Vector3(0.84, 0.42, -0.02), Vector3(0.18, 0.24, 0.05), root, window_material)
-	_add_round_canopy(Vector3(0.0, 0.24, 0.42), Vector3(0.78, 0.12, 0.22), window_material, root)
+	_add_house_front_door_local(Vector3(0.0, 0.0, 0.82), root, preview)
 	_add_house_front_lamp_local(Vector3(1.14, 0.0, 1.48), root, preview)
 	return root
 
@@ -3886,72 +3886,54 @@ func _apply_property_tier_visuals(root: Node3D, tool: String, tier: int, variant
 func _apply_house_tier_visuals(root: Node3D, tier: int, variant: int, profile: Dictionary) -> void:
 	_upgrade_debug("apply house tier visuals tier=%d variant=%d profile=%s" % [tier, variant, str(profile)])
 	var palette := _cozy_palette("house", variant)
-	var lot_root := _property_lot_root(root)
 	var structure_root := _property_structure_root(root)
 	var roof_trim := _make_material_from_color(palette.trim.lightened(0.04), 0.88)
 	var roof_detail := _make_material_from_color(palette.roof.darkened(0.03), 0.74)
-	var yard_trim := _make_material_from_color(palette.accent.lightened(0.08), 0.92)
-	var fence_material := _make_material("efe3cf", 0.86)
 
 	if tier >= 2:
 		if bool(profile.get("roof_trim", false)):
 			_add_box(Vector3(0.0, 0.26, 1.72), Vector3(1.28, 0.05, 0.05), roof_trim, structure_root)
 		if bool(profile.get("frontage_steps", false)):
-			_add_box(Vector3(0.0, 0.09, 1.48), Vector3(0.52, 0.08, 0.18), fence_material, lot_root)
-			_add_box(Vector3(0.0, 0.04, 1.62), Vector3(0.36, 0.03, 0.12), _make_material("d9cbb7", 0.88), lot_root)
-			_add_box(Vector3(0.0, 0.03, 1.76), Vector3(0.26, 0.02, 0.24), _make_material("d8c7ab", 0.92), lot_root)
-		if bool(profile.get("frontage_path", false)):
-			_add_town_path(Vector3(0.0, 0.03, 1.92), Vector2(0.86, 0.2), lot_root)
+			_add_house_entry_canopy_local(Vector3(0.0, 0.0, 0.86), structure_root, false, 0.76)
+			_add_house_entry_steps_local(Vector3(0.0, 0.0, 0.94), structure_root, false, 0.56)
 		if bool(profile.get("wall_windows", false)):
 			_add_window_band_local(Vector3(-0.58, 0.5, -0.36), Vector3(0.28, 0.34, 0.05), structure_root)
 			_add_window_band_local(Vector3(0.58, 0.5, -0.36), Vector3(0.28, 0.34, 0.05), structure_root)
 			_add_window_band_local(Vector3(0.0, 0.58, -0.68), Vector3(0.42, 0.28, 0.05), structure_root)
-		if bool(profile.get("landscaping", false)):
-			_add_flower_box_local(Vector3(-0.92, 0.18, 1.38), palette.accent, lot_root)
-			_add_flower_box_local(Vector3(0.92, 0.18, 1.38), palette.trim, lot_root)
-			_add_flower_box_local(Vector3(-0.52, 0.18, 1.62), palette.accent.lightened(0.06), lot_root)
-			_add_flower_box_local(Vector3(0.52, 0.18, 1.62), palette.trim.lightened(0.06), lot_root)
-			_add_shrub_cluster(Vector3(-1.74, 0.0, 1.44), palette.accent, lot_root, 3)
-			_add_shrub_cluster(Vector3(1.74, 0.0, 1.44), palette.trim, lot_root, 3)
-		if bool(profile.get("fence_upgrade", false)):
-			_add_box(Vector3(0.0, 0.2, 1.82), Vector3(1.2, 0.08, 0.06), fence_material, lot_root)
 
 	if tier >= 3:
 		if bool(profile.get("side_annex", false)):
 			var side := -1.0 if posmod(variant, 2) == 0 else 1.0
-			_add_soft_block(Vector3(side * 1.46, 0.48, 0.2), Vector3(0.82, 0.78, 1.02), _make_material_from_color(palette.wall.darkened(0.02), 0.94), structure_root, 0.14)
-			_add_gabled_roof(Vector3(side * 1.46, 1.02, 0.2), Vector3(0.96, 0.14, 1.14), roof_detail, structure_root, 13.0)
+			_add_soft_block(Vector3(side * 1.48, 0.5, 0.18), Vector3(0.96, 0.82, 1.08), _make_material_from_color(palette.wall.darkened(0.02), 0.94), structure_root, 0.14)
+			_add_gabled_roof(Vector3(side * 1.48, 1.08, 0.18), Vector3(1.1, 0.14, 1.22), roof_detail, structure_root, 13.0)
 			if bool(profile.get("wall_windows", false)):
-				_add_window_band_local(Vector3(side * 1.48, 0.56, 0.72), Vector3(0.22, 0.3, 0.05), structure_root)
-				_add_window_band_local(Vector3(side * 1.48, 0.9, 0.72), Vector3(0.2, 0.2, 0.05), structure_root)
-		if bool(profile.get("garden_extension", false)):
-			_add_hedge_strip_local(Vector3(0.0, 0.08, -1.84), 4.26, palette.accent.darkened(0.14), lot_root)
-			_add_bench_local(Vector3(-1.04, 0.02, 1.58), 0.18, lot_root)
-			_add_bench_local(Vector3(1.04, 0.02, 1.58), -0.18, lot_root)
+				_add_window_band_local(Vector3(side * 1.5, 0.6, 0.76), Vector3(0.24, 0.3, 0.05), structure_root)
+				_add_window_band_local(Vector3(side * 1.5, 0.94, 0.76), Vector3(0.22, 0.22, 0.05), structure_root)
+		_add_box(Vector3(0.72, 1.48, -0.42), Vector3(0.18, 0.42, 0.18), _stone_material, structure_root)
 		if bool(profile.get("wall_windows", false)):
-			_add_window_band_local(Vector3(-0.38, 0.92, -0.48), Vector3(0.22, 0.24, 0.05), structure_root)
-			_add_window_band_local(Vector3(0.38, 0.92, -0.48), Vector3(0.22, 0.24, 0.05), structure_root)
+			_add_window_band_local(Vector3(-0.38, 0.94, -0.52), Vector3(0.22, 0.26, 0.05), structure_root)
+			_add_window_band_local(Vector3(0.38, 0.94, -0.52), Vector3(0.22, 0.26, 0.05), structure_root)
 
 	if tier >= 4:
 		var second_story_wall := _make_material_from_color(palette.wall.lightened(0.06), 0.94)
 		var second_story_roof := _make_material_from_color(palette.roof.darkened(0.01), 0.76)
-		var upper_width := 1.72
-		var upper_depth := 1.5
-		var upper_height := 0.92
-		var upper_y := 1.82
+		var upper_width := 1.84
+		var upper_depth := 1.58
+		var upper_height := 0.98
+		var upper_y := 1.86
 		var upper_z := -0.02
 		_add_soft_block(Vector3(0.0, upper_y + upper_height * 0.5, upper_z), Vector3(upper_width, upper_height, upper_depth), second_story_wall, structure_root, 0.12)
 		_add_gabled_roof(Vector3(0.0, upper_y + upper_height + 0.32, upper_z), Vector3(upper_width + 0.18, 0.16, upper_depth + 0.16), second_story_roof, structure_root, 17.0)
 		if bool(profile.get("wall_windows", false)):
-			_add_window_band_local(Vector3(-0.54, upper_y + 0.06, upper_z - 0.38), Vector3(0.24, 0.3, 0.05), structure_root)
-			_add_window_band_local(Vector3(0.54, upper_y + 0.06, upper_z - 0.38), Vector3(0.24, 0.3, 0.05), structure_root)
-			_add_window_band_local(Vector3(-0.7, upper_y + 0.08, upper_z + 0.06), Vector3(0.2, 0.28, 0.05), structure_root)
-			_add_window_band_local(Vector3(0.7, upper_y + 0.08, upper_z + 0.06), Vector3(0.2, 0.28, 0.05), structure_root)
-			_add_window_band_local(Vector3(0.0, upper_y + 0.26, upper_z - 0.44), Vector3(0.42, 0.24, 0.05), structure_root)
-		_add_box(Vector3(0.0, upper_y - 0.2, upper_z - 0.02), Vector3(1.5, 0.08, 1.1), _make_material("d8c7ab", 0.9), structure_root)
-		_add_shrub_cluster(Vector3(-1.58, 0.0, -0.96), palette.trim, lot_root, 4)
-		_add_shrub_cluster(Vector3(1.58, 0.0, -0.96), palette.accent, lot_root, 4)
-		_add_box(Vector3(0.0, 0.34, -2.06), Vector3(0.16, 0.46, 0.16), _stone_material, lot_root)
+			_add_window_band_local(Vector3(-0.62, upper_y + 0.06, upper_z - 0.42), Vector3(0.26, 0.32, 0.05), structure_root)
+			_add_window_band_local(Vector3(0.62, upper_y + 0.06, upper_z - 0.42), Vector3(0.26, 0.32, 0.05), structure_root)
+			_add_window_band_local(Vector3(-0.76, upper_y + 0.08, upper_z + 0.08), Vector3(0.22, 0.3, 0.05), structure_root)
+			_add_window_band_local(Vector3(0.76, upper_y + 0.08, upper_z + 0.08), Vector3(0.22, 0.3, 0.05), structure_root)
+			_add_window_band_local(Vector3(0.0, upper_y + 0.26, upper_z - 0.5), Vector3(0.48, 0.26, 0.05), structure_root)
+			_add_window_band_local(Vector3(0.0, upper_y + 0.26, upper_z + 0.28), Vector3(0.32, 0.2, 0.05), structure_root)
+		_add_box(Vector3(0.0, upper_y - 0.22, upper_z - 0.02), Vector3(1.66, 0.08, 1.18), _make_material("d8c7ab", 0.9), structure_root)
+		_add_box(Vector3(-0.74, 1.54, -0.46), Vector3(0.18, 0.46, 0.18), _stone_material, structure_root)
+		_add_box(Vector3(0.74, 1.54, -0.46), Vector3(0.18, 0.46, 0.18), _stone_material, structure_root)
 
 
 func _apply_service_tier_visuals(root: Node3D, tool: String, tier: int, variant: int, profile: Dictionary) -> void:
@@ -4680,6 +4662,38 @@ func _add_house_front_lamp_local(position_3d: Vector3, parent: Node, preview: bo
 	_add_local_cylinder(Vector3(0.0, 0.72, 0.0), 0.035, 0.035, 1.42, pole_material, lamp_root)
 	if not preview:
 		_add_lantern_glow_local(Vector3(0.0, 1.42, 0.0), lamp_root)
+
+
+func _add_house_front_door_local(position_3d: Vector3, parent: Node, preview: bool = false) -> void:
+	var door_root := Node3D.new()
+	door_root.position = position_3d
+	parent.add_child(door_root)
+	var frame_material := _ghost_base_material if preview else _make_material("e8dccb", 0.88)
+	var door_material := _ghost_accent_material if preview else _make_material("7d5437", 0.7)
+	var threshold_material := _ghost_base_material if preview else _make_material("d8c7ab", 0.92)
+	var brass_material := _ghost_accent_material if preview else _make_material("c29c67", 0.54)
+	_add_box(Vector3(0.0, 0.44, 0.0), Vector3(0.34, 0.78, 0.08), frame_material, door_root)
+	_add_box(Vector3(0.0, 0.34, 0.03), Vector3(0.18, 0.56, 0.04), door_material, door_root)
+	_add_box(Vector3(0.0, 0.58, 0.04), Vector3(0.08, 0.08, 0.03), brass_material, door_root)
+	_add_box(Vector3(0.0, 0.08, 0.14), Vector3(0.42, 0.04, 0.22), threshold_material, door_root)
+
+
+func _add_house_entry_canopy_local(position_3d: Vector3, parent: Node, preview: bool = false, width: float = 0.76) -> void:
+	var canopy_root := Node3D.new()
+	canopy_root.position = position_3d
+	parent.add_child(canopy_root)
+	var roof_material := _ghost_base_material if preview else _make_material("bca58a", 0.82)
+	var post_material := _ghost_base_material if preview else _make_material("efe3cf", 0.86)
+	_add_box(Vector3(0.0, 0.8, 0.0), Vector3(width, 0.06, 0.18), roof_material, canopy_root)
+	_add_box(Vector3(-width * 0.34, 0.42, 0.0), Vector3(0.05, 0.42, 0.05), post_material, canopy_root)
+	_add_box(Vector3(width * 0.34, 0.42, 0.0), Vector3(0.05, 0.42, 0.05), post_material, canopy_root)
+	_add_box(Vector3(0.0, 0.06, 0.08), Vector3(width * 0.68, 0.04, 0.18), _ghost_base_material if preview else _make_material("d9cbb7", 0.9), canopy_root)
+
+
+func _add_house_entry_steps_local(position_3d: Vector3, parent: Node, preview: bool = false, width: float = 0.56) -> void:
+	var step_material := _ghost_base_material if preview else _make_material("d8c7ab", 0.9)
+	_add_box(position_3d + Vector3(0.0, 0.04, 0.0), Vector3(width, 0.04, 0.22), step_material, parent)
+	_add_box(position_3d + Vector3(0.0, 0.08, 0.12), Vector3(width * 0.82, 0.04, 0.16), step_material, parent)
 
 
 func _add_frontage_detail_cluster(parent: Node, width: float, z_position: float, accent: Color, kind: String) -> void:
