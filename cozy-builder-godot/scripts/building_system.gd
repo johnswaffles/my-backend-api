@@ -119,27 +119,27 @@ const AMBIENT_LIGHT_PRESETS := [
 const PROPERTY_FRONT_SETBACK := 1.0
 const PROPERTY_FRONT_SETBACK_BY_TOOL := {
 	BUILD_TOOL_HOUSE: 0.95,
-	BUILD_TOOL_FIRE: 1.18,
-	BUILD_TOOL_BANK: 1.16,
-	BUILD_TOOL_GROCERY: 1.12,
-	BUILD_TOOL_RESTAURANT: 1.1,
-	BUILD_TOOL_CORNER_STORE: 1.08,
+	BUILD_TOOL_FIRE: 1.34,
+	BUILD_TOOL_BANK: 1.3,
+	BUILD_TOOL_GROCERY: 1.28,
+	BUILD_TOOL_RESTAURANT: 1.26,
+	BUILD_TOOL_CORNER_STORE: 1.24,
 }
 const PROPERTY_LOT_SETBACK_BY_TOOL := {
 	BUILD_TOOL_HOUSE: 0.58,
-	BUILD_TOOL_FIRE: 0.56,
-	BUILD_TOOL_BANK: 0.56,
-	BUILD_TOOL_GROCERY: 0.58,
-	BUILD_TOOL_RESTAURANT: 0.56,
-	BUILD_TOOL_CORNER_STORE: 0.54,
+	BUILD_TOOL_FIRE: 0.86,
+	BUILD_TOOL_BANK: 0.84,
+	BUILD_TOOL_GROCERY: 0.82,
+	BUILD_TOOL_RESTAURANT: 0.8,
+	BUILD_TOOL_CORNER_STORE: 0.78,
 }
 const PROPERTY_BUFFER_BY_TOOL := {
 	BUILD_TOOL_HOUSE: 1,
-	BUILD_TOOL_FIRE: 0,
-	BUILD_TOOL_BANK: 0,
-	BUILD_TOOL_GROCERY: 0,
-	BUILD_TOOL_RESTAURANT: 0,
-	BUILD_TOOL_CORNER_STORE: 0,
+	BUILD_TOOL_FIRE: 1,
+	BUILD_TOOL_BANK: 1,
+	BUILD_TOOL_GROCERY: 1,
+	BUILD_TOOL_RESTAURANT: 1,
+	BUILD_TOOL_CORNER_STORE: 1,
 	BUILD_TOOL_PARK: 1,
 }
 const SIDEWALK_ROUTE_OFFSET := 1.96
@@ -1412,7 +1412,7 @@ func _frontage_transport_offset(tool: String) -> int:
 		BUILD_TOOL_RESTAURANT,
 		BUILD_TOOL_CORNER_STORE,
 	]:
-		return 1
+		return HOUSE_FRONT_BUFFER_CELLS + 1
 	return 2
 
 
@@ -3961,118 +3961,208 @@ func _apply_service_tier_visuals(root: Node3D, tool: String, tier: int, variant:
 	var lot_root := _property_lot_root(root)
 	var structure_root := _property_structure_root(root)
 
+	match tool:
+		BUILD_TOOL_FIRE:
+			_apply_fire_station_tier_visuals(lot_root, structure_root, tier, variant, profile, palette, accent, trim)
+		BUILD_TOOL_BANK:
+			_apply_bank_tier_visuals(lot_root, structure_root, tier, variant, profile, palette, accent, trim)
+		BUILD_TOOL_GROCERY:
+			_apply_grocery_tier_visuals(lot_root, structure_root, tier, variant, profile, palette, accent, trim)
+		BUILD_TOOL_RESTAURANT:
+			_apply_restaurant_tier_visuals(lot_root, structure_root, tier, variant, profile, palette, accent, trim)
+		BUILD_TOOL_CORNER_STORE:
+			_apply_corner_store_tier_visuals(lot_root, structure_root, tier, variant, profile, palette, accent, trim)
+
+
+func _apply_fire_station_tier_visuals(lot_root: Node3D, structure_root: Node3D, tier: int, variant: int, profile: Dictionary, palette: Dictionary, accent: Color, trim: Color) -> void:
 	if tier >= 2:
-		if bool(profile.get("landscaping", false)):
-			_add_shrub_cluster(Vector3(-1.16, 0.0, 1.22), trim, lot_root, 3)
-			_add_shrub_cluster(Vector3(1.16, 0.0, 1.22), accent, lot_root, 3)
-		_add_town_path(Vector3(0.0, 0.03, 1.44), Vector2(1.1, 0.32), lot_root)
-		_add_front_lanterns(lot_root, 1.38, 0.72)
-		if tool == BUILD_TOOL_FIRE:
-			if bool(profile.get("front_hall", false)):
-				_add_soft_block(Vector3(0.0, 0.3, 0.82), Vector3(1.44, 0.5, 0.7), _make_material_from_color(palette.wall.lightened(0.04), 0.94), structure_root, 0.12)
-				_add_gabled_roof(Vector3(0.0, 0.66, 0.82), Vector3(1.56, 0.12, 0.8), _make_material_from_color(palette.roof.darkened(0.02), 0.78), structure_root, 11.0)
-				_add_box(Vector3(0.0, 0.14, 1.12), Vector3(0.42, 0.44, 0.06), _window_material, structure_root)
-				_add_box(Vector3(0.0, 0.04, 1.3), Vector3(0.98, 0.04, 0.08), _make_material_from_color(accent, 0.46), lot_root)
-				_add_service_steps(lot_root, 1.38, 0.92)
-			if bool(profile.get("bay_extend", false)):
-				_add_soft_block(Vector3(1.0, 0.34, -0.08), Vector3(0.92, 0.62, 1.14), _make_material_from_color(palette.trim.darkened(0.01), 0.9), structure_root, 0.1)
-				_add_gabled_roof(Vector3(1.0, 0.76, -0.08), Vector3(1.04, 0.12, 1.24), _make_material_from_color(palette.roof.darkened(0.02), 0.76), structure_root, 11.0)
-				_add_box(Vector3(1.0, 0.36, 0.46), Vector3(0.36, 0.5, 0.05), _window_material, structure_root)
+		if bool(profile.get("front_hall", false)):
+			_add_soft_block(Vector3(0.0, 0.36, 0.84), Vector3(1.58, 0.56, 0.78), _make_material_from_color(palette["wall"].lightened(0.05), 0.94), structure_root, 0.12)
+			_add_gabled_roof(Vector3(0.0, 0.72, 0.84), Vector3(1.72, 0.12, 0.86), _make_material_from_color(palette["roof"].darkened(0.02), 0.78), structure_root, 11.0)
+			_add_box(Vector3(0.0, 0.16, 1.1), Vector3(0.42, 0.42, 0.06), _window_material, structure_root)
+			_add_box(Vector3(0.0, 0.04, 1.32), Vector3(1.02, 0.04, 0.08), _make_material_from_color(accent, 0.42), lot_root)
+			_add_service_steps(lot_root, 1.36, 0.92)
+		if bool(profile.get("bay_extend", false)):
+			_add_soft_block(Vector3(1.0, 0.34, -0.1), Vector3(0.98, 0.64, 1.16), _make_material_from_color(palette["trim"].darkened(0.01), 0.9), structure_root, 0.1)
+			_add_gabled_roof(Vector3(1.0, 0.78, -0.1), Vector3(1.1, 0.12, 1.22), _make_material_from_color(palette["roof"].darkened(0.02), 0.76), structure_root, 11.0)
+			_add_box(Vector3(1.0, 0.36, 0.44), Vector3(0.36, 0.5, 0.05), _window_material, structure_root)
 
 	if tier >= 3:
-		match tool:
-			BUILD_TOOL_FIRE:
-				if bool(profile.get("bay_extend", false)):
-					_add_soft_block(Vector3(-1.02, 0.34, -0.12), Vector3(0.82, 0.56, 1.02), _make_material_from_color(palette.wall.darkened(0.01), 0.92), structure_root, 0.1)
-					_add_gabled_roof(Vector3(-1.02, 0.72, -0.12), Vector3(0.96, 0.12, 1.14), _make_material_from_color(palette.roof.darkened(0.02), 0.76), structure_root, 11.0)
-				if bool(profile.get("hose_tower", false)):
-					_add_soft_block(Vector3(1.02, 0.48, -0.78), Vector3(0.5, 0.96, 0.5), _make_material_from_color(palette.trim.darkened(0.01), 0.9), structure_root, 0.1)
-					_add_gabled_roof(Vector3(1.02, 1.08, -0.78), Vector3(0.6, 0.1, 0.6), _make_material_from_color(palette.roof.darkened(0.03), 0.76), structure_root, 14.0)
-				if bool(profile.get("parking_expand", false)):
-					_add_fire_parking_lot(Vector3(1.22, 0.0, -0.18), Vector3(1.84, 1.0, 1.7), lot_root)
-			BUILD_TOOL_BANK:
-				if bool(profile.get("front_hall", false)):
-					_add_frontage_detail_cluster(lot_root, 2.0, 1.34, accent, "vault")
-				if bool(profile.get("side_wing", false)):
-					_add_soft_block(Vector3(1.1, 0.72, -0.62), Vector3(0.72, 0.56, 0.9), _make_material_from_color(palette.wall.lightened(0.02), 0.9), structure_root, 0.12)
-					_add_gabled_roof(Vector3(1.1, 1.1, -0.62), Vector3(0.92, 0.12, 1.08), _make_material_from_color(palette.roof.darkened(0.01), 0.76), structure_root, 10.0)
-				if bool(profile.get("plaza", false)):
-					_add_box(Vector3(0.0, 0.04, 0.92), Vector3(2.1, 0.03, 0.68), _make_material("d8d1c2", 0.94), lot_root)
-					_add_box(Vector3(-0.84, 0.05, 1.14), Vector3(0.12, 0.08, 0.42), _make_material("f1eadc", 0.92), lot_root)
-					_add_box(Vector3(0.84, 0.05, 1.14), Vector3(0.12, 0.08, 0.42), _make_material("f1eadc", 0.92), lot_root)
-				if bool(profile.get("landscaping", false)):
-					_add_shrub_cluster(Vector3(0.0, 0.0, 1.46), trim, lot_root, 4)
-			BUILD_TOOL_GROCERY:
-				if bool(profile.get("parking", false)):
-					_add_box(Vector3(1.34, 0.04, 0.78), Vector3(1.18, 0.04, 0.84), _road_mark_material, lot_root)
-				if bool(profile.get("service_wing", false)):
-					_add_crate_stack_local(Vector3(-1.48, 0.08, 1.02), accent, lot_root)
-				if bool(profile.get("awning", false)):
-					_add_box(Vector3(0.0, 0.03, 1.34), Vector3(1.4, 0.04, 0.08), _make_material_from_color(trim, 0.42), structure_root)
-			BUILD_TOOL_RESTAURANT:
-				if bool(profile.get("patio", false)):
-					_add_box(Vector3(-0.84, 0.08, 1.12), Vector3(1.42, 0.04, 0.08), _make_material_from_color(accent, 0.42), lot_root)
-					_add_box(Vector3(0.84, 0.08, 1.12), Vector3(1.42, 0.04, 0.08), _make_material_from_color(accent, 0.42), lot_root)
-				if bool(profile.get("pergola", false)):
-					_add_box(Vector3(0.0, 0.04, 1.44), Vector3(1.34, 0.04, 0.08), _make_material_from_color(trim, 0.42), lot_root)
-			BUILD_TOOL_CORNER_STORE:
-				if bool(profile.get("corner_awning", false)):
-					_add_box(Vector3(-1.08, 0.08, 1.12), Vector3(1.28, 0.04, 0.08), _make_material_from_color(accent, 0.42), structure_root)
-				if bool(profile.get("delivery_nook", false)):
-					_add_crate_stack_local(Vector3(0.84, 0.08, 1.02), trim, lot_root)
+		if bool(profile.get("bay_extend", false)):
+			_add_soft_block(Vector3(-1.02, 0.34, -0.14), Vector3(0.82, 0.6, 1.0), _make_material_from_color(palette["wall"].darkened(0.01), 0.92), structure_root, 0.1)
+			_add_gabled_roof(Vector3(-1.02, 0.74, -0.14), Vector3(0.96, 0.12, 1.1), _make_material_from_color(palette["roof"].darkened(0.02), 0.76), structure_root, 11.0)
+			_add_box(Vector3(-1.02, 0.36, 0.42), Vector3(0.28, 0.42, 0.05), _window_material, structure_root)
+		if bool(profile.get("hose_tower", false)):
+			_add_soft_block(Vector3(1.08, 0.5, -0.8), Vector3(0.54, 1.02, 0.54), _make_material_from_color(palette["trim"].darkened(0.01), 0.9), structure_root, 0.1)
+			_add_gabled_roof(Vector3(1.08, 1.12, -0.8), Vector3(0.64, 0.1, 0.64), _make_material_from_color(palette["roof"].darkened(0.03), 0.76), structure_root, 14.0)
+			_add_box(Vector3(1.08, 0.94, -0.8), Vector3(0.18, 0.18, 0.06), _window_material, structure_root)
+		if bool(profile.get("parking_expand", false)):
+			_add_fire_parking_lot(Vector3(1.18, 0.0, -0.18), Vector3(1.94, 1.0, 1.72), lot_root)
 
 	if tier >= 4:
-		match tool:
-			BUILD_TOOL_FIRE:
-				if bool(profile.get("second_story", false)):
-					_add_soft_block(Vector3(0.0, 1.2, -0.08), Vector3(1.62, 0.78, 1.22), _make_material_from_color(palette.wall.lightened(0.06), 0.94), structure_root, 0.12)
-					_add_gabled_roof(Vector3(0.0, 1.82, -0.08), Vector3(1.82, 0.14, 1.36), _make_material_from_color(palette.roof.darkened(0.02), 0.76), structure_root, 12.0)
-					_add_box(Vector3(0.0, 1.02, 0.5), Vector3(0.52, 0.22, 0.06), _window_material, structure_root)
-					_add_box(Vector3(0.0, 1.2, -0.6), Vector3(0.44, 0.18, 0.06), _window_material, structure_root)
-				if bool(profile.get("parking_expand", false)):
-					_add_box(Vector3(-1.08, 0.08, 1.5), Vector3(2.28, 0.08, 0.06), _make_material_from_color(accent, 0.4), lot_root)
-					_add_box(Vector3(0.0, 0.08, 1.68), Vector3(1.62, 0.04, 0.12), _make_material_from_color(trim, 0.44), lot_root)
-					_add_fire_truck_local(Vector3(-0.34, 0.02, 0.38), 0.0, lot_root)
-			BUILD_TOOL_BANK:
-				if bool(profile.get("front_hall", false)):
-					_add_soft_block(Vector3(0.0, 0.34, 0.72), Vector3(1.64, 0.52, 0.74), _make_material_from_color(palette.wall.lightened(0.06), 0.94), structure_root, 0.12)
-					_add_gabled_roof(Vector3(0.0, 0.72, 0.72), Vector3(1.78, 0.12, 0.84), _make_material_from_color(palette.roof.darkened(0.01), 0.78), structure_root, 11.0)
-					for col_x in [-0.58, -0.2, 0.2, 0.58]:
-						_add_local_cylinder(Vector3(col_x, 0.22, 1.0), 0.06, 0.06, 0.5, _make_material_from_color(trim, 0.84), structure_root)
-					_add_box(Vector3(0.0, 0.16, 1.16), Vector3(0.46, 0.42, 0.06), _window_material, structure_root)
-					_add_box(Vector3(0.0, 0.04, 1.36), Vector3(1.18, 0.04, 0.08), _make_material_from_color(accent, 0.46), lot_root)
-				if bool(profile.get("plaza", false)):
-					_add_box(Vector3(0.0, 0.03, 1.58), Vector3(2.0, 0.03, 0.62), _make_material("d8d1c2", 0.94), lot_root)
-					_add_box(Vector3(-0.76, 0.05, 1.72), Vector3(0.12, 0.08, 0.34), _make_material("f1eadc", 0.92), lot_root)
-					_add_box(Vector3(0.76, 0.05, 1.72), Vector3(0.12, 0.08, 0.34), _make_material("f1eadc", 0.92), lot_root)
-				if bool(profile.get("side_wing", false)):
-					var side := -1.0 if posmod(variant, 2) == 0 else 1.0
-					_add_soft_block(Vector3(side * 1.12, 0.52, -0.18), Vector3(0.84, 0.72, 1.1), _make_material_from_color(palette.wall.darkened(0.02), 0.92), structure_root, 0.12)
-					_add_gabled_roof(Vector3(side * 1.12, 1.0, -0.18), Vector3(0.98, 0.12, 1.22), _make_material_from_color(palette.roof.darkened(0.01), 0.76), structure_root, 10.0)
-				if bool(profile.get("upper_story", false)):
-					_add_soft_block(Vector3(0.0, 1.18, -0.04), Vector3(1.5, 0.76, 1.08), _make_material_from_color(palette.wall.lightened(0.05), 0.93), structure_root, 0.12)
-					_add_gabled_roof(Vector3(0.0, 1.76, -0.04), Vector3(1.68, 0.12, 1.2), _make_material_from_color(palette.roof.darkened(0.02), 0.76), structure_root, 13.0)
-					_add_box(Vector3(0.0, 1.0, 0.48), Vector3(0.44, 0.2, 0.06), _window_material, structure_root)
-					_add_box(Vector3(0.0, 1.16, -0.52), Vector3(0.4, 0.18, 0.06), _window_material, structure_root)
-				if bool(profile.get("landscaping", false)):
-					_add_shrub_cluster(Vector3(-1.12, 0.0, 1.26), trim, lot_root, 2)
-					_add_shrub_cluster(Vector3(1.12, 0.0, 1.26), accent, lot_root, 2)
-			BUILD_TOOL_GROCERY:
-				if bool(profile.get("parking", false)):
-					_add_box(Vector3(0.0, 0.04, 0.38), Vector3(2.0, 0.03, 1.32), _road_mark_material, lot_root)
-				if bool(profile.get("landscaping", false)):
-					_add_box(Vector3(-1.36, 0.08, 1.34), Vector3(0.32, 0.32, 0.12), _make_material_from_color(accent, 0.66), lot_root)
-					_add_box(Vector3(1.36, 0.08, 1.34), Vector3(0.32, 0.32, 0.12), _make_material_from_color(accent, 0.66), lot_root)
-			BUILD_TOOL_RESTAURANT:
-				if bool(profile.get("garden_room", false)):
-					_add_box(Vector3(0.0, 0.08, 1.62), Vector3(1.86, 0.04, 0.08), _make_material_from_color(accent, 0.42), lot_root)
-					_add_bench_local(Vector3(-0.84, 0.02, 1.58), 0.0, lot_root)
-					_add_bench_local(Vector3(0.84, 0.02, 1.58), 0.0, lot_root)
-			BUILD_TOOL_CORNER_STORE:
-				if bool(profile.get("side_sign", false)):
-					_add_box(Vector3(0.76, 0.08, 1.48), Vector3(0.18, 0.34, 0.12), _make_material_from_color(trim, 0.82), structure_root)
-				if bool(profile.get("landscaping", false)):
-					_add_shrub_cluster(Vector3(-0.92, 0.0, 1.36), accent, lot_root, 4)
+		if bool(profile.get("second_story", false)):
+			_add_soft_block(Vector3(0.0, 1.22, -0.06), Vector3(1.74, 0.8, 1.24), _make_material_from_color(palette["wall"].lightened(0.06), 0.94), structure_root, 0.12)
+			_add_gabled_roof(Vector3(0.0, 1.86, -0.06), Vector3(1.88, 0.14, 1.38), _make_material_from_color(palette["roof"].darkened(0.02), 0.76), structure_root, 12.0)
+			_add_box(Vector3(0.0, 1.04, 0.5), Vector3(0.52, 0.22, 0.06), _window_material, structure_root)
+			_add_box(Vector3(0.0, 1.2, -0.58), Vector3(0.44, 0.18, 0.06), _window_material, structure_root)
+		if bool(profile.get("parking_expand", false)):
+			_add_box(Vector3(-1.08, 0.08, 1.5), Vector3(2.34, 0.08, 0.06), _make_material_from_color(accent, 0.4), lot_root)
+			_add_box(Vector3(0.0, 0.08, 1.68), Vector3(1.72, 0.04, 0.12), _make_material_from_color(trim, 0.44), lot_root)
+			_add_fire_truck_local(Vector3(-0.34, 0.02, 0.38), 0.0, lot_root)
+
+
+func _apply_bank_tier_visuals(lot_root: Node3D, structure_root: Node3D, tier: int, variant: int, profile: Dictionary, palette: Dictionary, accent: Color, trim: Color) -> void:
+	if tier >= 2:
+		if bool(profile.get("front_hall", false)):
+			_add_soft_block(Vector3(0.0, 0.36, 0.78), Vector3(1.72, 0.56, 0.84), _make_material_from_color(palette["wall"].lightened(0.05), 0.94), structure_root, 0.12)
+			_add_gabled_roof(Vector3(0.0, 0.78, 0.78), Vector3(1.86, 0.12, 0.92), _make_material_from_color(palette["roof"].darkened(0.01), 0.78), structure_root, 10.0)
+			_add_box(Vector3(-0.56, 0.18, 0.98), Vector3(0.18, 0.36, 0.06), _window_material, structure_root)
+			_add_box(Vector3(0.56, 0.18, 0.98), Vector3(0.18, 0.36, 0.06), _window_material, structure_root)
+			_add_box(Vector3(0.0, 0.22, 1.12), Vector3(0.46, 0.4, 0.06), _window_material, structure_root)
+			for col_x in [-0.64, -0.22, 0.22, 0.64]:
+				_add_local_cylinder(Vector3(col_x, 0.22, 1.02), 0.06, 0.06, 0.52, _make_material_from_color(trim, 0.84), structure_root)
+			_add_box(Vector3(0.0, 0.04, 1.28), Vector3(1.2, 0.04, 0.08), _make_material_from_color(accent, 0.44), lot_root)
+			_add_box(Vector3(0.0, 0.04, 1.48), Vector3(1.86, 0.03, 0.72), _make_material("d8d1c2", 0.94), lot_root)
+		if bool(profile.get("plaza", false)):
+			_add_box(Vector3(0.0, 0.03, 1.7), Vector3(2.0, 0.03, 0.62), _make_material("d8d1c2", 0.94), lot_root)
+			_add_box(Vector3(-0.76, 0.05, 1.84), Vector3(0.12, 0.08, 0.34), _make_material("f1eadc", 0.92), lot_root)
+			_add_box(Vector3(0.76, 0.05, 1.84), Vector3(0.12, 0.08, 0.34), _make_material("f1eadc", 0.92), lot_root)
+
+	if tier >= 3:
+		if bool(profile.get("side_wing", false)):
+			var side := -1.0 if posmod(variant, 2) == 0 else 1.0
+			_add_soft_block(Vector3(side * 1.14, 0.7, -0.54), Vector3(0.86, 0.72, 1.02), _make_material_from_color(palette["wall"].darkened(0.01), 0.92), structure_root, 0.12)
+			_add_gabled_roof(Vector3(side * 1.14, 1.12, -0.54), Vector3(0.98, 0.12, 1.12), _make_material_from_color(palette["roof"].darkened(0.01), 0.76), structure_root, 10.0)
+			_add_box(Vector3(side * 1.14, 0.36, 0.04), Vector3(0.28, 0.42, 0.05), _window_material, structure_root)
+			_add_box(Vector3(side * 1.14, 0.72, -0.42), Vector3(0.18, 0.22, 0.05), _window_material, structure_root)
+		if bool(profile.get("landscaping", false)):
+			_add_shrub_cluster(Vector3(0.0, 0.0, 1.46), trim, lot_root, 4)
+
+	if tier >= 4:
+		if bool(profile.get("upper_story", false)):
+			_add_soft_block(Vector3(0.0, 1.24, 0.0), Vector3(1.58, 0.82, 1.1), _make_material_from_color(palette["wall"].lightened(0.06), 0.94), structure_root, 0.12)
+			_add_gabled_roof(Vector3(0.0, 1.9, 0.0), Vector3(1.76, 0.14, 1.24), _make_material_from_color(palette["roof"].darkened(0.01), 0.76), structure_root, 12.0)
+			_add_box(Vector3(-0.54, 1.08, 0.5), Vector3(0.24, 0.28, 0.06), _window_material, structure_root)
+			_add_box(Vector3(0.54, 1.08, 0.5), Vector3(0.24, 0.28, 0.06), _window_material, structure_root)
+			_add_box(Vector3(0.0, 1.18, -0.52), Vector3(0.46, 0.24, 0.06), _window_material, structure_root)
+		if bool(profile.get("plaza", false)):
+			_add_box(Vector3(0.0, 0.03, 1.96), Vector3(2.18, 0.03, 0.52), _make_material("d8d1c2", 0.94), lot_root)
+			_add_box(Vector3(-0.76, 0.05, 2.08), Vector3(0.12, 0.08, 0.3), _make_material("f1eadc", 0.92), lot_root)
+			_add_box(Vector3(0.76, 0.05, 2.08), Vector3(0.12, 0.08, 0.3), _make_material("f1eadc", 0.92), lot_root)
+
+
+func _apply_grocery_tier_visuals(lot_root: Node3D, structure_root: Node3D, tier: int, variant: int, profile: Dictionary, palette: Dictionary, accent: Color, trim: Color) -> void:
+	var width := 3.0 + float(variant % 3) * 0.16
+	var depth := 2.02 + float(int(variant / 3) % 2) * 0.16
+	var height := 0.96 + float(int(variant / 5)) * 0.1
+	if tier >= 2:
+		if bool(profile.get("awning", false)):
+			_add_soft_block(Vector3(0.0, 0.38, -0.14), Vector3(width * 0.98, height + 0.18, depth + 0.12), _make_material_from_color(palette["wall"].lightened(0.03), 0.92), structure_root, 0.16)
+			_add_gabled_roof(Vector3(0.0, height + 0.24, -0.14), Vector3(width + 0.22, 0.16, depth + 0.26), _make_material_from_color(palette["roof"].darkened(0.01), 0.76), structure_root, 8.0)
+			_add_box(Vector3(0.0, 0.22, 0.46), Vector3(width * 0.58, 0.3, 0.05), _window_material, structure_root)
+			_add_box(Vector3(0.0, 0.82, 0.52), Vector3(width * 0.6, 0.1, 0.05), _make_material_from_color(trim, 0.42), structure_root)
+			_add_box(Vector3(0.0, 0.03, 1.18), Vector3(width * 0.88, 0.04, 0.08), _make_material_from_color(trim, 0.42), lot_root)
+		if bool(profile.get("parking", false)):
+			_add_box(Vector3(1.34, 0.04, 0.78), Vector3(1.18, 0.04, 0.84), _road_mark_material, lot_root)
+
+	if tier >= 3:
+		if bool(profile.get("service_wing", false)):
+			_add_soft_block(Vector3(-1.34, 0.36, 0.16), Vector3(0.88, 0.72, 1.02), _make_material_from_color(palette["wall"].darkened(0.02), 0.92), structure_root, 0.12)
+			_add_gabled_roof(Vector3(-1.34, 0.82, 0.16), Vector3(1.0, 0.12, 1.12), _make_material_from_color(palette["roof"].darkened(0.01), 0.76), structure_root, 9.0)
+			_add_box(Vector3(-1.34, 0.34, 0.56), Vector3(0.3, 0.36, 0.05), _window_material, structure_root)
+			_add_crate_stack_local(Vector3(-1.48, 0.08, 1.02), accent, lot_root)
+		if bool(profile.get("parking", false)):
+			_add_box(Vector3(0.0, 0.04, 0.38), Vector3(2.0, 0.03, 1.32), _road_mark_material, lot_root)
+		if bool(profile.get("landscaping", false)):
+			_add_box(Vector3(-1.36, 0.08, 1.34), Vector3(0.32, 0.32, 0.12), _make_material_from_color(accent, 0.66), lot_root)
+			_add_box(Vector3(1.36, 0.08, 1.34), Vector3(0.32, 0.32, 0.12), _make_material_from_color(accent, 0.66), lot_root)
+
+	if tier >= 4:
+		_add_soft_block(Vector3(0.0, 1.14, -0.18), Vector3(width * 0.82, 0.78, depth * 0.86), _make_material_from_color(palette["wall"].lightened(0.06), 0.94), structure_root, 0.12)
+		_add_gabled_roof(Vector3(0.0, 1.72, -0.18), Vector3(width * 0.96, 0.14, depth * 0.96), _make_material_from_color(palette["roof"].darkened(0.01), 0.76), structure_root, 7.0)
+		_add_box(Vector3(-0.48, 0.98, 0.42), Vector3(0.22, 0.28, 0.05), _window_material, structure_root)
+		_add_box(Vector3(0.48, 0.98, 0.42), Vector3(0.22, 0.28, 0.05), _window_material, structure_root)
+		_add_box(Vector3(0.0, 1.18, -0.42), Vector3(0.44, 0.26, 0.05), _window_material, structure_root)
+		if bool(profile.get("landscaping", false)):
+			_add_box(Vector3(-1.2, 0.08, 1.52), Vector3(0.22, 0.18, 0.14), _make_material_from_color(accent, 0.66), lot_root)
+			_add_box(Vector3(1.2, 0.08, 1.52), Vector3(0.22, 0.18, 0.14), _make_material_from_color(trim, 0.66), lot_root)
+
+
+func _apply_restaurant_tier_visuals(lot_root: Node3D, structure_root: Node3D, tier: int, variant: int, profile: Dictionary, palette: Dictionary, accent: Color, trim: Color) -> void:
+	var width := 2.6 + float(variant % 3) * 0.16
+	var depth := 1.84 + float(variant % 2) * 0.16
+	var height := 0.96 + float(int(variant / 4)) * 0.08
+	if tier >= 2:
+		if bool(profile.get("patio", false)):
+			_add_soft_block(Vector3(0.0, 0.38, -0.06), Vector3(width * 0.98, height + 0.18, depth + 0.18), _make_material_from_color(palette["wall"].lightened(0.04), 0.92), structure_root, 0.16)
+			_add_gabled_roof(Vector3(0.0, height + 0.24, -0.06), Vector3(width + 0.2, 0.18, depth + 0.24), _make_material_from_color(palette["roof"].darkened(0.01), 0.76), structure_root, 11.0)
+			_add_box(Vector3(0.0, 0.24, 0.5), Vector3(width * 0.5, 0.32, 0.05), _window_material, structure_root)
+			_add_box(Vector3(0.0, 0.84, 0.56), Vector3(width * 0.52, 0.1, 0.05), _make_material_from_color(trim, 0.42), structure_root)
+			_add_box(Vector3(0.0, 0.04, 1.02), Vector3(width * 0.84, 0.04, 0.08), _make_material_from_color(accent, 0.42), lot_root)
+		if bool(profile.get("landscaping", false)):
+			_add_bench_local(Vector3(-0.84, 0.02, 1.18), 0.0, lot_root)
+			_add_bench_local(Vector3(0.84, 0.02, 1.18), 0.0, lot_root)
+
+	if tier >= 3:
+		if bool(profile.get("pergola", false)):
+			_add_soft_block(Vector3(0.96, 0.36, 0.36), Vector3(0.78, 0.68, 0.94), _make_material_from_color(palette["trim"].darkened(0.01), 0.9), structure_root, 0.1)
+			_add_gabled_roof(Vector3(0.96, 0.84, 0.36), Vector3(0.9, 0.12, 1.04), _make_material_from_color(palette["roof"].darkened(0.01), 0.76), structure_root, 10.0)
+			_add_box(Vector3(0.96, 0.34, 0.72), Vector3(0.3, 0.4, 0.05), _window_material, structure_root)
+		if bool(profile.get("garden_room", false)):
+			_add_soft_block(Vector3(-0.96, 0.38, 0.36), Vector3(0.82, 0.7, 0.96), _make_material_from_color(palette["wall"].darkened(0.02), 0.92), structure_root, 0.1)
+			_add_gabled_roof(Vector3(-0.96, 0.86, 0.36), Vector3(0.94, 0.12, 1.08), _make_material_from_color(palette["roof"].darkened(0.01), 0.76), structure_root, 11.0)
+			_add_box(Vector3(-0.96, 0.34, 0.72), Vector3(0.3, 0.4, 0.05), _window_material, structure_root)
+		if bool(profile.get("patio", false)):
+			_add_box(Vector3(-0.84, 0.08, 1.12), Vector3(1.42, 0.04, 0.08), _make_material_from_color(accent, 0.42), lot_root)
+			_add_box(Vector3(0.84, 0.08, 1.12), Vector3(1.42, 0.04, 0.08), _make_material_from_color(accent, 0.42), lot_root)
+
+	if tier >= 4:
+		if bool(profile.get("garden_room", false)):
+			_add_soft_block(Vector3(0.0, 1.16, -0.02), Vector3(width * 0.88, 0.78, depth * 0.88), _make_material_from_color(palette["wall"].lightened(0.06), 0.94), structure_root, 0.12)
+			_add_gabled_roof(Vector3(0.0, 1.76, -0.02), Vector3(width + 0.18, 0.14, depth + 0.18), _make_material_from_color(palette["roof"].darkened(0.01), 0.76), structure_root, 11.0)
+			_add_box(Vector3(-0.44, 1.0, 0.5), Vector3(0.22, 0.26, 0.05), _window_material, structure_root)
+			_add_box(Vector3(0.44, 1.0, 0.5), Vector3(0.22, 0.26, 0.05), _window_material, structure_root)
+			_add_box(Vector3(0.0, 1.16, -0.5), Vector3(0.4, 0.22, 0.05), _window_material, structure_root)
+		if bool(profile.get("pergola", false)):
+			_add_box(Vector3(0.0, 0.08, 1.62), Vector3(1.86, 0.04, 0.08), _make_material_from_color(accent, 0.42), lot_root)
+
+
+func _apply_corner_store_tier_visuals(lot_root: Node3D, structure_root: Node3D, tier: int, variant: int, profile: Dictionary, palette: Dictionary, accent: Color, trim: Color) -> void:
+	var width := 2.28 + float(variant % 3) * 0.14
+	var depth := 1.74 + float(int(variant / 3) % 2) * 0.12
+	var height := 0.92 + float(int(variant / 5)) * 0.1
+	if tier >= 2:
+		if bool(profile.get("corner_awning", false)):
+			_add_soft_block(Vector3(0.0, 0.36, -0.08), Vector3(width + 0.22, height + 0.18, depth + 0.18), _make_material_from_color(palette["wall"].lightened(0.03), 0.92), structure_root, 0.16)
+			_add_gabled_roof(Vector3(0.0, height + 0.22, -0.08), Vector3(width + 0.32, 0.16, depth + 0.22), _make_material_from_color(palette["roof"].darkened(0.01), 0.76), structure_root, 10.0)
+			_add_box(Vector3(-width * 0.2, 0.24, 0.54), Vector3(width * 0.22, 0.34, 0.05), _window_material, structure_root)
+			_add_box(Vector3(width * 0.2, 0.24, 0.54), Vector3(width * 0.22, 0.34, 0.05), _window_material, structure_root)
+			_add_box(Vector3(-0.18, 0.82, 0.58), Vector3(width * 0.48, 0.1, 0.05), _make_material_from_color(trim, 0.42), structure_root)
+			_add_box(Vector3(0.0, 0.04, 1.02), Vector3(width * 0.82, 0.04, 0.08), _make_material_from_color(accent, 0.42), lot_root)
+		if bool(profile.get("landscaping", false)):
+			_add_shrub_cluster(Vector3(-1.02, 0.0, 1.1), accent, lot_root, 2)
+			_add_shrub_cluster(Vector3(0.42, 0.0, 1.1), trim, lot_root, 2)
+
+	if tier >= 3:
+		if bool(profile.get("delivery_nook", false)):
+			_add_soft_block(Vector3(0.84, 0.36, -0.4), Vector3(0.56, 0.7, 0.74), _make_material_from_color(palette["trim"].darkened(0.01), 0.9), structure_root, 0.1)
+			_add_gabled_roof(Vector3(0.84, 0.84, -0.4), Vector3(0.68, 0.12, 0.88), _make_material_from_color(palette["roof"].darkened(0.02), 0.76), structure_root, 9.0)
+			_add_box(Vector3(0.84, 0.34, -0.02), Vector3(0.18, 0.36, 0.05), _window_material, structure_root)
+			_add_crate_stack_local(Vector3(0.84, 0.08, 1.02), trim, lot_root)
+		if bool(profile.get("side_sign", false)):
+			_add_box(Vector3(0.76, 0.08, 1.48), Vector3(0.18, 0.34, 0.12), _make_material_from_color(trim, 0.82), structure_root)
+		if bool(profile.get("landscaping", false)):
+			_add_shrub_cluster(Vector3(-0.92, 0.0, 1.36), accent, lot_root, 4)
+
+	if tier >= 4:
+		if bool(profile.get("side_sign", false)):
+			_add_soft_block(Vector3(0.0, 1.12, -0.06), Vector3(width + 0.12, 0.8, depth + 0.1), _make_material_from_color(palette["wall"].lightened(0.06), 0.94), structure_root, 0.12)
+			_add_gabled_roof(Vector3(0.0, 1.74, -0.06), Vector3(width + 0.26, 0.14, depth + 0.24), _make_material_from_color(palette["roof"].darkened(0.01), 0.76), structure_root, 10.0)
+			_add_box(Vector3(-0.48, 0.98, 0.5), Vector3(0.2, 0.26, 0.05), _window_material, structure_root)
+			_add_box(Vector3(0.48, 0.98, 0.5), Vector3(0.2, 0.26, 0.05), _window_material, structure_root)
+			_add_box(Vector3(0.0, 1.12, -0.48), Vector3(0.38, 0.24, 0.05), _window_material, structure_root)
+		if bool(profile.get("delivery_nook", false)):
+			_add_box(Vector3(0.92, 0.04, 1.62), Vector3(0.34, 0.08, 0.2), _make_material_from_color(accent, 0.42), lot_root)
 
 
 func _apply_park_tier_visuals(root: Node3D, tier: int, variant: int, profile: Dictionary) -> void:
