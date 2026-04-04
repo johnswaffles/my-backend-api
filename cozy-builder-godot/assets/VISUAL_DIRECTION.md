@@ -3,7 +3,7 @@
 ## North Star
 - Soft handcrafted diorama
 - Cozy village-builder, not toy-plastic city sim
-- Warm golden-hour atmosphere
+- Clear daylight baseline with warm highlights
 - Rotation-safe visuals with no baked directional lighting
 - Buildings, roads, and nature should feel like they belong to the same miniature world
 
@@ -21,9 +21,10 @@
 
 ## Lighting language
 - Real-time lighting only
-- Golden directional sun with soft fill light
-- Gentle fog and warm atmosphere
+- Clear directional sun with soft fill light
+- No global fog wash or haze layer
 - Soft contact shadows under parcels, trees, props, people, and cars
+- Local light pools from lamps, windows, headlights, and signage
 - Rotation must never break the illusion
 
 ## World-detail rules
