@@ -261,6 +261,7 @@ var _zoom_out_button: Button
 var _nature_root: Node3D
 var _music_player: AudioStreamPlayer
 var _music_button: Button
+var _music_start_pending := false
 var _ambient_dropdown: OptionButton
 var _ambient_light_scale := 1.0
 var _music_enabled := true
@@ -297,6 +298,7 @@ func _process(delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	_maybe_start_music_from_user_gesture(event)
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
 			KEY_1:
@@ -441,8 +443,7 @@ func _create_runtime_helpers() -> void:
 	_music_player.volume_db = -12.0
 	add_child(_music_player)
 	_load_music_stream()
-	if _music_player.stream != null:
-		_music_player.play()
+	_music_start_pending = _music_player.stream != null
 
 
 func _build_hud() -> void:
@@ -816,6 +817,25 @@ func _load_music_stream() -> void:
 	_music_player.stream = stream
 
 
+func _maybe_start_music_from_user_gesture(event: InputEvent) -> void:
+	if not _music_start_pending or not _music_enabled:
+		return
+	if not is_instance_valid(_music_player) or _music_player.stream == null:
+		return
+	var should_start := false
+	if event is InputEventKey and event.pressed and not event.echo:
+		should_start = true
+	elif event is InputEventMouseButton and event.pressed:
+		should_start = true
+	elif event is InputEventScreenTouch and event.pressed:
+		should_start = true
+	if not should_start:
+		return
+	_music_start_pending = false
+	if not _music_player.playing:
+		_music_player.play()
+
+
 func _toggle_music() -> void:
 	if not is_instance_valid(_music_player):
 		return
@@ -827,6 +847,7 @@ func _toggle_music() -> void:
 		return
 	_music_enabled = not _music_enabled
 	if _music_enabled:
+		_music_start_pending = false
 		_music_player.play()
 	else:
 		_music_player.stop()
