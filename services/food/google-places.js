@@ -43,37 +43,43 @@ export async function searchGooglePlaces(request, apiKey) {
   const radiusMeters = milesToMeters(request.radiusMiles || 18);
   const queries = buildFoodQueries(request);
   const allCandidates = [];
+  const warnings = [];
 
   for (const searchQuery of queries) {
-    const url = location
-      ? new URL(`${GOOGLE_PLACES_BASE}/nearbysearch/json`)
-      : new URL(`${GOOGLE_PLACES_BASE}/textsearch/json`);
+    try {
+      const url = location
+        ? new URL(`${GOOGLE_PLACES_BASE}/nearbysearch/json`)
+        : new URL(`${GOOGLE_PLACES_BASE}/textsearch/json`);
 
-    if (location) {
-      url.searchParams.set('location', `${location.lat},${location.lng}`);
-      url.searchParams.set('radius', String(radiusMeters));
-      url.searchParams.set('type', 'restaurant');
-      url.searchParams.set('keyword', searchQuery);
-    } else {
-      url.searchParams.set('query', searchQuery);
-      url.searchParams.set('region', 'us');
-    }
+      if (location) {
+        url.searchParams.set('location', `${location.lat},${location.lng}`);
+        url.searchParams.set('radius', String(radiusMeters));
+        url.searchParams.set('type', 'restaurant');
+        url.searchParams.set('keyword', searchQuery);
+      } else {
+        url.searchParams.set('query', searchQuery);
+        url.searchParams.set('region', 'us');
+      }
 
-    url.searchParams.set('key', apiKey);
+      url.searchParams.set('key', apiKey);
 
-    const response = await fetch(url);
-    const data = await response.json();
-    if (!response.ok || data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
-      throw new Error(`Google Places search failed (${data.status || response.status})`);
-    }
+      const response = await fetch(url);
+      const data = await response.json();
+      if (!response.ok || (data.status !== 'OK' && data.status !== 'ZERO_RESULTS')) {
+        warnings.push(`Google Places search had trouble for "${searchQuery}".`);
+        continue;
+      }
 
-    for (const place of data.results || []) {
-      allCandidates.push({
-        placeId: place.place_id,
-        name: place.name,
-        place,
-        searchQuery
-      });
+      for (const place of data.results || []) {
+        allCandidates.push({
+          placeId: place.place_id,
+          name: place.name,
+          place,
+          searchQuery
+        });
+      }
+    } catch {
+      warnings.push(`Google Places search failed for "${searchQuery}".`);
     }
   }
 
@@ -83,7 +89,10 @@ export async function searchGooglePlaces(request, apiKey) {
     deduped.set(candidate.placeId, candidate);
   }
 
-  return [...deduped.values()];
+  return {
+    candidates: [...deduped.values()],
+    warnings
+  };
 }
 
 export async function fetchGooglePlaceDetails(placeId, apiKey) {
@@ -177,4 +186,3 @@ function haversineMiles(lat1, lon1, lat2, lon2) {
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
-

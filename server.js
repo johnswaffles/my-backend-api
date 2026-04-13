@@ -439,13 +439,16 @@ app.post('/api/food/search', async (req, res) => {
       });
     }
 
-    const rawCandidates = await searchGooglePlaces(request, googleKey);
+    const { candidates: rawCandidates, warnings: googleWarnings = [] } = await searchGooglePlaces(request, googleKey);
     if (!rawCandidates.length) {
       return res.json({
         ...createEmptySearchResponse(
           `${FOOD_BRAND} did not find verified matches for that search.`
         ),
-        warnings: ['No Google Places candidates were returned for the current search.']
+        warnings: [
+          ...googleWarnings,
+          'No Google Places candidates were returned for the current search.'
+        ]
       });
     }
 
@@ -473,6 +476,7 @@ app.post('/api/food/search', async (req, res) => {
     });
 
     const mergedWarnings = [
+      ...googleWarnings,
       ...(corroboration.warnings || []),
       ...(request.filters.openNow ? [] : []),
       ...(request.filters.localOnly ? [] : [])
