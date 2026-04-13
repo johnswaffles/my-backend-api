@@ -51,6 +51,7 @@ export function buildFoodQueries(request) {
   const mealType = normalizeText(request.mealType);
   const destination = normalizeText(request.destinationText);
   const query = normalizeText(request.query);
+  const locationLikeQuery = looksLikeLocationQuery(query) || looksLikeLocationQuery(destination);
 
   const mealHints = {
     breakfast: ['breakfast', 'diner', 'coffee', 'cafe'],
@@ -61,21 +62,26 @@ export function buildFoodQueries(request) {
   };
 
   const hints = mealType && mealHints[mealType] ? mealHints[mealType] : ['restaurant', 'diner', 'cafe'];
-  const looksLikePlace = looksLikeLocationQuery(query) || looksLikeLocationQuery(destination);
-  const baseQuery = destination || query || 'local restaurants';
-  const locationQueries = looksLikePlace
+  const baseQuery = locationLikeQuery ? (cuisine || 'restaurants') : (destination || query || 'local restaurants');
+  const locationQueries = locationLikeQuery
     ? [
+        cuisine ? `${cuisine} restaurant` : 'restaurant',
+        'restaurants',
+        'diner',
+        'cafe',
+        'bbq'
+      ]
+    : [
         `restaurants near ${destination || query}`,
         `food near ${destination || query}`,
         `${destination || query} restaurants`
-      ]
-    : [];
+      ];
   const searches = [
     baseQuery,
     ...locationQueries,
-    `${baseQuery} ${hints[0]}`,
-    `${baseQuery} ${hints[1]}`,
-    cuisine ? `${baseQuery} ${cuisine}` : null,
+    locationLikeQuery ? null : `${baseQuery} ${hints[0]}`,
+    locationLikeQuery ? null : `${baseQuery} ${hints[1]}`,
+    cuisine && !locationLikeQuery ? `${baseQuery} ${cuisine}` : null,
     request.filters?.worthTheDrive ? `${baseQuery} worth the drive` : null,
     request.filters?.localOnly ? `${baseQuery} locally owned` : null
   ];
