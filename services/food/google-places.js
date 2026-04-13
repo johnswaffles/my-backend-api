@@ -30,7 +30,9 @@ async function geocodeSearchText(apiKey, text) {
   const response = await fetch(url);
   const data = await response.json();
   if (!response.ok || data.status !== 'OK' || !Array.isArray(data.results) || !data.results.length) {
-    return null;
+    const error = new Error(`Google geocode failed (${data.status || response.status})`);
+    error.details = data?.error_message || '';
+    throw error;
   }
 
   const first = data.results[0];
@@ -94,13 +96,19 @@ export async function searchGooglePlaces(request, apiKey) {
     ? request.location
     : null;
   const locationLikeRequest = looksLikeLocationQuery(request.destinationText) || looksLikeLocationQuery(request.query);
-  const resolvedLocation =
-    location ||
-    (looksLikeLocationQuery(request.destinationText)
-      ? await geocodeSearchText(apiKey, request.destinationText)
-      : looksLikeLocationQuery(request.query)
-        ? await geocodeSearchText(apiKey, request.query)
-        : null);
+  let resolvedLocation = location;
+  let geocodeWarning = '';
+  try {
+    if (!resolvedLocation && looksLikeLocationQuery(request.destinationText)) {
+      resolvedLocation = await geocodeSearchText(apiKey, request.destinationText);
+    } else if (!resolvedLocation && looksLikeLocationQuery(request.query)) {
+      resolvedLocation = await geocodeSearchText(apiKey, request.query);
+    }
+  } catch (error) {
+    const status = String(error?.message || 'unknown');
+    const details = typeof error?.details === 'string' && error.details ? ` ${error.details}` : '';
+    geocodeWarning = `Google geocode had trouble (${status}).${details}`;
+  }
   const radiusMeters = milesToMeters(request.radiusMiles || 18);
   const queries = buildFoodQueries(request);
   const allCandidates = [];
@@ -139,7 +147,9 @@ export async function searchGooglePlaces(request, apiKey) {
       const response = await fetch(url);
       const data = await response.json();
       if (!response.ok || (data.status !== 'OK' && data.status !== 'ZERO_RESULTS')) {
-        warnings.push(`Google Places search had trouble for "${plan.searchQuery || 'nearby restaurants'}".`);
+        const status = data?.status || response.status || 'unknown';
+        const detail = data?.error_message ? ` ${data.error_message}` : '';
+        warnings.push(`Google Places search had trouble (${status}) for "${plan.searchQuery || 'nearby restaurants'}".${detail}`);
         continue;
       }
 
@@ -154,6 +164,10 @@ export async function searchGooglePlaces(request, apiKey) {
     } catch {
       warnings.push(`Google Places search failed for "${plan.searchQuery || 'nearby restaurants'}".`);
     }
+  }
+
+  if (geocodeWarning) {
+    warnings.push(geocodeWarning);
   }
 
   if (!resolvedLocation && (looksLikeLocationQuery(request.destinationText) || looksLikeLocationQuery(request.query))) {
