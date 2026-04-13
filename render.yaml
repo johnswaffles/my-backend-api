@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: world-builder
+    name: 618food-com
     runtime: node
     plan: free
     buildCommand: npm install && npm run build
@@ -9,7 +9,17 @@ services:
       - key: OPENAI_API_KEY
         sync: false
       - key: OPENAI_MODEL
-        value: gpt-4.1-mini
+        value: gpt-5.4
+      - key: OPENAI_TTS_MODEL
+        value: gpt-4o-mini-tts
+      - key: OPENAI_TTS_VOICE
+        value: nova
+      - key: GOOGLE_PLACES_API_KEY
+        sync: false
+      - key: GOOGLE_PLACES_KEY
+        sync: false
+      - key: GOOGLE_MAPS_KEY
+        sync: false
       - key: OPENAI_IMAGE_MODEL
         value: gpt-image-1
       - key: PORT

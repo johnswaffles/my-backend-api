@@ -41,6 +41,20 @@ Copy [.env.example](/Users/johnshopinski/Documents/New%20project/.env.example) a
 - `OPENAI_TTS_VOICE=nova`
 - `GOOGLE_PLACES_API_KEY` (or `GOOGLE_PLACES_KEY` / `GOOGLE_MAPS_KEY`)
 
+## Render + Domain
+
+The live `618FOOD.COM` app is intended to run on Render and be pointed to `618food.com` through Cloudflare DNS.
+
+If you are wiring the deployment in Render, make sure these values are present on the service:
+
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL=gpt-5.4`
+- `OPENAI_TTS_MODEL=gpt-4o-mini-tts`
+- `OPENAI_TTS_VOICE=nova`
+- `GOOGLE_PLACES_API_KEY` or the fallback aliases `GOOGLE_PLACES_KEY` / `GOOGLE_MAPS_KEY`
+
+After the Render service is live, attach `618food.com` as the custom domain in Cloudflare and set `www.618food.com` to redirect to the root domain.
+
 ## Feature layout
 
 ```text
