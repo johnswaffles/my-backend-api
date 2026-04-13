@@ -93,6 +93,7 @@ export async function searchGooglePlaces(request, apiKey) {
   const location = request.location && Number.isFinite(request.location.lat) && Number.isFinite(request.location.lng)
     ? request.location
     : null;
+  const locationLikeRequest = looksLikeLocationQuery(request.destinationText) || looksLikeLocationQuery(request.query);
   const resolvedLocation =
     location ||
     (looksLikeLocationQuery(request.destinationText)
@@ -105,19 +106,31 @@ export async function searchGooglePlaces(request, apiKey) {
   const allCandidates = [];
   const warnings = [];
 
-  for (const searchQuery of queries) {
+  const searchPlans = resolvedLocation && locationLikeRequest
+    ? [
+        { kind: 'nearby', searchQuery: '' },
+        { kind: 'nearby', searchQuery: 'restaurant' },
+        { kind: 'nearby', searchQuery: 'food' },
+        { kind: 'nearby', searchQuery: 'cafe' },
+        ...queries.map((searchQuery) => ({ kind: 'nearby', searchQuery }))
+      ]
+    : queries.map((searchQuery) => ({ kind: 'text', searchQuery }));
+
+  for (const plan of searchPlans) {
     try {
-      const url = resolvedLocation
+      const url = plan.kind === 'nearby'
         ? new URL(`${GOOGLE_PLACES_BASE}/nearbysearch/json`)
         : new URL(`${GOOGLE_PLACES_BASE}/textsearch/json`);
 
-      if (resolvedLocation) {
+      if (resolvedLocation && plan.kind === 'nearby') {
         url.searchParams.set('location', `${resolvedLocation.lat},${resolvedLocation.lng}`);
-        url.searchParams.set('radius', String(radiusMeters));
+        url.searchParams.set('radius', String(Math.min(radiusMeters, locationLikeRequest ? milesToMeters(50) : radiusMeters)));
         url.searchParams.set('type', 'restaurant');
-        url.searchParams.set('keyword', searchQuery);
+        if (plan.searchQuery) {
+          url.searchParams.set('keyword', plan.searchQuery);
+        }
       } else {
-        url.searchParams.set('query', searchQuery);
+        url.searchParams.set('query', plan.searchQuery);
         url.searchParams.set('region', 'us');
       }
 
@@ -126,7 +139,7 @@ export async function searchGooglePlaces(request, apiKey) {
       const response = await fetch(url);
       const data = await response.json();
       if (!response.ok || (data.status !== 'OK' && data.status !== 'ZERO_RESULTS')) {
-        warnings.push(`Google Places search had trouble for "${searchQuery}".`);
+        warnings.push(`Google Places search had trouble for "${plan.searchQuery || 'nearby restaurants'}".`);
         continue;
       }
 
@@ -139,7 +152,7 @@ export async function searchGooglePlaces(request, apiKey) {
         });
       }
     } catch {
-      warnings.push(`Google Places search failed for "${searchQuery}".`);
+      warnings.push(`Google Places search failed for "${plan.searchQuery || 'nearby restaurants'}".`);
     }
   }
 
