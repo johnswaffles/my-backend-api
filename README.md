@@ -1,55 +1,68 @@
-# Cozy Town Builder (Vertical Slice)
+# 618FOOD.COM
 
-Modern-looking web city builder prototype focused on visuals and interaction polish.
+618FOOD.COM is a rural-first restaurant discovery app for Southern Illinois. It uses Google Places as the canonical source of restaurant identity and OpenAI as a verifier, ranker, explainer, and audio narrator.
+
+## What it does
+
+- Searches verified restaurants near you or near a destination
+- Prioritizes local favorites, hidden gems, and real-world signals over raw star ratings
+- Surfaces explainable results with confidence labels and evidence notes
+- Reads the short shortlist aloud with `gpt-4o-mini-tts` and the `nova` voice when configured
 
 ## Stack
-- Vite + React + TypeScript
-- Three.js (scene/rendering)
-- Tailwind CSS (UI overlay)
 
-## Run
+- Vite
+- React
+- TypeScript
+- Tailwind CSS
+- Express API routes
+
+## Run locally
+
 ```bash
 npm install
 npm run dev
 ```
 
 ## Build
+
 ```bash
 npm run build
 npm run preview
 ```
 
-## Folder Structure
+## Environment
+
+Copy [.env.example](/Users/johnshopinski/Documents/New%20project/.env.example) and provide:
+
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL=gpt-5.4`
+- `OPENAI_TTS_MODEL=gpt-4o-mini-tts`
+- `OPENAI_TTS_VOICE=nova`
+- `GOOGLE_PLACES_API_KEY` (or `GOOGLE_PLACES_KEY` / `GOOGLE_MAPS_KEY`)
+
+## Feature layout
+
 ```text
 src/
-  game/
-    state.ts      # pure data model + lightweight store
-    actions.ts    # placement/select/cancel/validity/resource updates
-    render.ts     # Three.js scene, camera, lighting, meshes, loop
-    input.ts      # raycast pointer input + camera controls + hotkeys
-  components/
-    BuildMenu.tsx
-    InfoPanel.tsx
-    TopBar.tsx
-  App.tsx
-  main.tsx
-  index.css
+  features/local-eats/
+    components/
+    lib/
+    mock/
+    schemas.ts
+    types.ts
+services/
+  food/
+    audio.js
+    corroboration.js
+    google-places.js
+    prompts.js
+    ranking.js
+    schemas.js
 ```
 
-## Controls
-- Left click: place (in build mode) or select building
-- Right click / Esc: cancel placement
-- Mouse wheel: zoom
-- Drag RMB/MMB: pan
-- WASD / Arrow keys: pan
+## Notes
 
-## Included Vertical Slice Features
-- Isometric-style angled camera with smoothing
-- 40x40 grid with subtle terrain variation
-- Build menu: Road, House, Power Plant
-- Hover highlight + ghost preview with valid/invalid color
-- Placement with grid snap and no-overlap rules
-- Selection and right-side info panel
-- Top HUD with Money, Population, Power updates
-- Soft shadows, directional + ambient light, subtle fog
-- Placement feedback (pulse + small scale pop)
+- The app never invents restaurants or contact details.
+- If live keys are missing, the page still renders cleanly and explains what needs to be connected.
+- All public-facing branding uses `618FOOD.COM`.

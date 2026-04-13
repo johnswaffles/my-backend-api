@@ -1,581 +1,490 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { BuildMenu } from './components/BuildMenu';
-import { InfoPanel } from './components/InfoPanel';
-import { TopBar } from './components/TopBar';
-import { TownProgressPanel } from './components/TownProgressPanel';
-import { HoverTooltip } from './components/HoverTooltip';
-import { MiniMapPanel } from './components/MiniMapPanel';
-import { HelpModal } from './components/HelpModal';
-import {
-  buildStarterTown,
-  bulldozeAt,
-  cancelPlacement,
-  economySummary,
-  selectedBuilding,
-  upgradeBuildingById
-} from './game/actions';
-import { InputController } from './game/input';
-import { CitySoundtrack } from './game/music';
-import { GameRenderer } from './game/render';
-import { gameStore } from './game/state';
-import type { OverlayMode } from './game/state';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { AudioStrip } from './features/local-eats/components/AudioStrip';
+import { ResultCard } from './features/local-eats/components/ResultCard';
+import { SearchPanel } from './features/local-eats/components/SearchPanel';
+import { DEMO_SEARCH_RESPONSE } from './features/local-eats/mock/demo';
+import { DEFAULT_SEARCH_FILTERS, FOOD_BRAND } from './features/local-eats/schemas';
+import { playBrowserNarration, request618FoodAudio, search618Food, stopBrowserNarration } from './features/local-eats/lib/client';
+import type {
+  ConfidenceLevel,
+  GeoPoint,
+  RankedRestaurant,
+  SearchFilters,
+  SearchMode,
+  SearchResponse,
+  SearchRequest
+} from './features/local-eats/types';
 
-function useGameState() {
-  return useSyncExternalStore(
-    (listener) => gameStore.subscribe(listener),
-    () => gameStore.getState()
-  );
+function summarizeResults(results: RankedRestaurant[]): string {
+  if (!results.length) return 'No verified restaurants matched this search yet.';
+
+  const highlights = results.slice(0, 3).map((result) => {
+    const tone = result.confidence === 'high' ? 'strong match' : result.confidence === 'medium' ? 'solid fit' : 'limited signal';
+    return `${result.name} (${tone})`;
+  });
+
+  return `Here are ${results.length} verified ${results.length === 1 ? 'place' : 'places'} worth a look on ${FOOD_BRAND}: ${highlights.join('; ')}.`;
 }
 
-type MobilePanel = 'build' | 'info' | 'progress' | 'map' | 'help' | null;
-type MobileSheetMode = 'peek' | 'half' | 'full';
-type LegacyMediaQueryList = MediaQueryList & {
-  addListener?: (listener: (event: MediaQueryListEvent) => void) => void;
-  removeListener?: (listener: (event: MediaQueryListEvent) => void) => void;
-};
-
-function shouldUseMobileUi(): boolean {
-  if (typeof window === 'undefined') return false;
-  const mediaMatches =
-    typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 1024px), (pointer: coarse)').matches;
-  const touchPoints = navigator.maxTouchPoints ?? 0;
-  const isiPadLike =
-    /iPad/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && touchPoints > 1);
-  const touchTabletViewport = touchPoints > 1 && Math.max(window.innerWidth, window.innerHeight) <= 1400;
-  return mediaMatches || isiPadLike || touchTabletViewport;
+function getFallbackAudioText(response: SearchResponse): string {
+  if (response.audioSummary) return response.audioSummary;
+  return summarizeResults(response.results);
 }
+
+const TOWN_SUGGESTIONS = ['Marion, IL', 'Carbondale, IL', 'Harrisburg, IL', 'Anna, IL', 'Metropolis, IL', 'Cairo, IL'];
 
 export default function App(): JSX.Element {
-  const state = useGameState();
-  const selected = useMemo(() => selectedBuilding(state), [state]);
-  const mountRef = useRef<HTMLDivElement | null>(null);
-  const appRef = useRef<HTMLDivElement | null>(null);
-  const rendererRef = useRef<GameRenderer | null>(null);
-  const musicRef = useRef<CitySoundtrack | null>(null);
-  const previousSelectedIdRef = useRef<number | null>(null);
-  const mobileCornerFocusedRef = useRef(false);
-  const mobilePanIntervalRef = useRef<number | null>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const [mobilePanel, setMobilePanel] = useState<MobilePanel>(null);
-  const [mobileSheetMode, setMobileSheetMode] = useState<MobileSheetMode>('half');
-  const [mobileHudExpanded, setMobileHudExpanded] = useState(true);
-  const [helpOpen, setHelpOpen] = useState(false);
-  const [musicEnabled, setMusicEnabled] = useState(false);
-  const [overlayMode, setOverlayMode] = useState<OverlayMode>('base');
-
-  useEffect(() => {
-    if (!mountRef.current) return;
-
-    const renderer = new GameRenderer(mountRef.current);
-    const input = new InputController(renderer);
-    const mobileViewport = shouldUseMobileUi();
-    rendererRef.current = renderer;
-    renderer.setFrameHook((dt) => input.update(dt));
-    renderer.setOverlayMode(overlayMode);
-    if (mobileViewport) {
-      renderer.snapToMapCorner('nw');
-      mobileCornerFocusedRef.current = true;
+  const demoMode = import.meta.env.VITE_LOCAL_EATS_DEMO_MODE === 'true';
+  const [query, setQuery] = useState('');
+  const [destinationText, setDestinationText] = useState('');
+  const [mealType, setMealType] = useState<'any' | 'breakfast' | 'lunch' | 'dinner' | 'dessert' | 'coffee'>('any');
+  const [mode, setMode] = useState<SearchMode>('nearby');
+  const [radiusMiles, setRadiusMiles] = useState(18);
+  const [filters, setFilters] = useState<SearchFilters>(DEFAULT_SEARCH_FILTERS);
+  const [geoPoint, setGeoPoint] = useState<GeoPoint | null>(null);
+  const [geoLabel, setGeoLabel] = useState<string | undefined>(undefined);
+  const [loading, setLoading] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [response, setResponse] = useState<SearchResponse>(
+    demoMode ? DEMO_SEARCH_RESPONSE : {
+      intentSummary: 'Try a town, ZIP, or location to search verified local food.',
+      results: [],
+      warnings: [],
+      audioSummary: '',
+      hasLiveData: false,
+      sourceMode: 'empty'
     }
-
-    return () => {
-      rendererRef.current = null;
-      input.dispose();
-      renderer.dispose();
-    };
-  }, []);
+  );
+  const [speakerEnabled, setSpeakerEnabled] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [audioLoading, setAudioLoading] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    rendererRef.current?.setOverlayMode(overlayMode);
-  }, [overlayMode]);
-
-  useEffect(() => {
-    const music = new CitySoundtrack();
-    musicRef.current = music;
-    setMusicEnabled(music.isEnabled());
-
-    const unlockMusic = () => {
-      void music.unlock();
-    };
-
-    window.addEventListener('pointerdown', unlockMusic, { passive: true, once: true });
-    window.addEventListener('keydown', unlockMusic, { once: true });
-
-    return () => {
-      musicRef.current = null;
-      window.removeEventListener('pointerdown', unlockMusic);
-      window.removeEventListener('keydown', unlockMusic);
-      music.dispose();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isMobile) {
-      mobileCornerFocusedRef.current = false;
-      return;
-    }
-    if (mobileCornerFocusedRef.current) return;
-
-    rendererRef.current?.snapToMapCorner('nw');
-    mobileCornerFocusedRef.current = true;
-  }, [isMobile]);
+    if (!demoMode) return;
+    setResponse(DEMO_SEARCH_RESPONSE);
+  }, [demoMode]);
 
   useEffect(() => {
     return () => {
-      if (mobilePanIntervalRef.current != null) {
-        window.clearInterval(mobilePanIntervalRef.current);
+      stopBrowserNarration();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
       }
     };
   }, []);
 
-  const economy = useMemo(() => economySummary(state), [state]);
-  const counts = useMemo(() => {
-    const byType = {
-      homes: 0,
-      stores: 0,
-      civic: 0,
-      utility: 0
-    };
-    state.buildings.forEach((building) => {
-      if (building.type === 'house') byType.homes += 1;
-      else if (['shop', 'restaurant', 'groceryStore', 'cornerStore', 'bank', 'trainStation'].includes(building.type)) byType.stores += 1;
-      else if (['hospital', 'policeStation', 'fireStation', 'park', 'cityHall'].includes(building.type)) byType.civic += 1;
-      else if (['workshop', 'powerPlant', 'substation', 'road', 'railLine', 'powerLine'].includes(building.type)) byType.utility += 1;
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('geolocation' in navigator)) return;
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const point = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          source: 'browser' as const
+        };
+        setGeoPoint(point);
+        setGeoLabel('Browser location ready');
+      },
+      () => {
+        setGeoLabel('Location permission not granted yet');
+      },
+      {
+        maximumAge: 5 * 60 * 1000,
+        timeout: 8000
+      }
+    );
+  }, []);
+
+  const activeResults = useMemo(() => response.results, [response.results]);
+  const topConfidence = useMemo<ConfidenceLevel>(() => {
+    if (!activeResults.length) return 'limited';
+    if (activeResults.some((item) => item.confidence === 'high')) return 'high';
+    if (activeResults.some((item) => item.confidence === 'medium')) return 'medium';
+    return 'limited';
+  }, [activeResults]);
+
+  const resultCountLabel = activeResults.length
+    ? `${activeResults.length} verified ${activeResults.length === 1 ? 'spot' : 'spots'}`
+    : 'No verified spots yet';
+
+  const headlineSummary = response.intentSummary || 'Search verified local restaurants in Southern Illinois.';
+
+  async function submitSearch(
+    event?: FormEvent<HTMLFormElement>,
+    overrides: Partial<SearchRequest> = {}
+  ): Promise<void> {
+    event?.preventDefault();
+    setLoading(true);
+    setSearchError(null);
+    try {
+      if (demoMode && !query.trim() && !destinationText.trim() && !geoPoint) {
+        setResponse(DEMO_SEARCH_RESPONSE);
+        return;
+      }
+
+      const payload: SearchRequest = {
+        query: query.trim(),
+        destinationText: destinationText.trim(),
+        location: geoPoint,
+        mealType,
+        mode,
+        radiusMiles,
+        filters,
+        ...overrides
+      };
+
+      const nextResponse = await search618Food(payload);
+      setResponse(nextResponse);
+    } catch (error) {
+      if (demoMode) {
+        setResponse(DEMO_SEARCH_RESPONSE);
+      }
+      setSearchError(error instanceof Error ? error.message : 'Search failed.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handlePlaySummary(): Promise<void> {
+    if (!speakerEnabled) return;
+    const text = getFallbackAudioText(response);
+    if (!text.trim()) return;
+
+    setAudioLoading(true);
+    try {
+      const audio = await request618FoodAudio(text);
+      if (audio.audioBase64) {
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current = null;
+        }
+        const mimeType = audio.mimeType || 'audio/mpeg';
+        const player = new Audio(`data:${mimeType};base64,${audio.audioBase64}`);
+        player.onplay = () => setIsPlaying(true);
+        player.onended = () => setIsPlaying(false);
+        player.onerror = () => {
+          setIsPlaying(false);
+        };
+        audioRef.current = player;
+        await player.play();
+        return;
+      }
+      await playBrowserNarration(text);
+      setIsPlaying(false);
+    } catch {
+      try {
+        await playBrowserNarration(text);
+      } catch (browserError) {
+        setSearchError(browserError instanceof Error ? browserError.message : 'Audio playback failed.');
+      } finally {
+        setIsPlaying(false);
+      }
+    } finally {
+      setAudioLoading(false);
+    }
+  }
+
+  function toggleSpeaker(): void {
+    setSpeakerEnabled((current) => {
+      const next = !current;
+      if (!next) {
+        if (audioRef.current) {
+          audioRef.current.pause();
+        }
+        stopBrowserNarration();
+        setIsPlaying(false);
+      } else if (audioRef.current && audioRef.current.paused) {
+        audioRef.current
+          .play()
+          .then(() => setIsPlaying(true))
+          .catch(() => setIsPlaying(false));
+      }
+      return next;
     });
-    return byType;
-  }, [state.buildings]);
+  }
 
-  const focusCell = (x: number, z: number): void => {
-    const building = state.buildings.find((entry) => entry.x === x && entry.z === z);
-    rendererRef.current?.focusOnCell(x, z, 0.34, building?.type ?? 'road');
-  };
-
-  useEffect(() => {
-    const onFullscreenChange = () => {
-      setIsFullscreen(document.fullscreenElement === appRef.current);
-    };
-
-    document.addEventListener('fullscreenchange', onFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
-  }, []);
-
-  useEffect(() => {
-    const sync = () => {
-      const nextMobile = shouldUseMobileUi();
-      setIsMobile(nextMobile);
-      if (!nextMobile) {
-        setMobilePanel(null);
-        setMobileHudExpanded(true);
+  function handleUseLocation(): void {
+    if (!geoPoint) {
+      setGeoLabel('Looking for browser location...');
+      if (typeof window === 'undefined' || !('geolocation' in navigator)) {
+        setGeoLabel('Geolocation unavailable in this browser.');
+        return;
       }
-    };
-
-    sync();
-    const media = window.matchMedia('(max-width: 1024px), (pointer: coarse)') as LegacyMediaQueryList;
-    if (typeof media.addEventListener === 'function') {
-      media.addEventListener('change', sync);
-    } else if (typeof media.addListener === 'function') {
-      media.addListener(sync);
-    }
-    window.addEventListener('resize', sync);
-    return () => {
-      if (typeof media.removeEventListener === 'function') {
-        media.removeEventListener('change', sync);
-      } else if (typeof media.removeListener === 'function') {
-        media.removeListener(sync);
-      }
-      window.removeEventListener('resize', sync);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isMobile) return;
-    if (state.placementMode && mobilePanel !== 'build') {
-      setMobilePanel(null);
-    } else if (selected && previousSelectedIdRef.current !== selected.id) {
-      setMobilePanel('info');
-    }
-    previousSelectedIdRef.current = selected?.id ?? null;
-  }, [isMobile, mobilePanel, selected, state.placementMode]);
-
-  const toggleFullscreen = async (): Promise<void> => {
-    const host = appRef.current;
-    if (!host) return;
-
-    if (document.fullscreenElement === host) {
-      await document.exitFullscreen();
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const nextPoint = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+            source: 'browser' as const
+          };
+          setGeoPoint(nextPoint);
+          setGeoLabel(`Browser location ready • ${position.coords.latitude.toFixed(3)}, ${position.coords.longitude.toFixed(3)}`);
+        },
+        () => {
+          setGeoLabel('Location permission not granted yet');
+        }
+      );
       return;
     }
 
-    await host.requestFullscreen();
-  };
+    setMode('nearby');
+    void submitSearch(undefined, { mode: 'nearby' });
+  }
 
-  const focusTownCenter = (): void => {
-    const center = Math.floor(state.gridSize / 2);
-    rendererRef.current?.focusOnCell(center, center, 0.34, 'road');
-  };
+  function handleSurpriseMe(): void {
+    setMode('surprise');
+    setQuery('');
+    setDestinationText('');
+    void submitSearch(undefined, { mode: 'surprise', query: '', destinationText: '' });
+  }
 
-  const openBottomPanel = (): void => {
-    if (mobilePanel) return;
-    if (selected) {
-      setMobilePanel('info');
-      return;
-    }
-    setMobilePanel('build');
-  };
+  function handleQuickTown(value: string): void {
+    setDestinationText(value);
+    setQuery(value);
+    setMode('destination');
+    void submitSearch(undefined, { mode: 'destination', query: value, destinationText: value });
+  }
 
-  const panMobileView = (direction: 'up' | 'down' | 'left' | 'right'): void => {
-    const renderer = rendererRef.current;
-    if (!renderer) return;
+  function handleFilterChange(key: keyof SearchFilters, value: boolean | string): void {
+    setFilters((current) => ({
+      ...current,
+      [key]: value
+    }));
+  }
 
-    const step = 0.32;
-    if (direction === 'up') renderer.panBy(-step, -step);
-    else if (direction === 'down') renderer.panBy(step, step);
-    else if (direction === 'left') renderer.panBy(-step, step);
-    else renderer.panBy(step, -step);
-  };
-
-  const stopMobilePan = (): void => {
-    if (mobilePanIntervalRef.current == null) return;
-    window.clearInterval(mobilePanIntervalRef.current);
-    mobilePanIntervalRef.current = null;
-  };
-
-  const startMobilePan = (direction: 'up' | 'down' | 'left' | 'right'): void => {
-    stopMobilePan();
-    panMobileView(direction);
-    mobilePanIntervalRef.current = window.setInterval(() => panMobileView(direction), 80);
-  };
-
-  const toggleMusic = (): void => {
-    const music = musicRef.current;
-    if (!music) return;
-    const next = music.toggle();
-    setMusicEnabled(next);
-  };
-
-  const mobileSheetHeightClass =
-    mobileSheetMode === 'peek' ? 'max-h-[28vh]' : mobileSheetMode === 'half' ? 'max-h-[50vh]' : 'max-h-[76vh]';
+  const audioSummary = getFallbackAudioText(response);
 
   return (
-    <div ref={appRef} className="relative h-full w-full overflow-hidden">
-      <div ref={mountRef} className="absolute inset-0 touch-none" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(75%_55%_at_50%_0%,rgba(255,255,255,0.35),rgba(255,255,255,0)_65%)]" />
+    <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.96),_rgba(250,246,236,0.82)_34%,_rgba(236,244,227,0.96)_66%,_rgba(247,241,228,1)_100%)] text-stone-900">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(111,162,98,0.24),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(206,179,95,0.18),_transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.42),rgba(255,255,255,0))]" />
+      <div className="pointer-events-none absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg viewBox=%270 0 200 200%27 xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cfilter id=%27n%27%3E%3CfeTurbulence type=%27fractalNoise%27 baseFrequency=%270.9%27 numOctaves=%274%27 stitchTiles=%27stitch%27/%3E%3C/filter%3E%3Crect width=%27100%25%27 height=%27100%25%27 filter=%27url(%23n)%27 opacity=%270.14%27/%3E%3C/svg%3E')] opacity-25" />
 
-      <TopBar
-        money={state.resources.money}
-        population={state.resources.population}
-        jobs={state.resources.jobs}
-        powerUsed={state.resources.powerUsed}
-        powerProduced={state.resources.powerProduced}
-        day={state.day}
-        timeOfDay={state.timeOfDay}
-        happiness={state.happiness}
-        economy={economy}
-        counts={counts}
-        gameSpeed={state.gameSpeed}
-        undoCount={state.undoCount}
-        redoCount={state.redoCount}
-        demand={state.demand}
-        aiAutoplayEnabled={state.aiAutoplayEnabled}
-        aiLastAction={state.aiLastAction}
-        musicEnabled={musicEnabled}
-        overlayMode={overlayMode}
-        isFullscreen={isFullscreen}
-        mobile={isMobile}
-        onOpenHelp={() => setHelpOpen(true)}
-        onToggleMusic={toggleMusic}
-        onOverlayChange={setOverlayMode}
-        onToggleMobileHud={() => setMobileHudExpanded((value) => !value)}
-        mobileHudExpanded={mobileHudExpanded}
-        onFocusHome={focusTownCenter}
-        onToggleFullscreen={() => {
-          void toggleFullscreen();
-        }}
-      />
-
-      <HelpModal
-        open={helpOpen || mobilePanel === 'help'}
-        onClose={() => {
-          setHelpOpen(false);
-          if (mobilePanel === 'help') setMobilePanel(null);
-        }}
-      />
-
-      {isMobile ? (
-        <div
-          className="pointer-events-none absolute inset-0 z-20 px-3 pb-3 pt-40"
-          style={{
-            paddingTop: mobileHudExpanded ? 'max(env(safe-area-inset-top), 8.5rem)' : 'max(env(safe-area-inset-top), 4.75rem)',
-            paddingBottom: 'max(env(safe-area-inset-bottom), 0.75rem)'
-          }}
-        >
-          {state.placementMode ? (
-            <div className={`pointer-events-none absolute left-3 right-3 z-20 ${mobileHudExpanded ? 'top-[7.3rem]' : 'top-[3.95rem]'}`}>
-              <div className="mx-auto w-fit rounded-full border border-cyan-200/40 bg-slate-950/70 px-4 py-2 text-xs text-cyan-100 backdrop-blur">
-                Placing {state.placementMode}. Tap to build. Tap an existing building to inspect or bulldoze it.
+      <main className="relative mx-auto flex min-h-screen w-full max-w-[1400px] flex-col gap-5 px-4 py-4 sm:px-5 sm:py-5 lg:px-6">
+        <header className="rounded-[2rem] border border-white/70 bg-white/72 px-4 py-4 shadow-[0_18px_55px_rgba(61,79,42,0.12)] backdrop-blur-2xl">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-700 text-lg font-black text-white shadow-[0_16px_30px_rgba(22,83,44,0.18)]">
+                618
               </div>
-            </div>
-          ) : null}
-
-          {(state.placementMode || selected) && mobilePanel !== 'help' ? (
-            <div className="pointer-events-auto absolute bottom-28 left-24 right-3 z-30">
-              <div className="panel-glass rounded-2xl p-2 shadow-glow">
-                <div className="flex flex-wrap gap-2">
-                  {state.placementMode ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => setMobilePanel('build')}
-                        className="rounded-xl border border-amber-300/60 bg-amber-500/16 px-3 py-2 text-xs font-medium text-amber-100"
-                      >
-                        Tools
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => cancelPlacement()}
-                        className="rounded-xl border border-rose-300/60 bg-rose-500/18 px-3 py-2 text-xs font-medium text-rose-100"
-                      >
-                        Cancel Tool
-                      </button>
-                      <div className="rounded-xl border border-cyan-300/35 bg-cyan-500/10 px-3 py-2 text-xs font-medium text-cyan-100">
-                        Tool: {state.placementMode}
-                      </div>
-                    </>
-                  ) : null}
-                  {selected ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => rendererRef.current?.focusOnCell(selected.x, selected.z, 0.32, selected.type)}
-                        className="rounded-xl border border-emerald-300/60 bg-emerald-500/16 px-3 py-2 text-xs font-medium text-emerald-100"
-                      >
-                        Focus
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => upgradeBuildingById(selected.id)}
-                        className="rounded-xl border border-cyan-300/60 bg-cyan-500/18 px-3 py-2 text-xs font-medium text-cyan-100"
-                      >
-                        Upgrade
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => bulldozeAt(selected.x, selected.z)}
-                        className="rounded-xl border border-rose-300/60 bg-rose-500/18 px-3 py-2 text-xs font-medium text-rose-100"
-                      >
-                        Bulldoze
-                      </button>
-                    </>
-                  ) : null}
+              <div>
+                <div className="font-display text-2xl font-semibold tracking-tight text-[#173528] sm:text-3xl">
+                  {FOOD_BRAND}
+                </div>
+                <div className="text-sm text-stone-600">
+                  Verified local restaurants for Southern Illinois
                 </div>
               </div>
             </div>
-          ) : null}
 
-          <div className="pointer-events-auto absolute bottom-28 left-3 z-30">
-            <div className="panel-glass rounded-2xl p-1.5 shadow-glow">
-              <div className="grid w-[4.75rem] grid-cols-3 gap-1">
-                <div />
-                <button
-                  type="button"
-                  onPointerDown={() => startMobilePan('up')}
-                  onPointerUp={stopMobilePan}
-                  onPointerLeave={stopMobilePan}
-                  onPointerCancel={stopMobilePan}
-                  className="rounded-lg bg-slate-900/55 px-0 py-2 text-base font-semibold text-slate-100"
-                  aria-label="Pan up"
+            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
+              <span className="rounded-full bg-emerald-700/10 px-3 py-1 text-emerald-900">
+                Google Places verified
+              </span>
+              <span className="rounded-full bg-stone-900/6 px-3 py-1 text-stone-700">
+                OpenAI ranking + narration
+              </span>
+              <span className={`rounded-full px-3 py-1 ${topConfidence === 'high' ? 'bg-emerald-700/12 text-emerald-900' : topConfidence === 'medium' ? 'bg-amber-500/12 text-amber-900' : 'bg-stone-500/12 text-stone-700'}`}>
+                {resultCountLabel}
+              </span>
+            </div>
+          </div>
+        </header>
+
+        <section className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
+          <article className="rounded-[2.2rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.85),rgba(246,241,231,0.7))] p-5 shadow-[0_18px_55px_rgba(61,79,42,0.12)] backdrop-blur-2xl sm:p-7">
+            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-700/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-900">
+              Rural-first discovery
+            </div>
+            <h1 className="mt-4 max-w-xl font-display text-5xl font-semibold tracking-tight text-[#173528] sm:text-6xl">
+              Find the places locals actually love.
+            </h1>
+            <p className="mt-4 max-w-2xl text-base leading-8 text-stone-600 sm:text-lg">
+              618FOOD.COM looks for real, locally loved diners, cafés, BBQ joints, and hidden gems
+              across rural Southern Illinois. It uses Google Places for business identity and OpenAI
+              for ranking, verification, and clear explanations. It never invents restaurants.
+            </p>
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              {['Hidden gems', 'Locals love it', 'Worth the drive', 'Breakfast favorites', 'Family-friendly'].map((item) => (
+                <span
+                  key={item}
+                  className="rounded-full border border-stone-200 bg-white/80 px-3 py-1.5 text-sm font-medium text-stone-700 shadow-[0_10px_24px_rgba(61,79,42,0.08)]"
                 >
-                  ↑
-                </button>
-                <div />
-                <button
-                  type="button"
-                  onPointerDown={() => startMobilePan('left')}
-                  onPointerUp={stopMobilePan}
-                  onPointerLeave={stopMobilePan}
-                  onPointerCancel={stopMobilePan}
-                  className="rounded-lg bg-slate-900/55 px-0 py-2 text-base font-semibold text-slate-100"
-                  aria-label="Pan left"
-                >
-                  ←
-                </button>
-                <button
-                  type="button"
-                  onClick={focusTownCenter}
-                  className="rounded-lg border border-cyan-300/35 bg-cyan-500/16 px-0 py-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-100"
-                  aria-label="Recenter map"
-                >
-                  Home
-                </button>
-                <button
-                  type="button"
-                  onPointerDown={() => startMobilePan('right')}
-                  onPointerUp={stopMobilePan}
-                  onPointerLeave={stopMobilePan}
-                  onPointerCancel={stopMobilePan}
-                  className="rounded-lg bg-slate-900/55 px-0 py-2 text-base font-semibold text-slate-100"
-                  aria-label="Pan right"
-                >
-                  →
-                </button>
-                <div />
-                <button
-                  type="button"
-                  onPointerDown={() => startMobilePan('down')}
-                  onPointerUp={stopMobilePan}
-                  onPointerLeave={stopMobilePan}
-                  onPointerCancel={stopMobilePan}
-                  className="rounded-lg bg-slate-900/55 px-0 py-2 text-base font-semibold text-slate-100"
-                  aria-label="Pan down"
-                >
-                  ↓
-                </button>
-                <div />
+                  {item}
+                </span>
+              ))}
+            </div>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              {[
+                ['Verified first', 'Every recommendation starts with a real Google Places candidate.'],
+                ['Local signals', 'We prefer fresh, lived-in evidence over polished marketing.'],
+                ['Audio summary', 'A short narrated overview makes quick decisions easier.']
+              ].map(([title, text]) => (
+                <div key={title} className="rounded-[1.5rem] border border-stone-200 bg-white/76 p-4">
+                  <div className="font-semibold text-stone-900">{title}</div>
+                  <div className="mt-2 text-sm leading-6 text-stone-600">{text}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 rounded-[1.7rem] border border-emerald-700/10 bg-emerald-50/70 p-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-900/70">
+                Live location + traveler support
               </div>
+              <p className="mt-2 max-w-2xl text-sm leading-7 text-emerald-950/80">
+                Share your location, enter a town or ZIP, or say where you are driving to. Then
+                let 618FOOD.COM surface real places that feel right for the meal, the mood, and
+                the route.
+              </p>
+            </div>
+          </article>
+
+          <SearchPanel
+            query={query}
+            destinationText={destinationText}
+            mealType={mealType}
+            mode={mode}
+            radiusMiles={radiusMiles}
+            filters={filters}
+            onQueryChange={setQuery}
+            onDestinationChange={setDestinationText}
+            onMealTypeChange={setMealType}
+            onModeChange={setMode}
+            onRadiusMilesChange={setRadiusMiles}
+            onFilterChange={handleFilterChange}
+            onSubmit={submitSearch}
+            onUseLocation={handleUseLocation}
+            onSurpriseMe={handleSurpriseMe}
+            onQuickTown={handleQuickTown}
+            geoLabel={geoLabel}
+            isLoading={loading}
+          />
+        </section>
+
+        <section className="grid gap-5 xl:grid-cols-[0.82fr_1.18fr]">
+          <div className="rounded-[2rem] border border-white/70 bg-white/72 p-5 shadow-[0_16px_50px_rgba(61,79,42,0.1)] backdrop-blur-2xl">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">
+              How it works
+            </div>
+            <div className="mt-3 font-display text-3xl font-semibold tracking-tight text-[#173528]">
+              Trust first. Then rank the best fit.
+            </div>
+            <div className="mt-4 space-y-4 text-sm leading-7 text-stone-600">
+              <p>
+                Google Places provides the canonical business identity. OpenAI only helps explain,
+                rank, and summarize the verified candidates that already exist.
+              </p>
+              <p>
+                That means 618FOOD.COM can shine in the exact places big-city apps struggle:
+                rural towns, half-hidden diners, tiny cafés, and the spots locals keep recommending
+                to one another.
+              </p>
+            </div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {[
+                ['No invented listings', 'If a place is missing from Google Places, it is not shown.'],
+                ['Confidence labels', 'High, medium, or limited confidence keeps the board honest.'],
+                ['Open web corroboration', 'Recent menu, social, and local-source signals help ranking.'],
+                ['Helpful audio', 'A short voice summary can read the shortlist aloud.']
+              ].map(([title, text]) => (
+                <div key={title} className="rounded-[1.4rem] border border-stone-200 bg-white/80 p-4">
+                  <div className="font-semibold text-stone-900">{title}</div>
+                  <div className="mt-2 text-sm leading-6 text-stone-600">{text}</div>
+                </div>
+              ))}
             </div>
           </div>
 
-          {!mobilePanel && !state.placementMode ? (
-            <div className="pointer-events-auto absolute bottom-[7.2rem] left-1/2 z-30 -translate-x-1/2">
-              <button
-                type="button"
-                onClick={openBottomPanel}
-                className="panel-glass rounded-full border border-cyan-300/40 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-100 shadow-glow"
-              >
-                {selected ? 'Show Inspect' : 'Show Build'}
-              </button>
-            </div>
-          ) : null}
+          <div className="space-y-4">
+            <AudioStrip
+              summary={audioSummary}
+              speakerEnabled={speakerEnabled}
+              isPlaying={isPlaying}
+              isLoading={audioLoading}
+              onToggleSpeaker={toggleSpeaker}
+              onPlay={handlePlaySummary}
+            />
 
-          <div className="pointer-events-none absolute bottom-3 left-3 right-3 z-30 flex flex-col gap-3">
-            {mobilePanel ? (
-              <div className={`pointer-events-auto overflow-y-auto ${mobileSheetHeightClass}`}>
-                {mobilePanel !== 'help' ? (
-                  <div className="panel-glass mb-2 rounded-2xl p-2 shadow-glow">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="mx-auto h-1.5 w-14 rounded-full bg-slate-500/55" />
-                      <button
-                        type="button"
-                        onClick={() => setMobilePanel(null)}
-                        className="rounded-lg border border-slate-300/35 bg-slate-800/45 px-2 py-1 text-[10px] font-medium text-slate-100"
-                        aria-label="Close options panel"
-                      >
-                        X
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
-                {mobilePanel === 'build' ? <BuildMenu placementMode={state.placementMode} mobile /> : null}
-                {mobilePanel === 'info' ? <InfoPanel building={selected} onFocusBuilding={focusCell} /> : null}
-                {mobilePanel === 'progress' ? <TownProgressPanel state={state} /> : null}
-                {mobilePanel === 'map' ? <MiniMapPanel state={state} mobile onFocusCell={focusCell} mode={overlayMode} onModeChange={setOverlayMode} /> : null}
+            {searchError ? (
+              <div className="rounded-[1.5rem] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+                {searchError}
               </div>
             ) : null}
 
-            <div className="pointer-events-auto panel-glass rounded-2xl p-2 shadow-glow">
-              <div className="grid grid-cols-5 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setMobilePanel((panel) => (panel === 'build' ? null : 'build'))}
-                  className={`rounded-xl px-3 py-3 text-sm font-medium transition ${
-                    mobilePanel === 'build'
-                      ? 'bg-cyan-400/22 text-cyan-100'
-                      : 'bg-slate-900/45 text-slate-100'
-                  }`}
-                >
-                  Build
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMobilePanel((panel) => (panel === 'info' ? null : 'info'))}
-                  className={`rounded-xl px-3 py-3 text-sm font-medium transition ${
-                    mobilePanel === 'info'
-                      ? 'bg-emerald-400/22 text-emerald-100'
-                      : 'bg-slate-900/45 text-slate-100'
-                  }`}
-                >
-                  Inspect
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMobilePanel((panel) => (panel === 'map' ? null : 'map'))}
-                  className={`rounded-xl px-3 py-3 text-sm font-medium transition ${
-                    mobilePanel === 'map'
-                      ? 'bg-violet-400/22 text-violet-100'
-                      : 'bg-slate-900/45 text-slate-100'
-                  }`}
-                >
-                  Map
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMobilePanel((panel) => (panel === 'progress' ? null : 'progress'))}
-                  className={`rounded-xl px-3 py-3 text-sm font-medium transition ${
-                    mobilePanel === 'progress'
-                      ? 'bg-amber-400/22 text-amber-100'
-                      : 'bg-slate-900/45 text-slate-100'
-                  }`}
-                >
-                  Goals
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMobilePanel((panel) => (panel === 'help' ? null : 'help'))}
-                  className={`rounded-xl px-3 py-3 text-sm font-medium transition ${
-                    mobilePanel === 'help'
-                      ? 'bg-slate-300/22 text-white'
-                      : 'bg-slate-900/45 text-slate-100'
-                  }`}
-                >
-                  Help
-                </button>
+            {response.warnings.length ? (
+              <div className="rounded-[1.5rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <div className="font-semibold">Search notes</div>
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  {response.warnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
               </div>
-              <div className="mt-2 grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={focusTownCenter}
-                  className="rounded-xl border border-slate-400/35 bg-slate-900/35 px-3 py-2 text-xs font-medium text-slate-100"
-                >
-                  Recenter
-                </button>
-                <button
-                  type="button"
-                  onClick={() => buildStarterTown()}
-                  className="rounded-xl border border-emerald-300/60 bg-emerald-500/18 px-3 py-2 text-xs font-medium text-emerald-100"
-                >
-                  Starter
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMobileSheetMode((mode) => (mode === 'full' ? 'peek' : 'full'))}
-                  className="rounded-xl border border-cyan-300/50 bg-cyan-400/12 px-3 py-2 text-xs font-medium text-cyan-100"
-                >
-                  {mobileSheetMode === 'full' ? 'Compact' : 'Expand'}
-                </button>
-              </div>
-            </div>
-          </div>
+            ) : null}
 
-          <div className="hidden">
-            <HoverTooltip state={state} />
-          </div>
-        </div>
-      ) : (
-        <div className="pointer-events-none absolute inset-0 z-20 px-4 pb-4 pt-44">
-          <div className="grid h-full grid-cols-[17rem_minmax(0,1fr)_22rem] gap-4 xl:grid-cols-[18rem_minmax(0,1fr)_23rem]">
-            <div className="flex min-h-0 flex-col gap-4">
-              <BuildMenu placementMode={state.placementMode} />
-              <TownProgressPanel state={state} />
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
+                  Recent results
+                </div>
+                <div className="mt-1 text-xl font-semibold text-stone-900">{headlineSummary}</div>
+              </div>
+              <button
+                type="button"
+                onClick={() => void submitSearch()}
+                className="rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-stone-700 transition hover:border-emerald-400 hover:text-emerald-900"
+              >
+                Refresh
+              </button>
             </div>
-            <div />
-            <div className="flex min-h-0 flex-col gap-4 overflow-hidden">
-              <MiniMapPanel state={state} onFocusCell={focusCell} mode={overlayMode} onModeChange={setOverlayMode} />
-              <InfoPanel building={selected} onFocusBuilding={focusCell} />
-            </div>
+
+            {activeResults.length ? (
+              <div className="space-y-4">
+                {activeResults.map((result, index) => (
+                  <ResultCard
+                    key={result.placeId}
+                    result={result}
+                    rank={index}
+                    onOpenMap={(url) => window.open(url, '_blank', 'noopener,noreferrer')}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-[2rem] border border-dashed border-stone-300 bg-white/60 p-8 text-center shadow-[0_16px_40px_rgba(61,79,42,0.08)]">
+                <div className="font-display text-3xl font-semibold tracking-tight text-[#173528]">
+                  Start with a town, ZIP, or location.
+                </div>
+                <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-stone-600">
+                  618FOOD.COM will return only verified businesses. If evidence is weak, the app
+                  lowers confidence instead of guessing.
+                </p>
+                <div className="mt-5 flex flex-wrap justify-center gap-2">
+                  {TOWN_SUGGESTIONS.map((town) => (
+                    <button
+                      key={town}
+                      type="button"
+                      onClick={() => handleQuickTown(town)}
+                      className="rounded-full bg-emerald-700/10 px-4 py-2 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-700/15"
+                    >
+                      {town}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {demoMode ? (
+              <div className="rounded-[1.5rem] border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+                Demo preview mode is on. Connect Google Places and OpenAI keys to turn 618FOOD.COM
+                into the live production experience.
+              </div>
+            ) : null}
           </div>
-          <HoverTooltip state={state} />
-        </div>
-      )}
+        </section>
+      </main>
     </div>
   );
 }

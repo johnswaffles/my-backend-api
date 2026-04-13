@@ -2,6 +2,11 @@ import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { createEmptySearchResponse, normalizeSearchRequest, FOOD_BRAND } from './services/food/schemas.js';
+import { fetchGooglePlaceDetails, normalizeGooglePlace, searchGooglePlaces } from './services/food/google-places.js';
+import { corroborateCandidates } from './services/food/corroboration.js';
+import { buildAudioSummary, rankCandidates } from './services/food/ranking.js';
+import { generateFoodSpeech } from './services/food/audio.js';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -141,6 +146,15 @@ function extractFirstJsonObject(text) {
   } catch {
     return null;
   }
+}
+
+function getGooglePlacesApiKey() {
+  return (
+    process.env.GOOGLE_PLACES_API_KEY ||
+    process.env.GOOGLE_PLACES_KEY ||
+    process.env.GOOGLE_MAPS_KEY ||
+    ''
+  );
 }
 
 function readSalesLeads() {
@@ -396,6 +410,113 @@ app.post('/api/sales-lead', (req, res) => {
   }
 });
 
+function buildFoodIntentSummary(request) {
+  const parts = [];
+  if (request.mealType !== 'any') parts.push(request.mealType);
+  if (request.filters.cuisine) parts.push(request.filters.cuisine);
+  if (request.filters.openNow) parts.push('open now');
+  if (request.filters.localOnly) parts.push('local-first');
+  if (request.filters.worthTheDrive) parts.push('worth the drive');
+  if (request.destinationText) parts.push(`for ${request.destinationText}`);
+  if (request.location?.label) parts.push(`near ${request.location.label}`);
+  if (!parts.length) return `${FOOD_BRAND} is ready for a rural Southern Illinois search.`;
+  return `${FOOD_BRAND} search tuned for ${parts.join(', ')}.`;
+}
+
+app.post('/api/food/search', async (req, res) => {
+  try {
+    const request = normalizeSearchRequest(req.body || {});
+    const googleKey = getGooglePlacesApiKey();
+    const openaiKey = process.env.OPENAI_API_KEY;
+    const searchModel = process.env.OPENAI_MODEL || 'gpt-5.4';
+
+    if (!googleKey) {
+      return res.json({
+        ...createEmptySearchResponse(
+          `${FOOD_BRAND} is waiting for Google Places credentials so it can return verified restaurant results.`
+        ),
+        warnings: ['Google Places is not configured on the server yet.']
+      });
+    }
+
+    const rawCandidates = await searchGooglePlaces(request, googleKey);
+    if (!rawCandidates.length) {
+      return res.json({
+        ...createEmptySearchResponse(
+          `${FOOD_BRAND} did not find verified matches for that search.`
+        ),
+        warnings: ['No Google Places candidates were returned for the current search.']
+      });
+    }
+
+    const candidateDetails = [];
+    for (const seed of rawCandidates.slice(0, 12)) {
+      try {
+        const detail = await fetchGooglePlaceDetails(seed.placeId, googleKey);
+        candidateDetails.push(normalizeGooglePlace(detail, seed, request));
+      } catch {
+        candidateDetails.push(normalizeGooglePlace(seed.place, seed, request));
+      }
+    }
+
+    const corroboration = await corroborateCandidates({
+      apiKey: openaiKey,
+      model: searchModel,
+      request,
+      candidates: candidateDetails.slice(0, 8)
+    });
+
+    const ranked = rankCandidates({
+      request,
+      candidates: candidateDetails,
+      corroborated: corroboration.results || []
+    });
+
+    const mergedWarnings = [
+      ...(corroboration.warnings || []),
+      ...(request.filters.openNow ? [] : []),
+      ...(request.filters.localOnly ? [] : [])
+    ].filter(Boolean);
+
+    return res.json({
+      intentSummary: corroboration.intentSummary || buildFoodIntentSummary(request),
+      results: ranked.slice(0, 8),
+      warnings: mergedWarnings,
+      audioSummary: corroboration.summary || buildAudioSummary(request, ranked.slice(0, 5)),
+      hasLiveData: true,
+      sourceMode: 'live'
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: 'Unable to search 618FOOD.COM right now.',
+      details: String(error.message || error)
+    });
+  }
+});
+
+app.post('/api/food/audio', async (req, res) => {
+  try {
+    const { text } = req.body || {};
+    if (!text || typeof text !== 'string' || !text.trim()) {
+      return res.status(400).json({ error: 'Text is required.' });
+    }
+
+    const audio = await generateFoodSpeech({
+      apiKey: process.env.OPENAI_API_KEY,
+      model: process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts',
+      voice: process.env.OPENAI_TTS_VOICE || 'nova',
+      text: text.trim()
+    });
+
+    return res.json(audio);
+  } catch (error) {
+    return res.status(500).json({
+      error: 'Unable to generate audio for 618FOOD.COM.',
+      details: String(error.message || error)
+    });
+  }
+});
+
 app.get('/health', (_req, res) => {
   res.json({ ok: true });
 });
@@ -409,5 +530,5 @@ app.get('*', (_req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`World Builder running on port ${port}`);
+  console.log(`618FOOD.COM running on port ${port}`);
 });
