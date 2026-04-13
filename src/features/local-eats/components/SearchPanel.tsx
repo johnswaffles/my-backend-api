@@ -1,20 +1,18 @@
 import type { FormEvent } from 'react';
 import { FOOD_BRAND } from '../schemas';
-import type { BudgetLevel, MealType, SearchFilters, SearchMode } from '../types';
+import type { SearchFilters, SearchMode } from '../types';
 
 interface SearchPanelProps {
   query: string;
   destinationText: string;
-  mealType: MealType;
   mode: SearchMode;
   radiusMiles: number;
   filters: SearchFilters;
   onQueryChange: (value: string) => void;
   onDestinationChange: (value: string) => void;
-  onMealTypeChange: (value: MealType) => void;
   onModeChange: (value: SearchMode) => void;
   onRadiusMilesChange: (value: number) => void;
-  onFilterChange: (key: keyof SearchFilters, value: boolean | BudgetLevel | string) => void;
+  onFilterChange: (key: keyof SearchFilters, value: boolean | string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onUseLocation: () => void;
   onSurpriseMe: () => void;
@@ -23,20 +21,10 @@ interface SearchPanelProps {
   isLoading: boolean;
 }
 
-const MEAL_TYPES: Array<{ value: MealType; label: string }> = [
-  { value: 'any', label: 'Any time' },
-  { value: 'breakfast', label: 'Breakfast' },
-  { value: 'lunch', label: 'Lunch' },
-  { value: 'dinner', label: 'Dinner' },
-  { value: 'dessert', label: 'Dessert' },
-  { value: 'coffee', label: 'Coffee' }
-];
-
 const MODES: Array<{ value: SearchMode; label: string }> = [
   { value: 'nearby', label: 'Nearby' },
   { value: 'destination', label: 'Town / ZIP' },
-  { value: 'traveler', label: 'Traveler mode' },
-  { value: 'surprise', label: 'Surprise me' }
+  { value: 'traveler', label: 'Traveler mode' }
 ];
 
 const TOGGLE_FILTERS: Array<{ key: keyof SearchFilters; label: string }> = [
@@ -55,13 +43,11 @@ const QUICK_TOWNS = ['Marion, IL', 'Carbondale, IL', 'Harrisburg, IL', 'Anna, IL
 export function SearchPanel({
   query,
   destinationText,
-  mealType,
   mode,
   radiusMiles,
   filters,
   onQueryChange,
   onDestinationChange,
-  onMealTypeChange,
   onModeChange,
   onRadiusMilesChange,
   onFilterChange,
@@ -145,22 +131,6 @@ export function SearchPanel({
       </div>
 
       <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr]">
-        <label className="block">
-          <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
-            Meal type
-          </span>
-          <select
-            value={mealType}
-            onChange={(event) => onMealTypeChange(event.target.value as MealType)}
-            className="w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-base text-stone-900 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
-          >
-            {MEAL_TYPES.map((item) => (
-              <option key={item.value} value={item.value}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-        </label>
         <div className="rounded-[1.6rem] border border-stone-200 bg-white/92 p-4">
           <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
             Search mode + radius
@@ -204,9 +174,7 @@ export function SearchPanel({
             <span className="tabular-nums">{radiusMiles} mi</span>
           </div>
         </div>
-      </div>
 
-      <div className="mt-4 grid gap-3 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="rounded-[1.6rem] border border-stone-200 bg-white/92 p-4">
           <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
             Filters
@@ -226,32 +194,10 @@ export function SearchPanel({
                 }`}
               >
                 {label}
-              </button>
-            ))}
+                </button>
+              ))}
           </div>
-        </div>
-
-        <div className="rounded-[1.6rem] border border-stone-200 bg-white/92 p-4">
-          <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
-            Budget + cuisine
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block">
-              <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
-                Budget
-              </span>
-              <select
-                value={filters.budget}
-                onChange={(event) => onFilterChange('budget', event.target.value as BudgetLevel)}
-                className="w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-900 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
-              >
-                <option value="any">Any budget</option>
-                <option value="budget">$ Budget</option>
-                <option value="mid">$$ Mid-range</option>
-                <option value="splurge">$$$ Splurge</option>
-              </select>
-            </label>
-
+          <div className="mt-4">
             <label className="block">
               <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
                 Cuisine

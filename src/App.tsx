@@ -37,7 +37,6 @@ export default function App(): JSX.Element {
   const demoMode = import.meta.env.VITE_LOCAL_EATS_DEMO_MODE === 'true';
   const [query, setQuery] = useState('');
   const [destinationText, setDestinationText] = useState('');
-  const [mealType, setMealType] = useState<'any' | 'breakfast' | 'lunch' | 'dinner' | 'dessert' | 'coffee'>('any');
   const [mode, setMode] = useState<SearchMode>('nearby');
   const [radiusMiles, setRadiusMiles] = useState(18);
   const [filters, setFilters] = useState<SearchFilters>(DEFAULT_SEARCH_FILTERS);
@@ -128,7 +127,7 @@ export default function App(): JSX.Element {
         query: query.trim(),
         destinationText: destinationText.trim(),
         location: geoPoint,
-        mealType,
+        mealType: 'any',
         mode,
         radiusMiles,
         filters,
@@ -292,66 +291,15 @@ export default function App(): JSX.Element {
           </div>
         </header>
 
-        <section className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
-          <article className="rounded-[2.2rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.85),rgba(246,241,231,0.7))] p-5 shadow-[0_18px_55px_rgba(61,79,42,0.12)] backdrop-blur-2xl sm:p-7">
-            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-700/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-900">
-              Rural-first discovery
-            </div>
-            <h1 className="mt-4 max-w-xl font-display text-5xl font-semibold tracking-tight text-[#173528] sm:text-6xl">
-              Find the places locals actually love.
-            </h1>
-            <p className="mt-4 max-w-2xl text-base leading-8 text-stone-600 sm:text-lg">
-              618FOOD.COM looks for real, locally loved diners, cafés, BBQ joints, and hidden gems
-              across rural Southern Illinois. It uses Google Places for business identity and OpenAI
-              for ranking, verification, and clear explanations. It never invents restaurants.
-            </p>
-
-            <div className="mt-5 flex flex-wrap gap-2">
-              {['Hidden gems', 'Locals love it', 'Worth the drive', 'Breakfast favorites', 'Family-friendly'].map((item) => (
-                <span
-                  key={item}
-                  className="rounded-full border border-stone-200 bg-white/80 px-3 py-1.5 text-sm font-medium text-stone-700 shadow-[0_10px_24px_rgba(61,79,42,0.08)]"
-                >
-                  {item}
-                </span>
-              ))}
-            </div>
-
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              {[
-                ['Verified first', 'Every recommendation starts with a real Google Places candidate.'],
-                ['Local signals', 'We prefer fresh, lived-in evidence over polished marketing.'],
-                ['Audio summary', 'A short narrated overview makes quick decisions easier.']
-              ].map(([title, text]) => (
-                <div key={title} className="rounded-[1.5rem] border border-stone-200 bg-white/76 p-4">
-                  <div className="font-semibold text-stone-900">{title}</div>
-                  <div className="mt-2 text-sm leading-6 text-stone-600">{text}</div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 rounded-[1.7rem] border border-emerald-700/10 bg-emerald-50/70 p-4">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-900/70">
-                Live location + traveler support
-              </div>
-              <p className="mt-2 max-w-2xl text-sm leading-7 text-emerald-950/80">
-                Share your location, enter a town or ZIP, or say where you are driving to. Then
-                let 618FOOD.COM surface real places that feel right for the meal, the mood, and
-                the route.
-              </p>
-            </div>
-          </article>
-
+        <section className="grid gap-5">
           <SearchPanel
             query={query}
             destinationText={destinationText}
-            mealType={mealType}
             mode={mode}
             radiusMiles={radiusMiles}
             filters={filters}
             onQueryChange={setQuery}
             onDestinationChange={setDestinationText}
-            onMealTypeChange={setMealType}
             onModeChange={setMode}
             onRadiusMilesChange={setRadiusMiles}
             onFilterChange={handleFilterChange}
@@ -364,40 +312,7 @@ export default function App(): JSX.Element {
           />
         </section>
 
-        <section className="grid gap-5 xl:grid-cols-[0.82fr_1.18fr]">
-          <div className="rounded-[2rem] border border-white/70 bg-white/72 p-5 shadow-[0_16px_50px_rgba(61,79,42,0.1)] backdrop-blur-2xl">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">
-              How it works
-            </div>
-            <div className="mt-3 font-display text-3xl font-semibold tracking-tight text-[#173528]">
-              Trust first. Then rank the best fit.
-            </div>
-            <div className="mt-4 space-y-4 text-sm leading-7 text-stone-600">
-              <p>
-                Google Places provides the canonical business identity. OpenAI only helps explain,
-                rank, and summarize the verified candidates that already exist.
-              </p>
-              <p>
-                That means 618FOOD.COM can shine in the exact places big-city apps struggle:
-                rural towns, half-hidden diners, tiny cafés, and the spots locals keep recommending
-                to one another.
-              </p>
-            </div>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              {[
-                ['No invented listings', 'If a place is missing from Google Places, it is not shown.'],
-                ['Confidence labels', 'High, medium, or limited confidence keeps the board honest.'],
-                ['Open web corroboration', 'Recent menu, social, and local-source signals help ranking.'],
-                ['Helpful audio', 'A short voice summary can read the shortlist aloud.']
-              ].map(([title, text]) => (
-                <div key={title} className="rounded-[1.4rem] border border-stone-200 bg-white/80 p-4">
-                  <div className="font-semibold text-stone-900">{title}</div>
-                  <div className="mt-2 text-sm leading-6 text-stone-600">{text}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
+        <section className="grid gap-5 xl:grid-cols-[0.86fr_1.14fr]">
           <div className="space-y-4">
             <AudioStrip
               summary={audioSummary}
