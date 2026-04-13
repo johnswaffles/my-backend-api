@@ -1,4 +1,5 @@
 const GOOGLE_PLACES_BASE = 'https://maps.googleapis.com/maps/api/place';
+const GOOGLE_GEOCODE_BASE = 'https://maps.googleapis.com/maps/api/geocode/json';
 
 function milesToMeters(miles) {
   return Math.max(1000, Math.round(miles * 1609.34));
@@ -6,6 +7,43 @@ function milesToMeters(miles) {
 
 function normalizeText(value) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function looksLikeLocationQuery(value) {
+  const text = normalizeText(value);
+  if (!text) return false;
+  if (/\b\d{5}(?:-\d{4})?\b/.test(text)) return true;
+  if (/[A-Za-z]+\s*,\s*[A-Za-z]{2}\b/.test(text)) return true;
+  if (/[A-Za-z]{2}\s+\d{5}(?:-\d{4})?$/.test(text)) return true;
+  return text.length >= 3 && text.length <= 64 && /[A-Za-z]/.test(text) && /\b(il|mo|ky|tn|in|oh|ar)\b/i.test(text);
+}
+
+async function geocodeSearchText(apiKey, text) {
+  const query = normalizeText(text);
+  if (!query) return null;
+
+  const url = new URL(GOOGLE_GEOCODE_BASE);
+  url.searchParams.set('address', query);
+  url.searchParams.set('region', 'us');
+  url.searchParams.set('key', apiKey);
+
+  const response = await fetch(url);
+  const data = await response.json();
+  if (!response.ok || data.status !== 'OK' || !Array.isArray(data.results) || !data.results.length) {
+    return null;
+  }
+
+  const first = data.results[0];
+  const lat = first?.geometry?.location?.lat;
+  const lng = first?.geometry?.location?.lng;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+  return {
+    lat,
+    lng,
+    label: first.formatted_address || query,
+    source: 'manual'
+  };
 }
 
 export function buildFoodQueries(request) {
@@ -23,9 +61,18 @@ export function buildFoodQueries(request) {
   };
 
   const hints = mealType && mealHints[mealType] ? mealHints[mealType] : ['restaurant', 'diner', 'cafe'];
-  const baseQuery = query || destination || 'local restaurants';
+  const looksLikePlace = looksLikeLocationQuery(query) || looksLikeLocationQuery(destination);
+  const baseQuery = destination || query || 'local restaurants';
+  const locationQueries = looksLikePlace
+    ? [
+        `restaurants near ${destination || query}`,
+        `food near ${destination || query}`,
+        `${destination || query} restaurants`
+      ]
+    : [];
   const searches = [
     baseQuery,
+    ...locationQueries,
     `${baseQuery} ${hints[0]}`,
     `${baseQuery} ${hints[1]}`,
     cuisine ? `${baseQuery} ${cuisine}` : null,
@@ -40,6 +87,13 @@ export async function searchGooglePlaces(request, apiKey) {
   const location = request.location && Number.isFinite(request.location.lat) && Number.isFinite(request.location.lng)
     ? request.location
     : null;
+  const resolvedLocation =
+    location ||
+    (looksLikeLocationQuery(request.destinationText)
+      ? await geocodeSearchText(apiKey, request.destinationText)
+      : looksLikeLocationQuery(request.query)
+        ? await geocodeSearchText(apiKey, request.query)
+        : null);
   const radiusMeters = milesToMeters(request.radiusMiles || 18);
   const queries = buildFoodQueries(request);
   const allCandidates = [];
@@ -47,12 +101,12 @@ export async function searchGooglePlaces(request, apiKey) {
 
   for (const searchQuery of queries) {
     try {
-      const url = location
+      const url = resolvedLocation
         ? new URL(`${GOOGLE_PLACES_BASE}/nearbysearch/json`)
         : new URL(`${GOOGLE_PLACES_BASE}/textsearch/json`);
 
-      if (location) {
-        url.searchParams.set('location', `${location.lat},${location.lng}`);
+      if (resolvedLocation) {
+        url.searchParams.set('location', `${resolvedLocation.lat},${resolvedLocation.lng}`);
         url.searchParams.set('radius', String(radiusMeters));
         url.searchParams.set('type', 'restaurant');
         url.searchParams.set('keyword', searchQuery);
@@ -81,6 +135,10 @@ export async function searchGooglePlaces(request, apiKey) {
     } catch {
       warnings.push(`Google Places search failed for "${searchQuery}".`);
     }
+  }
+
+  if (!resolvedLocation && (looksLikeLocationQuery(request.destinationText) || looksLikeLocationQuery(request.query))) {
+    warnings.push('Google Places could not geocode the requested town or ZIP.');
   }
 
   const deduped = new Map();
