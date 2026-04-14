@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { AudioStrip } from './features/local-eats/components/AudioStrip';
 import { ResultCard } from './features/local-eats/components/ResultCard';
+import { SearchLoadingCard } from './features/local-eats/components/SearchLoadingCard';
 import { SearchPanel } from './features/local-eats/components/SearchPanel';
 import { DEMO_SEARCH_RESPONSE } from './features/local-eats/mock/demo';
 import { DEFAULT_SEARCH_FILTERS, FOOD_BRAND } from './features/local-eats/schemas';
 import { playBrowserNarration, request618FoodAudio, search618Food, stopBrowserNarration } from './features/local-eats/lib/client';
 import type {
-  ConfidenceLevel,
   GeoPoint,
   RankedRestaurant,
   SearchFilters,
@@ -15,12 +15,29 @@ import type {
   SearchRequest
 } from './features/local-eats/types';
 
+type FilterFocus = 'localOnly' | 'dogFriendly' | 'patio';
+
+function buildFilterPayload(filterFocus: FilterFocus): SearchFilters {
+  return {
+    ...DEFAULT_SEARCH_FILTERS,
+    localOnly: filterFocus === 'localOnly',
+    dogFriendly: filterFocus === 'dogFriendly',
+    patio: filterFocus === 'patio',
+    openNow: false,
+    familyFriendly: false,
+    quickBite: false,
+    dateNight: false,
+    worthTheDrive: false,
+    budget: 'any',
+    cuisine: ''
+  };
+}
+
 function summarizeResults(results: RankedRestaurant[]): string {
   if (!results.length) return 'No verified restaurants matched this search yet.';
 
   const highlights = results.slice(0, 3).map((result) => {
-    const tone = result.confidence === 'high' ? 'strong match' : result.confidence === 'medium' ? 'solid fit' : 'limited signal';
-    return `${result.name} (${tone})`;
+    return result.confidence === 'limited' ? result.name : `${result.name} (good local match)`;
   });
 
   return `Here are ${results.length} verified ${results.length === 1 ? 'place' : 'places'} worth a look on ${FOOD_BRAND}: ${highlights.join('; ')}.`;
@@ -39,7 +56,7 @@ export default function App(): JSX.Element {
   const [destinationText, setDestinationText] = useState('');
   const [mode, setMode] = useState<SearchMode>('nearby');
   const [radiusMiles, setRadiusMiles] = useState(18);
-  const [filters, setFilters] = useState<SearchFilters>(DEFAULT_SEARCH_FILTERS);
+  const [filterFocus, setFilterFocus] = useState<FilterFocus>('localOnly');
   const [geoPoint, setGeoPoint] = useState<GeoPoint | null>(null);
   const [geoLabel, setGeoLabel] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
@@ -96,13 +113,7 @@ export default function App(): JSX.Element {
     );
   }, []);
 
-  const activeResults = useMemo(() => response.results, [response.results]);
-  const topConfidence = useMemo<ConfidenceLevel>(() => {
-    if (!activeResults.length) return 'limited';
-    if (activeResults.some((item) => item.confidence === 'high')) return 'high';
-    if (activeResults.some((item) => item.confidence === 'medium')) return 'medium';
-    return 'limited';
-  }, [activeResults]);
+  const activeResults = response.results;
 
   const resultCountLabel = activeResults.length
     ? `${activeResults.length} verified ${activeResults.length === 1 ? 'spot' : 'spots'}`
@@ -130,7 +141,7 @@ export default function App(): JSX.Element {
         mealType: 'any',
         mode,
         radiusMiles,
-        filters,
+        filters: buildFilterPayload(filterFocus),
         ...overrides
       };
 
@@ -246,11 +257,8 @@ export default function App(): JSX.Element {
     void submitSearch(undefined, { mode: 'destination', query: value, destinationText: value });
   }
 
-  function handleFilterChange(key: keyof SearchFilters, value: boolean | string): void {
-    setFilters((current) => ({
-      ...current,
-      [key]: value
-    }));
+  function handleFilterFocusChange(value: FilterFocus): void {
+    setFilterFocus(value);
   }
 
   const audioSummary = getFallbackAudioText(response);
@@ -284,7 +292,7 @@ export default function App(): JSX.Element {
               <span className="rounded-full bg-stone-900/6 px-3 py-1 text-stone-700">
                 OpenAI ranking + narration
               </span>
-              <span className={`rounded-full px-3 py-1 ${topConfidence === 'high' ? 'bg-emerald-700/12 text-emerald-900' : topConfidence === 'medium' ? 'bg-amber-500/12 text-amber-900' : 'bg-stone-500/12 text-stone-700'}`}>
+              <span className="rounded-full bg-stone-500/12 px-3 py-1 text-stone-700">
                 {resultCountLabel}
               </span>
             </div>
@@ -297,12 +305,12 @@ export default function App(): JSX.Element {
             destinationText={destinationText}
             mode={mode}
             radiusMiles={radiusMiles}
-            filters={filters}
+            filterFocus={filterFocus}
             onQueryChange={setQuery}
             onDestinationChange={setDestinationText}
             onModeChange={setMode}
             onRadiusMilesChange={setRadiusMiles}
-            onFilterChange={handleFilterChange}
+            onFilterFocusChange={handleFilterFocusChange}
             onSubmit={submitSearch}
             onUseLocation={handleUseLocation}
             onSurpriseMe={handleSurpriseMe}
@@ -322,6 +330,8 @@ export default function App(): JSX.Element {
               onToggleSpeaker={toggleSpeaker}
               onPlay={handlePlaySummary}
             />
+
+            {loading ? <SearchLoadingCard /> : null}
 
             {searchError ? (
               <div className="rounded-[1.5rem] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
@@ -349,14 +359,15 @@ export default function App(): JSX.Element {
               </div>
               <button
                 type="button"
+                disabled={loading}
                 onClick={() => void submitSearch()}
-                className="rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-stone-700 transition hover:border-emerald-400 hover:text-emerald-900"
+                className="rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-stone-700 transition hover:border-emerald-400 hover:text-emerald-900 disabled:cursor-wait disabled:border-stone-200 disabled:bg-stone-100 disabled:text-stone-400"
               >
-                Refresh
+                {loading ? 'Refreshing...' : 'Refresh'}
               </button>
             </div>
 
-            {activeResults.length ? (
+            {loading ? null : activeResults.length ? (
               <div className="space-y-4">
                 {activeResults.map((result, index) => (
                   <ResultCard
@@ -373,8 +384,8 @@ export default function App(): JSX.Element {
                   Start with a town, ZIP, or location.
                 </div>
                 <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-stone-600">
-                  618FOOD.COM will return only verified businesses. If evidence is weak, the app
-                  lowers confidence instead of guessing.
+                  618FOOD.COM returns only verified businesses. If evidence is weak, the app asks
+                  you to call ahead instead of guessing.
                 </p>
                 <div className="mt-5 flex flex-wrap justify-center gap-2">
                   {TOWN_SUGGESTIONS.map((town) => (

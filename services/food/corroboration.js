@@ -101,7 +101,7 @@ export async function corroborateCandidates({ apiKey, model, request, candidates
   const data = await response.json();
   if (!response.ok) {
     return {
-      warnings: [`OpenAI corroboration failed (${data?.error?.message || response.status}).`],
+      warnings: [],
       results: [],
       intentSummary: '',
       summary: ''
@@ -112,7 +112,7 @@ export async function corroborateCandidates({ apiKey, model, request, candidates
   const parsed = extractJsonObject(text);
   if (!parsed || !Array.isArray(parsed.results)) {
     return {
-      warnings: ['OpenAI returned an unparseable corroboration payload.'],
+      warnings: [],
       results: [],
       intentSummary: '',
       summary: ''

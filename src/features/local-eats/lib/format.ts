@@ -1,16 +1,10 @@
-import type { ConfidenceLevel, RankedRestaurant } from '../types';
+import type { RankedRestaurant } from '../types';
 
 export function formatMiles(distanceMiles?: number | null): string {
   if (typeof distanceMiles !== 'number' || !Number.isFinite(distanceMiles)) return '';
   if (distanceMiles < 1) return `${Math.round(distanceMiles * 5280)} ft`;
   if (distanceMiles < 10) return `${distanceMiles.toFixed(1)} mi`;
   return `${Math.round(distanceMiles)} mi`;
-}
-
-export function formatConfidence(confidence: ConfidenceLevel): string {
-  if (confidence === 'high') return 'High confidence';
-  if (confidence === 'medium') return 'Good confidence';
-  return 'Limited confidence';
 }
 
 export function formatPriceLevel(priceLevel?: number | null): string | null {
@@ -30,12 +24,6 @@ export function formatPhone(phone?: string | null): string | null {
 export function compactAddress(place: RankedRestaurant): string {
   const parts = [place.formattedAddress, place.city].filter(Boolean);
   return parts.join(' • ');
-}
-
-export function confidenceClass(confidence: ConfidenceLevel): string {
-  if (confidence === 'high') return 'bg-emerald-500/14 text-emerald-700 ring-1 ring-emerald-500/25';
-  if (confidence === 'medium') return 'bg-amber-500/14 text-amber-700 ring-1 ring-amber-500/25';
-  return 'bg-slate-500/12 text-slate-600 ring-1 ring-slate-500/18';
 }
 
 export function signalBadgeClass(tag: string): string {

@@ -24,6 +24,71 @@ function hasKeyword(haystack, keywords) {
   return keywords.some((keyword) => haystack.includes(keyword));
 }
 
+const LARGE_CHAIN_NAMES = [
+  'mcdonalds',
+  "mcdonald's",
+  'burger king',
+  'wendys',
+  "wendy's",
+  'taco bell',
+  'kfc',
+  'kentucky fried chicken',
+  'subway',
+  'dominos',
+  "domino's",
+  'pizza hut',
+  'little caesars',
+  "little caesar's",
+  'sonic',
+  'arbys',
+  "arby's",
+  'hardees',
+  "hardee's",
+  'chilis',
+  "chili's",
+  'olive garden',
+  'applebee',
+  "applebee's",
+  'red lobster',
+  'long john silver',
+  "long john silver's",
+  'cracker barrel',
+  'dairy queen',
+  'dq',
+  'panda express',
+  'buffalo wild wings',
+  'jack in the box',
+  'white castle',
+  'whataburger',
+  'culvers',
+  "culver's",
+  'panera',
+  'panera bread',
+  'chipotle',
+  'sbarro',
+  'costco',
+  'walmart',
+  'target'
+];
+
+function normalizeComparable(value) {
+  return normalizeText(value).replace(/[^a-z0-9]+/g, '');
+}
+
+function isLargeChain(candidate) {
+  const name = normalizeText(candidate.name);
+  const website = normalizeText(candidate.website);
+  const websiteDomain = website ? (() => {
+    try {
+      return new URL(website).hostname.replace(/^www\./, '').toLowerCase();
+    } catch {
+      return '';
+    }
+  })() : '';
+  const haystack = [name, websiteDomain].map(normalizeComparable).join(' ');
+  return LARGE_CHAIN_NAMES.some((chain) => haystack.includes(normalizeComparable(chain)));
+}
+
 export function heuristicTags(candidate, request, evidence = []) {
   const tags = new Set(['verified']);
   const reviewText = (candidate.reviews || []).join(' ').toLowerCase();
@@ -188,33 +253,38 @@ export function buildWhatWeFound(candidate, evidence) {
 
 export function rankCandidates({ request, candidates, corroborated = [] }) {
   const corroborationMap = new Map(corroborated.map((entry) => [entry.placeId, entry]));
-  const ranked = candidates.map((candidate) => {
-    const corroboration = corroborationMap.get(candidate.placeId);
-    const evidence = corroboration?.evidence?.length ? corroboration.evidence : [];
-    const tags = new Set([
-      ...heuristicTags(candidate, request, evidence),
-      ...(Array.isArray(corroboration?.tags) ? corroboration.tags.filter(Boolean) : [])
-    ]);
-    const confidence = corroboration?.confidence || deriveConfidence(candidate, evidence, request);
-    const heuristicScore = scoreByRelevance(candidate, request);
-    const confidenceScore = scoreByConfidence(confidence, evidence.length, Boolean(candidate.website), Boolean(candidate.phone));
-    const evidenceScore = Math.min(16, evidence.length * 3);
-    const tagScore = [...tags].reduce((total, tag) => total + (TAG_WEIGHTS[tag] || 0), 0);
+  const ranked = candidates
+    .map((candidate) => {
+      if (isLargeChain(candidate)) {
+        return null;
+      }
+      const corroboration = corroborationMap.get(candidate.placeId);
+      const evidence = corroboration?.evidence?.length ? corroboration.evidence : [];
+      const tags = new Set([
+        ...heuristicTags(candidate, request, evidence),
+        ...(Array.isArray(corroboration?.tags) ? corroboration.tags.filter(Boolean) : [])
+      ]);
+      const confidence = corroboration?.confidence || deriveConfidence(candidate, evidence, request);
+      const heuristicScore = scoreByRelevance(candidate, request);
+      const confidenceScore = scoreByConfidence(confidence, evidence.length, Boolean(candidate.website), Boolean(candidate.phone));
+      const evidenceScore = Math.min(16, evidence.length * 3);
+      const tagScore = [...tags].reduce((total, tag) => total + (TAG_WEIGHTS[tag] || 0), 0);
 
-    return {
-      ...candidate,
-      score: Math.max(0, Math.round(heuristicScore + confidenceScore + evidenceScore + tagScore)),
-      confidence,
-      tags: [...tags],
-      whyThisIsAFit:
-        corroboration?.whyThisIsAFit ||
-        buildWhyThisIsAFit(candidate, request, evidence, [...tags]),
-      whatWeFound:
-        corroboration?.whatWeFound ||
-        buildWhatWeFound(candidate, evidence),
-      evidence
-    };
-  });
+      return {
+        ...candidate,
+        score: Math.max(0, Math.round(heuristicScore + confidenceScore + evidenceScore + tagScore)),
+        confidence,
+        tags: [...tags],
+        whyThisIsAFit:
+          corroboration?.whyThisIsAFit ||
+          buildWhyThisIsAFit(candidate, request, evidence, [...tags]),
+        whatWeFound:
+          corroboration?.whatWeFound ||
+          buildWhatWeFound(candidate, evidence),
+        evidence
+      };
+    })
+    .filter(Boolean);
 
   ranked.sort((a, b) => {
     if (a.confidence === b.confidence) return b.score - a.score;
@@ -231,8 +301,7 @@ export function buildAudioSummary(request, results) {
   }
 
   const top = results.slice(0, 3).map((result) => {
-    const detail = result.confidence === 'high' ? 'high confidence' : result.confidence === 'medium' ? 'good confidence' : 'limited confidence';
-    return `${result.name}, ${detail}`;
+    return result.confidence === 'limited' ? `${result.name}` : `${result.name}, one of the stronger matches`;
   });
 
   const filterBits = [];
@@ -244,4 +313,3 @@ export function buildAudioSummary(request, results) {
   const filterText = filterBits.length ? ` for ${filterBits.join(', ')}` : '';
   return `${FOOD_BRAND} found ${results.length} verified ${results.length === 1 ? 'spot' : 'spots'}${filterText}. Top picks include ${top.join('; ')}.`;
 }
-

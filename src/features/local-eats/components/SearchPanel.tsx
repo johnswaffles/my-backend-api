@@ -1,18 +1,18 @@
 import type { FormEvent } from 'react';
 import { FOOD_BRAND } from '../schemas';
-import type { SearchFilters, SearchMode } from '../types';
+import type { SearchMode } from '../types';
 
 interface SearchPanelProps {
   query: string;
   destinationText: string;
   mode: SearchMode;
   radiusMiles: number;
-  filters: SearchFilters;
+  filterFocus: 'localOnly' | 'dogFriendly' | 'patio';
   onQueryChange: (value: string) => void;
   onDestinationChange: (value: string) => void;
   onModeChange: (value: SearchMode) => void;
   onRadiusMilesChange: (value: number) => void;
-  onFilterChange: (key: keyof SearchFilters, value: boolean | string) => void;
+  onFilterFocusChange: (value: 'localOnly' | 'dogFriendly' | 'patio') => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onUseLocation: () => void;
   onSurpriseMe: () => void;
@@ -27,15 +27,10 @@ const MODES: Array<{ value: SearchMode; label: string }> = [
   { value: 'traveler', label: 'Traveler mode' }
 ];
 
-const TOGGLE_FILTERS: Array<{ key: keyof SearchFilters; label: string }> = [
-  { key: 'localOnly', label: 'Local only' },
-  { key: 'openNow', label: 'Open now' },
-  { key: 'dogFriendly', label: 'Dog-friendly' },
-  { key: 'patio', label: 'Patio' },
-  { key: 'familyFriendly', label: 'Family-friendly' },
-  { key: 'quickBite', label: 'Quick bite' },
-  { key: 'dateNight', label: 'Date night' },
-  { key: 'worthTheDrive', label: 'Worth the drive' }
+const FILTER_OPTIONS: Array<{ value: 'localOnly' | 'dogFriendly' | 'patio'; label: string; description: string }> = [
+  { value: 'localOnly', label: 'Local restaurants only', description: 'Default: keep the search focused on locally loved places.' },
+  { value: 'dogFriendly', label: 'Dog-friendly spots', description: 'Prioritize places that welcome dogs.' },
+  { value: 'patio', label: 'Patio seating', description: 'Prioritize places with outdoor seating.' }
 ];
 
 const QUICK_TOWNS = ['Marion, IL', 'Carbondale, IL', 'Harrisburg, IL', 'Anna, IL', 'Metropolis, IL', 'Cairo, IL'];
@@ -45,12 +40,12 @@ export function SearchPanel({
   destinationText,
   mode,
   radiusMiles,
-  filters,
+  filterFocus,
   onQueryChange,
   onDestinationChange,
   onModeChange,
   onRadiusMilesChange,
-  onFilterChange,
+  onFilterFocusChange,
   onSubmit,
   onUseLocation,
   onSurpriseMe,
@@ -63,18 +58,17 @@ export function SearchPanel({
       onSubmit={onSubmit}
       className="rounded-[2rem] border border-white/60 bg-white/72 p-5 shadow-[0_18px_70px_rgba(68,92,65,0.12)] backdrop-blur-2xl"
     >
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="max-w-2xl">
           <div className="inline-flex items-center gap-2 rounded-full border border-emerald-700/10 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-900">
             {FOOD_BRAND}
           </div>
-          <h2 className="mt-4 max-w-3xl font-display text-4xl font-semibold tracking-tight text-[#173528] sm:text-5xl">
-            Search the places locals actually talk about.
+          <h2 className="mt-4 max-w-3xl font-display text-3xl font-semibold tracking-tight text-[#173528] sm:text-[2.6rem]">
+            Search verified local places.
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-stone-600 sm:text-base">
             Rural-first discovery for Southern Illinois, built to verify real businesses before
-            they ever reach the page. No invented restaurants. No fake phone numbers. Just useful,
-            explainable results.
+            they ever reach the page.
           </p>
         </div>
 
@@ -177,39 +171,24 @@ export function SearchPanel({
 
         <div className="rounded-[1.6rem] border border-stone-200 bg-white/92 p-4">
           <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
-            Filters
+            Filter focus
           </div>
-          <div className="flex flex-wrap gap-2">
-            {TOGGLE_FILTERS.map(({ key, label }) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() =>
-                  onFilterChange(key, !Boolean(filters[key]))
-                }
-                className={`rounded-full px-3.5 py-2 text-xs font-semibold transition ${
-                  Boolean(filters[key])
-                    ? 'bg-emerald-700 text-white shadow-[0_10px_25px_rgba(22,83,44,0.18)]'
-                    : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
-                }`}
-              >
-                {label}
-                </button>
+          <label className="block">
+            <select
+              value={filterFocus}
+              onChange={(event) => onFilterFocusChange(event.target.value as 'localOnly' | 'dogFriendly' | 'patio')}
+              className="w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-900 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+            >
+              {FILTER_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
               ))}
-          </div>
-          <div className="mt-4">
-            <label className="block">
-              <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
-                Cuisine
-              </span>
-              <input
-                value={filters.cuisine}
-                onChange={(event) => onFilterChange('cuisine', event.target.value)}
-                placeholder="BBQ, diner, coffee, Mexican..."
-                className="w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
-              />
-            </label>
-          </div>
+            </select>
+          </label>
+          <p className="mt-3 text-xs leading-5 text-stone-500">
+            {FILTER_OPTIONS.find((option) => option.value === filterFocus)?.description}
+          </p>
         </div>
       </div>
 

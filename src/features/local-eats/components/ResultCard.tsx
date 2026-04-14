@@ -1,5 +1,5 @@
 import type { RankedRestaurant } from '../types';
-import { compactAddress, confidenceClass, formatConfidence, formatMiles, formatPriceLevel, niceTags, signalBadgeClass } from '../lib/format';
+import { compactAddress, formatMiles, formatPriceLevel, niceTags, signalBadgeClass } from '../lib/format';
 
 interface ResultCardProps {
   result: RankedRestaurant;
@@ -22,6 +22,7 @@ export function ResultCard({ result, rank, onOpenMap }: ResultCardProps): JSX.El
   const websiteDomain = domainFromUrl(result.website);
   const openLabel =
     result.openNow === true ? 'Open now' : result.openNow === false ? 'Closed now' : 'Hours unavailable';
+  const isLimited = result.confidence === 'limited';
 
   return (
     <article className="rounded-[1.8rem] border border-white/80 bg-white/88 p-5 shadow-[0_18px_40px_rgba(62,84,50,0.12)] backdrop-blur-2xl transition hover:-translate-y-0.5 hover:shadow-[0_22px_55px_rgba(62,84,50,0.16)]">
@@ -39,14 +40,22 @@ export function ResultCard({ result, rank, onOpenMap }: ResultCardProps): JSX.El
             <h3 className="font-display text-2xl font-semibold tracking-tight text-[#173528] sm:text-3xl">
               {result.name}
             </h3>
-            <span className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] ${confidenceClass(result.confidence)}`}>
-              {formatConfidence(result.confidence)}
-            </span>
           </div>
           <p className="mt-2 text-sm font-medium text-stone-600">
             {compactAddress(result) || 'Address unavailable'}{' '}
             {result.city && !compactAddress(result) ? `• ${result.city}` : ''}
           </p>
+          <div
+            className={`mt-3 inline-flex rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${
+              isLimited
+                ? 'bg-rose-500/10 text-rose-800 ring-1 ring-rose-500/20'
+                : 'bg-emerald-500/10 text-emerald-800 ring-1 ring-emerald-500/20'
+            }`}
+          >
+            {isLimited
+              ? 'Low confidence - please call ahead to confirm hours and availability.'
+              : 'Good local match with verified business details.'}
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -137,14 +146,9 @@ export function ResultCard({ result, rank, onOpenMap }: ResultCardProps): JSX.El
                 Open map link
               </button>
             </div>
-            <div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Score</div>
-              <div className="mt-1 text-stone-800 tabular-nums">{Math.round(result.score)}</div>
-            </div>
           </div>
         </div>
       </div>
     </article>
   );
 }
-
