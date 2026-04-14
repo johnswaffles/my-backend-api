@@ -110,8 +110,20 @@ export interface SearchResponse {
   results: RankedRestaurant[];
   warnings: string[];
   audioSummary: string;
+  buckets?: SearchBucket[];
   hasLiveData: boolean;
   sourceMode: 'live' | 'demo' | 'empty';
+}
+
+export interface SearchBucket {
+  id: 'best-overall' | 'best-value' | 'closest-good-option' | 'best-upscale-option' | string;
+  title: string;
+  description: string;
+  placeId: string;
+  name: string;
+  score: number;
+  confidence: ConfidenceLevel;
+  tags: LocalSignalTag[];
 }
 
 export interface FoodAssistantSource {

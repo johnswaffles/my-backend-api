@@ -92,6 +92,24 @@ export const SEARCH_RESPONSE_SCHEMA = {
     results: { type: 'array' },
     warnings: { type: 'array' },
     audioSummary: { type: 'string' },
+    buckets: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['id', 'title', 'description', 'placeId', 'name', 'score', 'confidence', 'tags'],
+        properties: {
+          id: { type: 'string' },
+          title: { type: 'string' },
+          description: { type: 'string' },
+          placeId: { type: 'string' },
+          name: { type: 'string' },
+          score: { type: 'number' },
+          confidence: { type: 'string', enum: ['high', 'medium', 'limited'] },
+          tags: { type: 'array' }
+        }
+      }
+    },
     hasLiveData: { type: 'boolean' },
     sourceMode: { type: 'string', enum: ['live', 'demo', 'empty'] }
   }
@@ -165,6 +183,7 @@ export function createEmptySearchResponse(intentSummary = 'No search has been ru
     results: [],
     warnings: [],
     audioSummary: '',
+    buckets: [],
     hasLiveData: false,
     sourceMode: 'empty'
   };
@@ -173,4 +192,3 @@ export function createEmptySearchResponse(intentSummary = 'No search has been ru
 export function isSearchRequest(value) {
   return Boolean(value && typeof value === 'object' && value.filters && typeof value.filters === 'object');
 }
-

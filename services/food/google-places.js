@@ -18,6 +18,15 @@ const FOOD_CUISINE_ALIASES = [
   { terms: ['dessert', 'ice cream', 'bakery', 'pie', 'sweet'], cuisine: 'dessert' }
 ];
 
+const FOOD_PREFERENCE_ALIASES = [
+  { terms: ['best overall', 'best', 'top pick', 'overall'], preference: 'best overall' },
+  { terms: ['best value', 'value', 'cheap', 'affordable', 'budget', 'inexpensive'], preference: 'value' },
+  { terms: ['upscale', 'fine dining', 'fancy', 'elevated', 'premium'], preference: 'upscale' },
+  { terms: ['casual', 'laid back', 'laid-back', 'easygoing'], preference: 'casual' },
+  { terms: ['romantic', 'date night', 'date-night'], preference: 'romantic' },
+  { terms: ['quiet', 'calm', 'peaceful', 'low key', 'low-key'], preference: 'quiet' }
+];
+
 const LOCATION_JOINERS = /\b(?:in|near|around|at|toward|to|by)\b/i;
 
 function milesToMeters(miles) {
@@ -51,6 +60,16 @@ function inferCuisineFromText(text) {
   return '';
 }
 
+function inferPreferenceFromText(text) {
+  const normalized = normalizeComparable(text);
+  for (const item of FOOD_PREFERENCE_ALIASES) {
+    if (item.terms.some((term) => normalized.includes(normalizeComparable(term)))) {
+      return item.preference;
+    }
+  }
+  return 'best overall';
+}
+
 function splitQueryLocation(value) {
   const text = normalizeText(value);
   if (!text) return { subject: '', location: '' };
@@ -75,12 +94,14 @@ export function inferFoodIntent(request) {
   const destinationLikeLocation = looksLikeLocationQuery(destinationText) ? destinationText : '';
   const inferredLocation = destinationLikeLocation || queryLocation;
   const inferredCuisine = inferCuisineFromText([querySubject, destinationText].filter(Boolean).join(' '));
+  const preference = inferPreferenceFromText([query, destinationText, inferredCuisine].filter(Boolean).join(' '));
 
   return {
     querySubject,
     queryLocation,
     inferredLocation,
-    inferredCuisine
+    inferredCuisine,
+    preference
   };
 }
 
@@ -117,6 +138,7 @@ async function geocodeSearchText(apiKey, text) {
 export function buildFoodQueries(request) {
   const intent = inferFoodIntent(request);
   const cuisine = normalizeText(request.filters?.cuisine) || intent.inferredCuisine;
+  const preference = intent.preference;
   const mealType = normalizeText(request.mealType);
   const destination = normalizeText(intent.inferredLocation || request.destinationText);
   const query = normalizeText(intent.querySubject || request.query);
@@ -135,11 +157,21 @@ export function buildFoodQueries(request) {
     [cuisine, query, destination].filter(Boolean).join(' ')
   );
   const steakQueries = steakIntent ? ['steakhouse', 'steak restaurant', 'chophouse', 'grill', 'steak'] : [];
+  const preferenceQueries =
+    {
+      value: ['affordable', 'budget friendly', 'cheap eats', 'value restaurant'],
+      upscale: ['fine dining', 'bistro', 'upscale restaurant', 'steakhouse'],
+      casual: ['casual restaurant', 'family restaurant', 'comfort food'],
+      romantic: ['romantic restaurant', 'date night restaurant', 'cozy restaurant'],
+      quiet: ['quiet restaurant', 'cozy restaurant', 'low key restaurant'],
+      'best overall': ['best restaurant', 'local favorite', 'popular restaurant']
+    }[preference] || [];
   const baseQuery = locationLikeQuery ? (cuisine || query || 'restaurants') : (destination || query || 'local restaurants');
   const locationQueries = locationLikeQuery
     ? [
         cuisine ? `${cuisine} restaurant` : 'restaurant',
         ...steakQueries,
+        ...preferenceQueries,
         'restaurants',
         'diner',
         'cafe',

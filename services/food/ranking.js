@@ -97,11 +97,17 @@ const LARGE_CHAIN_NAMES = [
   'sbarro',
   'costco',
   'walmart',
-  'target'
+  'target',
+  "jimmy john's",
+  'jimmy johns'
 ];
 
 function normalizeComparable(value) {
   return normalizeText(value).replace(/[^a-z0-9]+/g, '');
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
 }
 
 export function isLargeChain(candidate) {
@@ -185,22 +191,24 @@ function scoreByConfidence(confidence, evidenceCount, hasWebsite, hasPhone) {
   return score;
 }
 
-function scoreByRelevance(candidate, request, evidence = []) {
-  let score = 0;
+function computeWeightedRating(candidate, averageRating, minimumReviews = 50) {
+  const rating = Number.isFinite(candidate.rating) ? candidate.rating : null;
+  const reviewCount = Number.isFinite(candidate.reviewCount) ? candidate.reviewCount : 0;
+  const fallback = Number.isFinite(averageRating) && averageRating > 0 ? averageRating : rating || 0;
+  if (!rating && !fallback) return 0;
+
+  const effectiveRating = rating || fallback;
+  const m = Math.max(1, minimumReviews);
+  return (reviewCount / (reviewCount + m)) * effectiveRating + (m / (reviewCount + m)) * fallback;
+}
+
+function scoreQuality(candidate, averageRating) {
+  const weighted = computeWeightedRating(candidate, averageRating);
+  return clamp((weighted / 5) * 100, 0, 100);
+}
+
+function scoreIntentMatch(candidate, request, intent, evidence = []) {
   const text = normalizeText(
-    [
-      candidate.name,
-      candidate.formattedAddress,
-      candidate.city,
-      candidate.categories.join(' ')
-    ].join(' ')
-  );
-  const cuisine = normalizeText(request.filters.cuisine);
-  const query = normalizeText(request.query);
-  const destination = normalizeText(request.destinationText);
-  const searchText = [cuisine, query, destination].filter(Boolean).join(' ');
-  const steakIntent = hasKeyword(normalizeText(searchText), STEAKHOUSE_TERMS);
-  const steakEvidence = normalizeText(
     [
       candidate.name,
       candidate.formattedAddress,
@@ -210,30 +218,101 @@ function scoreByRelevance(candidate, request, evidence = []) {
       evidence.map((item) => `${item.title} ${item.snippet} ${item.notes || ''}`).join(' ')
     ].join(' ')
   );
+  const cuisine = normalizeText(request.filters.cuisine) || normalizeText(intent?.inferredCuisine);
+  const query = normalizeText(request.query);
+  const destination = normalizeText(request.destinationText);
+  const searchText = [cuisine, query, destination].filter(Boolean).join(' ');
+  const preference = normalizeText(intent?.preference);
+  const steakIntent = hasKeyword(normalizeText(searchText), STEAKHOUSE_TERMS);
+  let score = 0;
 
-  if (request.filters.openNow && candidate.openNow === true) score += 10;
-  if (candidate.rating != null) score += Math.min(10, candidate.rating * 2);
-  if (candidate.reviewCount != null) score += Math.min(10, Math.log10(Math.max(candidate.reviewCount, 1)) * 6);
-  if (candidate.distanceMiles != null) score += Math.max(0, 12 - candidate.distanceMiles);
-  if (request.filters.localOnly && candidate.reviewCount != null && candidate.reviewCount < 500) score += 8;
-  if (request.filters.worthTheDrive && candidate.distanceMiles != null && candidate.distanceMiles >= 10) score += 4;
   if (request.mealType !== 'any' && hasKeyword(text, [request.mealType])) score += 8;
-  if (cuisine && hasKeyword(text, [cuisine])) score += 8;
-  if (query && hasKeyword(text, query.split(/\s+/).filter(Boolean))) score += 4;
-  if (destination && hasKeyword(text, destination.split(/\s+/).filter(Boolean))) score += 3;
-  if (request.filters.familyFriendly && hasKeyword(text, ['family', 'family-friendly', 'family style'])) score += 4;
-  if (request.filters.quickBite && hasKeyword(text, ['fast', 'quick', 'counter', 'casual'])) score += 4;
-  if (request.filters.dateNight && hasKeyword(text, ['cozy', 'wine', 'patio', 'bistro'])) score += 4;
-  if (request.filters.dogFriendly && hasKeyword(text, ['dog'])) score += 4;
-  if (request.filters.patio && hasKeyword(text, ['patio', 'outdoor'])) score += 4;
-  if (candidate.priceLevel === 1) score += 3;
-  if (candidate.priceLevel === 2) score += 2;
-  if (steakIntent && hasKeyword(steakEvidence, STEAKHOUSE_TERMS)) score += 24;
-  if (steakIntent && hasKeyword(steakEvidence, ['steakhouse', 'chophouse', 'chop house', 'prime rib', 'ribeye', 't-bone'])) score += 14;
-  if (steakIntent && hasKeyword(steakEvidence, ['grill', 'grille', 'roadhouse', 'bar and grill', 'bar & grill'])) score += 8;
-  if (steakIntent && !hasKeyword(steakEvidence, STEAKHOUSE_TERMS)) score -= 14;
-  if (steakIntent && hasKeyword(steakEvidence, STEAKHOUSE_NEGATIVE_TERMS)) score -= 18;
-  return score;
+  if (cuisine && hasKeyword(text, [cuisine])) score += 22;
+  if (query && hasKeyword(text, query.split(/\s+/).filter(Boolean))) score += 8;
+  if (destination && hasKeyword(text, destination.split(/\s+/).filter(Boolean))) score += 5;
+
+  if (preference === 'best overall') score += 3;
+  if (preference === 'value' && hasKeyword(text, ['budget', 'affordable', 'value', 'cheap'])) score += 10;
+  if (preference === 'upscale' && hasKeyword(text, ['bistro', 'fine dining', 'steakhouse', 'chophouse', 'upscale'])) score += 16;
+  if (preference === 'casual' && hasKeyword(text, ['casual', 'diner', 'grill', 'family'])) score += 10;
+  if (preference === 'romantic' && hasKeyword(text, ['cozy', 'date', 'wine', 'bistro', 'quiet'])) score += 12;
+  if (preference === 'quiet' && hasKeyword(text, ['quiet', 'cozy', 'low key', 'low-key'])) score += 10;
+
+  if (steakIntent && hasKeyword(text, STEAKHOUSE_TERMS)) score += 28;
+  if (steakIntent && hasKeyword(text, ['steakhouse', 'chophouse', 'chop house', 'prime rib', 'ribeye', 't-bone'])) score += 18;
+  if (steakIntent && hasKeyword(text, ['grill', 'grille', 'roadhouse', 'bar and grill', 'bar & grill'])) score += 8;
+  if (steakIntent && hasKeyword(text, STEAKHOUSE_NEGATIVE_TERMS)) score -= 18;
+  if (steakIntent && !hasKeyword(text, STEAKHOUSE_TERMS)) score -= 14;
+
+  return clamp(score, 0, 100);
+}
+
+function scoreDistance(candidate, request) {
+  if (candidate.distanceMiles == null) return 50;
+  const radius = Math.max(1, request.radiusMiles || 18);
+  const ratio = candidate.distanceMiles / radius;
+  return clamp(100 - ratio * 100, 0, 100);
+}
+
+function scorePriceFit(candidate, request, intent) {
+  const preference = normalizeText(intent?.preference);
+  const price = candidate.priceLevel;
+  if (!Number.isFinite(price)) return 45;
+
+  if (preference === 'value') {
+    if (price <= 1) return 100;
+    if (price === 2) return 82;
+    if (price === 3) return 40;
+    return 20;
+  }
+
+  if (preference === 'upscale' || preference === 'romantic') {
+    if (price >= 3) return 92;
+    if (price === 2) return 62;
+    return 35;
+  }
+
+  if (preference === 'casual' || preference === 'best overall') {
+    if (price === 1) return 78;
+    if (price === 2) return 82;
+    if (price === 3) return 68;
+    return 40;
+  }
+
+  if (request.filters.localOnly && price <= 2) return 72;
+
+  return clamp(70 - Math.max(0, price - 1) * 8, 20, 80);
+}
+
+function scoreOpenNow(candidate, request) {
+  if (request.filters.openNow) {
+    if (candidate.openNow === true) return 100;
+    if (candidate.openNow === false) return 0;
+    return 45;
+  }
+
+  if (candidate.openNow === true) return 65;
+  if (candidate.openNow === false) return 35;
+  return 50;
+}
+
+function scoreContext(candidate, request, evidence = []) {
+  const tags = heuristicTags(candidate, request, evidence);
+  const evidenceText = evidence.map((item) => `${item.title} ${item.snippet} ${item.notes || ''}`).join(' ').toLowerCase();
+  let score = tags.reduce((total, tag) => total + (TAG_WEIGHTS[tag] || 0), 0);
+
+  if (evidence.some((item) => item.sourceType === 'official_site')) score += 10;
+  if (evidence.some((item) => item.sourceType === 'facebook')) score += 6;
+  if (evidence.some((item) => item.sourceType === 'local_news' || item.sourceType === 'local_blog')) score += 8;
+  if (hasKeyword(evidenceText, ['menu', 'daily special', 'specials', 'menu photos', 'special of the day'])) score += 8;
+  if (hasKeyword(evidenceText, ['locals', 'local favorite', 'worth the drive', 'hidden gem'])) score += 8;
+  if (request.filters.familyFriendly && hasKeyword(evidenceText, ['kids', 'family', 'family-friendly'])) score += 4;
+  if (request.filters.quickBite && hasKeyword(evidenceText, ['quick', 'fast', 'grab and go'])) score += 4;
+  if (request.filters.dateNight && hasKeyword(evidenceText, ['cozy', 'wine', 'romantic', 'date night'])) score += 4;
+  if (request.filters.patio && hasKeyword(evidenceText, ['patio', 'outdoor seating'])) score += 4;
+  if (request.filters.dogFriendly && hasKeyword(evidenceText, ['dog friendly', 'dog-friendly'])) score += 4;
+
+  return clamp(score, -20, 100);
 }
 
 export function deriveConfidence(candidate, evidence, request) {
@@ -297,8 +376,12 @@ export function buildWhatWeFound(candidate, evidence) {
   return `We found ${pieces.join(', ')}.`;
 }
 
-export function rankCandidates({ request, candidates, corroborated = [] }) {
+export function rankCandidates({ request, intent = null, candidates, corroborated = [] }) {
   const corroborationMap = new Map(corroborated.map((entry) => [entry.placeId, entry]));
+  const ratings = candidates
+    .map((candidate) => candidate.rating)
+    .filter((rating) => Number.isFinite(rating));
+  const averageRating = ratings.length ? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length : 0;
   const ranked = candidates
     .map((candidate) => {
       if (isLargeChain(candidate)) {
@@ -311,14 +394,30 @@ export function rankCandidates({ request, candidates, corroborated = [] }) {
         ...(Array.isArray(corroboration?.tags) ? corroboration.tags.filter(Boolean) : [])
       ]);
       const confidence = corroboration?.confidence || deriveConfidence(candidate, evidence, request);
-      const heuristicScore = scoreByRelevance(candidate, request, evidence);
+      const qualityScore = scoreQuality(candidate, averageRating);
+      const intentMatchScore = scoreIntentMatch(candidate, request, intent, evidence);
+      const distanceScore = scoreDistance(candidate, request);
+      const priceFitScore = scorePriceFit(candidate, request, intent);
+      const openNowScore = scoreOpenNow(candidate, request);
+      const contextScore = scoreContext(candidate, request, evidence);
       const confidenceScore = scoreByConfidence(confidence, evidence.length, Boolean(candidate.website), Boolean(candidate.phone));
-      const evidenceScore = Math.min(16, evidence.length * 3);
+      const evidenceScore = Math.min(12, evidence.length * 2);
       const tagScore = [...tags].reduce((total, tag) => total + (TAG_WEIGHTS[tag] || 0), 0);
+      const compositeScore = Math.round(
+        0.35 * qualityScore +
+        0.20 * intentMatchScore +
+        0.15 * distanceScore +
+        0.10 * priceFitScore +
+        0.10 * openNowScore +
+        0.10 * contextScore +
+        confidenceScore +
+        evidenceScore +
+        tagScore
+      );
 
       return {
         ...candidate,
-        score: Math.max(0, Math.round(heuristicScore + confidenceScore + evidenceScore + tagScore)),
+        score: Math.max(0, compositeScore),
         confidence,
         tags: [...tags],
         whyThisIsAFit:
@@ -339,6 +438,61 @@ export function rankCandidates({ request, candidates, corroborated = [] }) {
   });
 
   return ranked;
+}
+
+function bucketCandidate(candidates, predicate) {
+  return candidates.find((candidate) => predicate(candidate)) || null;
+}
+
+export function buildResultBuckets(ranked, request = null, intent = null) {
+  if (!Array.isArray(ranked) || !ranked.length) return [];
+
+  const buckets = [];
+  const seen = new Set();
+  const addBucket = (id, title, description, candidate) => {
+    if (!candidate || seen.has(candidate.placeId)) return;
+    seen.add(candidate.placeId);
+    buckets.push({
+      id,
+      title,
+      description,
+      placeId: candidate.placeId,
+      name: candidate.name,
+      score: candidate.score,
+      confidence: candidate.confidence,
+      tags: candidate.tags
+    });
+  };
+
+  const topOverall = ranked[0];
+  addBucket('best-overall', 'Best overall', 'Strongest verified match across the current search.', topOverall);
+
+  const valueBucket = bucketCandidate(
+    ranked,
+    (candidate) =>
+      candidate.priceLevel <= 2 &&
+      candidate.confidence !== 'limited' &&
+      (candidate.tags.includes('budget-friendly') || candidate.score >= 65)
+  ) || ranked.find((candidate) => candidate.priceLevel <= 2 && candidate.confidence !== 'limited');
+  addBucket('best-value', 'Best value', 'Good match with a friendly price level.', valueBucket);
+
+  const closestBucket = bucketCandidate(
+    ranked,
+    (candidate) => candidate.distanceMiles != null && candidate.distanceMiles <= Math.max(6, (request?.radiusMiles || 18) * 0.4) && candidate.score >= 55
+  ) || ranked.find((candidate) => candidate.distanceMiles != null && candidate.score >= 55);
+  addBucket('closest-good-option', 'Closest good option', 'The nearest verified place that still looks like a solid fit.', closestBucket);
+
+  const preference = normalizeText(intent?.preference);
+  const upscaleBucket = bucketCandidate(
+    ranked,
+    (candidate) =>
+      (candidate.priceLevel >= 3 || candidate.tags.includes('date-night')) &&
+      (preference === 'upscale' || preference === 'romantic' || preference === 'best overall') &&
+      candidate.score >= 55
+  ) || ranked.find((candidate) => (candidate.priceLevel >= 3 || candidate.tags.includes('date-night')) && candidate.score >= 55);
+  addBucket('best-upscale-option', 'Best upscale option', 'The strongest higher-end or date-night-friendly match.', upscaleBucket);
+
+  return buckets;
 }
 
 export function buildAudioSummary(request, results) {

@@ -6,7 +6,7 @@ import { createEmptySearchResponse, normalizeSearchRequest, FOOD_BRAND } from '.
 import { fetchGooglePlaceDetails, inferFoodIntent, normalizeGooglePlace, searchGooglePlaces } from './services/food/google-places.js';
 import { askFoodAssistant } from './services/food/assistant.js';
 import { corroborateCandidates } from './services/food/corroboration.js';
-import { buildAudioSummary, isLargeChain, rankCandidates } from './services/food/ranking.js';
+import { buildAudioSummary, buildResultBuckets, isLargeChain, rankCandidates } from './services/food/ranking.js';
 import { generateFoodSpeech } from './services/food/audio.js';
 
 const app = express();
@@ -483,7 +483,7 @@ app.post('/api/food/search', async (req, res) => {
     }
 
     const candidateDetails = [];
-    for (const seed of rawCandidates.slice(0, 12)) {
+    for (const seed of rawCandidates.slice(0, 24)) {
       try {
         const detail = await fetchGooglePlaceDetails(seed.placeId, googleKey);
         candidateDetails.push(
@@ -518,6 +518,7 @@ app.post('/api/food/search', async (req, res) => {
 
     const ranked = rankCandidates({
       request: searchRequest,
+      intent,
       candidates: radiusLimitedCandidates,
       corroborated: corroboration.results || []
     });
@@ -534,6 +535,7 @@ app.post('/api/food/search', async (req, res) => {
       results: ranked.slice(0, 8),
       warnings: mergedWarnings,
       audioSummary: buildAudioSummary(searchRequest, ranked.slice(0, 1)),
+      buckets: buildResultBuckets(ranked.slice(0, 8), searchRequest, intent),
       hasLiveData: true,
       sourceMode: 'live'
     });
