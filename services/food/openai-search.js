@@ -323,7 +323,57 @@ async function runDiscovery({ apiKey, model, request, intent, locationContext })
   const text = extractResponseText(data);
   const parsed = extractJsonObject(text);
   if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.results)) {
-    throw new Error('OpenAI returned an unparseable food discovery payload.');
+    return repairDiscoveryPayload({ apiKey, model, rawText: text || JSON.stringify(data, null, 2) });
+  }
+
+  return parsed;
+}
+
+async function repairDiscoveryPayload({ apiKey, model, rawText }) {
+  const response = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model,
+      reasoning: { effort: 'low' },
+      text: {
+        format: {
+          type: 'json_schema',
+          name: 'food_discovery_repair',
+          strict: true,
+          schema: OPENAI_DISCOVERY_SCHEMA
+        }
+      },
+      input: [
+        {
+          role: 'system',
+          content:
+            'Repair malformed discovery output into valid JSON. Preserve only the facts already present. Do not invent new restaurants, addresses, phones, websites, or evidence. Return JSON only.'
+        },
+        {
+          role: 'user',
+          content: `Repair this draft into valid JSON that matches the food discovery schema exactly:\n\n${rawText}`
+        }
+      ],
+      max_output_tokens: 2600
+    })
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    const message = typeof data?.error?.message === 'string' ? data.error.message : 'OpenAI discovery repair failed.';
+    const error = new Error(message);
+    error.details = data;
+    throw error;
+  }
+
+  const text = extractResponseText(data);
+  const parsed = extractJsonObject(text);
+  if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.results)) {
+    throw new Error('OpenAI could not repair the food discovery payload.');
   }
 
   return parsed;
