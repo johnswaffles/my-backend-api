@@ -53,6 +53,107 @@ const STEAKHOUSE_NEGATIVE_TERMS = [
   'pizza'
 ];
 
+const CUISINE_PROFILES = [
+  {
+    keys: ['pizza'],
+    label: 'pizza',
+    strictTerms: ['pizza', 'pizzeria', 'calzone', 'stromboli', 'pizza place', 'pizza parlor'],
+    softTerms: ['italian', 'flatbread', 'slice shop', 'pizza restaurant', 'pizza joint'],
+    blockedTerms: ['burger', 'sandwich', 'deli', 'sub', 'subs', 'sushi', 'bbq']
+  },
+  {
+    keys: ['steakhouse', 'steak', 'chophouse', 'chop house'],
+    label: 'steakhouse',
+    strictTerms: ['steakhouse', 'chophouse', 'chop house', 'prime rib', 'ribeye', 't-bone', 'sirloin', 'filet', 'porterhouse'],
+    softTerms: ['steak', 'grill', 'grille', 'roadhouse', 'bar and grill', 'bar & grill'],
+    blockedTerms: ['sandwich', 'sub', 'subs', 'hoagie', 'deli', 'pizza']
+  },
+  {
+    keys: ['italian'],
+    label: 'Italian',
+    strictTerms: ['italian', 'trattoria', 'ristorante', 'pasta', 'lasagna', 'spaghetti', 'ravioli', 'fettuccine'],
+    softTerms: ['pizza', 'pizzeria', 'marinara', 'parmigiana'],
+    blockedTerms: ['burger', 'deli', 'subway']
+  },
+  {
+    keys: ['burgers', 'burger', 'hamburger', 'hamburgers'],
+    label: 'burgers',
+    strictTerms: ['burger', 'burgers', 'hamburger', 'hamburgers', 'cheeseburger', 'cheeseburgers', 'burger bar', 'burger joint'],
+    softTerms: ['smashburger', 'burger shack', 'burger place'],
+    blockedTerms: ['pizza', 'steakhouse', 'sushi', 'bbq']
+  },
+  {
+    keys: ['bbq', 'barbecue', 'barbeque', 'smokehouse'],
+    label: 'BBQ',
+    strictTerms: ['bbq', 'barbecue', 'barbeque', 'smokehouse', 'smoked meat', 'smoker'],
+    softTerms: ['grill', 'roadhouse', 'pit', 'smoked'],
+    blockedTerms: ['sandwich', 'deli', 'sub']
+  },
+  {
+    keys: ['mexican', 'taco', 'tacos', 'burrito', 'burritos'],
+    label: 'Mexican',
+    strictTerms: ['mexican', 'taco', 'tacos', 'burrito', 'burritos', 'taqueria', 'quesadilla', 'enchilada'],
+    softTerms: ['cantina', 'fiesta', 'south of the border'],
+    blockedTerms: ['pizza', 'sushi']
+  },
+  {
+    keys: ['japanese', 'sushi', 'ramen', 'hibachi'],
+    label: 'Japanese',
+    strictTerms: ['japanese', 'sushi', 'ramen', 'hibachi', 'teppanyaki'],
+    softTerms: ['roll', 'sashimi', 'noodle'],
+    blockedTerms: ['burger', 'pizza', 'deli']
+  },
+  {
+    keys: ['chinese'],
+    label: 'Chinese',
+    strictTerms: ['chinese', 'dumpling', 'lo mein', 'fried rice', 'wok', 'szechuan'],
+    softTerms: ['noodle', 'asian'],
+    blockedTerms: ['burger', 'pizza']
+  },
+  {
+    keys: ['thai'],
+    label: 'Thai',
+    strictTerms: ['thai', 'pad thai', 'thai kitchen'],
+    softTerms: ['noodle', 'curries'],
+    blockedTerms: ['burger', 'pizza']
+  },
+  {
+    keys: ['seafood', 'fish fry', 'catfish', 'shrimp'],
+    label: 'seafood',
+    strictTerms: ['seafood', 'fish fry', 'catfish', 'shrimp', 'oyster', 'crab', 'fish house'],
+    softTerms: ['fried fish', 'grill', 'dock'],
+    blockedTerms: ['burger', 'pizza', 'deli']
+  },
+  {
+    keys: ['deli', 'sandwich', 'subs', 'sub', 'hoagie'],
+    label: 'deli',
+    strictTerms: ['deli', 'sandwich', 'subs', 'sub', 'hoagie', 'panini'],
+    softTerms: ['luncheonette', 'sandwich shop'],
+    blockedTerms: ['pizza', 'steakhouse']
+  },
+  {
+    keys: ['coffee', 'espresso', 'latte', 'cafe', 'café'],
+    label: 'coffee',
+    strictTerms: ['coffee', 'espresso', 'latte', 'cafe', 'café', 'coffee house', 'coffee shop'],
+    softTerms: ['bakery', 'barista', 'roastery'],
+    blockedTerms: ['steakhouse', 'bbq']
+  },
+  {
+    keys: ['breakfast', 'brunch', 'pancake', 'pancakes', 'biscuits', 'omelet', 'omelette'],
+    label: 'breakfast',
+    strictTerms: ['breakfast', 'brunch', 'pancake', 'pancakes', 'biscuits', 'omelet', 'omelette', 'diner', 'breakfast house'],
+    softTerms: ['morning', 'supper club', 'cafe'],
+    blockedTerms: ['steakhouse', 'sushi']
+  },
+  {
+    keys: ['dessert', 'ice cream', 'bakery', 'pie', 'sweet'],
+    label: 'dessert',
+    strictTerms: ['dessert', 'ice cream', 'bakery', 'pie', 'sweet', 'sweet shop', 'pastry'],
+    softTerms: ['cake', 'cookie', 'donut'],
+    blockedTerms: ['steakhouse', 'bbq']
+  }
+];
+
 const LARGE_CHAIN_NAMES = [
   'mcdonalds',
   "mcdonald's",
@@ -104,6 +205,41 @@ const LARGE_CHAIN_NAMES = [
 
 function normalizeComparable(value) {
   return normalizeText(value).replace(/[^a-z0-9]+/g, '');
+}
+
+function getCuisineProfile(value) {
+  const normalized = normalizeText(value).toLowerCase();
+  if (!normalized) return null;
+  return CUISINE_PROFILES.find((profile) => profile.keys.some((key) => normalized.includes(key))) || null;
+}
+
+function collectCuisineText(candidate, evidence = []) {
+  return [
+    candidate.name,
+    candidate.formattedAddress,
+    candidate.city,
+    candidate.categories.join(' '),
+    candidate.reviews?.join(' ') || '',
+    evidence.map((item) => `${item.title} ${item.snippet} ${item.notes || ''}`).join(' ')
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+}
+
+function classifyCuisineCandidate(candidate, request, intent, evidence = []) {
+  const cuisine = normalizeText(request.filters.cuisine) || normalizeText(intent?.inferredCuisine);
+  const profile = getCuisineProfile(cuisine);
+  if (!profile) {
+    return { profile: null, exact: false, soft: false, blocked: false };
+  }
+
+  const text = collectCuisineText(candidate, evidence);
+  const exact = profile.strictTerms.some((term) => hasKeyword(text, [term]));
+  const soft = exact || profile.softTerms.some((term) => hasKeyword(text, [term]));
+  const blocked = profile.blockedTerms.some((term) => hasKeyword(text, [term]));
+
+  return { profile, exact, soft, blocked };
 }
 
 function clamp(value, min, max) {
@@ -224,12 +360,22 @@ function scoreIntentMatch(candidate, request, intent, evidence = []) {
   const searchText = [cuisine, query, destination].filter(Boolean).join(' ');
   const preference = normalizeText(intent?.preference);
   const steakIntent = hasKeyword(normalizeText(searchText), STEAKHOUSE_TERMS);
+  const cuisineMatch = classifyCuisineCandidate(candidate, request, intent, evidence);
   let score = 0;
 
   if (request.mealType !== 'any' && hasKeyword(text, [request.mealType])) score += 8;
-  if (cuisine && hasKeyword(text, [cuisine])) score += 22;
   if (query && hasKeyword(text, query.split(/\s+/).filter(Boolean))) score += 8;
   if (destination && hasKeyword(text, destination.split(/\s+/).filter(Boolean))) score += 5;
+
+  if (cuisineMatch.profile) {
+    if (cuisineMatch.exact) score += 28;
+    else if (cuisineMatch.soft) score += 14;
+    else score -= 18;
+
+    if (cuisineMatch.blocked) score -= 24;
+  } else if (cuisine && hasKeyword(text, [cuisine])) {
+    score += 22;
+  }
 
   if (preference === 'best overall') score += 3;
   if (preference === 'value' && hasKeyword(text, ['budget', 'affordable', 'value', 'cheap'])) score += 10;
@@ -330,8 +476,15 @@ export function deriveConfidence(candidate, evidence, request) {
 export function buildWhyThisIsAFit(candidate, request, evidence, tags) {
   const reasons = [];
   const parts = [];
+  const cuisine = normalizeText(request.filters.cuisine);
+  const cuisineMatch = classifyCuisineCandidate(candidate, request, null, evidence);
 
   if (request.filters.openNow && candidate.openNow === true) reasons.push('open now');
+  if (cuisineMatch.profile && cuisineMatch.exact) {
+    reasons.push(`verified ${cuisineMatch.profile.label} match`);
+  } else if (cuisineMatch.profile && cuisineMatch.soft) {
+    reasons.push(`related ${cuisineMatch.profile.label} signals`);
+  }
   if (candidate.rating != null) reasons.push(`strong Google Places rating (${candidate.rating.toFixed(1)})`);
   if (candidate.reviewCount != null) reasons.push(`${candidate.reviewCount.toLocaleString()} reviews`);
   if (tags.includes('locals-love-it')) reasons.push('local-favorite signals');
@@ -352,6 +505,10 @@ export function buildWhyThisIsAFit(candidate, request, evidence, tags) {
     parts.push(`This looks like a fit because it has ${reasons.slice(0, 3).join(', ')}.`);
   }
 
+  if (cuisine) {
+    parts.push(`The ranking is being tuned specifically for ${cuisine}.`);
+  }
+
   if (request.filters.localOnly) {
     parts.push('The ranking is leaning local-first instead of chasing the biggest review count.');
   }
@@ -361,16 +518,29 @@ export function buildWhyThisIsAFit(candidate, request, evidence, tags) {
 
 export function buildWhatWeFound(candidate, evidence) {
   const pieces = [];
+  const reviewHighlights = Array.isArray(candidate.reviewHighlights) ? candidate.reviewHighlights : [];
+  const reviewLanguage = [
+    (candidate.reviews || []).join(' ').trim(),
+    reviewHighlights.map((item) => item.text).join(' ').trim()
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  const reviewKeywordHits = ['pizza', 'steak', 'burger', 'italian', 'bbq', 'sushi', 'taco', 'mexican', 'coffee', 'breakfast'].filter((term) =>
+    reviewLanguage.toLowerCase().includes(term)
+  );
   if (candidate.phone) pieces.push('phone verified');
   if (candidate.website) pieces.push('website verified');
   if (candidate.openNow != null) pieces.push(candidate.openNow ? 'open now status available' : 'hours/status available');
   if (candidate.reviewCount != null) pieces.push(`${candidate.reviewCount.toLocaleString()} Google reviews`);
+  if (reviewHighlights.length) pieces.push(`${reviewHighlights.length} review highlight${reviewHighlights.length === 1 ? '' : 's'}`);
   if (evidence.some((item) => item.sourceType === 'official_site')) pieces.push('official site corroboration');
   if (evidence.some((item) => item.sourceType === 'facebook')) pieces.push('social activity check');
   if (evidence.some((item) => item.sourceType === 'local_news' || item.sourceType === 'local_blog')) pieces.push('local write-up check');
+  if (reviewKeywordHits.length) pieces.push(`review language around ${reviewKeywordHits.slice(0, 2).join(' and ')}`);
 
   if (!pieces.length) {
-    return 'Verified business identity from Google Places, with limited extra evidence available.';
+    return 'Verified business identity from Google Places, with limited extra evidence available. Please call ahead if you need the latest hours or menu details.';
   }
 
   return `We found ${pieces.join(', ')}.`;
@@ -438,6 +608,48 @@ export function rankCandidates({ request, intent = null, candidates, corroborate
   });
 
   return ranked;
+}
+
+export function applyCuisineGate(ranked, request, intent = null) {
+  if (!Array.isArray(ranked) || !ranked.length) {
+    return { results: [], warnings: [] };
+  }
+
+  const profile = getCuisineProfile(normalizeText(request?.filters?.cuisine) || normalizeText(intent?.inferredCuisine));
+  if (!profile) {
+    return { results: ranked, warnings: [] };
+  }
+
+  const classified = ranked.map((candidate) => ({
+    candidate,
+    match: classifyCuisineCandidate(candidate, request, intent, candidate?.evidence || [])
+  }));
+  const strictMatches = classified.filter(({ match }) => match.profile && match.exact && !match.blocked).map(({ candidate }) => candidate);
+  if (strictMatches.length) {
+    const secondaryMatches = classified
+      .filter(({ match }) => match.profile && match.soft && !match.exact && !match.blocked)
+      .map(({ candidate }) => candidate);
+    return {
+      results: [...strictMatches, ...secondaryMatches],
+      warnings: [
+        `Showing verified ${profile.label} matches first.`,
+        secondaryMatches.length ? `A few closely related verified options are shown underneath the exact ${profile.label} matches.` : null
+      ].filter(Boolean)
+    };
+  }
+
+  const softMatches = classified.filter(({ match }) => match.profile && match.soft && !match.blocked).map(({ candidate }) => candidate);
+  if (softMatches.length) {
+    return {
+      results: softMatches,
+      warnings: [`No verified exact ${profile.label} match was found, so 618FOOD.COM is showing the closest related options.`]
+    };
+  }
+
+  return {
+    results: ranked,
+    warnings: [`No verified ${profile.label} match was found, so 618FOOD.COM is showing the closest verified options.`]
+  };
 }
 
 function bucketCandidate(candidates, predicate) {

@@ -14,11 +14,15 @@ Output rules:
 - Return plain JSON only. No markdown.
 - Keep text short, clear, and trustworthy.
 - Explain results using evidence from the candidate bundle and any corroborating web signals.
+- Lean on the strongest concrete details available, including review language, menu clues, official site details, and current social or local signals.
 - Prefer locally owned, lived-in places over chains unless the user explicitly asks otherwise.
+- If the user asks for a specific cuisine, only elevate candidates that truly match that cuisine. Do not let a generic restaurant outrank a verified cuisine match.
 - Treat Google rating as one signal among many; do not let raw rating or Google order dominate the explanation.
 - Favor better intent matches, local-favorite signals, and current evidence when ranking.
 - Use confidence labels: high, medium, limited.
 - Use tags such as hidden-gem, locals-love-it, worth-the-drive, breakfast-favorite, family-friendly, patio, quick-casual, date-night, open-now, dog-friendly, budget-friendly.
+- Make whyThisIsAFit and whatWeFound feel richer than a generic summary. Use concrete evidence like menu clues, review language, official site details, and current web corroboration. If evidence is thin, say that plainly instead of sounding generic.
+- If no exact cuisine match exists, say that explicitly and describe the fallback as a verified nearby alternative.
 
 Return shape:
 {

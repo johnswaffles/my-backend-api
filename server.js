@@ -6,7 +6,7 @@ import { createEmptySearchResponse, normalizeSearchRequest, FOOD_BRAND } from '.
 import { fetchGooglePlaceDetails, inferFoodIntent, normalizeGooglePlace, searchGooglePlaces } from './services/food/google-places.js';
 import { askFoodAssistant } from './services/food/assistant.js';
 import { corroborateCandidates } from './services/food/corroboration.js';
-import { buildAudioSummary, buildResultBuckets, isLargeChain, rankCandidates } from './services/food/ranking.js';
+import { applyCuisineGate, buildAudioSummary, buildResultBuckets, isLargeChain, rankCandidates } from './services/food/ranking.js';
 import { generateFoodSpeech } from './services/food/audio.js';
 
 const app = express();
@@ -483,7 +483,7 @@ app.post('/api/food/search', async (req, res) => {
     }
 
     const candidateDetails = [];
-    for (const seed of rawCandidates.slice(0, 24)) {
+    for (const seed of rawCandidates.slice(0, 32)) {
       try {
         const detail = await fetchGooglePlaceDetails(seed.placeId, googleKey);
         candidateDetails.push(
@@ -522,20 +522,23 @@ app.post('/api/food/search', async (req, res) => {
       candidates: radiusLimitedCandidates,
       corroborated: corroboration.results || []
     });
+    const cuisineGate = applyCuisineGate(ranked, searchRequest, intent);
+    const finalResults = cuisineGate.results.length ? cuisineGate.results : ranked;
 
     const mergedWarnings = [
       ...googleWarnings,
       ...(corroboration.warnings || []),
+      ...(cuisineGate.warnings || []),
       ...(request.filters.openNow ? [] : []),
       ...(request.filters.localOnly ? [] : [])
     ].filter(Boolean);
 
     return res.json({
       intentSummary: corroboration.intentSummary || buildFoodIntentSummary(searchRequest),
-      results: ranked.slice(0, 8),
+      results: finalResults.slice(0, 8),
       warnings: mergedWarnings,
-      audioSummary: buildAudioSummary(searchRequest, ranked.slice(0, 1)),
-      buckets: buildResultBuckets(ranked.slice(0, 8), searchRequest, intent),
+      audioSummary: buildAudioSummary(searchRequest, finalResults.slice(0, 1)),
+      buckets: buildResultBuckets(finalResults.slice(0, 8), searchRequest, intent),
       hasLiveData: true,
       sourceMode: 'live'
     });

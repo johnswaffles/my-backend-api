@@ -156,6 +156,14 @@ export function buildFoodQueries(request) {
   const steakIntent = /steak|steakhouse|prime rib|ribeye|t-bone|sirloin|filet|porterhouse|chop house|chophouse|grill|grille|roadhouse/i.test(
     [cuisine, query, destination].filter(Boolean).join(' ')
   );
+  const cuisineQueries = cuisine
+    ? [
+        `${cuisine} restaurant`,
+        `${cuisine} places`,
+        `${cuisine} near ${destination || query}`,
+        cuisine
+      ]
+    : [];
   const steakQueries = steakIntent ? ['steakhouse', 'steak restaurant', 'chophouse', 'grill', 'steak'] : [];
   const preferenceQueries =
     {
@@ -169,6 +177,7 @@ export function buildFoodQueries(request) {
   const baseQuery = locationLikeQuery ? (cuisine || query || 'restaurants') : (destination || query || 'local restaurants');
   const locationQueries = locationLikeQuery
     ? [
+        ...cuisineQueries,
         cuisine ? `${cuisine} restaurant` : 'restaurant',
         ...steakQueries,
         ...preferenceQueries,
@@ -220,6 +229,7 @@ export async function searchGooglePlaces(request, apiKey) {
   const queries = buildFoodQueries(request);
   const allCandidates = [];
   const warnings = [];
+  const searchFailures = [];
 
   const searchPlans = resolvedLocation && locationLikeRequest
     ? [
@@ -257,7 +267,11 @@ export async function searchGooglePlaces(request, apiKey) {
       if (!response.ok || (data.status !== 'OK' && data.status !== 'ZERO_RESULTS')) {
         const status = data?.status || response.status || 'unknown';
         const detail = data?.error_message ? ` ${data.error_message}` : '';
-        warnings.push(`Google Places search had trouble (${status}) for "${plan.searchQuery || 'nearby restaurants'}".${detail}`);
+        searchFailures.push({
+          query: plan.searchQuery || 'nearby restaurants',
+          status,
+          detail
+        });
         continue;
       }
 
@@ -276,6 +290,15 @@ export async function searchGooglePlaces(request, apiKey) {
 
   if (geocodeWarning) {
     warnings.push(geocodeWarning);
+  }
+
+  if (searchFailures.length) {
+    const sample = searchFailures[0];
+    if (allCandidates.length) {
+      warnings.push('Google Places had trouble with part of the search, but 618FOOD.COM still found verified matches.');
+    } else {
+      warnings.push(`Google Places search had trouble for "${sample.query}". Try a slightly different town or cuisine.`);
+    }
   }
 
   if (!resolvedLocation && (looksLikeLocationQuery(request.destinationText) || looksLikeLocationQuery(request.query))) {
@@ -338,6 +361,18 @@ export function normalizeGooglePlace(detail, searchSeed = null, request = null) 
         .filter((text) => typeof text === 'string' && text.trim())
         .slice(0, 3)
     : [];
+  const reviewHighlights = Array.isArray(detail?.reviews)
+    ? detail.reviews
+        .map((review) => ({
+          text: typeof review?.text === 'string' ? review.text.trim() : '',
+          rating: typeof review?.rating === 'number' ? review.rating : null,
+          relativeTime:
+            typeof review?.relative_time_description === 'string' ? review.relative_time_description : '',
+          author: typeof review?.author_name === 'string' ? review.author_name : ''
+        }))
+        .filter((review) => review.text)
+        .slice(0, 4)
+    : [];
 
   const distanceMiles =
     request?.location && Number.isFinite(lat) && Number.isFinite(lng)
@@ -362,6 +397,7 @@ export function normalizeGooglePlace(detail, searchSeed = null, request = null) 
     coordinates: Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null,
     businessStatus: detail.business_status || '',
     reviews,
+    reviewHighlights,
     distanceMiles
   };
 }

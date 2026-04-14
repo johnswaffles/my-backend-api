@@ -70,6 +70,7 @@ export async function corroborateCandidates({ apiKey, model, request, candidates
       reviewCount: candidate.reviewCount,
       priceLevel: candidate.priceLevel,
       reviews: candidate.reviews || [],
+      reviewHighlights: candidate.reviewHighlights || [],
       distanceMiles: candidate.distanceMiles
     }))
   };
@@ -94,7 +95,7 @@ export async function corroborateCandidates({ apiKey, model, request, candidates
           content: `Analyze these allowlisted candidates for ${request.mealType} in 618FOOD.COM.\n\nReturn JSON only.\n\n${JSON.stringify(payload, null, 2)}`
         }
       ],
-      max_output_tokens: 1800
+      max_output_tokens: 2200
     })
   });
 

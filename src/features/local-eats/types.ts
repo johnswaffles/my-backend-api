@@ -83,6 +83,12 @@ export interface GooglePlaceCandidate {
   coordinates?: GeoPoint | null;
   businessStatus?: string;
   reviews?: string[];
+  reviewHighlights?: Array<{
+    text: string;
+    rating?: number | null;
+    relativeTime?: string;
+    author?: string;
+  }>;
   distanceMiles?: number | null;
 }
 
