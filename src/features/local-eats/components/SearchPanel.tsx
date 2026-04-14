@@ -67,8 +67,8 @@ export function SearchPanel({
             Search verified local places.
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-stone-600 sm:text-base">
-            Rural-first discovery for Southern Illinois, built to verify real businesses before
-            they ever reach the page.
+            Try natural searches like “pasta in Mount Vernon, Illinois” or “burgers near me” and
+            618FOOD.COM will map the food, the town, and the radius together.
           </p>
         </div>
 
@@ -103,7 +103,7 @@ export function SearchPanel({
             autoFocus
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
-            placeholder="Town, ZIP, or 'I'm driving to...'"
+            placeholder="Pasta in Mount Vernon, IL, burgers near me, or a town/ZIP"
             className="w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-base text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
           />
         </label>

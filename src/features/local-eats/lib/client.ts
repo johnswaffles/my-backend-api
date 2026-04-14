@@ -1,5 +1,12 @@
 import type { SearchRequest, SearchResponse } from '../types';
 
+function normalizeSpeechText(text: string): string {
+  return text
+    .replace(/\b618\s*food\.com\b/gi, 'six one eight dot com')
+    .replace(/\b618food\.com\b/gi, 'six one eight dot com')
+    .replace(/\b618FOOD\.COM\b/g, 'six one eight dot com');
+}
+
 async function parseJsonResponse<T>(response: Response): Promise<T> {
   const data = await response.json().catch(() => null);
   if (!response.ok) {
@@ -48,7 +55,7 @@ export function playBrowserNarration(text: string): Promise<void> {
     }
 
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
+    const utterance = new SpeechSynthesisUtterance(normalizeSpeechText(text));
     utterance.rate = 1;
     utterance.pitch = 1;
     utterance.volume = 1;
@@ -62,4 +69,3 @@ export function stopBrowserNarration(): void {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
 }
-

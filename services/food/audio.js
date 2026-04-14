@@ -1,7 +1,18 @@
+function normalizeSpeechText(value) {
+  return typeof value === 'string'
+    ? value
+        .replace(/\b618\s*food\.com\b/gi, 'six one eight dot com')
+        .replace(/\b618food\.com\b/gi, 'six one eight dot com')
+        .replace(/\b618FOOD\.COM\b/g, 'six one eight dot com')
+    : value;
+}
+
 export async function generateFoodSpeech({ apiKey, model, voice = 'nova', text }) {
   if (!apiKey) {
-    return { audioBase64: '', mimeType: 'audio/mpeg', fallback: true, text };
+    return { audioBase64: '', mimeType: 'audio/mpeg', fallback: true, text: normalizeSpeechText(text) };
   }
+
+  const spokenText = normalizeSpeechText(text);
 
   const response = await fetch('https://api.openai.com/v1/audio/speech', {
     method: 'POST',
@@ -12,7 +23,7 @@ export async function generateFoodSpeech({ apiKey, model, voice = 'nova', text }
     body: JSON.stringify({
       model,
       voice,
-      input: text,
+      input: spokenText,
       response_format: 'mp3'
     })
   });
@@ -27,7 +38,6 @@ export async function generateFoodSpeech({ apiKey, model, voice = 'nova', text }
     audioBase64: Buffer.from(arrayBuffer).toString('base64'),
     mimeType: 'audio/mpeg',
     fallback: false,
-    text
+    text: spokenText
   };
 }
-

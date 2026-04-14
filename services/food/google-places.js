@@ -1,6 +1,24 @@
 const GOOGLE_PLACES_BASE = 'https://maps.googleapis.com/maps/api/place';
 const GOOGLE_GEOCODE_BASE = 'https://maps.googleapis.com/maps/api/geocode/json';
 
+const FOOD_CUISINE_ALIASES = [
+  { terms: ['pasta', 'italian', 'lasagna', 'spaghetti', 'ravioli', 'fettuccine', 'marinara'], cuisine: 'Italian' },
+  { terms: ['pizza', 'pizzeria', 'calzone', 'stromboli'], cuisine: 'pizza' },
+  { terms: ['burger', 'burgers', 'hamburger', 'hamburgers', 'cheeseburger', 'cheeseburgers'], cuisine: 'burgers' },
+  { terms: ['bbq', 'barbecue', 'barbeque', 'smoked', 'smokehouse'], cuisine: 'BBQ' },
+  { terms: ['taco', 'tacos', 'burrito', 'burritos', 'quesadilla', 'mexican'], cuisine: 'Mexican' },
+  { terms: ['sushi', 'ramen', 'japanese', 'hibachi'], cuisine: 'Japanese' },
+  { terms: ['chinese', 'dumpling', 'noodle', 'lo mein'], cuisine: 'Chinese' },
+  { terms: ['thai'], cuisine: 'Thai' },
+  { terms: ['seafood', 'fish fry', 'catfish', 'shrimp'], cuisine: 'seafood' },
+  { terms: ['deli', 'sandwich', 'subs', 'sub', 'hoagie'], cuisine: 'deli' },
+  { terms: ['coffee', 'espresso', 'latte', 'cafe', 'café'], cuisine: 'coffee' },
+  { terms: ['breakfast', 'brunch', 'pancake', 'pancakes', 'biscuits', 'omelet', 'omelette'], cuisine: 'breakfast' },
+  { terms: ['dessert', 'ice cream', 'bakery', 'pie', 'sweet'], cuisine: 'dessert' }
+];
+
+const LOCATION_JOINERS = /\b(?:in|near|around|at|toward|to|by)\b/i;
+
 function milesToMeters(miles) {
   return Math.max(1000, Math.round(miles * 1609.34));
 }
@@ -16,6 +34,53 @@ function looksLikeLocationQuery(value) {
   if (/[A-Za-z]+\s*,\s*[A-Za-z]{2}\b/.test(text)) return true;
   if (/[A-Za-z]{2}\s+\d{5}(?:-\d{4})?$/.test(text)) return true;
   return text.length >= 3 && text.length <= 64 && /[A-Za-z]/.test(text) && /\b(il|mo|ky|tn|in|oh|ar)\b/i.test(text);
+}
+
+function normalizeComparable(value) {
+  return normalizeText(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ');
+}
+
+function inferCuisineFromText(text) {
+  const normalized = normalizeComparable(text);
+  for (const item of FOOD_CUISINE_ALIASES) {
+    if (item.terms.some((term) => normalized.includes(normalizeComparable(term)))) {
+      return item.cuisine;
+    }
+  }
+  return '';
+}
+
+function splitQueryLocation(value) {
+  const text = normalizeText(value);
+  if (!text) return { subject: '', location: '' };
+
+  const match = text.match(new RegExp(`^(.*?)\\s+${LOCATION_JOINERS.source}\\s+(.+)$`, 'i'));
+  if (match) {
+    return {
+      subject: normalizeText(match[1]),
+      location: normalizeText(match[2])
+    };
+  }
+
+  return { subject: text, location: '' };
+}
+
+export function inferFoodIntent(request) {
+  const query = normalizeText(request?.query);
+  const destinationText = normalizeText(request?.destinationText);
+  const split = splitQueryLocation(query);
+  const querySubject = split.subject || query;
+  const queryLocation = split.location;
+  const destinationLikeLocation = looksLikeLocationQuery(destinationText) ? destinationText : '';
+  const inferredLocation = destinationLikeLocation || queryLocation;
+  const inferredCuisine = inferCuisineFromText([querySubject, destinationText].filter(Boolean).join(' '));
+
+  return {
+    querySubject,
+    queryLocation,
+    inferredLocation,
+    inferredCuisine
+  };
 }
 
 async function geocodeSearchText(apiKey, text) {
@@ -49,11 +114,12 @@ async function geocodeSearchText(apiKey, text) {
 }
 
 export function buildFoodQueries(request) {
-  const cuisine = normalizeText(request.filters?.cuisine);
+  const intent = inferFoodIntent(request);
+  const cuisine = normalizeText(request.filters?.cuisine) || intent.inferredCuisine;
   const mealType = normalizeText(request.mealType);
-  const destination = normalizeText(request.destinationText);
-  const query = normalizeText(request.query);
-  const locationLikeQuery = looksLikeLocationQuery(query) || looksLikeLocationQuery(destination);
+  const destination = normalizeText(intent.inferredLocation || request.destinationText);
+  const query = normalizeText(intent.querySubject || request.query);
+  const locationLikeQuery = Boolean(destination) || looksLikeLocationQuery(request.query) || looksLikeLocationQuery(request.destinationText);
 
   const mealHints = {
     breakfast: ['breakfast', 'diner', 'coffee', 'cafe'],
@@ -64,7 +130,7 @@ export function buildFoodQueries(request) {
   };
 
   const hints = mealType && mealHints[mealType] ? mealHints[mealType] : ['restaurant', 'diner', 'cafe'];
-  const baseQuery = locationLikeQuery ? (cuisine || 'restaurants') : (destination || query || 'local restaurants');
+  const baseQuery = locationLikeQuery ? (cuisine || query || 'restaurants') : (destination || query || 'local restaurants');
   const locationQueries = locationLikeQuery
     ? [
         cuisine ? `${cuisine} restaurant` : 'restaurant',
@@ -95,11 +161,14 @@ export async function searchGooglePlaces(request, apiKey) {
   const location = request.location && Number.isFinite(request.location.lat) && Number.isFinite(request.location.lng)
     ? request.location
     : null;
-  const locationLikeRequest = looksLikeLocationQuery(request.destinationText) || looksLikeLocationQuery(request.query);
+  const intent = inferFoodIntent(request);
+  const locationLikeRequest = Boolean(intent.inferredLocation) || looksLikeLocationQuery(request.destinationText) || looksLikeLocationQuery(request.query);
   let resolvedLocation = location;
   let geocodeWarning = '';
   try {
-    if (!resolvedLocation && looksLikeLocationQuery(request.destinationText)) {
+    if (intent.inferredLocation) {
+      resolvedLocation = await geocodeSearchText(apiKey, intent.inferredLocation);
+    } else if (!resolvedLocation && looksLikeLocationQuery(request.destinationText)) {
       resolvedLocation = await geocodeSearchText(apiKey, request.destinationText);
     } else if (!resolvedLocation && looksLikeLocationQuery(request.query)) {
       resolvedLocation = await geocodeSearchText(apiKey, request.query);
@@ -117,6 +186,7 @@ export async function searchGooglePlaces(request, apiKey) {
   const searchPlans = resolvedLocation && locationLikeRequest
     ? [
         { kind: 'nearby', searchQuery: '' },
+        { kind: 'nearby', searchQuery: intent.inferredCuisine ? `${intent.inferredCuisine} restaurant` : 'restaurant' },
         { kind: 'nearby', searchQuery: 'restaurant' },
         { kind: 'nearby', searchQuery: 'food' },
         { kind: 'nearby', searchQuery: 'cafe' },
@@ -132,7 +202,7 @@ export async function searchGooglePlaces(request, apiKey) {
 
       if (resolvedLocation && plan.kind === 'nearby') {
         url.searchParams.set('location', `${resolvedLocation.lat},${resolvedLocation.lng}`);
-        url.searchParams.set('radius', String(Math.min(radiusMeters, locationLikeRequest ? milesToMeters(50) : radiusMeters)));
+        url.searchParams.set('radius', String(radiusMeters));
         url.searchParams.set('type', 'restaurant');
         if (plan.searchQuery) {
           url.searchParams.set('keyword', plan.searchQuery);
@@ -182,7 +252,8 @@ export async function searchGooglePlaces(request, apiKey) {
 
   return {
     candidates: [...deduped.values()],
-    warnings
+    warnings,
+    resolvedLocation
   };
 }
 

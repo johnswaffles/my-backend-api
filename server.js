@@ -3,9 +3,9 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { createEmptySearchResponse, normalizeSearchRequest, FOOD_BRAND } from './services/food/schemas.js';
-import { fetchGooglePlaceDetails, normalizeGooglePlace, searchGooglePlaces } from './services/food/google-places.js';
+import { fetchGooglePlaceDetails, inferFoodIntent, normalizeGooglePlace, searchGooglePlaces } from './services/food/google-places.js';
 import { corroborateCandidates } from './services/food/corroboration.js';
-import { buildAudioSummary, rankCandidates } from './services/food/ranking.js';
+import { buildAudioSummary, isLargeChain, rankCandidates } from './services/food/ranking.js';
 import { generateFoodSpeech } from './services/food/audio.js';
 
 const app = express();
@@ -424,9 +424,28 @@ function buildFoodIntentSummary(request) {
   return `${FOOD_BRAND} search tuned for ${parts.join(', ')}.`;
 }
 
+function enrichFoodRequest(request) {
+  const intent = inferFoodIntent(request);
+  const filters = {
+    ...request.filters,
+    cuisine: request.filters.cuisine || intent.inferredCuisine || ''
+  };
+
+  return {
+    request: {
+      ...request,
+      query: intent.querySubject || request.query,
+      destinationText: intent.inferredLocation || request.destinationText,
+      filters
+    },
+    intent
+  };
+}
+
 app.post('/api/food/search', async (req, res) => {
   try {
     const request = normalizeSearchRequest(req.body || {});
+    const { request: searchRequest, intent } = enrichFoodRequest(request);
     const googleKey = getGooglePlacesApiKey();
     const openaiKey = process.env.OPENAI_API_KEY;
     const searchModel = process.env.OPENAI_MODEL || 'gpt-5.4';
@@ -440,11 +459,11 @@ app.post('/api/food/search', async (req, res) => {
       });
     }
 
-    const { candidates: rawCandidates, warnings: googleWarnings = [] } = await searchGooglePlaces(request, googleKey);
+    const { candidates: rawCandidates, warnings: googleWarnings = [], resolvedLocation } = await searchGooglePlaces(searchRequest, googleKey);
     if (!rawCandidates.length) {
       return res.json({
         ...createEmptySearchResponse(
-          `${FOOD_BRAND} did not find verified matches for that search.`
+          `${FOOD_BRAND} did not find verified matches within the selected radius.`
         ),
         warnings: [
           ...googleWarnings,
@@ -457,22 +476,39 @@ app.post('/api/food/search', async (req, res) => {
     for (const seed of rawCandidates.slice(0, 12)) {
       try {
         const detail = await fetchGooglePlaceDetails(seed.placeId, googleKey);
-        candidateDetails.push(normalizeGooglePlace(detail, seed, request));
+        candidateDetails.push(
+          normalizeGooglePlace(detail, seed, {
+            ...searchRequest,
+            location: resolvedLocation || searchRequest.location
+          })
+        );
       } catch {
-        candidateDetails.push(normalizeGooglePlace(seed.place, seed, request));
+        candidateDetails.push(
+          normalizeGooglePlace(seed.place, seed, {
+            ...searchRequest,
+            location: resolvedLocation || searchRequest.location
+          })
+        );
       }
     }
+
+    const radiusLimitedCandidates = candidateDetails.filter((candidate) => {
+      if (candidate.distanceMiles == null) return true;
+      return candidate.distanceMiles <= searchRequest.radiusMiles;
+    });
 
     const corroboration = await corroborateCandidates({
       apiKey: openaiKey,
       model: searchModel,
-      request,
-      candidates: candidateDetails.slice(0, 8)
+      request: searchRequest,
+      candidates: radiusLimitedCandidates
+        .filter((candidate) => !isLargeChain(candidate))
+        .slice(0, 8)
     });
 
     const ranked = rankCandidates({
-      request,
-      candidates: candidateDetails,
+      request: searchRequest,
+      candidates: radiusLimitedCandidates,
       corroborated: corroboration.results || []
     });
 
@@ -484,10 +520,10 @@ app.post('/api/food/search', async (req, res) => {
     ].filter(Boolean);
 
     return res.json({
-      intentSummary: corroboration.intentSummary || buildFoodIntentSummary(request),
+      intentSummary: corroboration.intentSummary || buildFoodIntentSummary(searchRequest),
       results: ranked.slice(0, 8),
       warnings: mergedWarnings,
-      audioSummary: corroboration.summary || buildAudioSummary(request, ranked.slice(0, 5)),
+      audioSummary: corroboration.summary || buildAudioSummary(searchRequest, ranked.slice(0, 5)),
       hasLiveData: true,
       sourceMode: 'live'
     });

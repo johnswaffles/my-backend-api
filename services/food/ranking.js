@@ -75,7 +75,7 @@ function normalizeComparable(value) {
   return normalizeText(value).replace(/[^a-z0-9]+/g, '');
 }
 
-function isLargeChain(candidate) {
+export function isLargeChain(candidate) {
   const name = normalizeText(candidate.name);
   const website = normalizeText(candidate.website);
   const websiteDomain = website ? (() => {
@@ -297,19 +297,14 @@ export function rankCandidates({ request, candidates, corroborated = [] }) {
 
 export function buildAudioSummary(request, results) {
   if (!results.length) {
-    return `${FOOD_BRAND} found no verified places for this search yet. Try a nearby town, a ZIP code, or turn off a filter to widen the net.`;
+    return `${FOOD_BRAND} found no verified places within your selected area yet. Try a nearby town, a ZIP code, or a slightly wider radius to widen the net.`;
   }
 
-  const top = results.slice(0, 3).map((result) => {
-    return result.confidence === 'limited' ? `${result.name}` : `${result.name}, one of the stronger matches`;
-  });
+  const top = results.slice(0, 3).map((result) => result.name).filter(Boolean);
+  const scope = request.location?.label || request.destinationText || 'your search area';
+  const cuisine = request.filters.cuisine || '';
+  const query = request.query || '';
+  const searchTopic = cuisine || query || 'local food';
 
-  const filterBits = [];
-  if (request.mealType !== 'any') filterBits.push(request.mealType);
-  if (request.filters.openNow) filterBits.push('open now');
-  if (request.filters.localOnly) filterBits.push('local-first');
-  if (request.filters.worthTheDrive) filterBits.push('worth the drive');
-
-  const filterText = filterBits.length ? ` for ${filterBits.join(', ')}` : '';
-  return `${FOOD_BRAND} found ${results.length} verified ${results.length === 1 ? 'spot' : 'spots'}${filterText}. Top picks include ${top.join('; ')}.`;
+  return `${FOOD_BRAND} found ${results.length} verified ${results.length === 1 ? 'spot' : 'spots'} near ${scope} for ${searchTopic}. The strongest local matches are ${top.join('; ')}.`;
 }

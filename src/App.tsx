@@ -36,9 +36,7 @@ function buildFilterPayload(filterFocus: FilterFocus): SearchFilters {
 function summarizeResults(results: RankedRestaurant[]): string {
   if (!results.length) return 'No verified restaurants matched this search yet.';
 
-  const highlights = results.slice(0, 3).map((result) => {
-    return result.confidence === 'limited' ? result.name : `${result.name} (good local match)`;
-  });
+  const highlights = results.slice(0, 3).map((result) => result.name);
 
   return `Here are ${results.length} verified ${results.length === 1 ? 'place' : 'places'} worth a look on ${FOOD_BRAND}: ${highlights.join('; ')}.`;
 }
@@ -261,6 +259,15 @@ export default function App(): JSX.Element {
     setFilterFocus(value);
   }
 
+  function handleFollowUpSearch(value: string): void {
+    setQuery(value);
+    void submitSearch(undefined, {
+      query: value,
+      destinationText: destinationText.trim(),
+      mode
+    });
+  }
+
   const audioSummary = getFallbackAudioText(response);
 
   return (
@@ -329,6 +336,7 @@ export default function App(): JSX.Element {
               isLoading={audioLoading}
               onToggleSpeaker={toggleSpeaker}
               onPlay={handlePlaySummary}
+              onFollowUpSearch={handleFollowUpSearch}
             />
 
             {loading ? <SearchLoadingCard /> : null}

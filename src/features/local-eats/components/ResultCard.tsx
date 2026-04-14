@@ -53,7 +53,7 @@ export function ResultCard({ result, rank, onOpenMap }: ResultCardProps): JSX.El
             }`}
           >
             {isLimited
-              ? 'Low confidence - please call ahead to confirm hours and availability.'
+              ? 'Please call ahead to confirm hours and availability.'
               : 'Good local match with verified business details.'}
           </div>
         </div>
