@@ -114,6 +114,18 @@ export interface SearchResponse {
   sourceMode: 'live' | 'demo' | 'empty';
 }
 
+export interface FoodAssistantSource {
+  title: string;
+  url: string;
+}
+
+export interface FoodAssistantResponse {
+  action: 'answer' | 'search';
+  reply: string;
+  sources: FoodAssistantSource[];
+  searchRequest?: Partial<SearchRequest> | null;
+}
+
 export interface LiveSearchState {
   query: string;
   destinationText: string;
@@ -122,4 +134,3 @@ export interface LiveSearchState {
   radiusMiles: number;
   filters: SearchFilters;
 }
-

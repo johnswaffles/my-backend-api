@@ -4,6 +4,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { createEmptySearchResponse, normalizeSearchRequest, FOOD_BRAND } from './services/food/schemas.js';
 import { fetchGooglePlaceDetails, inferFoodIntent, normalizeGooglePlace, searchGooglePlaces } from './services/food/google-places.js';
+import { askFoodAssistant } from './services/food/assistant.js';
 import { corroborateCandidates } from './services/food/corroboration.js';
 import { buildAudioSummary, isLargeChain, rankCandidates } from './services/food/ranking.js';
 import { generateFoodSpeech } from './services/food/audio.js';
@@ -424,6 +425,15 @@ function buildFoodIntentSummary(request) {
   return `${FOOD_BRAND} search tuned for ${parts.join(', ')}.`;
 }
 
+function buildAssistantResultSummary(results) {
+  if (!Array.isArray(results) || !results.length) {
+    return 'No verified spots yet.';
+  }
+
+  const top = results[0];
+  return `I found a current local food match: ${top.name}.`;
+}
+
 function enrichFoodRequest(request) {
   const intent = inferFoodIntent(request);
   const filters = {
@@ -530,6 +540,34 @@ app.post('/api/food/search', async (req, res) => {
   } catch (error) {
     return res.status(500).json({
       error: 'Unable to search 618FOOD.COM right now.',
+      details: String(error.message || error)
+    });
+  }
+});
+
+app.post('/api/food/assistant', async (req, res) => {
+  try {
+    const { message, currentSearch, currentSummary, currentResults } = req.body || {};
+    if (!message || typeof message !== 'string' || !message.trim()) {
+      return res.status(400).json({ error: 'Message is required.' });
+    }
+
+    const openaiKey = process.env.OPENAI_API_KEY;
+    const model = process.env.OPENAI_MODEL || 'gpt-5.4';
+
+    const assistant = await askFoodAssistant({
+      apiKey: openaiKey,
+      model,
+      message: message.trim(),
+      currentSearch: normalizeSearchRequest(currentSearch || {}),
+      currentSummary: typeof currentSummary === 'string' ? currentSummary : buildAssistantResultSummary(currentResults),
+      currentResults: Array.isArray(currentResults) ? currentResults : []
+    });
+
+    return res.json(assistant);
+  } catch (error) {
+    return res.status(500).json({
+      error: 'Unable to answer 618FOOD.COM follow-up right now.',
       details: String(error.message || error)
     });
   }

@@ -1,4 +1,4 @@
-import type { SearchRequest, SearchResponse } from '../types';
+import type { FoodAssistantResponse, SearchRequest, SearchResponse } from '../types';
 
 function normalizeSpeechText(text: string): string {
   return text
@@ -45,6 +45,36 @@ export async function request618FoodAudio(text: string): Promise<FoodAudioRespon
   });
 
   return parseJsonResponse<FoodAudioResponse>(response);
+}
+
+export interface FoodAssistantRequest {
+  message: string;
+  currentSearch: SearchRequest;
+  currentSummary: string;
+  currentResults: Array<{
+    placeId: string;
+    name: string;
+    city?: string;
+    formattedAddress?: string;
+    categories: string[];
+    openNow?: boolean | null;
+    tags: string[];
+    confidence: string;
+    whyThisIsAFit: string;
+    whatWeFound: string;
+  }>;
+}
+
+export async function ask618FoodAssistant(request: FoodAssistantRequest): Promise<FoodAssistantResponse> {
+  const response = await fetch('/api/food/assistant', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(request)
+  });
+
+  return parseJsonResponse<FoodAssistantResponse>(response);
 }
 
 export function playBrowserNarration(text: string): Promise<void> {

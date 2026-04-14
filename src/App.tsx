@@ -5,9 +5,16 @@ import { SearchLoadingCard } from './features/local-eats/components/SearchLoadin
 import { SearchPanel } from './features/local-eats/components/SearchPanel';
 import { DEMO_SEARCH_RESPONSE } from './features/local-eats/mock/demo';
 import { DEFAULT_SEARCH_FILTERS, FOOD_BRAND } from './features/local-eats/schemas';
-import { playBrowserNarration, request618FoodAudio, search618Food, stopBrowserNarration } from './features/local-eats/lib/client';
+import {
+  ask618FoodAssistant,
+  playBrowserNarration,
+  request618FoodAudio,
+  search618Food,
+  stopBrowserNarration
+} from './features/local-eats/lib/client';
 import type {
   GeoPoint,
+  FoodAssistantSource,
   RankedRestaurant,
   SearchFilters,
   SearchMode,
@@ -46,6 +53,27 @@ function getFallbackAudioText(response: SearchResponse): string {
   return summarizeResults(response.results);
 }
 
+function buildSearchPayload(
+  query: string,
+  destinationText: string,
+  location: GeoPoint | null,
+  mode: SearchMode,
+  radiusMiles: number,
+  filterFocus: FilterFocus,
+  overrides: Partial<SearchRequest> = {}
+): SearchRequest {
+  return {
+    query,
+    destinationText,
+    location,
+    mealType: 'any',
+    mode,
+    radiusMiles,
+    filters: buildFilterPayload(filterFocus),
+    ...overrides
+  };
+}
+
 export default function App(): JSX.Element {
   const demoMode = import.meta.env.VITE_LOCAL_EATS_DEMO_MODE === 'true';
   const [query, setQuery] = useState('');
@@ -56,6 +84,9 @@ export default function App(): JSX.Element {
   const [geoPoint, setGeoPoint] = useState<GeoPoint | null>(null);
   const [geoLabel, setGeoLabel] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
+  const [assistantLoading, setAssistantLoading] = useState(false);
+  const [assistantReply, setAssistantReply] = useState('');
+  const [assistantSources, setAssistantSources] = useState<FoodAssistantSource[]>([]);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [response, setResponse] = useState<SearchResponse>(
     demoMode ? DEMO_SEARCH_RESPONSE : {
@@ -119,27 +150,31 @@ export default function App(): JSX.Element {
 
   async function submitSearch(
     event?: FormEvent<HTMLFormElement>,
-    overrides: Partial<SearchRequest> = {}
+    overrides: Partial<SearchRequest> = {},
+    options: { preserveAssistantReply?: boolean } = {}
   ): Promise<void> {
     event?.preventDefault();
     setLoading(true);
     setSearchError(null);
+    if (!options.preserveAssistantReply) {
+      setAssistantReply('');
+      setAssistantSources([]);
+    }
     try {
       if (demoMode && !query.trim() && !destinationText.trim() && !geoPoint) {
         setResponse(DEMO_SEARCH_RESPONSE);
         return;
       }
 
-      const payload: SearchRequest = {
-        query: query.trim(),
-        destinationText: destinationText.trim(),
-        location: geoPoint,
-        mealType: 'any',
+      const payload = buildSearchPayload(
+        query.trim(),
+        destinationText.trim(),
+        geoPoint,
         mode,
         radiusMiles,
-        filters: buildFilterPayload(filterFocus),
-        ...overrides
-      };
+        filterFocus,
+        overrides
+      );
 
       const nextResponse = await search618Food(payload);
       setResponse(nextResponse);
@@ -257,13 +292,74 @@ export default function App(): JSX.Element {
     setFilterFocus(value);
   }
 
-  function handleFollowUpSearch(value: string): void {
-    setQuery(value);
-    void submitSearch(undefined, {
-      query: value,
-      destinationText: destinationText.trim(),
-      mode
-    });
+  async function handleFollowUpSearch(value: string): Promise<void> {
+    const followUp = value.trim();
+    if (!followUp) return;
+
+    setAssistantLoading(true);
+    setSearchError(null);
+    try {
+      const assistant = await ask618FoodAssistant({
+        message: followUp,
+        currentSearch: buildSearchPayload(
+          query.trim(),
+          destinationText.trim(),
+          geoPoint,
+          mode,
+          radiusMiles,
+          filterFocus
+        ),
+        currentSummary: headlineSummary,
+        currentResults: activeResults.slice(0, 5).map((result) => ({
+          placeId: result.placeId,
+          name: result.name,
+          city: result.city,
+          formattedAddress: result.formattedAddress,
+          categories: result.categories,
+          openNow: result.openNow,
+          tags: result.tags,
+          confidence: result.confidence,
+          whyThisIsAFit: result.whyThisIsAFit,
+          whatWeFound: result.whatWeFound
+        }))
+      });
+
+      setAssistantReply(assistant.reply);
+      setAssistantSources(assistant.sources || []);
+
+      if (assistant.action === 'search' && assistant.searchRequest) {
+        const nextQuery = typeof assistant.searchRequest.query === 'string' ? assistant.searchRequest.query : followUp;
+        setQuery(nextQuery);
+        if (typeof assistant.searchRequest.destinationText === 'string') {
+          setDestinationText(assistant.searchRequest.destinationText);
+        }
+        if (
+          assistant.searchRequest.mode === 'nearby' ||
+          assistant.searchRequest.mode === 'destination' ||
+          assistant.searchRequest.mode === 'traveler' ||
+          assistant.searchRequest.mode === 'surprise'
+        ) {
+          setMode(assistant.searchRequest.mode);
+        }
+        if (
+          typeof assistant.searchRequest.radiusMiles === 'number' &&
+          Number.isFinite(assistant.searchRequest.radiusMiles)
+        ) {
+          setRadiusMiles(assistant.searchRequest.radiusMiles);
+        }
+        if (assistant.searchRequest.filters && typeof assistant.searchRequest.filters === 'object') {
+          const assistantFilters = assistant.searchRequest.filters;
+          if (assistantFilters.localOnly) setFilterFocus('localOnly');
+          else if (assistantFilters.dogFriendly) setFilterFocus('dogFriendly');
+          else if (assistantFilters.patio) setFilterFocus('patio');
+        }
+        await submitSearch(undefined, assistant.searchRequest, { preserveAssistantReply: true });
+      }
+    } catch (error) {
+      setSearchError(error instanceof Error ? error.message : 'Unable to answer that food question right now.');
+    } finally {
+      setAssistantLoading(false);
+    }
   }
 
   const audioSummary = getFallbackAudioText(response);
@@ -332,9 +428,12 @@ export default function App(): JSX.Element {
               speakerEnabled={speakerEnabled}
               isPlaying={isPlaying}
               isLoading={audioLoading}
+              assistantLoading={assistantLoading}
+              assistantReply={assistantReply}
+              assistantSources={assistantSources}
               onToggleSpeaker={toggleSpeaker}
               onPlay={handlePlaySummary}
-              onFollowUpSearch={handleFollowUpSearch}
+              onAskAssistant={handleFollowUpSearch}
             />
 
             {loading ? <SearchLoadingCard /> : null}
