@@ -523,7 +523,7 @@ app.post('/api/food/search', async (req, res) => {
       intentSummary: corroboration.intentSummary || buildFoodIntentSummary(searchRequest),
       results: ranked.slice(0, 8),
       warnings: mergedWarnings,
-      audioSummary: corroboration.summary || buildAudioSummary(searchRequest, ranked.slice(0, 5)),
+      audioSummary: buildAudioSummary(searchRequest, ranked.slice(0, 1)),
       hasLiveData: true,
       sourceMode: 'live'
     });

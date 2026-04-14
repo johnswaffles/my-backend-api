@@ -36,17 +36,15 @@ function buildFilterPayload(filterFocus: FilterFocus): SearchFilters {
 function summarizeResults(results: RankedRestaurant[]): string {
   if (!results.length) return 'No verified restaurants matched this search yet.';
 
-  const highlights = results.slice(0, 3).map((result) => result.name);
+  const top = results[0];
 
-  return `Here are ${results.length} verified ${results.length === 1 ? 'place' : 'places'} worth a look on ${FOOD_BRAND}: ${highlights.join('; ')}.`;
+  return `${top.name} is the number one verified pick on ${FOOD_BRAND}.`;
 }
 
 function getFallbackAudioText(response: SearchResponse): string {
   if (response.audioSummary) return response.audioSummary;
   return summarizeResults(response.results);
 }
-
-const TOWN_SUGGESTIONS = ['Marion, IL', 'Carbondale, IL', 'Harrisburg, IL', 'Anna, IL', 'Metropolis, IL', 'Cairo, IL'];
 
 export default function App(): JSX.Element {
   const demoMode = import.meta.env.VITE_LOCAL_EATS_DEMO_MODE === 'true';
@@ -387,26 +385,8 @@ export default function App(): JSX.Element {
                 ))}
               </div>
             ) : (
-              <div className="rounded-[2rem] border border-dashed border-stone-300 bg-white/60 p-8 text-center shadow-[0_16px_40px_rgba(61,79,42,0.08)]">
-                <div className="font-display text-3xl font-semibold tracking-tight text-[#173528]">
-                  Start with a town, ZIP, or location.
-                </div>
-                <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-stone-600">
-                  618FOOD.COM returns only verified businesses. If evidence is weak, the app asks
-                  you to call ahead instead of guessing.
-                </p>
-                <div className="mt-5 flex flex-wrap justify-center gap-2">
-                  {TOWN_SUGGESTIONS.map((town) => (
-                    <button
-                      key={town}
-                      type="button"
-                      onClick={() => handleQuickTown(town)}
-                      className="rounded-full bg-emerald-700/10 px-4 py-2 text-sm font-semibold text-emerald-900 transition hover:bg-emerald-700/15"
-                    >
-                      {town}
-                    </button>
-                  ))}
-                </div>
+              <div className="rounded-[1.6rem] border border-stone-200 bg-white/60 px-4 py-3 text-sm text-stone-600 shadow-[0_12px_28px_rgba(61,79,42,0.06)]">
+                Search a town, ZIP, or location to see verified local food.
               </div>
             )}
 

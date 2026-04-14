@@ -33,7 +33,38 @@ const FILTER_OPTIONS: Array<{ value: 'localOnly' | 'dogFriendly' | 'patio'; labe
   { value: 'patio', label: 'Patio seating', description: 'Prioritize places with outdoor seating.' }
 ];
 
-const QUICK_TOWNS = ['Marion, IL', 'Carbondale, IL', 'Harrisburg, IL', 'Anna, IL', 'Metropolis, IL', 'Cairo, IL'];
+const TOWN_OPTIONS = [
+  'Marion, IL',
+  'Carbondale, IL',
+  'Harrisburg, IL',
+  'Anna, IL',
+  'Metropolis, IL',
+  'Cairo, IL',
+  'Fairview Heights, IL',
+  'Shiloh, IL',
+  'Edwardsville, IL',
+  'Belleville, IL',
+  "O'Fallon, IL",
+  'Collinsville, IL',
+  'Waterloo, IL',
+  'Highland, IL',
+  'Alton, IL',
+  'Granite City, IL',
+  'Lebanon, IL',
+  'Carlyle, IL',
+  'Trenton, IL',
+  'Breese, IL',
+  'Nashville, IL',
+  'Pinckneyville, IL',
+  'Du Quoin, IL',
+  'Herrin, IL',
+  'Carterville, IL',
+  'Mount Vernon, IL',
+  'Vienna, IL',
+  'Chester, IL',
+  'Steeleville, IL',
+  'Okawville, IL'
+];
 
 export function SearchPanel({
   query,
@@ -192,17 +223,34 @@ export function SearchPanel({
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        {QUICK_TOWNS.map((town) => (
-          <button
-            key={town}
-            type="button"
-            onClick={() => onQuickTown(town)}
-            className="rounded-full border border-emerald-700/12 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-900 transition hover:bg-emerald-100"
+      <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr]">
+        <div className="rounded-[1.6rem] border border-stone-200 bg-white/92 p-4">
+          <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
+            Browse towns
+          </div>
+          <select
+            defaultValue=""
+            onChange={(event) => {
+              const nextTown = event.currentTarget.value;
+              if (!nextTown) return;
+              onQuickTown(nextTown);
+              event.currentTarget.selectedIndex = 0;
+            }}
+            className="w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-900 outline-none transition focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
           >
-            {town}
-          </button>
-        ))}
+            <option value="" disabled>
+              Pick a town with good food
+            </option>
+            {TOWN_OPTIONS.map((town) => (
+              <option key={town} value={town}>
+                {town}
+              </option>
+            ))}
+          </select>
+          <p className="mt-3 text-xs leading-5 text-stone-500">
+            Select one to fill the search bar above and launch 618FOOD.COM instantly.
+          </p>
+        </div>
       </div>
 
       <div className="mt-5 flex flex-col gap-3 border-t border-stone-200 pt-4 sm:flex-row sm:items-center sm:justify-between">

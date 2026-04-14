@@ -300,11 +300,19 @@ export function buildAudioSummary(request, results) {
     return `${FOOD_BRAND} found no verified places within your selected area yet. Try a nearby town, a ZIP code, or a slightly wider radius to widen the net.`;
   }
 
-  const top = results.slice(0, 3).map((result) => result.name).filter(Boolean);
+  const top = results[0];
   const scope = request.location?.label || request.destinationText || 'your search area';
-  const cuisine = request.filters.cuisine || '';
-  const query = request.query || '';
-  const searchTopic = cuisine || query || 'local food';
+  const category = top.categories?.[0] ? top.categories[0].toLowerCase() : 'local spot';
+  const distance = typeof top.distanceMiles === 'number' ? `about ${top.distanceMiles.toFixed(1)} miles away` : 'close by';
+  const localSignals = [];
+  if (top.tags?.includes('locals-love-it')) localSignals.push('locals seem to love it');
+  if (top.tags?.includes('hidden-gem')) localSignals.push('it has hidden-gem energy');
+  if (top.tags?.includes('worth-the-drive')) localSignals.push('it is worth the drive');
+  if (top.openNow === true) localSignals.push('it is open now');
 
-  return `${FOOD_BRAND} found ${results.length} verified ${results.length === 1 ? 'spot' : 'spots'} near ${scope} for ${searchTopic}. The strongest local matches are ${top.join('; ')}.`;
+  const fitLine = localSignals.length
+    ? ` It stands out because ${localSignals.slice(0, 2).join(' and ')}.`
+    : ' It is the strongest verified local match in the current search.';
+
+  return `${FOOD_BRAND}'s number one pick near ${scope} is ${top.name}, a ${category} ${distance}.${fitLine}`;
 }
