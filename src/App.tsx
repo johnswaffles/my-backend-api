@@ -363,14 +363,6 @@ export default function App(): JSX.Element {
                 </div>
                 <div className="mt-1 text-xl font-semibold text-stone-900">{headlineSummary}</div>
               </div>
-              <button
-                type="button"
-                disabled={loading}
-                onClick={() => void submitSearch()}
-                className="rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-semibold text-stone-700 transition hover:border-emerald-400 hover:text-emerald-900 disabled:cursor-wait disabled:border-stone-200 disabled:bg-stone-100 disabled:text-stone-400"
-              >
-                {loading ? 'Refreshing...' : 'Refresh'}
-              </button>
             </div>
 
             {loading ? null : activeResults.length ? (

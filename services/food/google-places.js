@@ -11,6 +11,7 @@ const FOOD_CUISINE_ALIASES = [
   { terms: ['chinese', 'dumpling', 'noodle', 'lo mein'], cuisine: 'Chinese' },
   { terms: ['thai'], cuisine: 'Thai' },
   { terms: ['seafood', 'fish fry', 'catfish', 'shrimp'], cuisine: 'seafood' },
+  { terms: ['steak', 'steakhouse', 'prime rib', 'ribeye', 't-bone', 'sirloin', 'filet', 'porterhouse', 'chophouse', 'chop house', 'grill', 'grille', 'roadhouse'], cuisine: 'Steakhouse' },
   { terms: ['deli', 'sandwich', 'subs', 'sub', 'hoagie'], cuisine: 'deli' },
   { terms: ['coffee', 'espresso', 'latte', 'cafe', 'café'], cuisine: 'coffee' },
   { terms: ['breakfast', 'brunch', 'pancake', 'pancakes', 'biscuits', 'omelet', 'omelette'], cuisine: 'breakfast' },
@@ -124,16 +125,21 @@ export function buildFoodQueries(request) {
   const mealHints = {
     breakfast: ['breakfast', 'diner', 'coffee', 'cafe'],
     lunch: ['lunch', 'sandwich', 'deli', 'cafe'],
-    dinner: ['restaurant', 'dinner', 'bbq', 'steak', 'pizza'],
+    dinner: ['restaurant', 'dinner', 'bbq', 'steakhouse', 'steak', 'grill', 'chophouse'],
     dessert: ['dessert', 'ice cream', 'bakery', 'sweet shop'],
     coffee: ['coffee', 'cafe', 'espresso', 'bakery']
   };
 
   const hints = mealType && mealHints[mealType] ? mealHints[mealType] : ['restaurant', 'diner', 'cafe'];
+  const steakIntent = /steak|steakhouse|prime rib|ribeye|t-bone|sirloin|filet|porterhouse|chop house|chophouse|grill|grille|roadhouse/i.test(
+    [cuisine, query, destination].filter(Boolean).join(' ')
+  );
+  const steakQueries = steakIntent ? ['steakhouse', 'steak restaurant', 'chophouse', 'grill', 'steak'] : [];
   const baseQuery = locationLikeQuery ? (cuisine || query || 'restaurants') : (destination || query || 'local restaurants');
   const locationQueries = locationLikeQuery
     ? [
         cuisine ? `${cuisine} restaurant` : 'restaurant',
+        ...steakQueries,
         'restaurants',
         'diner',
         'cafe',

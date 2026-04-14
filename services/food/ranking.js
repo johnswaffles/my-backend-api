@@ -24,6 +24,35 @@ function hasKeyword(haystack, keywords) {
   return keywords.some((keyword) => haystack.includes(keyword));
 }
 
+const STEAKHOUSE_TERMS = [
+  'steak',
+  'steakhouse',
+  'prime rib',
+  'ribeye',
+  't-bone',
+  'sirloin',
+  'filet',
+  'porterhouse',
+  'chophouse',
+  'chop house',
+  'grill',
+  'grille',
+  'roadhouse'
+];
+
+const STEAKHOUSE_NEGATIVE_TERMS = [
+  'sandwich',
+  'sub',
+  'subs',
+  'hoagie',
+  'deli',
+  'wrap',
+  'subway',
+  'fast food',
+  'takeout only',
+  'pizza'
+];
+
 const LARGE_CHAIN_NAMES = [
   'mcdonalds',
   "mcdonald's",
@@ -156,7 +185,7 @@ function scoreByConfidence(confidence, evidenceCount, hasWebsite, hasPhone) {
   return score;
 }
 
-function scoreByRelevance(candidate, request) {
+function scoreByRelevance(candidate, request, evidence = []) {
   let score = 0;
   const text = normalizeText(
     [
@@ -169,6 +198,18 @@ function scoreByRelevance(candidate, request) {
   const cuisine = normalizeText(request.filters.cuisine);
   const query = normalizeText(request.query);
   const destination = normalizeText(request.destinationText);
+  const searchText = [cuisine, query, destination].filter(Boolean).join(' ');
+  const steakIntent = hasKeyword(normalizeText(searchText), STEAKHOUSE_TERMS);
+  const steakEvidence = normalizeText(
+    [
+      candidate.name,
+      candidate.formattedAddress,
+      candidate.city,
+      candidate.categories.join(' '),
+      candidate.reviews?.join(' ') || '',
+      evidence.map((item) => `${item.title} ${item.snippet} ${item.notes || ''}`).join(' ')
+    ].join(' ')
+  );
 
   if (request.filters.openNow && candidate.openNow === true) score += 10;
   if (candidate.rating != null) score += Math.min(10, candidate.rating * 2);
@@ -187,6 +228,11 @@ function scoreByRelevance(candidate, request) {
   if (request.filters.patio && hasKeyword(text, ['patio', 'outdoor'])) score += 4;
   if (candidate.priceLevel === 1) score += 3;
   if (candidate.priceLevel === 2) score += 2;
+  if (steakIntent && hasKeyword(steakEvidence, STEAKHOUSE_TERMS)) score += 24;
+  if (steakIntent && hasKeyword(steakEvidence, ['steakhouse', 'chophouse', 'chop house', 'prime rib', 'ribeye', 't-bone'])) score += 14;
+  if (steakIntent && hasKeyword(steakEvidence, ['grill', 'grille', 'roadhouse', 'bar and grill', 'bar & grill'])) score += 8;
+  if (steakIntent && !hasKeyword(steakEvidence, STEAKHOUSE_TERMS)) score -= 14;
+  if (steakIntent && hasKeyword(steakEvidence, STEAKHOUSE_NEGATIVE_TERMS)) score -= 18;
   return score;
 }
 
@@ -265,7 +311,7 @@ export function rankCandidates({ request, candidates, corroborated = [] }) {
         ...(Array.isArray(corroboration?.tags) ? corroboration.tags.filter(Boolean) : [])
       ]);
       const confidence = corroboration?.confidence || deriveConfidence(candidate, evidence, request);
-      const heuristicScore = scoreByRelevance(candidate, request);
+      const heuristicScore = scoreByRelevance(candidate, request, evidence);
       const confidenceScore = scoreByConfidence(confidence, evidence.length, Boolean(candidate.website), Boolean(candidate.phone));
       const evidenceScore = Math.min(16, evidence.length * 3);
       const tagScore = [...tags].reduce((total, tag) => total + (TAG_WEIGHTS[tag] || 0), 0);
