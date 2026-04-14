@@ -18,20 +18,32 @@ const OPENAI_DISCOVERY_SCHEMA = {
     results: {
       type: 'array',
       maxItems: 8,
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        required: [
-          'name',
-          'formattedAddress',
-          'categories',
-          'score',
-          'confidence',
-          'whyThisIsAFit',
-          'whatWeFound',
-          'evidence'
-        ],
-        properties: {
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          required: [
+            'placeId',
+            'name',
+            'formattedAddress',
+            'city',
+            'phone',
+            'website',
+            'mapsUrl',
+            'categories',
+            'openNow',
+            'rating',
+            'reviewCount',
+            'priceLevel',
+            'coordinates',
+            'distanceMiles',
+            'score',
+            'confidence',
+            'tags',
+            'whyThisIsAFit',
+            'whatWeFound',
+            'evidence'
+          ],
+          properties: {
           placeId: { type: 'string' },
           name: { type: 'string' },
           formattedAddress: { type: 'string' },
