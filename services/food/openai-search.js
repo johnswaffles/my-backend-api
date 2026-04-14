@@ -116,13 +116,27 @@ function extractResponseText(data) {
   return parts.join('\n').trim();
 }
 
+function sanitizeStructuredText(text) {
+  if (!text || typeof text !== 'string') return '';
+
+  return text
+    .replace(/```json\s*/gi, '')
+    .replace(/```/g, '')
+    .replace(/\u200b/g, '')
+    .replace(/\s*cite[^]*/g, '')
+    .replace(/\s*【\d+:\d+†[^】]*】/g, '')
+    .replace(/\s*\[\d+\]/g, '')
+    .trim();
+}
+
 function extractJsonObject(text) {
-  if (!text || typeof text !== 'string') return null;
-  const start = text.indexOf('{');
-  const end = text.lastIndexOf('}');
+  const cleanText = sanitizeStructuredText(text);
+  if (!cleanText) return null;
+  const start = cleanText.indexOf('{');
+  const end = cleanText.lastIndexOf('}');
   if (start === -1 || end === -1 || end <= start) return null;
   try {
-    return JSON.parse(text.slice(start, end + 1));
+    return JSON.parse(cleanText.slice(start, end + 1));
   } catch {
     return null;
   }
