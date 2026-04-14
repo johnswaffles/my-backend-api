@@ -485,7 +485,7 @@ export function buildWhyThisIsAFit(candidate, request, evidence, tags) {
   } else if (cuisineMatch.profile && cuisineMatch.soft) {
     reasons.push(`related ${cuisineMatch.profile.label} signals`);
   }
-  if (candidate.rating != null) reasons.push(`strong Google Places rating (${candidate.rating.toFixed(1)})`);
+  if (candidate.rating != null) reasons.push(`strong rating (${candidate.rating.toFixed(1)})`);
   if (candidate.reviewCount != null) reasons.push(`${candidate.reviewCount.toLocaleString()} reviews`);
   if (tags.includes('locals-love-it')) reasons.push('local-favorite signals');
   if (tags.includes('hidden-gem')) reasons.push('small-town hidden-gem profile');
@@ -496,9 +496,9 @@ export function buildWhyThisIsAFit(candidate, request, evidence, tags) {
   if (tags.includes('date-night')) reasons.push('date-night vibe');
 
   if (evidence.length) {
-    parts.push(`Verified by Google Places and corroborated with ${evidence.length} supporting signal${evidence.length === 1 ? '' : 's'}.`);
+    parts.push(`Verified from the web search bundle and corroborated with ${evidence.length} supporting signal${evidence.length === 1 ? '' : 's'}.`);
   } else {
-    parts.push('Verified on Google Places, but corroborating web signals were limited.');
+    parts.push('Verified from the web search bundle, but corroborating web signals were limited.');
   }
 
   if (reasons.length) {
@@ -532,7 +532,7 @@ export function buildWhatWeFound(candidate, evidence) {
   if (candidate.phone) pieces.push('phone verified');
   if (candidate.website) pieces.push('website verified');
   if (candidate.openNow != null) pieces.push(candidate.openNow ? 'open now status available' : 'hours/status available');
-  if (candidate.reviewCount != null) pieces.push(`${candidate.reviewCount.toLocaleString()} Google reviews`);
+  if (candidate.reviewCount != null) pieces.push(`${candidate.reviewCount.toLocaleString()} reviews`);
   if (reviewHighlights.length) pieces.push(`${reviewHighlights.length} review highlight${reviewHighlights.length === 1 ? '' : 's'}`);
   if (evidence.some((item) => item.sourceType === 'official_site')) pieces.push('official site corroboration');
   if (evidence.some((item) => item.sourceType === 'facebook')) pieces.push('social activity check');
@@ -540,7 +540,7 @@ export function buildWhatWeFound(candidate, evidence) {
   if (reviewKeywordHits.length) pieces.push(`review language around ${reviewKeywordHits.slice(0, 2).join(' and ')}`);
 
   if (!pieces.length) {
-    return 'Verified business identity from Google Places, with limited extra evidence available. Please call ahead if you need the latest hours or menu details.';
+    return 'Verified business identity from the web search bundle, with limited extra evidence available. Please call ahead if you need the latest hours or menu details.';
   }
 
   return `We found ${pieces.join(', ')}.`;

@@ -3,10 +3,9 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { createEmptySearchResponse, normalizeSearchRequest, FOOD_BRAND } from './services/food/schemas.js';
-import { fetchGooglePlaceDetails, inferFoodIntent, normalizeGooglePlace, searchGooglePlaces } from './services/food/google-places.js';
 import { askFoodAssistant } from './services/food/assistant.js';
-import { corroborateCandidates } from './services/food/corroboration.js';
-import { applyCuisineGate, buildAudioSummary, buildResultBuckets, isLargeChain, rankCandidates } from './services/food/ranking.js';
+import { describeFoodIntent, inferFoodIntent } from './services/food/intent.js';
+import { searchWithOpenAI } from './services/food/openai-search.js';
 import { generateFoodSpeech } from './services/food/audio.js';
 
 const app = express();
@@ -147,16 +146,6 @@ function extractFirstJsonObject(text) {
   } catch {
     return null;
   }
-}
-
-function getGooglePlacesApiKey() {
-  return (
-    process.env.GOOGLE_API_KEY ||
-    process.env.GOOGLE_PLACES_API_KEY ||
-    process.env.GOOGLE_PLACES_KEY ||
-    process.env.GOOGLE_MAPS_KEY ||
-    ''
-  );
 }
 
 function readSalesLeads() {
@@ -412,19 +401,6 @@ app.post('/api/sales-lead', (req, res) => {
   }
 });
 
-function buildFoodIntentSummary(request) {
-  const parts = [];
-  if (request.mealType !== 'any') parts.push(request.mealType);
-  if (request.filters.cuisine) parts.push(request.filters.cuisine);
-  if (request.filters.openNow) parts.push('open now');
-  if (request.filters.localOnly) parts.push('local-first');
-  if (request.filters.worthTheDrive) parts.push('worth the drive');
-  if (request.destinationText) parts.push(`for ${request.destinationText}`);
-  if (request.location?.label) parts.push(`near ${request.location.label}`);
-  if (!parts.length) return `${FOOD_BRAND} is ready for a rural Southern Illinois search.`;
-  return `${FOOD_BRAND} search tuned for ${parts.join(', ')}.`;
-}
-
 function buildAssistantResultSummary(results) {
   if (!Array.isArray(results) || !results.length) {
     return 'No verified spots yet.';
@@ -456,89 +432,31 @@ app.post('/api/food/search', async (req, res) => {
   try {
     const request = normalizeSearchRequest(req.body || {});
     const { request: searchRequest, intent } = enrichFoodRequest(request);
-    const googleKey = getGooglePlacesApiKey();
     const openaiKey = process.env.OPENAI_API_KEY;
     const searchModel = process.env.OPENAI_MODEL || 'gpt-5.4';
 
-    if (!googleKey) {
+    if (!openaiKey) {
       return res.json({
         ...createEmptySearchResponse(
-          `${FOOD_BRAND} is waiting for Google Places credentials so it can return verified restaurant results.`
+          `${FOOD_BRAND} is waiting for OpenAI credentials so it can return verified restaurant results.`
         ),
-        warnings: ['Google Places is not configured on the server yet.']
+        warnings: ['OPENAI_API_KEY is not configured on the server yet.']
       });
     }
 
-    const { candidates: rawCandidates, warnings: googleWarnings = [], resolvedLocation } = await searchGooglePlaces(searchRequest, googleKey);
-    if (!rawCandidates.length) {
-      return res.json({
-        ...createEmptySearchResponse(
-          `${FOOD_BRAND} did not find verified matches within the selected radius.`
-        ),
-        warnings: [
-          ...googleWarnings,
-          'No Google Places candidates were returned for the current search.'
-        ]
-      });
-    }
-
-    const candidateDetails = [];
-    for (const seed of rawCandidates.slice(0, 32)) {
-      try {
-        const detail = await fetchGooglePlaceDetails(seed.placeId, googleKey);
-        candidateDetails.push(
-          normalizeGooglePlace(detail, seed, {
-            ...searchRequest,
-            location: resolvedLocation || searchRequest.location
-          })
-        );
-      } catch {
-        candidateDetails.push(
-          normalizeGooglePlace(seed.place, seed, {
-            ...searchRequest,
-            location: resolvedLocation || searchRequest.location
-          })
-        );
-      }
-    }
-
-    const radiusLimitedCandidates = candidateDetails.filter((candidate) => {
-      if (candidate.distanceMiles == null) return true;
-      return candidate.distanceMiles <= searchRequest.radiusMiles;
-    });
-
-    const corroboration = await corroborateCandidates({
+    const searchResult = await searchWithOpenAI({
       apiKey: openaiKey,
       model: searchModel,
-      request: searchRequest,
-      candidates: radiusLimitedCandidates
-        .filter((candidate) => !isLargeChain(candidate))
-        .slice(0, 8)
+      request: searchRequest
     });
-
-    const ranked = rankCandidates({
-      request: searchRequest,
-      intent,
-      candidates: radiusLimitedCandidates,
-      corroborated: corroboration.results || []
-    });
-    const cuisineGate = applyCuisineGate(ranked, searchRequest, intent);
-    const finalResults = cuisineGate.results.length ? cuisineGate.results : ranked;
-
-    const mergedWarnings = [
-      ...googleWarnings,
-      ...(corroboration.warnings || []),
-      ...(cuisineGate.warnings || []),
-      ...(request.filters.openNow ? [] : []),
-      ...(request.filters.localOnly ? [] : [])
-    ].filter(Boolean);
 
     return res.json({
-      intentSummary: corroboration.intentSummary || buildFoodIntentSummary(searchRequest),
-      results: finalResults.slice(0, 8),
-      warnings: mergedWarnings,
-      audioSummary: buildAudioSummary(searchRequest, finalResults.slice(0, 1)),
-      buckets: buildResultBuckets(finalResults.slice(0, 8), searchRequest, intent),
+      intentSummary: searchResult.intentSummary || describeFoodIntent(searchRequest),
+      summary: typeof searchResult.summary === 'string' ? searchResult.summary : '',
+      results: Array.isArray(searchResult.results) ? searchResult.results.slice(0, 8) : [],
+      warnings: Array.isArray(searchResult.warnings) ? searchResult.warnings : [],
+      audioSummary: typeof searchResult.audioSummary === 'string' ? searchResult.audioSummary : '',
+      buckets: Array.isArray(searchResult.buckets) ? searchResult.buckets : [],
       hasLiveData: true,
       sourceMode: 'live'
     });

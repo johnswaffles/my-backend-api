@@ -67,7 +67,7 @@ export interface SearchRequest {
   demo?: boolean;
 }
 
-export interface GooglePlaceCandidate {
+export interface FoodPlaceCandidate {
   placeId: string;
   name: string;
   formattedAddress?: string;
@@ -102,7 +102,7 @@ export interface EvidenceItem {
   consistent: boolean;
 }
 
-export interface RankedRestaurant extends GooglePlaceCandidate {
+export interface RankedRestaurant extends FoodPlaceCandidate {
   score: number;
   confidence: ConfidenceLevel;
   tags: LocalSignalTag[];

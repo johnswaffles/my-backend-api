@@ -388,7 +388,7 @@ export default function App(): JSX.Element {
 
             <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
               <span className="rounded-full bg-emerald-700/10 px-3 py-1 text-emerald-900">
-                Google Places verified
+                OpenAI web search
               </span>
               <span className="rounded-full bg-stone-900/6 px-3 py-1 text-stone-700">
                 OpenAI ranking + narration
@@ -483,8 +483,8 @@ export default function App(): JSX.Element {
 
             {demoMode ? (
               <div className="rounded-[1.5rem] border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
-                Demo preview mode is on. Connect Google Places and OpenAI keys to turn 618FOOD.COM
-                into the live production experience.
+                Demo preview mode is on. Connect OpenAI web-search and narration settings to turn
+                618FOOD.COM into the live production experience.
               </div>
             ) : null}
           </div>

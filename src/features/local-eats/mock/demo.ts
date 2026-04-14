@@ -2,11 +2,11 @@ import type { SearchResponse } from '../types';
 
 export const DEMO_SEARCH_RESPONSE: SearchResponse = {
   intentSummary:
-    'Preview mode is showing the layout and evidence style until live Google Places and OpenAI keys are connected.',
+    'Preview mode is showing the layout and evidence style until live OpenAI web-search and narration settings are connected.',
   hasLiveData: false,
   sourceMode: 'demo',
   warnings: [
-    'This is preview data only. Connect Google Places and OpenAI to load verified restaurant results.'
+    'This is preview data only. Connect OpenAI search and narration settings to load verified restaurant results.'
   ],
   audioSummary:
     'Preview mode is active. Once live data is connected, 618FOOD.COM will read a short summary of verified local spots aloud.',
@@ -18,7 +18,7 @@ export const DEMO_SEARCH_RESPONSE: SearchResponse = {
       city: 'Southern Illinois',
       phone: '(000) 000-0000',
       website: 'https://example.com',
-      mapsUrl: 'https://maps.google.com',
+      mapsUrl: 'https://www.openstreetmap.org',
       categories: ['Diner', 'Preview'],
       openNow: true,
       rating: 4.8,
@@ -50,7 +50,7 @@ export const DEMO_SEARCH_RESPONSE: SearchResponse = {
       city: 'Local route sample',
       phone: '(000) 000-0000',
       website: 'https://example.com',
-      mapsUrl: 'https://maps.google.com',
+      mapsUrl: 'https://www.openstreetmap.org',
       categories: ['BBQ', 'Preview'],
       openNow: false,
       rating: 4.7,
@@ -82,7 +82,7 @@ export const DEMO_SEARCH_RESPONSE: SearchResponse = {
       city: 'Route side stop',
       phone: '(000) 000-0000',
       website: 'https://example.com',
-      mapsUrl: 'https://maps.google.com',
+      mapsUrl: 'https://www.openstreetmap.org',
       categories: ['Coffee', 'Preview'],
       openNow: true,
       rating: 4.9,
