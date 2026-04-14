@@ -70,7 +70,7 @@ const OPENAI_DISCOVERY_SCHEMA = {
             items: {
               type: 'object',
               additionalProperties: false,
-              required: ['sourceType', 'title', 'url', 'snippet', 'freshness', 'consistent'],
+              required: ['sourceType', 'title', 'url', 'snippet', 'freshness', 'notes', 'consistent'],
               properties: {
                 sourceType: { type: 'string' },
                 title: { type: 'string' },
@@ -247,6 +247,7 @@ function buildDiscoveryPrompt(request, intent, locationContext) {
   parts.push(
     'Use multiple searches as needed: official sites, menus, social pages, local news, tourism pages, ordering pages, and current web mentions. Use evidence from the web search results you find. If evidence is thin or conflicting, reduce confidence or omit the place. Return no more than 8 results.'
   );
+  parts.push('Every evidence item must include notes, even if the note is an empty string. Keep notes short and factual.');
   parts.push('Output JSON only that matches the schema exactly.');
 
   return parts.join('\n\n');
