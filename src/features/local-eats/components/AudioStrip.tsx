@@ -39,10 +39,10 @@ export function AudioStrip({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
-            Audio summary
+            Latest response
           </div>
           <p className="mt-2 max-w-3xl text-sm leading-7 text-stone-700">
-            {summary || 'Find a few verified local favorites, then use audio to hear the shortlist aloud.'}
+            {summary || 'Ask anything and 618FOOD.COM will answer here.'}
           </p>
         </div>
 
@@ -64,7 +64,7 @@ export function AudioStrip({
             disabled={!summary || isLoading}
             className="rounded-full bg-stone-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isPlaying ? 'Playing...' : 'Play summary'}
+            {isPlaying ? 'Playing...' : 'Play response'}
           </button>
         </div>
       </div>
