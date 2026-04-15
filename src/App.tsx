@@ -1,111 +1,31 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AudioStrip } from './features/local-eats/components/AudioStrip';
-import { ResultCard } from './features/local-eats/components/ResultCard';
-import { SearchLoadingCard } from './features/local-eats/components/SearchLoadingCard';
-import { SearchPanel } from './features/local-eats/components/SearchPanel';
-import { DEMO_SEARCH_RESPONSE } from './features/local-eats/mock/demo';
-import { DEFAULT_SEARCH_FILTERS, FOOD_BRAND } from './features/local-eats/schemas';
+import { FOOD_BRAND } from './features/local-eats/schemas';
 import {
   ask618Chat,
   playBrowserNarration,
   request618FoodAudio,
-  search618Food,
   stopBrowserNarration
 } from './features/local-eats/lib/client';
-import type {
-  GeoPoint,
-  ChatTurn,
-  RankedRestaurant,
-  SearchFilters,
-  SearchMode,
-  SearchResponse,
-  SearchRequest
-} from './features/local-eats/types';
+import type { ChatTurn } from './features/local-eats/types';
 
-type FilterFocus = 'localOnly' | 'dogFriendly' | 'patio';
-
-function buildFilterPayload(filterFocus: FilterFocus): SearchFilters {
-  return {
-    ...DEFAULT_SEARCH_FILTERS,
-    localOnly: filterFocus === 'localOnly',
-    dogFriendly: filterFocus === 'dogFriendly',
-    patio: filterFocus === 'patio',
-    openNow: false,
-    familyFriendly: false,
-    quickBite: false,
-    dateNight: false,
-    worthTheDrive: false,
-    budget: 'any',
-    cuisine: ''
-  };
-}
-
-function summarizeResults(results: RankedRestaurant[]): string {
-  if (!results.length) return 'No verified restaurants matched this search yet.';
-
-  const top = results[0];
-
-  return `${top.name} is the number one verified pick on ${FOOD_BRAND}.`;
-}
-
-function getFallbackAudioText(response: SearchResponse): string {
-  if (response.audioSummary) return response.audioSummary;
-  return summarizeResults(response.results);
-}
-
-function buildSearchPayload(
-  query: string,
-  destinationText: string,
-  location: GeoPoint | null,
-  mode: SearchMode,
-  radiusMiles: number,
-  filterFocus: FilterFocus,
-  overrides: Partial<SearchRequest> = {}
-): SearchRequest {
-  return {
-    query,
-    destinationText,
-    location,
-    mealType: 'any',
-    mode,
-    radiusMiles,
-    filters: buildFilterPayload(filterFocus),
-    ...overrides
-  };
+function getAudioSummary(conversation: ChatTurn[]): string {
+  const assistantTurns = conversation.filter((turn) => turn.role === 'assistant');
+  return assistantTurns.at(-1)?.content || 'Ask anything and 618FOOD.COM will chat with you.';
 }
 
 export default function App(): JSX.Element {
-  const demoMode = import.meta.env.VITE_LOCAL_EATS_DEMO_MODE === 'true';
-  const [query, setQuery] = useState('');
-  const [destinationText, setDestinationText] = useState('');
-  const [mode, setMode] = useState<SearchMode>('nearby');
-  const [radiusMiles, setRadiusMiles] = useState(18);
-  const [filterFocus, setFilterFocus] = useState<FilterFocus>('localOnly');
-  const [geoPoint, setGeoPoint] = useState<GeoPoint | null>(null);
-  const [geoLabel, setGeoLabel] = useState<string | undefined>(undefined);
-  const [loading, setLoading] = useState(false);
   const [assistantLoading, setAssistantLoading] = useState(false);
-  const [assistantTranscript, setAssistantTranscript] = useState<ChatTurn[]>([]);
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const [response, setResponse] = useState<SearchResponse>(
-    demoMode ? DEMO_SEARCH_RESPONSE : {
-      intentSummary: 'Try a town, ZIP, or location to search verified local food.',
-      results: [],
-      warnings: [],
-      audioSummary: '',
-      hasLiveData: false,
-      sourceMode: 'empty'
+  const [assistantTranscript, setAssistantTranscript] = useState<ChatTurn[]>([
+    {
+      role: 'assistant',
+      content: "Hello! I'm 618FOOD.COM. How can I help you today?"
     }
-  );
+  ]);
   const [speakerEnabled, setSpeakerEnabled] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioLoading, setAudioLoading] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  useEffect(() => {
-    if (!demoMode) return;
-    setResponse(DEMO_SEARCH_RESPONSE);
-  }, [demoMode]);
 
   useEffect(() => {
     return () => {
@@ -117,74 +37,9 @@ export default function App(): JSX.Element {
     };
   }, []);
 
-  useEffect(() => {
-    if (typeof window === 'undefined' || !('geolocation' in navigator)) return;
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const point = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-          source: 'browser' as const
-        };
-        setGeoPoint(point);
-        setGeoLabel('Browser location ready');
-      },
-      () => {
-        setGeoLabel('Location permission not granted yet');
-      },
-      {
-        maximumAge: 5 * 60 * 1000,
-        timeout: 8000
-      }
-    );
-  }, []);
-
-  const activeResults = response.results;
-
-  const resultCountLabel = activeResults.length
-    ? `${activeResults.length} verified ${activeResults.length === 1 ? 'spot' : 'spots'}`
-    : 'No verified spots yet';
-
-  const headlineSummary = response.intentSummary || 'Search verified local restaurants in Southern Illinois.';
-
-  async function submitSearch(
-    event?: FormEvent<HTMLFormElement>,
-    overrides: Partial<SearchRequest> = {}
-  ): Promise<void> {
-    event?.preventDefault();
-    setLoading(true);
-    setSearchError(null);
-    try {
-      if (demoMode && !query.trim() && !destinationText.trim() && !geoPoint) {
-        setResponse(DEMO_SEARCH_RESPONSE);
-        return;
-      }
-
-      const payload = buildSearchPayload(
-        query.trim(),
-        destinationText.trim(),
-        geoPoint,
-        mode,
-        radiusMiles,
-        filterFocus,
-        overrides
-      );
-
-      const nextResponse = await search618Food(payload);
-      setResponse(nextResponse);
-    } catch (error) {
-      if (demoMode) {
-        setResponse(DEMO_SEARCH_RESPONSE);
-      }
-      setSearchError(error instanceof Error ? error.message : 'Search failed.');
-    } finally {
-      setLoading(false);
-    }
-  }
-
   async function handlePlaySummary(): Promise<void> {
     if (!speakerEnabled) return;
-    const text = getFallbackAudioText(response);
+    const text = getAudioSummary(assistantTranscript);
     if (!text.trim()) return;
 
     setAudioLoading(true);
@@ -211,8 +66,8 @@ export default function App(): JSX.Element {
     } catch {
       try {
         await playBrowserNarration(text);
-      } catch (browserError) {
-        setSearchError(browserError instanceof Error ? browserError.message : 'Audio playback failed.');
+      } catch {
+        setIsPlaying(false);
       } finally {
         setIsPlaying(false);
       }
@@ -240,58 +95,11 @@ export default function App(): JSX.Element {
     });
   }
 
-  function handleUseLocation(): void {
-    if (!geoPoint) {
-      setGeoLabel('Looking for browser location...');
-      if (typeof window === 'undefined' || !('geolocation' in navigator)) {
-        setGeoLabel('Geolocation unavailable in this browser.');
-        return;
-      }
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const nextPoint = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-            source: 'browser' as const
-          };
-          setGeoPoint(nextPoint);
-          setGeoLabel(`Browser location ready • ${position.coords.latitude.toFixed(3)}, ${position.coords.longitude.toFixed(3)}`);
-        },
-        () => {
-          setGeoLabel('Location permission not granted yet');
-        }
-      );
-      return;
-    }
-
-    setMode('nearby');
-    void submitSearch(undefined, { mode: 'nearby' });
-  }
-
-  function handleSurpriseMe(): void {
-    setMode('surprise');
-    setQuery('');
-    setDestinationText('');
-    void submitSearch(undefined, { mode: 'surprise', query: '', destinationText: '' });
-  }
-
-  function handleQuickTown(value: string): void {
-    setDestinationText(value);
-    setQuery(value);
-    setMode('destination');
-    void submitSearch(undefined, { mode: 'destination', query: value, destinationText: value });
-  }
-
-  function handleFilterFocusChange(value: FilterFocus): void {
-    setFilterFocus(value);
-  }
-
   async function handleAssistantChat(value: string): Promise<void> {
     const followUp = value.trim();
     if (!followUp) return;
 
     setAssistantLoading(true);
-    setSearchError(null);
     try {
       const nextTranscript: ChatTurn[] = [
         ...assistantTranscript,
@@ -317,12 +125,12 @@ export default function App(): JSX.Element {
           sources: assistant.sources || []
         }
       ]);
-    } catch (error) {
+    } catch {
       setAssistantTranscript((current) => [
         ...current,
         {
           role: 'assistant',
-          content: error instanceof Error ? error.message : 'Unable to answer that question right now.',
+          content: 'I could not reach the live assistant just now. Please try again in a moment.',
           sources: []
         }
       ]);
@@ -331,14 +139,14 @@ export default function App(): JSX.Element {
     }
   }
 
-  const audioSummary = getFallbackAudioText(response);
+  const audioSummary = getAudioSummary(assistantTranscript);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.96),_rgba(250,246,236,0.82)_34%,_rgba(236,244,227,0.96)_66%,_rgba(247,241,228,1)_100%)] text-stone-900">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(111,162,98,0.24),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(206,179,95,0.18),_transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.42),rgba(255,255,255,0))]" />
       <div className="pointer-events-none absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg viewBox=%270 0 200 200%27 xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cfilter id=%27n%27%3E%3CfeTurbulence type=%27fractalNoise%27 baseFrequency=%270.9%27 numOctaves=%274%27 stitchTiles=%27stitch%27/%3E%3C/filter%3E%3Crect width=%27100%25%27 height=%27100%25%27 filter=%27url(%23n)%27 opacity=%270.14%27/%3E%3C/svg%3E')] opacity-25" />
 
-      <main className="relative mx-auto flex min-h-screen w-full max-w-[1400px] flex-col gap-5 px-4 py-4 sm:px-5 sm:py-5 lg:px-6">
+      <main className="relative mx-auto flex min-h-screen w-full max-w-[1080px] flex-col gap-5 px-4 py-4 sm:px-5 sm:py-5 lg:px-6">
         <header className="rounded-[2rem] border border-white/70 bg-white/72 px-4 py-4 shadow-[0_18px_55px_rgba(61,79,42,0.12)] backdrop-blur-2xl">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex items-center gap-3">
@@ -360,102 +168,27 @@ export default function App(): JSX.Element {
                 OpenAI web search
               </span>
               <span className="rounded-full bg-stone-900/6 px-3 py-1 text-stone-700">
-                OpenAI ranking + narration
+                General chat
               </span>
               <span className="rounded-full bg-stone-500/12 px-3 py-1 text-stone-700">
-                {resultCountLabel}
+                Ready to chat
               </span>
             </div>
           </div>
         </header>
 
-        <section className="hidden">
-          <SearchPanel
-            query={query}
-            destinationText={destinationText}
-            mode={mode}
-            radiusMiles={radiusMiles}
-            filterFocus={filterFocus}
-            onQueryChange={setQuery}
-            onDestinationChange={setDestinationText}
-            onModeChange={setMode}
-            onRadiusMilesChange={setRadiusMiles}
-            onFilterFocusChange={handleFilterFocusChange}
-            onSubmit={submitSearch}
-            onUseLocation={handleUseLocation}
-            onSurpriseMe={handleSurpriseMe}
-            onQuickTown={handleQuickTown}
-            geoLabel={geoLabel}
-            isLoading={loading}
+        <section className="mx-auto w-full max-w-3xl">
+          <AudioStrip
+            summary={audioSummary}
+            speakerEnabled={speakerEnabled}
+            isPlaying={isPlaying}
+            isLoading={audioLoading}
+            assistantLoading={assistantLoading}
+            conversation={assistantTranscript}
+            onToggleSpeaker={toggleSpeaker}
+            onPlay={handlePlaySummary}
+            onAskAssistant={handleAssistantChat}
           />
-        </section>
-
-        <section className="grid gap-5 xl:grid-cols-[0.86fr_1.14fr]">
-          <div className="space-y-4">
-            <AudioStrip
-              summary={audioSummary}
-              speakerEnabled={speakerEnabled}
-              isPlaying={isPlaying}
-              isLoading={audioLoading}
-              assistantLoading={assistantLoading}
-              conversation={assistantTranscript}
-              onToggleSpeaker={toggleSpeaker}
-              onPlay={handlePlaySummary}
-              onAskAssistant={handleAssistantChat}
-            />
-
-            {loading ? <SearchLoadingCard /> : null}
-
-            {searchError ? (
-              <div className="rounded-[1.5rem] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
-                {searchError}
-              </div>
-            ) : null}
-
-            {response.warnings.length ? (
-              <div className="rounded-[1.5rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                <div className="font-semibold">Search notes</div>
-                <ul className="mt-2 list-disc space-y-1 pl-5">
-                  {response.warnings.map((warning) => (
-                    <li key={warning}>{warning}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">
-                  Recent results
-                </div>
-                <div className="mt-1 text-xl font-semibold text-stone-900">{headlineSummary}</div>
-              </div>
-            </div>
-
-            {loading ? null : activeResults.length ? (
-              <div className="space-y-4">
-                {activeResults.map((result, index) => (
-                  <ResultCard
-                    key={result.placeId}
-                    result={result}
-                    rank={index}
-                    onOpenMap={(url) => window.open(url, '_blank', 'noopener,noreferrer')}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="rounded-[1.6rem] border border-stone-200 bg-white/60 px-4 py-3 text-sm text-stone-600 shadow-[0_12px_28px_rgba(61,79,42,0.06)]">
-                Search a town, ZIP, or location to see verified local food.
-              </div>
-            )}
-
-            {demoMode ? (
-              <div className="rounded-[1.5rem] border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
-                Demo preview mode is on. Connect OpenAI web-search and narration settings to turn
-                618FOOD.COM into the live production experience.
-              </div>
-            ) : null}
-          </div>
         </section>
       </main>
     </div>

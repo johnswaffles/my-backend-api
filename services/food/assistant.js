@@ -29,6 +29,26 @@ function sanitizeSources(rawSources) {
     .slice(0, 3);
 }
 
+function extractSourcesFromAnnotations(data) {
+  const sources = [];
+
+  for (const item of data?.output || []) {
+    if (item?.type !== 'message') continue;
+    for (const content of item?.content || []) {
+      for (const annotation of content?.annotations || []) {
+        if (annotation?.type !== 'url_citation') continue;
+        if (typeof annotation.url !== 'string' || !annotation.url.trim()) continue;
+        sources.push({
+          title: typeof annotation.title === 'string' && annotation.title.trim() ? annotation.title.trim() : 'Source',
+          url: annotation.url.trim()
+        });
+      }
+    }
+  }
+
+  return sanitizeSources(sources);
+}
+
 function extractSourcesFromText(text) {
   if (!text || typeof text !== 'string') return [];
 
@@ -89,6 +109,34 @@ function buildPageContextText(pageContext) {
   return bits.join('\n');
 }
 
+function buildInputMessages(history, cleanMessage) {
+  const messages = [];
+
+  for (const turn of history) {
+    messages.push({
+      role: turn.role,
+      content: [
+        {
+          type: 'input_text',
+          text: turn.content
+        }
+      ]
+    });
+  }
+
+  messages.push({
+    role: 'user',
+    content: [
+      {
+        type: 'input_text',
+        text: cleanMessage
+      }
+    ]
+  });
+
+  return messages;
+}
+
 export async function askGeneralAssistant({ apiKey, model, message, history = [], pageContext = null }) {
   const cleanMessage = typeof message === 'string' ? message.trim() : '';
   const normalizedHistory = normalizeHistory(history);
@@ -100,56 +148,46 @@ export async function askGeneralAssistant({ apiKey, model, message, history = []
     };
   }
 
-  const response = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model,
-      tools: [{ type: 'web_search' }],
-      reasoning: { effort: 'medium' },
-      input: [
-        {
-          role: 'system',
-          content: GENERAL_CHAT_SYSTEM_PROMPT
-        },
-        ...(buildPageContextText(pageContext)
-          ? [
-              {
-                role: 'system',
-                content: `Page context:\n${buildPageContextText(pageContext)}`
-              }
-            ]
-          : []),
-        ...normalizedHistory.map((turn) => ({
-          role: turn.role,
-          content: turn.content
-        })),
-        {
-          role: 'user',
-          content: cleanMessage
-        }
-      ],
-      max_output_tokens: 700
-    })
-  });
+  try {
+    const response = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model,
+        tools: [{ type: 'web_search' }],
+        reasoning: { effort: 'medium' },
+        instructions: [GENERAL_CHAT_SYSTEM_PROMPT, buildPageContextText(pageContext)].filter(Boolean).join('\n\n'),
+        input: buildInputMessages(normalizedHistory, cleanMessage),
+        max_output_tokens: 700
+      })
+    });
 
-  const data = await response.json();
-  if (!response.ok) {
-    const messageText = typeof data?.error?.message === 'string' ? data.error.message : 'OpenAI request failed.';
-    const error = new Error(messageText);
-    error.details = data;
-    throw error;
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      console.error('OpenAI chat request failed', data);
+      return {
+        reply: 'I could not reach the live assistant just now. Please try again in a moment.',
+        sources: []
+      };
+    }
+
+    const text = extractResponseText(data);
+    const annotationSources = extractSourcesFromAnnotations(data);
+
+    return {
+      reply: text || 'I could not generate a live reply just now.',
+      sources: annotationSources.length ? annotationSources : sanitizeSources(extractSourcesFromText(text))
+    };
+  } catch (error) {
+    console.error('OpenAI chat request threw', error);
+    return {
+      reply: 'I could not reach the live assistant just now. Please try again in a moment.',
+      sources: []
+    };
   }
-
-  const text = extractResponseText(data);
-
-  return {
-    reply: text || 'I could not generate a live reply just now.',
-    sources: sanitizeSources(extractSourcesFromText(text))
-  };
 }
 
 export const askFoodAssistant = askGeneralAssistant;
