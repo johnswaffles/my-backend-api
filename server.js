@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { createEmptySearchResponse, normalizeSearchRequest, FOOD_BRAND } from './services/food/schemas.js';
-import { askFoodAssistant } from './services/food/assistant.js';
+import { askGeneralAssistant } from './services/food/assistant.js';
 import { describeFoodIntent, inferFoodIntent } from './services/food/intent.js';
 import { searchWithOpenAI } from './services/food/openai-search.js';
 import { generateFoodSpeech } from './services/food/audio.js';
@@ -468,9 +468,9 @@ app.post('/api/food/search', async (req, res) => {
   }
 });
 
-app.post('/api/food/assistant', async (req, res) => {
+async function handleChatRequest(req, res) {
   try {
-    const { message, currentSearch, currentSummary, currentResults } = req.body || {};
+    const { message, history, pageContext } = req.body || {};
     if (!message || typeof message !== 'string' || !message.trim()) {
       return res.status(400).json({ error: 'Message is required.' });
     }
@@ -478,23 +478,25 @@ app.post('/api/food/assistant', async (req, res) => {
     const openaiKey = process.env.OPENAI_API_KEY;
     const model = process.env.OPENAI_MODEL || 'gpt-5.4';
 
-    const assistant = await askFoodAssistant({
+    const assistant = await askGeneralAssistant({
       apiKey: openaiKey,
       model,
       message: message.trim(),
-      currentSearch: normalizeSearchRequest(currentSearch || {}),
-      currentSummary: typeof currentSummary === 'string' ? currentSummary : buildAssistantResultSummary(currentResults),
-      currentResults: Array.isArray(currentResults) ? currentResults : []
+      history: Array.isArray(history) ? history : [],
+      pageContext: pageContext && typeof pageContext === 'object' ? pageContext : null
     });
 
     return res.json(assistant);
   } catch (error) {
     return res.status(500).json({
-      error: 'Unable to answer 618FOOD.COM follow-up right now.',
+      error: 'Unable to answer 618FOOD.COM chat right now.',
       details: String(error.message || error)
     });
   }
-});
+}
+
+app.post('/api/chat', handleChatRequest);
+app.post('/api/food/assistant', handleChatRequest);
 
 app.post('/api/food/audio', async (req, res) => {
   try {

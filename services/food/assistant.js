@@ -1,5 +1,4 @@
-import { FOOD_ASSISTANT_SYSTEM_PROMPT } from './prompts.js';
-import { normalizeSearchRequest } from './schemas.js';
+import { GENERAL_CHAT_SYSTEM_PROMPT } from './prompts.js';
 
 function extractResponseText(data) {
   if (typeof data?.output_text === 'string' && data.output_text.trim()) {
@@ -19,6 +18,7 @@ function extractResponseText(data) {
 
 function extractJsonObject(text) {
   if (!text || typeof text !== 'string') return null;
+
   const start = text.indexOf('{');
   const end = text.lastIndexOf('}');
   if (start === -1 || end === -1 || end <= start) return null;
@@ -43,56 +43,38 @@ function sanitizeSources(rawSources) {
     .slice(0, 3);
 }
 
-function mergeSearchRequest(currentSearch, rawSearchRequest) {
-  if (!rawSearchRequest || typeof rawSearchRequest !== 'object') return null;
+function normalizeHistory(history) {
+  if (!Array.isArray(history)) return [];
 
-  const current = normalizeSearchRequest(currentSearch || {});
-  const merged = normalizeSearchRequest({
-    ...current,
-    ...rawSearchRequest,
-    filters: {
-      ...(current.filters || {}),
-      ...(rawSearchRequest.filters && typeof rawSearchRequest.filters === 'object' ? rawSearchRequest.filters : {})
-    }
-  });
-
-  return merged;
+  return history
+    .filter((turn) => turn && typeof turn === 'object')
+    .map((turn) => ({
+      role: turn.role === 'assistant' ? 'assistant' : 'user',
+      content: typeof turn.content === 'string' ? turn.content.trim() : ''
+    }))
+    .filter((turn) => turn.content);
 }
 
-export async function askFoodAssistant({
-  apiKey,
-  model,
-  message,
-  currentSearch,
-  currentSummary,
-  currentResults = []
-}) {
+function buildPageContextText(pageContext) {
+  if (!pageContext || typeof pageContext !== 'object') return '';
+
+  const bits = [];
+  if (typeof pageContext.brand === 'string' && pageContext.brand.trim()) bits.push(`Brand: ${pageContext.brand.trim()}`);
+  if (typeof pageContext.pageTitle === 'string' && pageContext.pageTitle.trim()) bits.push(`Page title: ${pageContext.pageTitle.trim()}`);
+  if (typeof pageContext.pageSummary === 'string' && pageContext.pageSummary.trim()) bits.push(`Page summary: ${pageContext.pageSummary.trim()}`);
+  return bits.join('\n');
+}
+
+export async function askGeneralAssistant({ apiKey, model, message, history = [], pageContext = null }) {
+  const cleanMessage = typeof message === 'string' ? message.trim() : '';
+  const normalizedHistory = normalizeHistory(history);
+
   if (!apiKey) {
     return {
-      action: 'answer',
-      reply: `${currentSearch?.destinationText || '618FOOD.COM'} is ready, but the assistant is not configured on the server yet.`,
-      sources: [],
-      searchRequest: null
+      reply: '618FOOD.COM is ready, but the assistant is not configured on the server yet.',
+      sources: []
     };
   }
-
-  const payload = {
-    message,
-    currentSearch,
-    currentSummary,
-    currentResults: currentResults.map((result) => ({
-      placeId: result.placeId,
-      name: result.name,
-      city: result.city,
-      formattedAddress: result.formattedAddress,
-      categories: result.categories,
-      openNow: result.openNow,
-      tags: result.tags,
-      confidence: result.confidence,
-      whyThisIsAFit: result.whyThisIsAFit,
-      whatWeFound: result.whatWeFound
-    }))
-  };
 
   const response = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
@@ -104,14 +86,53 @@ export async function askFoodAssistant({
       model,
       tools: [{ type: 'web_search' }],
       reasoning: { effort: 'medium' },
+      text: {
+        format: {
+          type: 'json_schema',
+          name: 'general_chat',
+          strict: true,
+          schema: {
+            type: 'object',
+            additionalProperties: false,
+            required: ['reply', 'sources'],
+            properties: {
+              reply: { type: 'string' },
+              sources: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  additionalProperties: false,
+                  required: ['title', 'url'],
+                  properties: {
+                    title: { type: 'string' },
+                    url: { type: 'string' }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
       input: [
         {
           role: 'system',
-          content: FOOD_ASSISTANT_SYSTEM_PROMPT
+          content: GENERAL_CHAT_SYSTEM_PROMPT
         },
+        ...(buildPageContextText(pageContext)
+          ? [
+              {
+                role: 'system',
+                content: `Page context:\n${buildPageContextText(pageContext)}`
+              }
+            ]
+          : []),
+        ...normalizedHistory.map((turn) => ({
+          role: turn.role,
+          content: turn.content
+        })),
         {
           role: 'user',
-          content: `Current food context:\n${JSON.stringify(payload, null, 2)}\n\nReturn JSON only.`
+          content: cleanMessage
         }
       ],
       max_output_tokens: 700
@@ -120,29 +141,26 @@ export async function askFoodAssistant({
 
   const data = await response.json();
   if (!response.ok) {
-    throw new Error(typeof data?.error?.message === 'string' ? data.error.message : 'OpenAI request failed.');
+    const messageText = typeof data?.error?.message === 'string' ? data.error.message : 'OpenAI request failed.';
+    const error = new Error(messageText);
+    error.details = data;
+    throw error;
   }
 
   const text = extractResponseText(data);
   const parsed = extractJsonObject(text);
+
   if (!parsed || typeof parsed !== 'object') {
     return {
-      action: 'answer',
-      reply: 'I could not generate a live food assistant reply just now.',
-      sources: [],
-      searchRequest: null
+      reply: text || 'I could not generate a live reply just now.',
+      sources: []
     };
   }
 
-  const action = parsed.action === 'search' ? 'search' : 'answer';
-  const reply = typeof parsed.reply === 'string' && parsed.reply.trim() ? parsed.reply.trim() : 'Here is a food-focused answer.';
-  const sources = sanitizeSources(parsed.sources);
-  const searchRequest = action === 'search' ? mergeSearchRequest(currentSearch, parsed.searchRequest) : null;
-
   return {
-    action,
-    reply,
-    sources,
-    searchRequest
+    reply: typeof parsed.reply === 'string' && parsed.reply.trim() ? parsed.reply.trim() : 'Here is a helpful reply.',
+    sources: sanitizeSources(parsed.sources)
   };
 }
+
+export const askFoodAssistant = askGeneralAssistant;

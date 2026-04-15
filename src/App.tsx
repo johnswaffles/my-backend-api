@@ -6,7 +6,7 @@ import { SearchPanel } from './features/local-eats/components/SearchPanel';
 import { DEMO_SEARCH_RESPONSE } from './features/local-eats/mock/demo';
 import { DEFAULT_SEARCH_FILTERS, FOOD_BRAND } from './features/local-eats/schemas';
 import {
-  ask618FoodAssistant,
+  ask618Chat,
   playBrowserNarration,
   request618FoodAudio,
   search618Food,
@@ -14,7 +14,7 @@ import {
 } from './features/local-eats/lib/client';
 import type {
   GeoPoint,
-  FoodAssistantSource,
+  ChatTurn,
   RankedRestaurant,
   SearchFilters,
   SearchMode,
@@ -85,8 +85,7 @@ export default function App(): JSX.Element {
   const [geoLabel, setGeoLabel] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [assistantLoading, setAssistantLoading] = useState(false);
-  const [assistantReply, setAssistantReply] = useState('');
-  const [assistantSources, setAssistantSources] = useState<FoodAssistantSource[]>([]);
+  const [assistantTranscript, setAssistantTranscript] = useState<ChatTurn[]>([]);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [response, setResponse] = useState<SearchResponse>(
     demoMode ? DEMO_SEARCH_RESPONSE : {
@@ -150,16 +149,11 @@ export default function App(): JSX.Element {
 
   async function submitSearch(
     event?: FormEvent<HTMLFormElement>,
-    overrides: Partial<SearchRequest> = {},
-    options: { preserveAssistantReply?: boolean } = {}
+    overrides: Partial<SearchRequest> = {}
   ): Promise<void> {
     event?.preventDefault();
     setLoading(true);
     setSearchError(null);
-    if (!options.preserveAssistantReply) {
-      setAssistantReply('');
-      setAssistantSources([]);
-    }
     try {
       if (demoMode && !query.trim() && !destinationText.trim() && !geoPoint) {
         setResponse(DEMO_SEARCH_RESPONSE);
@@ -292,71 +286,46 @@ export default function App(): JSX.Element {
     setFilterFocus(value);
   }
 
-  async function handleFollowUpSearch(value: string): Promise<void> {
+  async function handleAssistantChat(value: string): Promise<void> {
     const followUp = value.trim();
     if (!followUp) return;
 
     setAssistantLoading(true);
     setSearchError(null);
     try {
-      const assistant = await ask618FoodAssistant({
+      const nextTranscript: ChatTurn[] = [
+        ...assistantTranscript,
+        { role: 'user', content: followUp }
+      ];
+      setAssistantTranscript(nextTranscript);
+
+      const assistant = await ask618Chat({
         message: followUp,
-        currentSearch: buildSearchPayload(
-          query.trim(),
-          destinationText.trim(),
-          geoPoint,
-          mode,
-          radiusMiles,
-          filterFocus
-        ),
-        currentSummary: headlineSummary,
-        currentResults: activeResults.slice(0, 5).map((result) => ({
-          placeId: result.placeId,
-          name: result.name,
-          city: result.city,
-          formattedAddress: result.formattedAddress,
-          categories: result.categories,
-          openNow: result.openNow,
-          tags: result.tags,
-          confidence: result.confidence,
-          whyThisIsAFit: result.whyThisIsAFit,
-          whatWeFound: result.whatWeFound
-        }))
+        history: nextTranscript,
+        pageContext: {
+          brand: FOOD_BRAND,
+          pageTitle: '618FOOD.COM',
+          pageSummary: 'A general-purpose assistant running inside the 618FOOD.COM page shell.'
+        }
       });
 
-      setAssistantReply(assistant.reply);
-      setAssistantSources(assistant.sources || []);
-
-      if (assistant.action === 'search' && assistant.searchRequest) {
-        const nextQuery = typeof assistant.searchRequest.query === 'string' ? assistant.searchRequest.query : followUp;
-        setQuery(nextQuery);
-        if (typeof assistant.searchRequest.destinationText === 'string') {
-          setDestinationText(assistant.searchRequest.destinationText);
+      setAssistantTranscript((current) => [
+        ...current,
+        {
+          role: 'assistant',
+          content: assistant.reply,
+          sources: assistant.sources || []
         }
-        if (
-          assistant.searchRequest.mode === 'nearby' ||
-          assistant.searchRequest.mode === 'destination' ||
-          assistant.searchRequest.mode === 'traveler' ||
-          assistant.searchRequest.mode === 'surprise'
-        ) {
-          setMode(assistant.searchRequest.mode);
-        }
-        if (
-          typeof assistant.searchRequest.radiusMiles === 'number' &&
-          Number.isFinite(assistant.searchRequest.radiusMiles)
-        ) {
-          setRadiusMiles(assistant.searchRequest.radiusMiles);
-        }
-        if (assistant.searchRequest.filters && typeof assistant.searchRequest.filters === 'object') {
-          const assistantFilters = assistant.searchRequest.filters;
-          if (assistantFilters.localOnly) setFilterFocus('localOnly');
-          else if (assistantFilters.dogFriendly) setFilterFocus('dogFriendly');
-          else if (assistantFilters.patio) setFilterFocus('patio');
-        }
-        await submitSearch(undefined, assistant.searchRequest, { preserveAssistantReply: true });
-      }
+      ]);
     } catch (error) {
-      setSearchError(error instanceof Error ? error.message : 'Unable to answer that food question right now.');
+      setAssistantTranscript((current) => [
+        ...current,
+        {
+          role: 'assistant',
+          content: error instanceof Error ? error.message : 'Unable to answer that question right now.',
+          sources: []
+        }
+      ]);
     } finally {
       setAssistantLoading(false);
     }
@@ -429,11 +398,10 @@ export default function App(): JSX.Element {
               isPlaying={isPlaying}
               isLoading={audioLoading}
               assistantLoading={assistantLoading}
-              assistantReply={assistantReply}
-              assistantSources={assistantSources}
+              conversation={assistantTranscript}
               onToggleSpeaker={toggleSpeaker}
               onPlay={handlePlaySummary}
-              onAskAssistant={handleFollowUpSearch}
+              onAskAssistant={handleAssistantChat}
             />
 
             {loading ? <SearchLoadingCard /> : null}

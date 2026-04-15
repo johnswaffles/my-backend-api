@@ -132,16 +132,30 @@ export interface SearchBucket {
   tags: LocalSignalTag[];
 }
 
-export interface FoodAssistantSource {
+export interface ChatTurn {
+  role: 'user' | 'assistant';
+  content: string;
+  sources?: ChatSource[];
+}
+
+export interface ChatSource {
   title: string;
   url: string;
 }
 
-export interface FoodAssistantResponse {
-  action: 'answer' | 'search';
+export interface GeneralChatRequest {
+  message: string;
+  history?: ChatTurn[];
+  pageContext?: {
+    brand?: string;
+    pageTitle?: string;
+    pageSummary?: string;
+  };
+}
+
+export interface GeneralChatResponse {
   reply: string;
-  sources: FoodAssistantSource[];
-  searchRequest?: Partial<SearchRequest> | null;
+  sources: ChatSource[];
 }
 
 export interface LiveSearchState {
