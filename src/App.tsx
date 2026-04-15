@@ -25,6 +25,7 @@ export default function App(): JSX.Element {
   const [speakerEnabled, setSpeakerEnabled] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioLoading, setAudioLoading] = useState(false);
+  const [playedResponseContent, setPlayedResponseContent] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
@@ -41,9 +42,11 @@ export default function App(): JSX.Element {
     if (!speakerEnabled) return;
     const text = getAudioSummary(assistantTranscript);
     if (!text.trim()) return;
+    if (playedResponseContent === text) return;
 
     setAudioLoading(true);
     try {
+      setPlayedResponseContent(text);
       const audio = await request618FoodAudio(text);
       if (audio.audioBase64) {
         if (audioRef.current) {
@@ -139,6 +142,13 @@ export default function App(): JSX.Element {
       setAssistantLoading(false);
     }
   }
+
+  useEffect(() => {
+    const latestAssistant = [...assistantTranscript].reverse().find((turn) => turn.role === 'assistant');
+    if (latestAssistant?.content && latestAssistant.content !== playedResponseContent) {
+      setPlayedResponseContent(null);
+    }
+  }, [assistantTranscript, playedResponseContent]);
 
   const audioSummary = getAudioSummary(assistantTranscript);
 

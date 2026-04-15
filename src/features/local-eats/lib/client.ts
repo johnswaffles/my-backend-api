@@ -7,9 +7,9 @@ import type {
 
 function normalizeSpeechText(text: string): string {
   return text
-    .replace(/\b618\s*food\.com\b/gi, 'six one eight dot com')
-    .replace(/\b618food\.com\b/gi, 'six one eight dot com')
-    .replace(/\b618FOOD\.COM\b/g, 'six one eight dot com');
+    .replace(/\b618\s*food\.com\b/gi, '618food.com')
+    .replace(/\b618food\.com\b/gi, '618food.com')
+    .replace(/\b618FOOD\.COM\b/g, '618food.com');
 }
 
 async function parseJsonResponse<T>(response: Response): Promise<T> {
