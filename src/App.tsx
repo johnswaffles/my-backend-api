@@ -369,7 +369,7 @@ export default function App(): JSX.Element {
           </div>
         </header>
 
-        <section className="grid gap-5">
+        <section className="hidden">
           <SearchPanel
             query={query}
             destinationText={destinationText}
