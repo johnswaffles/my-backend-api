@@ -129,6 +129,40 @@ function buildConversationText(history, cleanMessage, pageContext) {
   return lines.join('\n\n');
 }
 
+async function requestAssistantResponse({ apiKey, model, instructions, input }) {
+  const response = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model,
+      tools: [{ type: 'web_search' }],
+      reasoning: { effort: 'medium' },
+      instructions,
+      input,
+      max_output_tokens: 700
+    })
+  });
+
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    const messageText = typeof data?.error?.message === 'string' ? data.error.message : 'OpenAI request failed.';
+    const error = new Error(messageText);
+    error.details = data;
+    throw error;
+  }
+
+  const text = extractResponseText(data);
+  const annotationSources = extractSourcesFromAnnotations(data);
+
+  return {
+    reply: text || 'I could not generate a live reply just now.',
+    sources: annotationSources.length ? annotationSources : sanitizeSources(extractSourcesFromText(text))
+  };
+}
+
 export async function askGeneralAssistant({ apiKey, model, message, history = [], pageContext = null }) {
   const cleanMessage = typeof message === 'string' ? message.trim() : '';
   const normalizedHistory = normalizeHistory(history);
@@ -141,38 +175,47 @@ export async function askGeneralAssistant({ apiKey, model, message, history = []
   }
 
   try {
-    const response = await fetch('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model,
-        tools: [{ type: 'web_search' }],
-        reasoning: { effort: 'medium' },
-        instructions: [GENERAL_CHAT_SYSTEM_PROMPT, buildPageContextText(pageContext)].filter(Boolean).join('\n\n'),
-        input: buildConversationText(normalizedHistory, cleanMessage, pageContext),
-        max_output_tokens: 700
-      })
-    });
+    const instructions = [GENERAL_CHAT_SYSTEM_PROMPT, buildPageContextText(pageContext)].filter(Boolean).join('\n\n');
+    const input = buildConversationText(normalizedHistory, cleanMessage, pageContext);
+    const requestedModel = typeof model === 'string' && model.trim() ? model.trim() : 'gpt-5.4';
+    const fallbackModel = /nano/i.test(requestedModel) ? 'gpt-5.4-mini' : 'gpt-5.4';
 
-    const data = await response.json().catch(() => null);
-    if (!response.ok) {
-      console.error('OpenAI chat request failed', data);
+    try {
+      return await requestAssistantResponse({
+        apiKey,
+        model: requestedModel,
+        instructions,
+        input
+      });
+    } catch (primaryError) {
+      if (fallbackModel !== requestedModel) {
+        try {
+          return await requestAssistantResponse({
+            apiKey,
+            model: fallbackModel,
+            instructions,
+            input
+          });
+        } catch (fallbackError) {
+          console.error('OpenAI chat request failed', {
+            requestedModel,
+            fallbackModel,
+            primaryError: String(primaryError?.message || primaryError),
+            fallbackError: String(fallbackError?.message || fallbackError)
+          });
+        }
+      } else {
+        console.error('OpenAI chat request failed', {
+          requestedModel,
+          error: String(primaryError?.message || primaryError)
+        });
+      }
+
       return {
         reply: 'I could not reach the live assistant just now. Please try again in a moment.',
         sources: []
       };
     }
-
-    const text = extractResponseText(data);
-    const annotationSources = extractSourcesFromAnnotations(data);
-
-    return {
-      reply: text || 'I could not generate a live reply just now.',
-      sources: annotationSources.length ? annotationSources : sanitizeSources(extractSourcesFromText(text))
-    };
   } catch (error) {
     console.error('OpenAI chat request threw', error);
     return {

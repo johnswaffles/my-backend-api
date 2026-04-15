@@ -101,15 +101,16 @@ export default function App(): JSX.Element {
 
     setAssistantLoading(true);
     try {
+      const historyBeforeMessage = assistantTranscript;
       const nextTranscript: ChatTurn[] = [
-        ...assistantTranscript,
+        ...historyBeforeMessage,
         { role: 'user', content: followUp }
       ];
       setAssistantTranscript(nextTranscript);
 
       const assistant = await ask618Chat({
         message: followUp,
-        history: nextTranscript,
+        history: historyBeforeMessage,
         pageContext: {
           brand: FOOD_BRAND,
           pageTitle: '618FOOD.COM',
@@ -157,9 +158,7 @@ export default function App(): JSX.Element {
                 <div className="font-display text-2xl font-semibold tracking-tight text-[#173528] sm:text-3xl">
                   {FOOD_BRAND}
                 </div>
-                <div className="text-sm text-stone-600">
-                  Verified local restaurants for Southern Illinois
-                </div>
+                <div className="text-sm text-stone-600">A clean general-purpose chat assistant</div>
               </div>
             </div>
 
