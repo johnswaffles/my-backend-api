@@ -36,39 +36,6 @@ export function AudioStrip({
 
   return (
     <section className="rounded-[1.6rem] border border-stone-200 bg-white/80 p-4 shadow-[0_16px_40px_rgba(62,84,50,0.1)] backdrop-blur-xl">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
-            Latest response
-          </div>
-          <p className="mt-2 max-w-3xl text-sm leading-7 text-stone-700">
-            {summary || 'Ask anything and 618FOOD.COM will answer here.'}
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={onToggleSpeaker}
-            className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-              speakerEnabled
-                ? 'bg-emerald-700 text-white shadow-[0_14px_30px_rgba(22,83,44,0.18)]'
-                : 'bg-stone-100 text-stone-700'
-            }`}
-          >
-            {speakerEnabled ? 'Speaker on' : 'Speaker off'}
-          </button>
-          <button
-            type="button"
-            onClick={onPlay}
-            disabled={!summary || isLoading}
-            className="rounded-full bg-stone-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isPlaying ? 'Playing...' : 'Play response'}
-          </button>
-        </div>
-      </div>
-
       <div className="mt-4 rounded-[1.35rem] border border-stone-200 bg-stone-50/90 px-4 py-3">
         <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
           Chat
@@ -126,17 +93,36 @@ export function AudioStrip({
         <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
           Chat with 618FOOD.COM
         </div>
-        <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+        <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
           <input
             value={followUpText}
             onChange={(event) => setFollowUpText(event.target.value)}
             placeholder="Ask anything you want..."
-            className="min-w-0 flex-1 rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+            className="min-w-0 h-12 rounded-full border border-stone-200 bg-white px-4 py-3 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
           />
+          <button
+            type="button"
+            onClick={onToggleSpeaker}
+            className={`h-12 rounded-full px-4 text-sm font-semibold transition ${
+              speakerEnabled
+                ? 'bg-emerald-700 text-white shadow-[0_14px_30px_rgba(22,83,44,0.18)]'
+                : 'bg-stone-100 text-stone-700'
+            }`}
+          >
+            {speakerEnabled ? 'Speaker on' : 'Speaker off'}
+          </button>
+          <button
+            type="button"
+            onClick={onPlay}
+            disabled={!summary || isLoading}
+            className="h-12 rounded-full bg-stone-900 px-4 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isPlaying ? 'Playing...' : 'Play response'}
+          </button>
           <button
             type="submit"
             disabled={!followUpText.trim() || isLoading || assistantLoading}
-            className="rounded-full bg-emerald-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+            className="h-12 rounded-full bg-emerald-700 px-4 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {assistantLoading ? 'Thinking...' : 'Send'}
           </button>
