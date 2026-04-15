@@ -1,5 +1,5 @@
 import { FOOD_BRAND } from './schemas.js';
-import { FOOD_DISCOVERY_SYSTEM_PROMPT } from './prompts.js';
+import { FOOD_DISCOVERY_EVIDENCE_PROMPT, FOOD_DISCOVERY_FORMATTING_PROMPT } from './prompts.js';
 import { inferFoodIntent, normalizeComparableText } from './intent.js';
 import { haversineMiles, resolveSearchLocation } from './location.js';
 import { applyCuisineGate, buildAudioSummary, buildResultBuckets, isLargeChain, rankCandidates } from './ranking.js';
@@ -237,7 +237,7 @@ function normalizeCandidate(candidate, requestLocation = null) {
   return normalized;
 }
 
-function buildDiscoveryPrompt(request, intent, locationContext) {
+function buildEvidencePrompt(request, intent, locationContext) {
   const parts = [
     `Brand: ${FOOD_BRAND}.`,
     'You are helping a rural Southern Illinois food discovery app find real places to eat.',
@@ -248,7 +248,8 @@ function buildDiscoveryPrompt(request, intent, locationContext) {
     'If the requested cuisine has no verified matches, return the closest verified alternative and say so clearly.',
     'Exclude major chains unless the user explicitly asks for them or no independent option is available.',
     'Honor the requested radius and do not include places that clearly fall outside it.',
-    'Return the final ranked shortlist only.'
+    'Do not return JSON yet. Return a plain-text evidence memo for another model to format.',
+    'Use simple sections with candidate names, addresses, phones, websites, cuisine clues, evidence bullets, and warnings.'
   ];
 
   const queryBits = [];
@@ -271,15 +272,51 @@ function buildDiscoveryPrompt(request, intent, locationContext) {
 
   parts.push(queryBits.length ? `Search context:\n${queryBits.map((item) => `- ${item}`).join('\n')}` : 'Search context: none provided.');
   parts.push(
-    'Use multiple searches as needed: official sites, menus, social pages, local news, tourism pages, ordering pages, and current web mentions. Use evidence from the web search results you find. If evidence is thin or conflicting, reduce confidence or omit the place. Return no more than 8 results.'
+    'Use multiple searches as needed: official sites, menus, social pages, local news, tourism pages, ordering pages, and current web mentions. Use evidence from the web search results you find. If evidence is thin or conflicting, reduce confidence or omit the place. Return no more than 8 candidates.'
   );
-  parts.push('Every evidence item must include notes, even if the note is an empty string. Keep notes short and factual.');
-  parts.push('Output JSON only that matches the schema exactly.');
+  parts.push(
+    'For each candidate include: name, address, city, phone, website, category, open now if known, rating/review count if known, and 2 to 4 evidence bullets with source title, URL, and a short note.'
+  );
+  parts.push('Keep the memo short, factual, and easy to convert into JSON. Do not mention tools or model traces.');
 
   return parts.join('\n\n');
 }
 
-async function runDiscovery({ apiKey, model, request, intent, locationContext }) {
+function buildFormattingPrompt(request, intent, locationContext, memo) {
+  const parts = [
+    `Brand: ${FOOD_BRAND}.`,
+    'Convert the provided evidence memo into valid JSON that matches the food discovery schema exactly.',
+    'Preserve only facts present in the memo. Do not invent restaurants, addresses, phone numbers, websites, ratings, hours, or evidence.',
+    'If a candidate is weak, stale, or unsupported, omit it.',
+    'Keep explanations short, concrete, and trustworthy.',
+    'Return JSON only.'
+  ];
+
+  const queryBits = [];
+  if (request.query) queryBits.push(`Query: ${request.query}`);
+  if (request.destinationText) queryBits.push(`Destination: ${request.destinationText}`);
+  if (intent.inferredCuisine) queryBits.push(`Cuisine intent: ${intent.inferredCuisine}`);
+  if (intent.preference) queryBits.push(`Preference: ${intent.preference}`);
+  if (request.mealType && request.mealType !== 'any') queryBits.push(`Meal type: ${request.mealType}`);
+  if (request.filters?.localOnly) queryBits.push('Local restaurants only');
+  if (request.filters?.openNow) queryBits.push('Open now preferred');
+  if (request.filters?.dogFriendly) queryBits.push('Dog-friendly preferred');
+  if (request.filters?.patio) queryBits.push('Patio preferred');
+  if (request.filters?.familyFriendly) queryBits.push('Family-friendly preferred');
+  if (request.filters?.quickBite) queryBits.push('Quick bite preferred');
+  if (request.filters?.dateNight) queryBits.push('Date night preferred');
+  if (request.filters?.worthTheDrive) queryBits.push('Worth the drive');
+  if (request.filters?.budget) queryBits.push(`Budget preference: ${request.filters.budget}`);
+  if (locationContext?.label) queryBits.push(`Search center: ${locationContext.label}`);
+  if (request.radiusMiles) queryBits.push(`Radius: ${request.radiusMiles} miles`);
+
+  parts.push(queryBits.length ? `Search context:\n${queryBits.map((item) => `- ${item}`).join('\n')}` : 'Search context: none provided.');
+  parts.push(`Evidence memo:\n${memo || 'No memo returned.'}`);
+
+  return parts.join('\n\n');
+}
+
+async function runDiscoveryMemo({ apiKey, model, request, intent, locationContext }) {
   const response = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: {
@@ -290,25 +327,17 @@ async function runDiscovery({ apiKey, model, request, intent, locationContext })
       model,
       tools: [{ type: 'web_search' }],
       reasoning: { effort: 'medium' },
-      text: {
-        format: {
-          type: 'json_schema',
-          name: 'food_discovery',
-          strict: true,
-          schema: OPENAI_DISCOVERY_SCHEMA
-        }
-      },
       input: [
         {
           role: 'system',
-          content: FOOD_DISCOVERY_SYSTEM_PROMPT
+          content: FOOD_DISCOVERY_EVIDENCE_PROMPT
         },
         {
           role: 'user',
-          content: buildDiscoveryPrompt(request, intent, locationContext)
+          content: buildEvidencePrompt(request, intent, locationContext)
         }
       ],
-      max_output_tokens: 2600
+      max_output_tokens: 2200
     })
   });
 
@@ -321,9 +350,58 @@ async function runDiscovery({ apiKey, model, request, intent, locationContext })
   }
 
   const text = extractResponseText(data);
+  const memo = sanitizeStructuredText(text);
+  if (!memo) {
+    throw new Error('OpenAI returned an empty food discovery memo.');
+  }
+
+  return memo;
+}
+
+async function runFormatting({ apiKey, model, request, intent, locationContext, memo }) {
+  const response = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`
+    },
+    body: JSON.stringify({
+      model,
+      reasoning: { effort: 'low' },
+      text: {
+        format: {
+          type: 'json_schema',
+          name: 'food_discovery',
+          strict: true,
+          schema: OPENAI_DISCOVERY_SCHEMA
+        }
+      },
+      input: [
+        {
+          role: 'system',
+          content: FOOD_DISCOVERY_FORMATTING_PROMPT
+        },
+        {
+          role: 'user',
+          content: buildFormattingPrompt(request, intent, locationContext, memo)
+        }
+      ],
+      max_output_tokens: 2600
+    })
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    const message = typeof data?.error?.message === 'string' ? data.error.message : 'OpenAI formatting failed.';
+    const error = new Error(message);
+    error.details = data;
+    throw error;
+  }
+
+  const text = extractResponseText(data);
   const parsed = extractJsonObject(text);
   if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.results)) {
-    return repairDiscoveryPayload({ apiKey, model, rawText: text || JSON.stringify(data, null, 2) });
+    return repairDiscoveryPayload({ apiKey, model, rawText: memo || text || JSON.stringify(data, null, 2) });
   }
 
   return parsed;
@@ -350,12 +428,11 @@ async function repairDiscoveryPayload({ apiKey, model, rawText }) {
       input: [
         {
           role: 'system',
-          content:
-            'Repair malformed discovery output into valid JSON. Preserve only the facts already present. Do not invent new restaurants, addresses, phones, websites, or evidence. Return JSON only.'
+          content: FOOD_DISCOVERY_FORMATTING_PROMPT
         },
         {
           role: 'user',
-          content: `Repair this draft into valid JSON that matches the food discovery schema exactly:\n\n${rawText}`
+          content: `Repair this evidence memo into valid JSON that matches the food discovery schema exactly:\n\n${rawText}`
         }
       ],
       max_output_tokens: 2600
@@ -456,14 +533,29 @@ export async function searchWithOpenAI({ apiKey, model, request }) {
   const locationResolution = await resolveSearchLocation(request);
   const locationContext = locationResolution.location;
 
-  let discovery;
+  let discoveryMemo;
   try {
-    discovery = await runDiscovery({ apiKey, model, request, intent, locationContext });
+    discoveryMemo = await runDiscoveryMemo({ apiKey, model, request, intent, locationContext });
   } catch (error) {
     return {
       intentSummary: `${FOOD_BRAND} could not complete the web search right now.`,
       summary: '',
       warnings: [String(error?.message || 'OpenAI search failed.')],
+      results: [],
+      buckets: [],
+      sourceMode: 'empty',
+      hasLiveData: false
+    };
+  }
+
+  let discovery;
+  try {
+    discovery = await runFormatting({ apiKey, model, request, intent, locationContext, memo: discoveryMemo });
+  } catch (error) {
+    return {
+      intentSummary: `${FOOD_BRAND} could not format the verified results right now.`,
+      summary: '',
+      warnings: [String(error?.message || 'OpenAI formatting failed.')],
       results: [],
       buckets: [],
       sourceMode: 'empty',
