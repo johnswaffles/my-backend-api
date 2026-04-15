@@ -168,20 +168,7 @@ export default function App(): JSX.Element {
                 <div className="font-display text-2xl font-semibold tracking-tight text-[#173528] sm:text-3xl">
                   {FOOD_BRAND}
                 </div>
-                <div className="text-sm text-stone-600">A clean general-purpose chat assistant</div>
               </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">
-              <span className="rounded-full bg-emerald-700/10 px-3 py-1 text-emerald-900">
-                OpenAI web search
-              </span>
-              <span className="rounded-full bg-stone-900/6 px-3 py-1 text-stone-700">
-                General chat
-              </span>
-              <span className="rounded-full bg-stone-500/12 px-3 py-1 text-stone-700">
-                Ready to chat
-              </span>
             </div>
           </div>
         </header>
