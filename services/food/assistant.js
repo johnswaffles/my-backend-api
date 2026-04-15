@@ -129,7 +129,7 @@ export async function askGeneralAssistant({ apiKey, model, message, history = []
         })),
         {
           role: 'user',
-          content: `${cleanMessage}\n\nIf you use live facts, optionally add a short "Sources:" section with up to 3 lines in the format "Title — https://example.com".`
+          content: cleanMessage
         }
       ],
       max_output_tokens: 700
