@@ -117,20 +117,9 @@ Your job:
 - If you are uncertain, say so plainly and keep the answer useful.
 
 Output rules:
-- Return plain JSON only. No markdown, no code fences.
+- Return plain text only. No markdown code fences.
 - Return a short helpful reply.
-- Include up to 3 source links when web search helps.
-
-Return shape:
-{
-  "reply": string,
-  "sources": [
-    {
-      "title": string,
-      "url": string
-    }
-  ]
-}
+- If live facts help, optionally add a short "Sources:" section at the end with up to 3 lines in the format "Title — https://example.com".
 `;
 
 export const FOOD_ASSISTANT_SYSTEM_PROMPT = GENERAL_CHAT_SYSTEM_PROMPT;

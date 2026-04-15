@@ -16,20 +16,6 @@ function extractResponseText(data) {
   return parts.join('\n').trim();
 }
 
-function extractJsonObject(text) {
-  if (!text || typeof text !== 'string') return null;
-
-  const start = text.indexOf('{');
-  const end = text.lastIndexOf('}');
-  if (start === -1 || end === -1 || end <= start) return null;
-
-  try {
-    return JSON.parse(text.slice(start, end + 1));
-  } catch {
-    return null;
-  }
-}
-
 function sanitizeSources(rawSources) {
   if (!Array.isArray(rawSources)) return [];
 
@@ -40,6 +26,44 @@ function sanitizeSources(rawSources) {
       url: typeof source.url === 'string' ? source.url.trim() : ''
     }))
     .filter((source) => source.title && source.url)
+    .slice(0, 3);
+}
+
+function extractSourcesFromText(text) {
+  if (!text || typeof text !== 'string') return [];
+
+  const lines = text.split('\n').map((line) => line.trim());
+  const sourceLines = [];
+  let inSources = false;
+
+  for (const line of lines) {
+    if (!line) continue;
+    if (/^sources?:\s*$/i.test(line)) {
+      inSources = true;
+      continue;
+    }
+    if (!inSources) continue;
+    sourceLines.push(line.replace(/^[-*•]\s*/, ''));
+  }
+
+  return sourceLines
+    .map((line) => {
+      const match = line.match(/^(.*?)(?:\s+[—-]\s+|\s+\|\s+)?(https?:\/\/\S+)$/);
+      if (match) {
+        return {
+          title: match[1].trim() || 'Source',
+          url: match[2].trim()
+        };
+      }
+
+      const urlMatch = line.match(/(https?:\/\/\S+)/);
+      if (!urlMatch) return null;
+      return {
+        title: line.replace(urlMatch[1], '').replace(/[—-]\s*$/, '').trim() || 'Source',
+        url: urlMatch[1].trim()
+      };
+    })
+    .filter((item) => item && item.title && item.url)
     .slice(0, 3);
 }
 
@@ -86,33 +110,6 @@ export async function askGeneralAssistant({ apiKey, model, message, history = []
       model,
       tools: [{ type: 'web_search' }],
       reasoning: { effort: 'medium' },
-      text: {
-        format: {
-          type: 'json_schema',
-          name: 'general_chat',
-          strict: true,
-          schema: {
-            type: 'object',
-            additionalProperties: false,
-            required: ['reply', 'sources'],
-            properties: {
-              reply: { type: 'string' },
-              sources: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  additionalProperties: false,
-                  required: ['title', 'url'],
-                  properties: {
-                    title: { type: 'string' },
-                    url: { type: 'string' }
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
       input: [
         {
           role: 'system',
@@ -132,7 +129,7 @@ export async function askGeneralAssistant({ apiKey, model, message, history = []
         })),
         {
           role: 'user',
-          content: cleanMessage
+          content: `${cleanMessage}\n\nIf you use live facts, optionally add a short "Sources:" section with up to 3 lines in the format "Title — https://example.com".`
         }
       ],
       max_output_tokens: 700
@@ -148,18 +145,10 @@ export async function askGeneralAssistant({ apiKey, model, message, history = []
   }
 
   const text = extractResponseText(data);
-  const parsed = extractJsonObject(text);
-
-  if (!parsed || typeof parsed !== 'object') {
-    return {
-      reply: text || 'I could not generate a live reply just now.',
-      sources: []
-    };
-  }
 
   return {
-    reply: typeof parsed.reply === 'string' && parsed.reply.trim() ? parsed.reply.trim() : 'Here is a helpful reply.',
-    sources: sanitizeSources(parsed.sources)
+    reply: text || 'I could not generate a live reply just now.',
+    sources: sanitizeSources(extractSourcesFromText(text))
   };
 }
 
