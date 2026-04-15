@@ -241,6 +241,7 @@ function buildEvidencePrompt(request, intent, locationContext) {
   const parts = [
     `Brand: ${FOOD_BRAND}.`,
     'You are helping a rural Southern Illinois food discovery app find real places to eat.',
+    'Start by anchoring on the town, ZIP, or destination, then search only that area for the requested food type.',
     'Use the web_search tool to find verified businesses only.',
     'Do not invent restaurants, addresses, phone numbers, websites, ratings, or hours.',
     'Prefer local independents and hidden gems.',
@@ -248,8 +249,7 @@ function buildEvidencePrompt(request, intent, locationContext) {
     'If the requested cuisine has no verified matches, return the closest verified alternative and say so clearly.',
     'Exclude major chains unless the user explicitly asks for them or no independent option is available.',
     'Honor the requested radius and do not include places that clearly fall outside it.',
-    'Do not return JSON yet. Return a plain-text evidence memo for another model to format.',
-    'Use simple sections with candidate names, addresses, phones, websites, cuisine clues, evidence bullets, and warnings.'
+    'Do not return JSON yet. Return a short plain-text shortlist for another model to format.'
   ];
 
   const queryBits = [];
@@ -272,14 +272,47 @@ function buildEvidencePrompt(request, intent, locationContext) {
 
   parts.push(queryBits.length ? `Search context:\n${queryBits.map((item) => `- ${item}`).join('\n')}` : 'Search context: none provided.');
   parts.push(
-    'Use multiple searches as needed: official sites, menus, social pages, local news, tourism pages, ordering pages, and current web mentions. Use evidence from the web search results you find. If evidence is thin or conflicting, reduce confidence or omit the place. Return no more than 8 candidates.'
+    'Use multiple searches as needed: official sites, menus, social pages, local news, tourism pages, ordering pages, and current web mentions. Keep the answer focused on the 3 to 5 best matches. If evidence is thin or conflicting, reduce confidence or omit the place.'
   );
   parts.push(
-    'For each candidate include: name, address, city, phone, website, category, open now if known, rating/review count if known, and 2 to 4 evidence bullets with source title, URL, and a short note.'
+    'For each candidate include: name, address, city, phone, website, category, open now if known, rating/review count if known, and 1 to 3 short evidence bullets with source title, URL, and a short note.'
   );
   parts.push('Keep the memo short, factual, and easy to convert into JSON. Do not mention tools or model traces.');
 
   return parts.join('\n\n');
+}
+
+function buildFallbackEvidencePrompt(request, intent, locationContext) {
+  const lines = [
+    `Brand: ${FOOD_BRAND}.`,
+    'Find the best few verified places to eat for the requested location and food type.',
+    'Return plain text only.',
+    'Use this exact format for each candidate:',
+    'Name: ...',
+    'Address: ...',
+    'City: ...',
+    'Phone: ...',
+    'Website: ...',
+    'Category: ...',
+    'Why: ...',
+    'Evidence: ...',
+    '',
+    'Keep it to 3 to 5 candidates.',
+    'Do not write JSON.',
+    'Do not mention your process.'
+  ];
+
+  const contextBits = [];
+  if (request.query) contextBits.push(`Query: ${request.query}`);
+  if (request.destinationText) contextBits.push(`Destination: ${request.destinationText}`);
+  if (intent.inferredCuisine) contextBits.push(`Cuisine intent: ${intent.inferredCuisine}`);
+  if (locationContext?.label) contextBits.push(`Search center: ${locationContext.label}`);
+  if (request.radiusMiles) contextBits.push(`Radius: ${request.radiusMiles} miles`);
+  if (contextBits.length) {
+    lines.push('', `Context:\n${contextBits.map((item) => `- ${item}`).join('\n')}`);
+  }
+
+  return lines.join('\n');
 }
 
 function buildFormattingPrompt(request, intent, locationContext, memo) {
@@ -317,45 +350,50 @@ function buildFormattingPrompt(request, intent, locationContext, memo) {
 }
 
 async function runDiscoveryMemo({ apiKey, model, request, intent, locationContext }) {
-  const response = await fetch('https://api.openai.com/v1/responses', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model,
-      tools: [{ type: 'web_search' }],
-      reasoning: { effort: 'medium' },
-      input: [
-        {
-          role: 'system',
-          content: FOOD_DISCOVERY_EVIDENCE_PROMPT
-        },
-        {
-          role: 'user',
-          content: buildEvidencePrompt(request, intent, locationContext)
-        }
-      ],
-      max_output_tokens: 2200
-    })
-  });
+  const run = async (prompt) => {
+    const response = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model,
+        tools: [{ type: 'web_search' }],
+        reasoning: { effort: 'medium' },
+        input: [
+          {
+            role: 'system',
+            content: FOOD_DISCOVERY_EVIDENCE_PROMPT
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        max_output_tokens: 1800
+      })
+    });
 
-  const data = await response.json();
-  if (!response.ok) {
-    const message = typeof data?.error?.message === 'string' ? data.error.message : 'OpenAI request failed.';
-    const error = new Error(message);
-    error.details = data;
-    throw error;
-  }
+    const data = await response.json();
+    if (!response.ok) {
+      const message = typeof data?.error?.message === 'string' ? data.error.message : 'OpenAI request failed.';
+      const error = new Error(message);
+      error.details = data;
+      throw error;
+    }
 
-  const text = extractResponseText(data);
-  const memo = sanitizeStructuredText(text);
-  if (!memo) {
-    throw new Error('OpenAI returned an empty food discovery memo.');
-  }
+    const text = extractResponseText(data);
+    return sanitizeStructuredText(text);
+  };
 
-  return memo;
+  const primaryMemo = await run(buildEvidencePrompt(request, intent, locationContext));
+  if (primaryMemo) return primaryMemo;
+
+  const fallbackMemo = await run(buildFallbackEvidencePrompt(request, intent, locationContext));
+  if (fallbackMemo) return fallbackMemo;
+
+  throw new Error('OpenAI returned an empty food discovery memo.');
 }
 
 async function runFormatting({ apiKey, model, request, intent, locationContext, memo }) {
