@@ -109,32 +109,24 @@ function buildPageContextText(pageContext) {
   return bits.join('\n');
 }
 
-function buildInputMessages(history, cleanMessage) {
-  const messages = [];
+function buildConversationText(history, cleanMessage, pageContext) {
+  const lines = [];
 
-  for (const turn of history) {
-    messages.push({
-      role: turn.role,
-      content: [
-        {
-          type: 'input_text',
-          text: turn.content
-        }
-      ]
-    });
+  const contextText = buildPageContextText(pageContext);
+  if (contextText) {
+    lines.push(`Context:\n${contextText}`);
   }
 
-  messages.push({
-    role: 'user',
-    content: [
-      {
-        type: 'input_text',
-        text: cleanMessage
-      }
-    ]
-  });
+  if (history.length) {
+    lines.push(
+      history
+        .map((turn) => `${turn.role === 'assistant' ? 'Assistant' : 'User'}: ${turn.content}`)
+        .join('\n')
+    );
+  }
 
-  return messages;
+  lines.push(`User: ${cleanMessage}`);
+  return lines.join('\n\n');
 }
 
 export async function askGeneralAssistant({ apiKey, model, message, history = [], pageContext = null }) {
@@ -160,7 +152,7 @@ export async function askGeneralAssistant({ apiKey, model, message, history = []
         tools: [{ type: 'web_search' }],
         reasoning: { effort: 'medium' },
         instructions: [GENERAL_CHAT_SYSTEM_PROMPT, buildPageContextText(pageContext)].filter(Boolean).join('\n\n'),
-        input: buildInputMessages(normalizedHistory, cleanMessage),
+        input: buildConversationText(normalizedHistory, cleanMessage, pageContext),
         max_output_tokens: 700
       })
     });
