@@ -151,6 +151,9 @@ export default function App(): JSX.Element {
   }, [assistantTranscript, playedResponseContent]);
 
   const audioSummary = getAudioSummary(assistantTranscript);
+  const latestAssistantResponse = [...assistantTranscript].reverse().find((turn) => turn.role === 'assistant');
+  const hasPlayedLatestResponse =
+    Boolean(latestAssistantResponse?.content) && latestAssistantResponse?.content === playedResponseContent;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.96),_rgba(250,246,236,0.82)_34%,_rgba(236,244,227,0.96)_66%,_rgba(247,241,228,1)_100%)] text-stone-900">
@@ -176,6 +179,7 @@ export default function App(): JSX.Element {
         <section className="mx-auto w-full max-w-3xl">
           <AudioStrip
             summary={audioSummary}
+            responsePlayed={hasPlayedLatestResponse}
             speakerEnabled={speakerEnabled}
             isPlaying={isPlaying}
             isLoading={audioLoading}

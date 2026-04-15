@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react';
 
 interface AudioStripProps {
   summary: string;
+  responsePlayed: boolean;
   speakerEnabled: boolean;
   isPlaying: boolean;
   isLoading: boolean;
@@ -15,6 +16,7 @@ interface AudioStripProps {
 
 export function AudioStrip({
   summary,
+  responsePlayed,
   speakerEnabled,
   isPlaying,
   isLoading,
@@ -114,7 +116,7 @@ export function AudioStrip({
           <button
             type="button"
             onClick={onPlay}
-            disabled={!summary || isLoading}
+            disabled={!summary || isLoading || responsePlayed}
             className="h-12 rounded-full bg-stone-900 px-4 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isPlaying ? 'Playing...' : 'Play response'}

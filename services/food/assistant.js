@@ -129,7 +129,8 @@ function buildConversationText(history, cleanMessage, pageContext) {
   return lines.join('\n\n');
 }
 
-async function requestAssistantResponse({ apiKey, model, instructions, input }) {
+async function requestAssistantResponse({ apiKey, model, instructions, input, useWebSearch = true }) {
+  const tools = useWebSearch ? [{ type: 'web_search' }] : [];
   const response = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: {
@@ -138,7 +139,7 @@ async function requestAssistantResponse({ apiKey, model, instructions, input }) 
     },
     body: JSON.stringify({
       model,
-      tools: [{ type: 'web_search' }],
+      tools,
       reasoning: { effort: 'medium' },
       instructions,
       input,
@@ -185,7 +186,8 @@ export async function askGeneralAssistant({ apiKey, model, message, history = []
         apiKey,
         model: requestedModel,
         instructions,
-        input
+        input,
+        useWebSearch: true
       });
     } catch (primaryError) {
       if (fallbackModel !== requestedModel) {
@@ -194,21 +196,44 @@ export async function askGeneralAssistant({ apiKey, model, message, history = []
             apiKey,
             model: fallbackModel,
             instructions,
-            input
+            input,
+            useWebSearch: true
           });
         } catch (fallbackError) {
-          console.error('OpenAI chat request failed', {
-            requestedModel,
-            fallbackModel,
-            primaryError: String(primaryError?.message || primaryError),
-            fallbackError: String(fallbackError?.message || fallbackError)
-          });
+          try {
+            return await requestAssistantResponse({
+              apiKey,
+              model: fallbackModel,
+              instructions,
+              input,
+              useWebSearch: false
+            });
+          } catch (offlineFallbackError) {
+            console.error('OpenAI chat request failed', {
+              requestedModel,
+              fallbackModel,
+              primaryError: String(primaryError?.message || primaryError),
+              fallbackError: String(fallbackError?.message || fallbackError),
+              offlineFallbackError: String(offlineFallbackError?.message || offlineFallbackError)
+            });
+          }
         }
       } else {
-        console.error('OpenAI chat request failed', {
-          requestedModel,
-          error: String(primaryError?.message || primaryError)
-        });
+        try {
+          return await requestAssistantResponse({
+            apiKey,
+            model: requestedModel,
+            instructions,
+            input,
+            useWebSearch: false
+          });
+        } catch (offlineFallbackError) {
+          console.error('OpenAI chat request failed', {
+            requestedModel,
+            error: String(primaryError?.message || primaryError),
+            offlineFallbackError: String(offlineFallbackError?.message || offlineFallbackError)
+          });
+        }
       }
 
       return {
