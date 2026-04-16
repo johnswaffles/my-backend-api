@@ -16,9 +16,60 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from agents import Agent, ModelSettings, RunContextWrapper, Runner, flush_traces, function_tool, trace
-from openai.types.shared import Reasoning
-from pydantic import BaseModel, ConfigDict, Field
+try:
+    from pydantic import BaseModel, ConfigDict, Field
+except Exception:  # pragma: no cover - only hit when falling back to a bare system Python
+    class BaseModel:  # type: ignore[override]
+        def __init_subclass__(cls, **kwargs):
+            return super().__init_subclass__(**kwargs)
+
+        def __init__(self, **data):
+            for key, value in data.items():
+                setattr(self, key, value)
+
+        @classmethod
+        def model_validate(cls, data):
+            return cls(**(data or {}))
+
+        def model_dump(self):
+            return dict(self.__dict__)
+
+    class ConfigDict(dict):
+        pass
+
+    def Field(default=None, **kwargs):  # type: ignore[override]
+        return default
+
+try:
+    from agents import Agent, ModelSettings, RunContextWrapper, Runner, flush_traces, function_tool, trace
+    from openai.types.shared import Reasoning
+    AGENTS_SDK_AVAILABLE = True
+    AGENTS_SDK_IMPORT_ERROR: Exception | None = None
+except Exception as import_error:  # pragma: no cover - only hit in runtime fallback cases
+    AGENTS_SDK_AVAILABLE = False
+    AGENTS_SDK_IMPORT_ERROR = import_error
+    Agent = ModelSettings = RunContextWrapper = Runner = None  # type: ignore[assignment]
+    Reasoning = None  # type: ignore[assignment]
+
+    def function_tool(func=None, **_kwargs):  # type: ignore[override]
+        if func is None:
+            def decorator(inner):
+                return inner
+            return decorator
+        return func
+
+    def trace(*_args, **_kwargs):  # type: ignore[override]
+        class _TraceContext:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+        return _TraceContext()
+
+    def flush_traces():  # type: ignore[override]
+        return None
 
 
 AGENT_NAME = "Restaurant Finder"
@@ -468,6 +519,9 @@ def rank_restaurants(ctx: RunContextWrapper[RestaurantAgentContext], restaurants
 
 
 def _build_agent() -> Agent[RestaurantAgentContext]:
+    if not AGENTS_SDK_AVAILABLE:
+        raise RuntimeError(f"OpenAI Agents SDK is unavailable: {AGENTS_SDK_IMPORT_ERROR}")
+
     instructions = (
         "You are Restaurant Finder, a tool-using restaurant agent for 618FOOD.COM.\n"
         "You MUST use tools to obtain real restaurant data and MUST NOT invent restaurant names, ratings, reviews, hours, or prices.\n"
@@ -479,15 +533,15 @@ def _build_agent() -> Agent[RestaurantAgentContext]:
         "Your final output must populate the schema exactly and keep the reply concise and helpful."
     )
 
-    return Agent[RestaurantAgentContext](
+    return Agent[RestaurantAgentContext](  # type: ignore[misc]
         name=AGENT_NAME,
         instructions=instructions,
         model=DEFAULT_MODEL,
         tools=[search_places, get_place_details, rank_restaurants],
         output_type=RestaurantFinderResponse,  # type: ignore[arg-type]
-        model_settings=ModelSettings(
+        model_settings=ModelSettings(  # type: ignore[misc]
             tool_choice="required",
-            reasoning=Reasoning(effort="low"),
+            reasoning=Reasoning(effort="low"),  # type: ignore[misc]
             temperature=0,
             max_tokens=1200,
             parallel_tool_calls=False,
@@ -495,7 +549,7 @@ def _build_agent() -> Agent[RestaurantAgentContext]:
     )
 
 
-AGENT = _build_agent()
+AGENT = _build_agent() if AGENTS_SDK_AVAILABLE else None
 
 
 def _normalize_history(history: Any) -> list[dict[str, str]]:
@@ -573,6 +627,15 @@ async def _run_agent(payload: dict[str, Any]) -> dict[str, Any]:
             "restaurants": [],
             "sources": [],
             "requestId": request_id,
+        }
+
+    if not AGENTS_SDK_AVAILABLE or AGENT is None:
+        return {
+            "reply": "The restaurant agent could not start because the OpenAI Agents SDK is unavailable on the server.",
+            "restaurants": [],
+            "sources": [],
+            "requestId": request_id,
+            "error": f"OpenAI Agents SDK unavailable: {AGENTS_SDK_IMPORT_ERROR}",
         }
 
     context = RestaurantAgentContext(google_places_api_key=google_key, request_id=request_id)

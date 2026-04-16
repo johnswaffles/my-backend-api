@@ -1,7 +1,7 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
-import { spawn, spawnSync } from 'child_process';
+import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { createEmptySearchResponse, normalizeSearchRequest, FOOD_BRAND } from './services/food/schemas.js';
 import { describeFoodIntent, inferFoodIntent } from './services/food/intent.js';
@@ -14,46 +14,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const salesLeadsPath = path.join(__dirname, 'data', 'sales-leads.json');
 const restaurantAgentPort = Number(process.env.AGENT_SERVICE_PORT || 8787);
-let restaurantAgentPythonBinary = null;
-
-function ensureRestaurantAgentPythonBinary() {
-  if (restaurantAgentPythonBinary) {
-    return restaurantAgentPythonBinary;
-  }
-
-  const venvPython = path.join(__dirname, '.venv', 'bin', 'python');
-  if (fs.existsSync(venvPython)) {
-    restaurantAgentPythonBinary = venvPython;
-    return restaurantAgentPythonBinary;
-  }
-
-  const bootstrapPython = process.env.PYTHON_BIN || 'python3';
-  console.log(`[restaurant-agent] bootstrapping virtualenv with ${bootstrapPython}`);
-  const venvResult = spawnSync(bootstrapPython, ['-m', 'venv', '.venv'], {
-    cwd: __dirname,
-    stdio: 'inherit'
-  });
-  if (venvResult.status !== 0) {
-    throw new Error(`Failed to create virtualenv for restaurant agent (code ${venvResult.status ?? 'unknown'})`);
-  }
-
-  const pipPath = path.join(__dirname, '.venv', 'bin', 'pip');
-  console.log('[restaurant-agent] installing restaurant agent requirements');
-  const pipResult = spawnSync(pipPath, ['install', '-r', 'requirements.txt'], {
-    cwd: __dirname,
-    stdio: 'inherit'
-  });
-  if (pipResult.status !== 0) {
-    throw new Error(`Failed to install restaurant agent requirements (code ${pipResult.status ?? 'unknown'})`);
-  }
-
-  restaurantAgentPythonBinary = path.join(__dirname, '.venv', 'bin', 'python');
-  return restaurantAgentPythonBinary;
-}
-
 async function proxyRestaurantAgentRequest(payload) {
   const scriptPath = path.join(__dirname, 'services', 'restaurant-agent', 'agent_service.py');
-  const pythonBinary = ensureRestaurantAgentPythonBinary();
+  const venvPython = path.join(__dirname, '.venv', 'bin', 'python');
+  const pythonBinary = process.env.PYTHON_BIN || (fs.existsSync(venvPython) ? venvPython : 'python3');
   console.log(`[restaurant-agent] invoking one-shot agent python binary=${pythonBinary} request=${payload?.requestId || 'unknown'}`);
 
   return await new Promise((resolve, reject) => {
