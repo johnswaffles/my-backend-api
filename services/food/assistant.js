@@ -158,8 +158,14 @@ async function requestAssistantResponse({ apiKey, model, instructions, input, us
   const text = extractResponseText(data);
   const annotationSources = extractSourcesFromAnnotations(data);
 
+  if (!text || !text.trim()) {
+    const error = new Error('OpenAI returned an empty assistant response.');
+    error.details = data;
+    throw error;
+  }
+
   return {
-    reply: text || 'I could not generate a live reply just now.',
+    reply: text.trim(),
     sources: annotationSources.length ? annotationSources : sanitizeSources(extractSourcesFromText(text))
   };
 }
