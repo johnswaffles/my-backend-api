@@ -148,6 +148,122 @@ function extractFirstJsonObject(text) {
   }
 }
 
+function normalizeChatMessage(value) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function looksLikeFoodChatRequest(message, history = []) {
+  const text = normalizeChatMessage(message).toLowerCase();
+  if (!text) return false;
+
+  const cuisineIntent = inferFoodIntent({ query: message, destinationText: '' });
+  if (cuisineIntent?.inferredCuisine) return true;
+
+  const foodTerms = [
+    'restaurant',
+    'restaurants',
+    'place to eat',
+    'places to eat',
+    'food',
+    'eat',
+    'meal',
+    'lunch',
+    'dinner',
+    'breakfast',
+    'brunch',
+    'pizza',
+    'pasta',
+    'steak',
+    'steakhouse',
+    'burger',
+    'burgers',
+    'bbq',
+    'barbecue',
+    'taco',
+    'tacos',
+    'mexican',
+    'coffee',
+    'cafe',
+    'café',
+    'dessert',
+    'sushi',
+    'ramen',
+    'seafood',
+    'deli',
+    'sandwich'
+  ];
+
+  if (foodTerms.some((term) => text.includes(term))) return true;
+
+  const priorFoodTalk = Array.isArray(history)
+    ? history
+        .filter((turn) => turn && typeof turn.content === 'string')
+        .some((turn) => foodTerms.some((term) => turn.content.toLowerCase().includes(term)))
+    : false;
+
+  return priorFoodTalk && /\b(what|where|show|find|list|give|tell|more|again|phone|address|hours|open|best|good|top|near)\b/i.test(text);
+}
+
+function buildFoodChatSources(searchResult) {
+  const sources = [];
+  const seen = new Set();
+
+  for (const result of Array.isArray(searchResult?.results) ? searchResult.results.slice(0, 4) : []) {
+    const candidates = [
+      { title: result.name, url: result.website || result.mapsUrl },
+      ...(Array.isArray(result.evidence)
+        ? result.evidence.slice(0, 1).map((item) => ({ title: item.title || result.name, url: item.url }))
+        : [])
+    ];
+
+    for (const source of candidates) {
+      if (!source?.title || !source?.url) continue;
+      const key = `${source.title}::${source.url}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      sources.push({ title: source.title, url: source.url });
+      if (sources.length >= 3) return sources;
+    }
+  }
+
+  return sources;
+}
+
+function buildFoodChatReply(searchResult) {
+  const results = Array.isArray(searchResult?.results) ? searchResult.results.slice(0, 3) : [];
+  const warnings = Array.isArray(searchResult?.warnings) ? searchResult.warnings.filter(Boolean) : [];
+
+  if (!results.length) {
+    const fallback = searchResult?.intentSummary || 'I could not verify a strong local match yet.';
+    return `${fallback}${warnings.length ? ` ${warnings[0]}` : ''} If you want, I can broaden the search to nearby Illinois towns.`;
+  }
+
+  const intro =
+    typeof searchResult?.summary === 'string' && searchResult.summary.trim()
+      ? searchResult.summary.trim()
+      : typeof searchResult?.intentSummary === 'string' && searchResult.intentSummary.trim()
+        ? searchResult.intentSummary.trim()
+        : 'Here are a few strong local options I found:';
+
+  const lines = [intro, ''];
+  results.forEach((result, index) => {
+    const locationBits = [result.formattedAddress || result.city, result.openNow === true ? 'open now' : '', result.confidence === 'limited' ? 'call ahead to confirm' : '']
+      .filter(Boolean)
+      .join(' • ');
+    const scoreNote = typeof result.score === 'number' ? `Score ${Math.round(result.score)}` : '';
+    const detailBits = [locationBits, scoreNote].filter(Boolean).join(' • ');
+    lines.push(`${index + 1}. ${result.name}${detailBits ? ` — ${detailBits}` : ''}`);
+    if (result.whyThisIsAFit) lines.push(`   ${result.whyThisIsAFit}`);
+  });
+
+  if (warnings.length) {
+    lines.push('', warnings[0]);
+  }
+
+  lines.push('', 'If you want, I can narrow this to best overall, closest, or call-ahead details.');
+  return lines.join('\n');
+}
+
 function readSalesLeads() {
   try {
     if (!fs.existsSync(salesLeadsPath)) {
@@ -471,17 +587,53 @@ app.post('/api/food/search', async (req, res) => {
 async function handleChatRequest(req, res) {
   try {
     const { message, history, pageContext } = req.body || {};
-    if (!message || typeof message !== 'string' || !message.trim()) {
+    const cleanMessage = normalizeChatMessage(message);
+    if (!cleanMessage) {
       return res.status(400).json({ error: 'Message is required.' });
     }
 
     const openaiKey = process.env.OPENAI_API_KEY;
     const model = process.env.OPENAI_MODEL || 'gpt-5.4';
 
+    if (looksLikeFoodChatRequest(cleanMessage, Array.isArray(history) ? history : [])) {
+      const foodRequest = normalizeSearchRequest({
+        query: cleanMessage,
+        destinationText: '',
+        location: null,
+        mealType: 'any',
+        mode: 'nearby',
+        radiusMiles: 18,
+        filters: {
+          localOnly: true,
+          openNow: false,
+          dogFriendly: false,
+          patio: false,
+          familyFriendly: false,
+          quickBite: false,
+          dateNight: false,
+          worthTheDrive: false,
+          budget: 'any',
+          cuisine: ''
+        },
+        demo: false
+      });
+
+      const searchResult = await searchWithOpenAI({
+        apiKey: openaiKey,
+        model,
+        request: foodRequest
+      });
+
+      return res.json({
+        reply: buildFoodChatReply(searchResult),
+        sources: buildFoodChatSources(searchResult)
+      });
+    }
+
     const assistant = await askGeneralAssistant({
       apiKey: openaiKey,
       model,
-      message: message.trim(),
+      message: cleanMessage,
       history: Array.isArray(history) ? history : [],
       pageContext: pageContext && typeof pageContext === 'object' ? pageContext : null
     });
