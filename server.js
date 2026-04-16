@@ -44,7 +44,8 @@ function ensureRestaurantAgentService() {
   }
 
   const scriptPath = path.join(__dirname, 'services', 'restaurant-agent', 'agent_service.py');
-  const pythonBinary = process.env.PYTHON_BIN || 'python3';
+  const venvPython = path.join(__dirname, '.venv', 'bin', 'python');
+  const pythonBinary = process.env.PYTHON_BIN || (fs.existsSync(venvPython) ? venvPython : 'python3');
   restaurantAgentProcess = spawn(pythonBinary, [scriptPath], {
     env: {
       ...process.env,

@@ -18,7 +18,7 @@ from urllib.request import Request, urlopen
 
 from agents import Agent, ModelSettings, RunContextWrapper, Runner, flush_traces, function_tool, trace
 from openai.types.shared import Reasoning
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 AGENT_NAME = "Restaurant Finder"
@@ -163,6 +163,8 @@ def _query_variants(query: str, location: str) -> list[str]:
 
 
 class RestaurantCandidate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     place_id: str
     name: str
     formatted_address: str | None = None
@@ -179,10 +181,19 @@ class RankedRestaurant(RestaurantCandidate):
     score: float
 
 
+class SourceLink(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str
+    url: str
+
+
 class RestaurantFinderResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     reply: str
     restaurants: list[RankedRestaurant] = Field(default_factory=list)
-    sources: list[dict[str, str]] = Field(default_factory=list)
+    sources: list[SourceLink] = Field(default_factory=list)
 
 
 @dataclass
@@ -405,16 +416,14 @@ async def get_place_details(ctx: RunContextWrapper[RestaurantAgentContext], plac
 
 
 @function_tool
-def rank_restaurants(ctx: RunContextWrapper[RestaurantAgentContext], restaurants: list[dict[str, Any]]) -> dict[str, Any]:
+def rank_restaurants(ctx: RunContextWrapper[RestaurantAgentContext], restaurants: list[RestaurantCandidate]) -> dict[str, Any]:
     """Rank verified restaurant candidates using rating and review volume."""
     ctx.context.log(f"tool rank_restaurants(count={len(restaurants)})")
 
     ranked: list[dict[str, Any]] = []
     for restaurant in restaurants or []:
-        if not isinstance(restaurant, dict):
-            continue
-        rating = restaurant.get("rating")
-        review_count = restaurant.get("review_count")
+        rating = restaurant.rating
+        review_count = restaurant.review_count
         score = 0.0
         if isinstance(rating, (int, float)):
             score += float(rating) * 0.7
@@ -435,16 +444,16 @@ def rank_restaurants(ctx: RunContextWrapper[RestaurantAgentContext], restaurants
 
         ranked.append(
             {
-                "place_id": str(restaurant.get("place_id") or "").strip(),
-                "name": str(restaurant.get("name") or "").strip(),
+                "place_id": str(restaurant.place_id or "").strip(),
+                "name": str(restaurant.name or "").strip(),
                 "rating": rating if isinstance(rating, (int, float)) else None,
                 "review_count": review_count if isinstance(review_count, int) else None,
                 "score": round(score, 4),
                 "summary": ", ".join(summary_bits),
-                "formatted_address": restaurant.get("formatted_address"),
-                "phone": restaurant.get("phone"),
-                "website": restaurant.get("website"),
-                "maps_url": restaurant.get("maps_url"),
+                "formatted_address": restaurant.formatted_address,
+                "phone": restaurant.phone,
+                "website": restaurant.website,
+                "maps_url": restaurant.maps_url,
             }
         )
 
@@ -585,16 +594,16 @@ async def _run_agent(payload: dict[str, Any]) -> dict[str, Any]:
     if not sources:
         for restaurant in restaurants:
             if restaurant.website:
-                sources.append({"title": restaurant.name, "url": restaurant.website})
+                sources.append(SourceLink(title=restaurant.name, url=restaurant.website))
             elif restaurant.maps_url:
-                sources.append({"title": restaurant.name, "url": restaurant.maps_url})
+                sources.append(SourceLink(title=restaurant.name, url=restaurant.maps_url))
 
     context.log(f"agent final reply length={len(output.reply.strip())} restaurants={len(restaurants)} sources={len(sources)}")
 
     return {
         "reply": output.reply.strip() or "Here are the best verified restaurants I found.",
         "restaurants": [restaurant.model_dump() for restaurant in restaurants],
-        "sources": sources[:5],
+        "sources": [source.model_dump() for source in sources[:5]],
         "requestId": request_id,
     }
 
