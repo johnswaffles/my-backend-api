@@ -16,6 +16,21 @@ function extractResponseText(data) {
   return parts.join('\n').trim();
 }
 
+function stripSourcesSection(text) {
+  if (!text || typeof text !== 'string') return '';
+
+  const sourceHeading = text.search(/^\s*sources?:\s*$/gim);
+  const sourceBlock = text.search(/^\s*sources?:/gim);
+  const cutIndex = sourceHeading >= 0 ? sourceHeading : sourceBlock;
+  const body = cutIndex >= 0 ? text.slice(0, cutIndex) : text;
+
+  return body
+    .replace(/\s*\[\s*([^\]]+?)\s*\]\(\s*(https?:\/\/[^)]+)\s*\)/g, ' $1')
+    .replace(/\s*(https?:\/\/\S+)/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
 function sanitizeSources(rawSources) {
   if (!Array.isArray(rawSources)) return [];
 
@@ -157,15 +172,16 @@ async function requestAssistantResponse({ apiKey, model, instructions, input, us
 
   const text = extractResponseText(data);
   const annotationSources = extractSourcesFromAnnotations(data);
+  const cleanedText = stripSourcesSection(text);
 
-  if (!text || !text.trim()) {
+  if (!cleanedText || !cleanedText.trim()) {
     const error = new Error('OpenAI returned an empty assistant response.');
     error.details = data;
     throw error;
   }
 
   return {
-    reply: text.trim(),
+    reply: cleanedText.trim(),
     sources: annotationSources.length ? annotationSources : sanitizeSources(extractSourcesFromText(text))
   };
 }
