@@ -671,8 +671,13 @@ def main() -> None:
             raw_input = sys.stdin.read() or "{}"
             payload = json.loads(raw_input)
         except Exception as error:
-            print(json.dumps({"error": f"Invalid JSON input: {error}"}))
-            raise SystemExit(1)
+            print(json.dumps({
+                "reply": "I could not read the request payload.",
+                "restaurants": [],
+                "sources": [],
+                "error": f"Invalid JSON input: {error}"
+            }))
+            raise SystemExit(0)
 
         try:
             result = asyncio.run(_run_agent(payload))
@@ -682,8 +687,13 @@ def main() -> None:
             _log(f"one-shot agent run failed: {error}")
             traceback_text = "".join(traceback.format_exception(error))
             _log(traceback_text)
-            print(json.dumps({"error": str(error)}))
-            raise SystemExit(1)
+            print(json.dumps({
+                "reply": "I could not reach the live restaurant agent just now. Please try again in a moment.",
+                "restaurants": [],
+                "sources": [],
+                "error": str(error)
+            }))
+            raise SystemExit(0)
 
     server = ThreadingHTTPServer(("127.0.0.1", PORT), AgentHTTPRequestHandler)
     _log(f"Restaurant agent service listening on http://127.0.0.1:{PORT}")
