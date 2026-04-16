@@ -636,50 +636,11 @@ async function handleChatRequest(req, res) {
 
     const openaiKey = process.env.OPENAI_API_KEY;
     const model = process.env.OPENAI_MODEL || 'gpt-5.4';
-    const normalizedHistory = Array.isArray(history) ? history : [];
-    const foodFollowUp = isShortAcknowledgement(cleanMessage) ? findMostRecentFoodUserMessage(normalizedHistory) : '';
-
-    if (looksLikeFoodChatRequest(cleanMessage, normalizedHistory) || foodFollowUp) {
-      const foodQuery = foodFollowUp || cleanMessage;
-      const foodRequest = normalizeSearchRequest({
-        query: foodQuery,
-        destinationText: '',
-        location: null,
-        mealType: 'any',
-        mode: 'nearby',
-        radiusMiles: 18,
-        filters: {
-          localOnly: true,
-          openNow: false,
-          dogFriendly: false,
-          patio: false,
-          familyFriendly: false,
-          quickBite: false,
-          dateNight: false,
-          worthTheDrive: false,
-          budget: 'any',
-          cuisine: ''
-        },
-        demo: false
-      });
-
-      const searchResult = await searchWithOpenAI({
-        apiKey: openaiKey,
-        model,
-        request: foodRequest
-      });
-
-      return res.json({
-        reply: buildFoodChatReply(searchResult, foodRequest),
-        sources: buildFoodChatSources(searchResult)
-      });
-    }
-
     const assistant = await askGeneralAssistant({
       apiKey: openaiKey,
       model,
       message: cleanMessage,
-      history: normalizedHistory,
+      history: Array.isArray(history) ? history : [],
       pageContext: pageContext && typeof pageContext === 'object' ? pageContext : null
     });
 
