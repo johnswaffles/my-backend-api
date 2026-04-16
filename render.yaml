@@ -3,7 +3,7 @@ services:
     name: 618food-com
     runtime: node
     plan: free
-    buildCommand: python3 -m pip install --user -r requirements.txt && npm install && npm run build
+    buildCommand: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && npm install && npm run build
     startCommand: npm start
     envVars:
       - key: OPENAI_API_KEY

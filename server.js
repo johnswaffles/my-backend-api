@@ -46,6 +46,7 @@ function ensureRestaurantAgentService() {
   const scriptPath = path.join(__dirname, 'services', 'restaurant-agent', 'agent_service.py');
   const venvPython = path.join(__dirname, '.venv', 'bin', 'python');
   const pythonBinary = process.env.PYTHON_BIN || (fs.existsSync(venvPython) ? venvPython : 'python3');
+  console.log(`[restaurant-agent] starting python binary=${pythonBinary}`);
   restaurantAgentProcess = spawn(pythonBinary, [scriptPath], {
     env: {
       ...process.env,
@@ -62,6 +63,10 @@ function ensureRestaurantAgentService() {
   restaurantAgentProcess.stderr.on('data', (chunk) => {
     const text = chunk.toString().trim();
     if (text) console.error(`[restaurant-agent] ${text}`);
+  });
+
+  restaurantAgentProcess.on('error', (error) => {
+    console.error(`[restaurant-agent] spawn error: ${error.message}`);
   });
 
   restaurantAgentProcess.on('exit', (code, signal) => {

@@ -548,11 +548,20 @@ async def _run_agent(payload: dict[str, Any]) -> dict[str, Any]:
     history = _normalize_history(payload.get("history"))
     page_context = payload.get("pageContext") if isinstance(payload.get("pageContext"), dict) else {}
     request_id = str(payload.get("requestId") or f"req_{int(time.time() * 1000)}_{random.randint(1000, 9999)}")
+    openai_api_key = os.getenv("OPENAI_API_KEY", "").strip()
     google_key = _pick_google_api_key()
 
     if not message:
         return {
             "reply": "Please send a restaurant question with a town, ZIP, or cuisine.",
+            "restaurants": [],
+            "sources": [],
+            "requestId": request_id,
+        }
+
+    if not openai_api_key:
+        return {
+            "reply": "The restaurant agent is online, but the OpenAI API key is missing on the server.",
             "restaurants": [],
             "sources": [],
             "requestId": request_id,
