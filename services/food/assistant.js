@@ -77,29 +77,51 @@ function extractSourcesFromText(text) {
       inSources = true;
       continue;
     }
-    if (!inSources) continue;
-    sourceLines.push(line.replace(/^[-*•]\s*/, ''));
+    if (inSources) {
+      sourceLines.push(line.replace(/^[-*•]\s*/, ''));
+    }
   }
 
-  return sourceLines
-    .map((line) => {
-      const match = line.match(/^(.*?)(?:\s+[—-]\s+|\s+\|\s+)?(https?:\/\/\S+)$/);
-      if (match) {
-        return {
-          title: match[1].trim() || 'Source',
-          url: match[2].trim()
-        };
-      }
+  const allLineCandidates = lines
+    .map((line) => line.replace(/^[-*•]\s*/, ''))
+    .filter(Boolean);
 
-      const urlMatch = line.match(/(https?:\/\/\S+)/);
-      if (!urlMatch) return null;
-      return {
-        title: line.replace(urlMatch[1], '').replace(/[—-]\s*$/, '').trim() || 'Source',
-        url: urlMatch[1].trim()
-      };
-    })
-    .filter((item) => item && item.title && item.url)
-    .slice(0, 3);
+  const candidates = [...sourceLines, ...allLineCandidates];
+  const sources = [];
+  const seen = new Set();
+
+  for (const line of candidates) {
+    const markdownMatch = line.match(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/);
+    if (markdownMatch) {
+      const title = markdownMatch[1].trim();
+      const url = markdownMatch[2].trim();
+      const key = `${title}::${url}`;
+      if (title && url && !seen.has(key)) {
+        seen.add(key);
+        sources.push({ title, url });
+      }
+      continue;
+    }
+
+    const urlMatches = line.match(/https?:\/\/\S+/g);
+    if (!urlMatches) continue;
+
+    for (const rawUrl of urlMatches) {
+      const url = rawUrl.trim().replace(/[),.;]+$/, '');
+      const titleGuess = line
+        .replace(rawUrl, '')
+        .replace(/\s+[—-]\s*$/, '')
+        .replace(/[()[\]{}<>]+/g, '')
+        .trim();
+      const title = titleGuess || 'Source';
+      const key = `${title}::${url}`;
+      if (!url || seen.has(key)) continue;
+      seen.add(key);
+      sources.push({ title, url });
+    }
+  }
+
+  return sanitizeSources(sources).slice(0, 3);
 }
 
 function normalizeHistory(history) {
