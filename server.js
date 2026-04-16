@@ -667,6 +667,24 @@ async function handleChatRequest(req, res) {
         request: searchRequest
       });
 
+      if (!Array.isArray(searchResult?.results) || searchResult.results.length === 0) {
+        const fallback = await askGeneralAssistant({
+          apiKey: openaiKey,
+          model,
+          message: [
+            `The user asked for local food recommendations: "${cleanMessage}".`,
+            'Use web search and answer with a short ranked list of likely real places to eat in the requested Illinois area.',
+            'If you can identify specific restaurants, include a short Sources section with titles and links so the app can turn them into buttons.',
+            'Do not mention internal search failures or request IDs.',
+            'Be direct and helpful.'
+          ].join('\n'),
+          history: normalizedHistory,
+          pageContext: pageContext && typeof pageContext === 'object' ? pageContext : null
+        });
+
+        return res.json(fallback);
+      }
+
       return res.json({
         reply: buildFoodChatReply(searchResult, searchRequest),
         sources: buildFoodChatSources(searchResult)
