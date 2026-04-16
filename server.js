@@ -636,11 +636,48 @@ async function handleChatRequest(req, res) {
 
     const openaiKey = process.env.OPENAI_API_KEY;
     const model = process.env.OPENAI_MODEL || 'gpt-5.4';
+    const normalizedHistory = Array.isArray(history) ? history : [];
+
+    if (looksLikeFoodChatRequest(cleanMessage, normalizedHistory)) {
+      const searchRequest = normalizeSearchRequest({
+        query: cleanMessage,
+        destinationText: '',
+        location: null,
+        mealType: 'any',
+        mode: 'nearby',
+        radiusMiles: 18,
+        filters: {
+          localOnly: true,
+          openNow: false,
+          dogFriendly: false,
+          patio: false,
+          familyFriendly: false,
+          quickBite: false,
+          dateNight: false,
+          worthTheDrive: false,
+          budget: 'any',
+          cuisine: ''
+        },
+        demo: false
+      });
+
+      const searchResult = await searchWithOpenAI({
+        apiKey: openaiKey,
+        model,
+        request: searchRequest
+      });
+
+      return res.json({
+        reply: buildFoodChatReply(searchResult, searchRequest),
+        sources: buildFoodChatSources(searchResult)
+      });
+    }
+
     const assistant = await askGeneralAssistant({
       apiKey: openaiKey,
       model,
       message: cleanMessage,
-      history: Array.isArray(history) ? history : [],
+      history: normalizedHistory,
       pageContext: pageContext && typeof pageContext === 'object' ? pageContext : null
     });
 
