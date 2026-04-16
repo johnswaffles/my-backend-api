@@ -241,6 +241,8 @@ function buildEvidencePrompt(request, intent, locationContext) {
   const parts = [
     `Brand: ${FOOD_BRAND}.`,
     'You are helping a rural Southern Illinois food discovery app find real places to eat.',
+    'If a town is mentioned without a state, assume Illinois unless the user clearly says otherwise.',
+    'Think like a Mount Vernon, Illinois local and look for exact matches before generic nearby restaurants.',
     'Start by anchoring on the town, ZIP, or destination, then search only that area for the requested food type.',
     'Use the web_search tool to find verified businesses only.',
     'Do not invent restaurants, addresses, phone numbers, websites, ratings, or hours.',
@@ -272,7 +274,7 @@ function buildEvidencePrompt(request, intent, locationContext) {
 
   parts.push(queryBits.length ? `Search context:\n${queryBits.map((item) => `- ${item}`).join('\n')}` : 'Search context: none provided.');
   parts.push(
-    'Use multiple searches as needed: official sites, menus, social pages, local news, tourism pages, ordering pages, and current web mentions. Keep the answer focused on the 3 to 5 best matches. If evidence is thin or conflicting, reduce confidence or omit the place.'
+    'Use multiple searches as needed: official sites, menus, social pages, local news, tourism pages, ordering pages, and current web mentions. Keep the answer focused on the 3 to 5 best matches. If evidence is thin or conflicting, reduce confidence or omit the place. If the first pass only finds a few generic options, do a second closer look before settling.'
   );
   parts.push(
     'For each candidate include: name, address, city, phone, website, category, open now if known, rating/review count if known, and 1 to 3 short evidence bullets with source title, URL, and a short note.'
@@ -286,6 +288,7 @@ function buildFallbackEvidencePrompt(request, intent, locationContext) {
   const lines = [
     `Brand: ${FOOD_BRAND}.`,
     'Find the best few verified places to eat for the requested location and food type.',
+    'If the first pass was thin, do a second closer look with alternate spellings, nearby Illinois towns, menu pages, official sites, social pages, local news, tourism pages, and ordering pages.',
     'Return plain text only.',
     'Use this exact format for each candidate:',
     'Name: ...',
@@ -315,12 +318,56 @@ function buildFallbackEvidencePrompt(request, intent, locationContext) {
   return lines.join('\n');
 }
 
+function buildCloserLookEvidencePrompt(request, intent, locationContext, memo) {
+  const lines = [
+    `Brand: ${FOOD_BRAND}.`,
+    'This is a second, closer pass.',
+    'Search again more carefully for exact cuisine matches, local favorites, and small-town places that may have been missed.',
+    'Look for official sites, menus, Facebook pages, local blogs, local news, tourism pages, ordering pages, and current community language.',
+    'If the first pass found generic restaurants or chains, keep looking for better exact matches before settling.',
+    'Try alternate spellings, tiny variants in town names, and nearby Illinois towns when relevant.',
+    'Return a short plain-text shortlist for another model to format.',
+    'Do not mention the process or tool trace.'
+  ];
+
+  const contextBits = [];
+  if (request.query) contextBits.push(`Query: ${request.query}`);
+  if (request.destinationText) contextBits.push(`Destination: ${request.destinationText}`);
+  if (intent.inferredCuisine) contextBits.push(`Cuisine intent: ${intent.inferredCuisine}`);
+  if (intent.preference) contextBits.push(`Preference: ${intent.preference}`);
+  if (request.mealType && request.mealType !== 'any') contextBits.push(`Meal type: ${request.mealType}`);
+  if (request.filters?.localOnly) contextBits.push('Local restaurants only');
+  if (request.filters?.openNow) contextBits.push('Open now preferred');
+  if (request.filters?.dogFriendly) contextBits.push('Dog-friendly preferred');
+  if (request.filters?.patio) contextBits.push('Patio preferred');
+  if (request.filters?.familyFriendly) contextBits.push('Family-friendly preferred');
+  if (request.filters?.quickBite) contextBits.push('Quick bite preferred');
+  if (request.filters?.dateNight) contextBits.push('Date night preferred');
+  if (request.filters?.worthTheDrive) contextBits.push('Worth the drive');
+  if (request.radiusMiles) contextBits.push(`Radius: ${request.radiusMiles} miles`);
+  if (locationContext?.label) contextBits.push(`Search center: ${locationContext.label}`);
+
+  lines.push('', contextBits.length ? `Search context:\n${contextBits.map((item) => `- ${item}`).join('\n')}` : 'Search context: none provided.');
+  lines.push('', `Earlier memo to improve on:\n${memo || 'No memo returned.'}`);
+  lines.push(
+    'If the earlier pass only found a few weak or generic candidates, search wider nearby Illinois towns and more specific cuisine words. Aim for 3 to 8 verified candidates.'
+  );
+
+  return lines.join('\n');
+}
+
+function countCandidateBlocks(text) {
+  if (!text || typeof text !== 'string') return 0;
+  const matches = text.match(/^Name:\s+/gmi);
+  return matches ? matches.length : 0;
+}
+
 function buildFormattingPrompt(request, intent, locationContext, memo) {
   const parts = [
     `Brand: ${FOOD_BRAND}.`,
     'Convert the provided evidence memo into valid JSON that matches the food discovery schema exactly.',
     'Preserve only facts present in the memo. Do not invent restaurants, addresses, phone numbers, websites, ratings, hours, or evidence.',
-    'If a candidate is weak, stale, or unsupported, omit it.',
+    'If a candidate is weak, stale, unsupported, or clearly repeated from a second pass, omit or merge it.',
     'Keep explanations short, concrete, and trustworthy.',
     'Return JSON only.'
   ];
@@ -388,10 +435,31 @@ async function runDiscoveryMemo({ apiKey, model, request, intent, locationContex
   };
 
   const primaryMemo = await run(buildEvidencePrompt(request, intent, locationContext));
-  if (primaryMemo) return primaryMemo;
+  const memos = [];
+  if (primaryMemo) memos.push(primaryMemo);
 
-  const fallbackMemo = await run(buildFallbackEvidencePrompt(request, intent, locationContext));
-  if (fallbackMemo) return fallbackMemo;
+  const needsCloserPass =
+    !primaryMemo ||
+    countCandidateBlocks(primaryMemo) < (intent?.inferredCuisine ? 3 : 2) ||
+    primaryMemo.length < (intent?.inferredCuisine ? 1200 : 800);
+
+  if (primaryMemo && needsCloserPass) {
+    const closerMemo = await run(buildCloserLookEvidencePrompt(request, intent, locationContext, primaryMemo));
+    if (closerMemo) memos.push(closerMemo);
+  }
+
+  if (!memos.length) {
+    const fallbackMemo = await run(buildFallbackEvidencePrompt(request, intent, locationContext));
+    if (fallbackMemo) {
+      memos.push(fallbackMemo);
+      if (countCandidateBlocks(fallbackMemo) < (intent?.inferredCuisine ? 3 : 2)) {
+        const closerMemo = await run(buildCloserLookEvidencePrompt(request, intent, locationContext, fallbackMemo));
+        if (closerMemo) memos.push(closerMemo);
+      }
+    }
+  }
+
+  if (memos.length) return memos.join('\n\n---\n\n');
 
   throw new Error('OpenAI returned an empty food discovery memo.');
 }

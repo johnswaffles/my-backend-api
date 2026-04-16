@@ -117,7 +117,8 @@ export default function App(): JSX.Element {
         pageContext: {
           brand: FOOD_BRAND,
           pageTitle: '618FOOD.COM',
-          pageSummary: 'A general-purpose assistant running inside the 618FOOD.COM page shell.'
+          pageSummary:
+            'A friendly 618FOOD.COM personal assistant based in Mount Vernon, Illinois. Assume towns are Illinois towns unless the user says otherwise, and use Central Time for times.'
         }
       });
 

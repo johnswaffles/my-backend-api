@@ -34,13 +34,30 @@ function normalizeComparable(value) {
   return normalizeText(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ');
 }
 
+function assumeIllinoisLocationText(value) {
+  const text = normalizeText(value);
+  if (!text) return '';
+  if (/\b\d{5}(?:-\d{4})?\b/.test(text)) return text;
+  if (/[A-Za-z]+\s*,\s*[A-Za-z]{2}\b/.test(text)) return text;
+  if (/\b(?:illinois|indiana|missouri|kentucky|tennessee|ohio|arkansas|iowa|wisconsin|michigan)\b/i.test(text)) return text;
+  if (/\b(?:il|in|mo|ky|tn|oh|ar|ia|wi|mi)\b/i.test(text)) return text;
+  return `${text}, IL`;
+}
+
 function looksLikeLocationQuery(value) {
   const text = normalizeText(value);
   if (!text) return false;
   if (/\b\d{5}(?:-\d{4})?\b/.test(text)) return true;
   if (/[A-Za-z]+\s*,\s*[A-Za-z]{2}\b/.test(text)) return true;
   if (/[A-Za-z]{2}\s+\d{5}(?:-\d{4})?$/.test(text)) return true;
-  return text.length >= 3 && text.length <= 64 && /[A-Za-z]/.test(text) && /\b(il|mo|ky|tn|in|oh|ar)\b/i.test(text);
+  const normalized = normalizeComparable(text);
+  if (!normalized) return false;
+  if (
+    /\b(pizza|pizzeria|burger|burgers|hamburger|hamburgers|bbq|barbecue|barbeque|steak|steakhouse|taco|tacos|burrito|burritos|sushi|ramen|coffee|cafe|café|breakfast|brunch|dessert|bakery|diner|restaurant|grill|grille|sandwich|deli|sub|subs)\b/i.test(text)
+  ) {
+    return false;
+  }
+  return text.length >= 3 && text.length <= 64 && /[A-Za-z]/.test(text);
 }
 
 function inferCuisineFromText(text) {
@@ -82,10 +99,15 @@ export function inferFoodIntent(request) {
   const query = normalizeText(request?.query);
   const destinationText = normalizeText(request?.destinationText);
   const split = splitQueryLocation(query);
-  const querySubject = split.subject || query;
-  const queryLocation = split.location;
+  const embeddedZip = query.match(/\b\d{5}(?:-\d{4})?\b/)?.[0] || '';
+  const queryLooksLikeLocation = looksLikeLocationQuery(query) && !inferCuisineFromText(query);
+  const querySubject =
+    split.subject ||
+    (queryLooksLikeLocation ? '' : query.replace(/\b\d{5}(?:-\d{4})?\b/g, ' ').replace(/\s+/g, ' ').trim()) ||
+    query;
+  const queryLocation = split.location || embeddedZip || (queryLooksLikeLocation ? query : '');
   const destinationLikeLocation = looksLikeLocationQuery(destinationText) ? destinationText : '';
-  const inferredLocation = destinationLikeLocation || queryLocation;
+  const inferredLocation = assumeIllinoisLocationText(destinationLikeLocation || queryLocation);
   const inferredCuisine = inferCuisineFromText([querySubject, destinationText].filter(Boolean).join(' '));
   const preference = inferPreferenceFromText([query, destinationText, inferredCuisine].filter(Boolean).join(' '));
 
