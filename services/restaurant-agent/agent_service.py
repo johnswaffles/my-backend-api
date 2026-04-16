@@ -36,7 +36,7 @@ def _pick_google_api_key() -> str:
 
 
 def _log(message: str) -> None:
-    print(f"[restaurant-agent] {message}", flush=True)
+    print(f"[restaurant-agent] {message}", file=sys.stderr, flush=True)
 
 
 def _json_response(url: str, params: dict[str, Any], timeout: int = 15) -> dict[str, Any]:
@@ -666,6 +666,25 @@ class AgentHTTPRequestHandler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
+    if "--once" in sys.argv:
+        try:
+            raw_input = sys.stdin.read() or "{}"
+            payload = json.loads(raw_input)
+        except Exception as error:
+            print(json.dumps({"error": f"Invalid JSON input: {error}"}))
+            raise SystemExit(1)
+
+        try:
+            result = asyncio.run(_run_agent(payload))
+            print(json.dumps(result))
+            raise SystemExit(0)
+        except Exception as error:
+            _log(f"one-shot agent run failed: {error}")
+            traceback_text = "".join(traceback.format_exception(error))
+            _log(traceback_text)
+            print(json.dumps({"error": str(error)}))
+            raise SystemExit(1)
+
     server = ThreadingHTTPServer(("127.0.0.1", PORT), AgentHTTPRequestHandler)
     _log(f"Restaurant agent service listening on http://127.0.0.1:{PORT}")
     try:
