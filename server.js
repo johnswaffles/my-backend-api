@@ -229,21 +229,63 @@ function buildFoodChatSources(searchResult) {
   return sources;
 }
 
-function buildFoodChatReply(searchResult) {
+function looksLikeProcessSummary(text) {
+  if (!text || typeof text !== 'string') return false;
+  return /\b(searching|looking for|finding|current|right now|just now|could not complete|could not format|could not reach|ready to search)\b/i.test(
+    text
+  );
+}
+
+function isShortAcknowledgement(text) {
+  const normalized = normalizeChatMessage(text).toLowerCase();
+  if (!normalized) return false;
+  if (normalized.length > 24) return false;
+  return /^(ok|okay|sure|yes|yep|yeah|ready|sounds good|go ahead|continue|that works|thanks|thank you|cool|let's go|lets go)$/i.test(
+    normalized
+  );
+}
+
+function findMostRecentFoodUserMessage(history = []) {
+  if (!Array.isArray(history)) return '';
+  for (let index = history.length - 1; index >= 0; index -= 1) {
+    const turn = history[index];
+    if (!turn || turn.role !== 'user' || typeof turn.content !== 'string') continue;
+    const content = normalizeChatMessage(turn.content);
+    if (!content) continue;
+    if (looksLikeFoodChatRequest(content, history.slice(0, index + 1))) {
+      return content;
+    }
+  }
+  return '';
+}
+
+function buildFoodChatReply(searchResult, request = null) {
   const results = Array.isArray(searchResult?.results) ? searchResult.results.slice(0, 3) : [];
   const warnings = Array.isArray(searchResult?.warnings) ? searchResult.warnings.filter(Boolean) : [];
+  const requestQuery = typeof request?.query === 'string' ? request.query.trim() : '';
+  const requestDestination = typeof request?.destinationText === 'string' ? request.destinationText.trim() : '';
+  const inferredCuisine = inferFoodIntent({
+    query: requestQuery,
+    destinationText: requestDestination
+  }).inferredCuisine;
+  const foodLabel =
+    (typeof request?.filters?.cuisine === 'string' && request.filters.cuisine.trim()) ||
+    inferredCuisine ||
+    (/pizza/i.test(requestQuery) ? 'pizza' : 'food');
+  const locationLabel =
+    requestDestination ||
+    (request?.location?.label ? request.location.label : '') ||
+    (results[0]?.city ? `${results[0].city}, IL` : '') ||
+    'the area';
 
   if (!results.length) {
-    const fallback = searchResult?.intentSummary || 'I could not verify a strong local match yet.';
-    return `${fallback}${warnings.length ? ` ${warnings[0]}` : ''} If you want, I can broaden the search to nearby Illinois towns.`;
+    const fallback = `I could not verify a strong ${foodLabel || 'food'} match in ${locationLabel} yet.`;
+    return `${fallback}${warnings.length ? ` ${warnings[0]}` : ''} If you want, I can broaden the search to nearby Illinois towns or try a different food type.`;
   }
 
-  const intro =
-    typeof searchResult?.summary === 'string' && searchResult.summary.trim()
-      ? searchResult.summary.trim()
-      : typeof searchResult?.intentSummary === 'string' && searchResult.intentSummary.trim()
-        ? searchResult.intentSummary.trim()
-        : 'Here are a few strong local options I found:';
+  const intro = foodLabel
+    ? `Here are a few strong ${foodLabel} places I found in ${locationLabel}:`
+    : `Here are a few strong local options I found in ${locationLabel}:`;
 
   const lines = [intro, ''];
   results.forEach((result, index) => {
@@ -594,10 +636,13 @@ async function handleChatRequest(req, res) {
 
     const openaiKey = process.env.OPENAI_API_KEY;
     const model = process.env.OPENAI_MODEL || 'gpt-5.4';
+    const normalizedHistory = Array.isArray(history) ? history : [];
+    const foodFollowUp = isShortAcknowledgement(cleanMessage) ? findMostRecentFoodUserMessage(normalizedHistory) : '';
 
-    if (looksLikeFoodChatRequest(cleanMessage, Array.isArray(history) ? history : [])) {
+    if (looksLikeFoodChatRequest(cleanMessage, normalizedHistory) || foodFollowUp) {
+      const foodQuery = foodFollowUp || cleanMessage;
       const foodRequest = normalizeSearchRequest({
-        query: cleanMessage,
+        query: foodQuery,
         destinationText: '',
         location: null,
         mealType: 'any',
@@ -625,7 +670,7 @@ async function handleChatRequest(req, res) {
       });
 
       return res.json({
-        reply: buildFoodChatReply(searchResult),
+        reply: buildFoodChatReply(searchResult, foodRequest),
         sources: buildFoodChatSources(searchResult)
       });
     }
@@ -634,7 +679,7 @@ async function handleChatRequest(req, res) {
       apiKey: openaiKey,
       model,
       message: cleanMessage,
-      history: Array.isArray(history) ? history : [],
+      history: normalizedHistory,
       pageContext: pageContext && typeof pageContext === 'object' ? pageContext : null
     });
 
