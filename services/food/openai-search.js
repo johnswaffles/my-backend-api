@@ -622,6 +622,22 @@ function addFallbackWarnings(warnings, request, locationContext) {
   return [...new Set(next)];
 }
 
+function isTechnicalWarning(value) {
+  if (typeof value !== 'string') return true;
+  const text = value.trim();
+  if (!text) return true;
+  return /(\breq_[a-z0-9]+\b|request id|help\.openai\.com|OpenAI request failed|OpenAI formatting failed|OpenAI discovery repair failed|An error occurred while processing your request|could not reach the live assistant|could not complete the web search right now|could not format the verified results right now)/i.test(
+    text
+  );
+}
+
+function friendlySearchFailureWarning(request) {
+  const cuisine = typeof request?.filters?.cuisine === 'string' && request.filters.cuisine.trim()
+    ? request.filters.cuisine.trim()
+    : (typeof request?.query === 'string' && request.query.trim() ? request.query.trim().split(/\s+/)[0] : 'local');
+  return `I could not fully verify a strong ${cuisine} match just now, so I’m keeping the list conservative.`;
+}
+
 export async function searchWithOpenAI({ apiKey, model, request }) {
   if (!apiKey) {
     return {
@@ -646,7 +662,7 @@ export async function searchWithOpenAI({ apiKey, model, request }) {
     return {
       intentSummary: `${FOOD_BRAND} could not complete the web search right now.`,
       summary: '',
-      warnings: [String(error?.message || 'OpenAI search failed.')],
+      warnings: [friendlySearchFailureWarning(request)],
       results: [],
       buckets: [],
       sourceMode: 'empty',
@@ -661,7 +677,7 @@ export async function searchWithOpenAI({ apiKey, model, request }) {
     return {
       intentSummary: `${FOOD_BRAND} could not format the verified results right now.`,
       summary: '',
-      warnings: [String(error?.message || 'OpenAI formatting failed.')],
+      warnings: [friendlySearchFailureWarning(request)],
       results: [],
       buckets: [],
       sourceMode: 'empty',
@@ -712,10 +728,10 @@ export async function searchWithOpenAI({ apiKey, model, request }) {
     ],
     request,
     locationContext
-  );
+  ).filter((warning) => !isTechnicalWarning(warning));
 
   if (!finalResults.length && !warnings.length) {
-    warnings.push('No verified local matches were returned for the current search.');
+    warnings.push(friendlySearchFailureWarning(request));
   }
 
   return {
