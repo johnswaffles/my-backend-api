@@ -136,11 +136,25 @@ export interface ChatTurn {
   role: 'user' | 'assistant';
   content: string;
   sources?: ChatSource[];
+  restaurants?: RestaurantAgentRestaurant[];
 }
 
 export interface ChatSource {
   title: string;
   url: string;
+}
+
+export interface RestaurantAgentRestaurant {
+  name: string;
+  rating: number | null;
+  review_count: number | null;
+  score: number;
+  summary: string;
+  place_id: string;
+  formatted_address?: string | null;
+  phone?: string | null;
+  website?: string | null;
+  maps_url?: string | null;
 }
 
 export interface GeneralChatRequest {
@@ -156,6 +170,8 @@ export interface GeneralChatRequest {
 export interface GeneralChatResponse {
   reply: string;
   sources: ChatSource[];
+  restaurants?: RestaurantAgentRestaurant[];
+  requestId?: string;
 }
 
 export interface LiveSearchState {

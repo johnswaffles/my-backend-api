@@ -3,13 +3,15 @@ services:
     name: 618food-com
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build
+    buildCommand: python3 -m pip install --user -r requirements.txt && npm install && npm run build
     startCommand: npm start
     envVars:
       - key: OPENAI_API_KEY
         sync: false
       - key: OPENAI_MODEL
         value: gpt-5.4
+      - key: AGENT_SERVICE_PORT
+        value: 8787
       - key: OPENAI_TTS_MODEL
         value: gpt-4o-mini-tts
       - key: OPENAI_TTS_VOICE

@@ -1,9 +1,9 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
+import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { createEmptySearchResponse, normalizeSearchRequest, FOOD_BRAND } from './services/food/schemas.js';
-import { askGeneralAssistant } from './services/food/assistant.js';
 import { describeFoodIntent, inferFoodIntent } from './services/food/intent.js';
 import { searchWithOpenAI } from './services/food/openai-search.js';
 import { generateFoodSpeech } from './services/food/audio.js';
@@ -13,6 +13,87 @@ const port = process.env.PORT || 3000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const salesLeadsPath = path.join(__dirname, 'data', 'sales-leads.json');
+const restaurantAgentPort = Number(process.env.AGENT_SERVICE_PORT || 8787);
+
+let restaurantAgentProcess = null;
+let restaurantAgentReadyPromise = null;
+
+function restaurantAgentBaseUrl() {
+  return `http://127.0.0.1:${restaurantAgentPort}`;
+}
+
+async function waitForRestaurantAgent(timeoutMs = 15000) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      const response = await fetch(`${restaurantAgentBaseUrl()}/health`);
+      if (response.ok) return true;
+    } catch {
+      // Keep polling until the process is ready.
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 400));
+  }
+
+  throw new Error('Restaurant agent service did not become ready in time.');
+}
+
+function ensureRestaurantAgentService() {
+  if (restaurantAgentReadyPromise) {
+    return restaurantAgentReadyPromise;
+  }
+
+  const scriptPath = path.join(__dirname, 'services', 'restaurant-agent', 'agent_service.py');
+  const pythonBinary = process.env.PYTHON_BIN || 'python3';
+  restaurantAgentProcess = spawn(pythonBinary, [scriptPath], {
+    env: {
+      ...process.env,
+      AGENT_SERVICE_PORT: String(restaurantAgentPort)
+    },
+    stdio: ['ignore', 'pipe', 'pipe']
+  });
+
+  restaurantAgentProcess.stdout.on('data', (chunk) => {
+    const text = chunk.toString().trim();
+    if (text) console.log(`[restaurant-agent] ${text}`);
+  });
+
+  restaurantAgentProcess.stderr.on('data', (chunk) => {
+    const text = chunk.toString().trim();
+    if (text) console.error(`[restaurant-agent] ${text}`);
+  });
+
+  restaurantAgentProcess.on('exit', (code, signal) => {
+    console.error(`[restaurant-agent] exited with code=${code} signal=${signal}`);
+    restaurantAgentProcess = null;
+    restaurantAgentReadyPromise = null;
+  });
+
+  restaurantAgentReadyPromise = waitForRestaurantAgent();
+  return restaurantAgentReadyPromise;
+}
+
+async function proxyRestaurantAgentRequest(payload) {
+  console.log(`[restaurant-agent] proxy request ${payload?.requestId || 'unknown'} message=${String(payload?.message || '').slice(0, 120)}`);
+  await ensureRestaurantAgentService();
+  const response = await fetch(`${restaurantAgentBaseUrl()}/chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message = typeof data?.error === 'string' ? data.error : 'Restaurant agent request failed.';
+    const error = new Error(message);
+    error.details = data;
+    throw error;
+  }
+
+  return data;
+}
 
 app.use(express.json({ limit: '1mb' }));
 app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
@@ -472,7 +553,7 @@ app.post('/api/food/search', async (req, res) => {
   }
 });
 
-async function handleChatRequest(req, res) {
+async function handleRestaurantAgentRequest(req, res) {
   try {
     const { message, history, pageContext } = req.body || {};
     const cleanMessage = normalizeChatMessage(message);
@@ -480,29 +561,26 @@ async function handleChatRequest(req, res) {
       return res.status(400).json({ error: 'Message is required.' });
     }
 
-    const openaiKey = process.env.OPENAI_API_KEY;
-    const model = process.env.OPENAI_MODEL || 'gpt-5.4';
-    const normalizedHistory = Array.isArray(history) ? history : [];
-
-    const assistant = await askGeneralAssistant({
-      apiKey: openaiKey,
-      model,
+    const requestId = `chat_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
+    const agentResult = await proxyRestaurantAgentRequest({
+      requestId,
       message: cleanMessage,
-      history: normalizedHistory,
+      history: Array.isArray(history) ? history : [],
       pageContext: pageContext && typeof pageContext === 'object' ? pageContext : null
     });
 
-    return res.json(assistant);
+    return res.json(agentResult);
   } catch (error) {
+    console.error(`[restaurant-agent] chat failed`, error);
     return res.status(500).json({
-      error: 'Unable to answer 618FOOD.COM chat right now.',
+      error: 'Unable to answer restaurant agent chat right now.',
       details: String(error.message || error)
     });
   }
 }
 
-app.post('/api/chat', handleChatRequest);
-app.post('/api/food/assistant', handleChatRequest);
+app.post('/api/chat', handleRestaurantAgentRequest);
+app.post('/api/food/assistant', handleRestaurantAgentRequest);
 
 app.post('/api/food/audio', async (req, res) => {
   try {

@@ -19,7 +19,7 @@ export default function App(): JSX.Element {
   const [assistantTranscript, setAssistantTranscript] = useState<ChatTurn[]>([
     {
       role: 'assistant',
-      content: "Hello! I'm 618FOOD.COM. How can I help you today?"
+      content: "Hello! I’m 618FOOD.COM. Tell me a town and the kind of place you want, and I’ll find real restaurants using live tools."
     }
   ]);
   const [speakerEnabled, setSpeakerEnabled] = useState(true);
@@ -117,7 +117,8 @@ export default function App(): JSX.Element {
         pageContext: {
           brand: FOOD_BRAND,
           pageTitle: '618FOOD.COM',
-          pageSummary: 'A friendly 618FOOD.COM personal assistant. Answer naturally, use web search when helpful, and keep replies concise and useful.'
+          pageSummary:
+            'A true restaurant-finder agent powered by OpenAI Agents SDK. Use real APIs to search, verify, and rank restaurants before answering.'
         }
       });
 
@@ -126,7 +127,8 @@ export default function App(): JSX.Element {
         {
           role: 'assistant',
           content: assistant.reply,
-          sources: assistant.sources || []
+          sources: assistant.sources || [],
+          restaurants: assistant.restaurants || []
         }
       ]);
     } catch {
@@ -135,7 +137,8 @@ export default function App(): JSX.Element {
         {
           role: 'assistant',
           content: 'I could not reach the live assistant just now. Please try again in a moment.',
-          sources: []
+          sources: [],
+          restaurants: []
         }
       ]);
     } finally {
