@@ -1,12 +1,86 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { FOOD_BRAND, DEFAULT_SEARCH_FILTERS, normalizeSearchRequest } from '../food/schemas.js';
 import { inferFoodIntent, normalizeComparableText } from '../food/intent.js';
 import { searchGooglePlaces, fetchGooglePlaceDetails, normalizeGooglePlace } from '../food/google-places.js';
 
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 const MAX_TOOL_ROUNDS = 6;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const WRITEUPS_PATH = path.join(__dirname, '..', '..', 'data', 'restaurant-writeups.json');
+let WRITEUP_LIBRARY = null;
 
 function log(requestId, message) {
   console.log(`[restaurant-agent:${requestId}] ${message}`);
+}
+
+function loadWriteupLibrary() {
+  if (WRITEUP_LIBRARY) return WRITEUP_LIBRARY;
+  try {
+    const raw = fs.readFileSync(WRITEUPS_PATH, 'utf8');
+    const parsed = JSON.parse(raw);
+    WRITEUP_LIBRARY = Array.isArray(parsed) ? parsed.filter((item) => item && typeof item === 'object') : [];
+  } catch {
+    WRITEUP_LIBRARY = [];
+  }
+  return WRITEUP_LIBRARY;
+}
+
+function normalizeWriteupText(value) {
+  return normalizeComparableText(String(value || ''))
+    .replace(/\billinois\b/g, 'il')
+    .replace(/\bmt\b/g, 'mount');
+}
+
+function buildRestaurantWriteupKeys(restaurant) {
+  const names = [
+    restaurant?.name,
+    restaurant?.displayName,
+    restaurant?.alias,
+    restaurant?.formatted_address,
+    restaurant?.city,
+    restaurant?.phone
+  ].filter(Boolean);
+  return new Set(names.map((value) => normalizeWriteupText(value)).filter(Boolean));
+}
+
+function matchRestaurantWriteup(restaurant) {
+  const library = loadWriteupLibrary();
+  if (!library.length || !restaurant) return null;
+
+  const restaurantKeys = buildRestaurantWriteupKeys(restaurant);
+  for (const entry of library) {
+    const match = entry.match && typeof entry.match === 'object' ? entry.match : {};
+    const entryKeys = [
+      match.place_id,
+      match.placeId,
+      match.name,
+      match.address,
+      match.city,
+      ...(Array.isArray(match.aliases) ? match.aliases : [])
+    ]
+      .filter(Boolean)
+      .map((value) => normalizeWriteupText(value))
+      .filter(Boolean);
+
+    const addressMatch =
+      entryKeys.some((value) => restaurantKeys.has(value)) ||
+      (entry.address && normalizeWriteupText(restaurant.formatted_address || '').includes(normalizeWriteupText(entry.address))) ||
+      (entry.city && normalizeWriteupText(restaurant.city || '').includes(normalizeWriteupText(entry.city)));
+
+    if (addressMatch) {
+      return {
+        title: String(entry.title || '').trim() || `#1 pick: ${restaurant.name}`,
+        writeup: String(entry.writeup || '').trim(),
+        notes: String(entry.notes || '').trim() || '',
+        source: 'editorial'
+      };
+    }
+  }
+
+  return null;
 }
 
 function getOpenAiKey() {
@@ -849,7 +923,7 @@ export async function runRestaurantAgent({ message, history = [], pageContext = 
 
   const finalResultRestaurants = finalRestaurants
     .slice(0, 5)
-    .map((restaurant, index) => {
+    .map((restaurant) => {
       const resolved = toFinalRestaurant(restaurant);
       if (!resolved) return null;
       return {
@@ -865,18 +939,20 @@ export async function runRestaurantAgent({ message, history = [], pageContext = 
     .filter(Boolean);
 
   const sources = buildSources(finalResultRestaurants);
+  const topRestaurant = finalResultRestaurants[0] || null;
+  const editorialWriteup = topRestaurant ? matchRestaurantWriteup(topRestaurant) : null;
   const featuredWriteup = finalResultRestaurants.length
-    ? buildFeaturedWriteup({
+    ? (editorialWriteup?.writeup || buildFeaturedWriteup({
         restaurant: finalResultRestaurants[0],
         locationText: locationText || String(pageContext?.pageSummary || '').trim(),
         cuisineText,
         websiteSignals
-      })
+      }))
     : '';
 
   log(
     requestLabel,
-    `done restaurants=${finalResultRestaurants.length} sources=${sources.length} warnings=${context.warnings.length}`
+    `done restaurants=${finalResultRestaurants.length} sources=${sources.length} warnings=${context.warnings.length} editorial=${Boolean(editorialWriteup)}`
   );
 
   return {

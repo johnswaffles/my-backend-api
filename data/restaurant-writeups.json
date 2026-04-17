@@ -1,0 +1,17 @@
+[
+  {
+    "match": {
+      "name": "Quatro's Deep Pan Pizza",
+      "address": "218 W Freeman St",
+      "city": "Carbondale",
+      "aliases": [
+        "Quatro's",
+        "Quatros Deep Pan Pizza",
+        "Quatro's Deep Pan Pizza, Carbondale IL"
+      ]
+    },
+    "title": "A Southern Illinois Institution, Served One Deep Dish at a Time",
+    "writeup": "In the college town of Carbondale, where traditions are built as much on community as they are on cuisine, Quatro's Deep Pan Pizza stands as a defining culinary landmark. For decades, it has quietly cultivated a reputation that extends far beyond its modest exterior—earning a place not only in local memory, but in the broader conversation about Midwestern pizza craftsmanship.\n\nAt the heart of Quatro's identity is its signature deep pan pizza—a style that resists easy categorization. Neither strictly Chicago-style nor purely regional, it occupies a distinctive middle ground: a thick yet structured crust, crisp along the edges, with a caramelized cheese perimeter that delivers both texture and depth. This balance—between indulgence and restraint—is what elevates Quatro's from a casual pizzeria to something approaching artisanal.\n\nThe experience begins with the crust. Substantial without being heavy, it serves as a foundation for a generous layering of ingredients—fresh, evenly distributed, and unapologetically abundant. The sauce, bright and assertive, complements rather than overwhelms, allowing the cheese and toppings to maintain their integrity. Regular patrons often point to the “Quatro” pizza itself, a multi-cheese composition, as a definitive expression of the kitchen’s philosophy: richness, executed with precision.\n\nYet Quatro's is more than its menu. It is a social anchor—frequented by students of Southern Illinois University, families, and returning alumni who measure time in visits rather than years. The dining room, unpretentious and warmly functional, reflects the ethos of the establishment: approachable, consistent, and deeply rooted in its community. Its appeal lies not only in the quality of its food, but in the reliability of the experience it delivers.\n\nThere is also an element of longevity that shapes its narrative. Founded in the mid-1970s, Quatro's has endured shifting food trends and rising competition without sacrificing its identity. In an era of rapid reinvention, its commitment to doing one thing exceptionally well—crafting pizza with care—feels almost radical.\n\nTo visit Quatro's is to engage with a piece of Southern Illinois culture: not flashy, not overly stylized, but enduringly authentic. It is the kind of place where the food is remembered long after the meal, and where each slice carries with it a quiet sense of continuity—linking past and present through something as simple, and as profound, as pizza.",
+    "notes": "User-provided editorial writeup for the first live test."
+  }
+]
