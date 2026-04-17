@@ -11,7 +11,8 @@ import type { ChatTurn } from './features/local-eats/types';
 
 function getAudioSummary(conversation: ChatTurn[]): string {
   const assistantTurns = conversation.filter((turn) => turn.role === 'assistant');
-  return assistantTurns.at(-1)?.content || 'Ask anything and 618FOOD.COM will chat with you.';
+  const latest = assistantTurns.at(-1);
+  return latest?.featuredWriteup || latest?.content || 'Ask anything and 618FOOD.COM will chat with you.';
 }
 
 export default function App(): JSX.Element {
@@ -105,6 +106,7 @@ export default function App(): JSX.Element {
     setAssistantLoading(true);
     try {
       const historyBeforeMessage = assistantTranscript;
+      const historyForApi = historyBeforeMessage.filter((turn, index) => !(index === 0 && turn.role === 'assistant'));
       const nextTranscript: ChatTurn[] = [
         ...historyBeforeMessage,
         { role: 'user', content: followUp }
@@ -113,7 +115,7 @@ export default function App(): JSX.Element {
 
         const assistant = await ask618Chat({
           message: followUp,
-          history: historyBeforeMessage,
+          history: historyForApi,
           pageContext: {
             brand: FOOD_BRAND,
             pageTitle: '618FOOD.COM',
@@ -154,7 +156,7 @@ export default function App(): JSX.Element {
     }
   }, [assistantTranscript, playedResponseContent]);
 
-  const audioSummary = getAudioSummary(assistantTranscript);
+const audioSummary = getAudioSummary(assistantTranscript);
   const latestAssistantResponse = [...assistantTranscript].reverse().find((turn) => turn.role === 'assistant');
   const hasPlayedLatestResponse =
     Boolean(latestAssistantResponse?.content) && latestAssistantResponse?.content === playedResponseContent;

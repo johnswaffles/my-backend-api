@@ -131,7 +131,6 @@ export function AudioStrip({
                       : 'bg-white text-stone-700 ring-1 ring-stone-200'
                   }`}
                   >
-                  <p className="whitespace-pre-wrap">{turn.content}</p>
                   {turn.role === 'assistant' && turn.featuredWriteup ? (
                     <div className="mt-4 rounded-[1.15rem] border border-emerald-200 bg-emerald-50/80 px-4 py-3">
                       <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-800">
@@ -142,6 +141,7 @@ export function AudioStrip({
                       </p>
                     </div>
                   ) : null}
+                  <p className={`${turn.featuredWriteup ? 'mt-4' : ''} whitespace-pre-wrap`}>{turn.content}</p>
                   {turn.role === 'assistant' && turn.restaurants?.length ? (
                     <div className="mt-4 space-y-3">
                       <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">

@@ -89,6 +89,8 @@ function buildSystemPrompt() {
     'Call search_places first, then get_place_details on the strongest candidates, then rank_restaurants on the verified restaurant objects.',
     'When the user gives enough information, answer directly from the tool results instead of asking them to repeat themselves.',
     'After the tools finish, reply in short plain language only.',
+    'When writing about a top restaurant, sound like a local food writer: describe the atmosphere, service, value, and customer praise using the actual place details and review snippets.',
+    'Do not mention tools, search mechanics, strongest matches, or anything about the internal process.',
     'Do not include raw URLs, markdown source blocks, or JSON in the assistant text; the server will package results separately.',
     'Do not include markdown code fences.'
   ].join('\n');
@@ -308,6 +310,26 @@ function mergeKnownDetails(restaurants, detailsById) {
   });
 }
 
+function describeAtmosphereFromCategories(categories) {
+  const normalized = Array.isArray(categories)
+    ? categories.map((item) => String(item || '').toLowerCase())
+    : [];
+
+  if (normalized.some((item) => item.includes('steakhouse') || item.includes('chophouse') || item.includes('grill'))) {
+    return 'It feels like a sit-down place made for a fuller meal, with a classic steakhouse or grill kind of energy.';
+  }
+  if (normalized.some((item) => item.includes('pizza') || item.includes('pizzeria'))) {
+    return 'It comes across as a casual pizza stop, the kind of place people lean on for a reliable local pie.';
+  }
+  if (normalized.some((item) => item.includes('coffee') || item.includes('cafe') || item.includes('bakery'))) {
+    return 'It reads like an easygoing coffee or cafe stop, good for a slower pace and a simple bite.';
+  }
+  if (normalized.some((item) => item.includes('restaurant') || item.includes('diner'))) {
+    return 'It has the feel of a straightforward local restaurant where the focus is on a dependable meal and steady service.';
+  }
+  return 'It has the feel of a real local spot rather than a polished chain.';
+}
+
 function collectReviewText(restaurant) {
   const parts = [];
   for (const item of Array.isArray(restaurant.reviewHighlights) ? restaurant.reviewHighlights : []) {
@@ -386,20 +408,19 @@ function buildFeaturedWriteup({ restaurant, locationText, cuisineText }) {
   const reviewCount = Number.isFinite(restaurant.review_count) ? restaurant.review_count.toLocaleString() : '';
   const themes = extractReviewThemes(restaurant, cuisineText);
   const themeSentence = themes.length
-    ? `Customers most often mention ${humanJoin(themes)}.`
-    : 'Customer feedback is a little thinner here, so the rating and review volume are doing most of the work.';
-
-  const opening = `#1 pick: ${restaurant.name} in ${locationLabel} is the strongest ${cuisineLabel} match I found.`;
+    ? `Review snippets keep pointing to ${humanJoin(themes)}.`
+    : 'Customer feedback is a little thinner here, so I’m leaning more on the rating, review count, and verified business details.';
+  const atmosphereSentence = describeAtmosphereFromCategories(restaurant.categories);
   const scoreSentence = ratingText && reviewCount
-    ? `It carries a ${ratingText} rating across ${reviewCount} reviews, which is a good sign of steady local approval.`
+    ? `It carries a ${ratingText} rating across ${reviewCount} reviews, which suggests a place with a real following.`
     : ratingText
-      ? `It carries a ${ratingText} rating, which is a good sign of steady local approval.`
+      ? `It carries a ${ratingText} rating, which suggests a place with a real following.`
       : reviewCount
-        ? `It has ${reviewCount} reviews, which is a good sign of steady local approval.`
+        ? `It has ${reviewCount} reviews, which suggests a place with a real following.`
         : 'It has verified business details and enough support to land at the top of the list.';
-  const closing = `That makes it a strong first stop if you want the place people seem to keep coming back to.`;
+  const closing = `If you want a first stop that feels grounded in the local crowd, this is the one to start with.`;
 
-  return [opening, scoreSentence, themeSentence, closing].join(' ');
+  return `#1 pick: ${restaurant.name} in ${locationLabel}. ${atmosphereSentence} ${scoreSentence} ${themeSentence} ${closing}`;
 }
 
 function mergeUniqueRestaurants(existing, next) {
