@@ -122,15 +122,16 @@ export default function App(): JSX.Element {
           }
         });
 
-      setAssistantTranscript((current) => [
-        ...current,
-        {
-          role: 'assistant',
-          content: assistant.reply,
-          sources: assistant.sources || [],
-          restaurants: assistant.restaurants || []
-        }
-      ]);
+        setAssistantTranscript((current) => [
+          ...current,
+          {
+            role: 'assistant',
+            content: assistant.reply,
+            sources: assistant.sources || [],
+            restaurants: assistant.restaurants || [],
+            featuredWriteup: assistant.featuredWriteup || ''
+          }
+        ]);
     } catch {
       setAssistantTranscript((current) => [
         ...current,

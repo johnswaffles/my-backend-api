@@ -137,6 +137,7 @@ export interface ChatTurn {
   content: string;
   sources?: ChatSource[];
   restaurants?: RestaurantAgentRestaurant[];
+  featuredWriteup?: string;
 }
 
 export interface ChatSource {
@@ -155,6 +156,13 @@ export interface RestaurantAgentRestaurant {
   phone?: string | null;
   website?: string | null;
   maps_url?: string | null;
+  reviews?: string[];
+  reviewHighlights?: Array<{
+    text: string;
+    rating?: number | null;
+    relativeTime?: string;
+    author?: string;
+  }>;
 }
 
 export interface GeneralChatRequest {
@@ -171,6 +179,7 @@ export interface GeneralChatResponse {
   reply: string;
   sources: ChatSource[];
   restaurants?: RestaurantAgentRestaurant[];
+  featuredWriteup?: string;
   requestId?: string;
 }
 

@@ -167,6 +167,9 @@ function normalizeRestaurantRecord(candidate) {
     website: String(candidate.website || '').trim() || null,
     maps_url: String(candidate.maps_url || candidate.mapsUrl || '').trim() || null,
     city: String(candidate.city || '').trim() || null,
+    categories: Array.isArray(candidate.categories)
+      ? candidate.categories.map((item) => String(item || '').trim()).filter(Boolean)
+      : [],
     price_level: Number.isFinite(candidate.price_level)
       ? Number(candidate.price_level)
       : Number.isFinite(candidate.priceLevel)
@@ -177,7 +180,22 @@ function normalizeRestaurantRecord(candidate) {
         ? candidate.open_now
         : candidate.openNow === true || candidate.openNow === false
           ? candidate.openNow
-          : null
+          : null,
+    business_status: String(candidate.business_status || candidate.businessStatus || '').trim() || null,
+    reviews: Array.isArray(candidate.reviews)
+      ? candidate.reviews.map((item) => String(item || '').trim()).filter(Boolean).slice(0, 4)
+      : [],
+    reviewHighlights: Array.isArray(candidate.review_highlights || candidate.reviewHighlights)
+      ? (candidate.review_highlights || candidate.reviewHighlights)
+          .map((item) => ({
+            text: String(item?.text || '').trim(),
+            rating: Number.isFinite(item?.rating) ? Number(item.rating) : null,
+            relativeTime: String(item?.relativeTime || item?.relative_time_description || '').trim() || '',
+            author: String(item?.author || item?.author_name || '').trim() || ''
+          }))
+          .filter((item) => item.text)
+          .slice(0, 4)
+      : []
   };
 }
 
@@ -255,8 +273,133 @@ function toFinalRestaurant(candidate) {
     formatted_address: normalized.formatted_address,
     phone: normalized.phone,
     website: normalized.website,
-    maps_url: normalized.maps_url
+    maps_url: normalized.maps_url,
+    city: normalized.city,
+    categories: normalized.categories,
+    open_now: normalized.open_now,
+    business_status: normalized.business_status,
+    reviews: normalized.reviews,
+    reviewHighlights: normalized.reviewHighlights,
+    price_level: normalized.price_level
   };
+}
+
+function mergeKnownDetails(restaurants, detailsById) {
+  return restaurants.map((restaurant) => {
+    const normalized = normalizeRestaurantRecord(restaurant);
+    if (!normalized) return restaurant;
+
+    const detail = detailsById.get(normalized.place_id);
+    if (!detail) return normalized;
+
+    return {
+      ...normalized,
+      phone: normalized.phone || detail.phone || null,
+      website: normalized.website || detail.website || null,
+      maps_url: normalized.maps_url || detail.maps_url || null,
+      city: normalized.city || detail.city || null,
+      categories: normalized.categories.length ? normalized.categories : (Array.isArray(detail.categories) ? detail.categories : []),
+      open_now: normalized.open_now ?? detail.open_now ?? null,
+      business_status: normalized.business_status || detail.business_status || null,
+      reviews: normalized.reviews.length ? normalized.reviews : (Array.isArray(detail.reviews) ? detail.reviews : []),
+      reviewHighlights: normalized.reviewHighlights.length ? normalized.reviewHighlights : (Array.isArray(detail.review_highlights) ? detail.review_highlights : []),
+      price_level: normalized.price_level ?? detail.price_level ?? null
+    };
+  });
+}
+
+function collectReviewText(restaurant) {
+  const parts = [];
+  for (const item of Array.isArray(restaurant.reviewHighlights) ? restaurant.reviewHighlights : []) {
+    if (item && typeof item.text === 'string' && item.text.trim()) {
+      parts.push(item.text.trim());
+    }
+  }
+  for (const item of Array.isArray(restaurant.reviews) ? restaurant.reviews : []) {
+    if (typeof item === 'string' && item.trim()) {
+      parts.push(item.trim());
+    }
+  }
+  return parts.join(' ').toLowerCase();
+}
+
+function humanJoin(items) {
+  const list = items.filter(Boolean);
+  if (!list.length) return '';
+  if (list.length === 1) return list[0];
+  if (list.length === 2) return `${list[0]} and ${list[1]}`;
+  return `${list.slice(0, -1).join(', ')}, and ${list.at(-1)}`;
+}
+
+function extractReviewThemes(restaurant, cuisineText) {
+  const text = collectReviewText(restaurant);
+  if (!text) return [];
+
+  const themeDefs = [
+    { label: 'friendly service', keywords: ['friendly', 'service', 'staff', 'helpful', 'kind', 'welcoming', 'waiter', 'waitress'] },
+    { label: 'big portions', keywords: ['portion', 'portions', 'generous', 'plenty', 'big servings', 'large portions'] },
+    { label: 'good value', keywords: ['value', 'reasonable', 'affordable', 'price', 'prices', 'cheap', 'inexpensive'] },
+    { label: 'clean, casual atmosphere', keywords: ['clean', 'casual', 'cozy', 'comfortable', 'atmosphere', 'family friendly'] },
+    { label: 'fresh food', keywords: ['fresh', 'hot', 'tasty', 'delicious', 'made to order', 'quality'] },
+    { label: 'local favorite energy', keywords: ['local', 'favorite', 'go to', 'go-to', 'keep coming back', 'regulars', 'recommended'] }
+  ];
+
+  const cuisine = String(cuisineText || '').toLowerCase();
+  if (cuisine.includes('pizza')) {
+    themeDefs.unshift({
+      label: 'crust, sauce, and toppings',
+      keywords: ['crust', 'sauce', 'cheese', 'toppings', 'pizza', 'pepperoni', 'slice', 'slices']
+    });
+  } else if (cuisine.includes('steak')) {
+    themeDefs.unshift({
+      label: 'steaks cooked well',
+      keywords: ['steak', 'ribeye', 'filet', 'sirloin', 'prime rib', 'meat', 'cooked']
+    });
+  } else if (cuisine.includes('coffee')) {
+    themeDefs.unshift({
+      label: 'coffee and baked goods',
+      keywords: ['coffee', 'latte', 'espresso', 'brew', 'pastry', 'bakery', 'drink']
+    });
+  }
+
+  const scored = themeDefs
+    .map((theme) => {
+      const count = theme.keywords.reduce((sum, keyword) => {
+        const pattern = keyword.includes(' ') ? new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g') : new RegExp(`\\b${keyword}\\b`, 'g');
+        const matches = text.match(pattern);
+        return sum + (matches ? matches.length : 0);
+      }, 0);
+      return { ...theme, count };
+    })
+    .filter((item) => item.count > 0)
+    .sort((a, b) => b.count - a.count);
+
+  return scored.slice(0, 3).map((item) => item.label);
+}
+
+function buildFeaturedWriteup({ restaurant, locationText, cuisineText }) {
+  if (!restaurant || !restaurant.name) return '';
+
+  const locationLabel = locationText || restaurant.city || restaurant.formatted_address || 'the area';
+  const cuisineLabel = cuisineText || 'restaurant';
+  const ratingText = Number.isFinite(restaurant.rating) ? restaurant.rating.toFixed(1) : '';
+  const reviewCount = Number.isFinite(restaurant.review_count) ? restaurant.review_count.toLocaleString() : '';
+  const themes = extractReviewThemes(restaurant, cuisineText);
+  const themeSentence = themes.length
+    ? `Customers most often mention ${humanJoin(themes)}.`
+    : 'Customer feedback is a little thinner here, so the rating and review volume are doing most of the work.';
+
+  const opening = `#1 pick: ${restaurant.name} in ${locationLabel} is the strongest ${cuisineLabel} match I found.`;
+  const scoreSentence = ratingText && reviewCount
+    ? `It carries a ${ratingText} rating across ${reviewCount} reviews, which is a good sign of steady local approval.`
+    : ratingText
+      ? `It carries a ${ratingText} rating, which is a good sign of steady local approval.`
+      : reviewCount
+        ? `It has ${reviewCount} reviews, which is a good sign of steady local approval.`
+        : 'It has verified business details and enough support to land at the top of the list.';
+  const closing = `That makes it a strong first stop if you want the place people seem to keep coming back to.`;
+
+  return [opening, scoreSentence, themeSentence, closing].join(' ');
 }
 
 function mergeUniqueRestaurants(existing, next) {
@@ -558,6 +701,8 @@ export async function runRestaurantAgent({ message, history = [], pageContext = 
     finalRestaurants = rankRestaurantsDeterministically(context.searchCandidates);
   }
 
+  finalRestaurants = mergeKnownDetails(finalRestaurants, context.detailsById);
+
   const replyText =
     extractResponseText(response) ||
     buildReply({
@@ -584,6 +729,13 @@ export async function runRestaurantAgent({ message, history = [], pageContext = 
     .filter(Boolean);
 
   const sources = buildSources(finalResultRestaurants);
+  const featuredWriteup = finalResultRestaurants.length
+    ? buildFeaturedWriteup({
+        restaurant: finalResultRestaurants[0],
+        locationText: locationText || String(pageContext?.pageSummary || '').trim(),
+        cuisineText
+      })
+    : '';
 
   log(
     requestLabel,
@@ -594,6 +746,7 @@ export async function runRestaurantAgent({ message, history = [], pageContext = 
     reply: replyText,
     restaurants: finalResultRestaurants,
     sources,
+    featuredWriteup,
     requestId: requestLabel
   };
 }
