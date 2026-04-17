@@ -355,6 +355,19 @@ function humanJoin(items) {
   return `${list.slice(0, -1).join(', ')}, and ${list.at(-1)}`;
 }
 
+function hashText(text) {
+  let hash = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    hash = (hash * 31 + text.charCodeAt(index)) >>> 0;
+  }
+  return hash;
+}
+
+function pickByHash(text, options) {
+  if (!Array.isArray(options) || !options.length) return '';
+  return options[hashText(text) % options.length];
+}
+
 function extractReviewThemes(restaurant, cuisineText) {
   const text = collectReviewText(restaurant);
   if (!text) return [];
@@ -401,17 +414,109 @@ function extractReviewThemes(restaurant, cuisineText) {
   return scored.slice(0, 3).map((item) => item.label);
 }
 
-function buildFeaturedWriteup({ restaurant, locationText, cuisineText }) {
+async function fetchWebsiteSignals(url, requestId) {
+  const website = String(url || '').trim();
+  if (!website) return null;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4500);
+  try {
+    const response = await fetch(website, {
+      signal: controller.signal,
+      headers: {
+        'user-agent': 'Mozilla/5.0 (compatible; 618FOOD.COM/1.0)'
+      }
+    });
+    if (!response.ok) return null;
+
+    const html = await response.text();
+    const title = html.match(/<title[^>]*>([^<]+)<\/title>/i)?.[1]?.trim() || '';
+    const metaDescription =
+      html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)?.[1]?.trim() ||
+      html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i)?.[1]?.trim() ||
+      '';
+    const bodyText = `${title} ${metaDescription}`.toLowerCase();
+
+    const menuKeywords = [
+      { term: 'pizza', label: 'pizza' },
+      { term: 'pasta', label: 'pasta' },
+      { term: 'steak', label: 'steaks' },
+      { term: 'ribeye', label: 'ribeye' },
+      { term: 'prime rib', label: 'prime rib' },
+      { term: 'burger', label: 'burgers' },
+      { term: 'bbq', label: 'bbq' },
+      { term: 'barbecue', label: 'barbecue' },
+      { term: 'seafood', label: 'seafood' },
+      { term: 'coffee', label: 'coffee' },
+      { term: 'breakfast', label: 'breakfast' },
+      { term: 'brunch', label: 'brunch' },
+      { term: 'dessert', label: 'dessert' },
+      { term: 'bakery', label: 'bakery' }
+    ];
+
+    const menuHighlights = menuKeywords
+      .filter(({ term }) => bodyText.includes(term))
+      .map(({ label }) => label);
+
+    const menuLinkMentions = [...html.matchAll(/<a[^>]+href=["']([^"']+)["'][^>]*>(.*?)<\/a>/gis)]
+      .map((match) => ({
+        href: String(match[1] || '').trim(),
+        text: String(match[2] || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+      }))
+      .filter((item) => /menu|order|online|special/i.test(`${item.href} ${item.text}`))
+      .slice(0, 3)
+      .map((item) => item.text)
+      .filter(Boolean);
+
+    return {
+      title,
+      description: metaDescription,
+      menuHighlights,
+      menuLinkMentions,
+      requestId
+    };
+  } catch (error) {
+    log(requestId, `website fetch skipped for ${website}: ${String(error.message || error)}`);
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function buildFeaturedWriteup({ restaurant, locationText, cuisineText, websiteSignals }) {
   if (!restaurant || !restaurant.name) return '';
 
   const locationLabel = locationText || restaurant.city || restaurant.formatted_address || 'the area';
   const ratingText = Number.isFinite(restaurant.rating) ? restaurant.rating.toFixed(1) : '';
   const reviewCount = Number.isFinite(restaurant.review_count) ? restaurant.review_count.toLocaleString() : '';
+  const opening = pickByHash(restaurant.name, [
+    `#1 pick: ${restaurant.name} is the kind of place locals keep in rotation.`,
+    `#1 pick: ${restaurant.name} stands out as the sort of restaurant people point friends toward.`,
+    `#1 pick: ${restaurant.name} feels like the most dependable stop on the list.`,
+    `#1 pick: ${restaurant.name} has the feel of a true local favorite.`
+  ]);
   const themes = extractReviewThemes(restaurant, cuisineText);
   const themeSentence = themes.length
     ? `Customers keep coming back to mention ${humanJoin(themes)}.`
     : 'Customer feedback is a little thinner here, so the rating, review count, and verified business details do most of the talking.';
   const atmosphereSentence = describeAtmosphereFromCategories(restaurant.categories);
+  const websiteSentence = (() => {
+    const menuHighlights = Array.isArray(websiteSignals?.menuHighlights) ? websiteSignals.menuHighlights.filter(Boolean) : [];
+    const menuMentions = Array.isArray(websiteSignals?.menuLinkMentions) ? websiteSignals.menuLinkMentions.filter(Boolean) : [];
+    if (menuHighlights.length) {
+      return `Its website reinforces that with menu cues around ${humanJoin(menuHighlights)}.`;
+    }
+    if (menuMentions.length) {
+      return `Its site also hints at the menu with links for ${humanJoin(menuMentions)}.`;
+    }
+    if (typeof websiteSignals?.description === 'string' && websiteSignals.description.trim()) {
+      const desc = websiteSignals.description.trim();
+      if (desc.length >= 40 && desc.length <= 180) {
+        return `The restaurant's own site adds another layer, describing it as ${desc.replace(/\.$/, '')}.`;
+      }
+    }
+    return '';
+  })();
   const scoreSentence = ratingText && reviewCount
     ? `A ${ratingText} rating across ${reviewCount} reviews gives it the feel of a place with a real, steady following.`
     : ratingText
@@ -419,9 +524,16 @@ function buildFeaturedWriteup({ restaurant, locationText, cuisineText }) {
       : reviewCount
         ? `Its ${reviewCount} reviews give it the feel of a place with a real, steady following.`
         : 'Its verified business details are enough to land it at the top of the list.';
-  const closing = `Altogether, it reads like a dependable local favorite and an easy first stop if you want a place that feels grounded in the local crowd.`;
+  const closing = pickByHash(`${restaurant.name}-${locationLabel}`, [
+    'Altogether, it reads like a dependable local favorite and an easy first stop if you want a place that feels grounded in the local crowd.',
+    'Taken together, it feels like the sort of spot you remember after one visit and circle back to when you want the reliable choice.',
+    'Put simply, this is the kind of restaurant that earns repeat visits because it feels familiar, satisfying, and worth the stop.',
+    'All told, it has the warmth and credibility of a place that has clearly won over the local crowd.'
+  ]);
 
-  return `#1 pick: ${restaurant.name} in ${locationLabel}. ${atmosphereSentence} ${scoreSentence} ${themeSentence} ${closing}`;
+  return [opening, `It’s in ${locationLabel}.`, atmosphereSentence, scoreSentence, themeSentence, websiteSentence, closing]
+    .filter(Boolean)
+    .join(' ');
 }
 
 function mergeUniqueRestaurants(existing, next) {
@@ -724,6 +836,8 @@ export async function runRestaurantAgent({ message, history = [], pageContext = 
   }
 
   finalRestaurants = mergeKnownDetails(finalRestaurants, context.detailsById);
+  const topRestaurant = finalRestaurants[0] || null;
+  const websiteSignals = topRestaurant?.website ? await fetchWebsiteSignals(topRestaurant.website, requestLabel) : null;
 
   const replyText =
     extractResponseText(response) ||
@@ -755,7 +869,8 @@ export async function runRestaurantAgent({ message, history = [], pageContext = 
     ? buildFeaturedWriteup({
         restaurant: finalResultRestaurants[0],
         locationText: locationText || String(pageContext?.pageSummary || '').trim(),
-        cuisineText
+        cuisineText,
+        websiteSignals
       })
     : '';
 
