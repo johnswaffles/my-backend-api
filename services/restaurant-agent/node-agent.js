@@ -910,8 +910,8 @@ export async function runRestaurantAgent({ message, history = [], pageContext = 
   }
 
   finalRestaurants = mergeKnownDetails(finalRestaurants, context.detailsById);
-  const topRestaurant = finalRestaurants[0] || null;
-  const websiteSignals = topRestaurant?.website ? await fetchWebsiteSignals(topRestaurant.website, requestLabel) : null;
+  const rankedTopRestaurant = finalRestaurants[0] || null;
+  const websiteSignals = rankedTopRestaurant?.website ? await fetchWebsiteSignals(rankedTopRestaurant.website, requestLabel) : null;
 
   const replyText =
     extractResponseText(response) ||
