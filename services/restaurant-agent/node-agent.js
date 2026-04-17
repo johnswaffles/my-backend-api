@@ -84,6 +84,7 @@ function buildSystemPrompt() {
     'For restaurant requests, always use tools to get real data.',
     'Never invent restaurants, addresses, phone numbers, websites, ratings, or hours.',
     'If a town is mentioned without a state, assume Illinois unless the user clearly says otherwise.',
+    'If the user provides only a location, ZIP, or town with no cuisine or food type, treat it as a request for the best overall restaurants in that place and do not ask them to repeat or add a food type.',
     'Prefer exact cuisine matches over generic restaurants.',
     'If the first search is thin or generic, search again with a tighter cuisine phrase or nearby Illinois town.',
     'Call search_places first, then get_place_details on the strongest candidates, then rank_restaurants on the verified restaurant objects.',
@@ -249,16 +250,17 @@ function buildSources(restaurants) {
 
 function buildReply({ restaurants, locationText, cuisineText }) {
   if (!restaurants.length) {
-    const cuisineLabel = cuisineText || 'restaurant';
     const locationLabel = locationText || 'that area';
-    return `I couldn't verify a strong ${cuisineLabel} match in ${locationLabel} yet. Try a nearby Illinois town or a broader food type, and I can search again.`;
+    return `I couldn't verify a strong match in ${locationLabel} yet. Try a nearby Illinois town, and I can search again.`;
   }
 
-  const cuisineLabel = cuisineText || 'restaurant';
   const locationLabel = locationText || 'that area';
-  const names = restaurants.slice(0, 3).map((restaurant) => restaurant.name).filter(Boolean);
+  const names = restaurants.slice(0, cuisineText ? 3 : 5).map((restaurant) => restaurant.name).filter(Boolean);
   const lead = names.length ? names.join(', ') : 'the top verified options';
-  return `Here are the top verified ${cuisineLabel} options I found in ${locationLabel}: ${lead}.`;
+  if (!cuisineText) {
+    return `Here are the top five restaurants I found in ${locationLabel}: ${lead}.`;
+  }
+  return `Here are the top verified ${cuisineText} options I found in ${locationLabel}: ${lead}.`;
 }
 
 function toFinalRestaurant(candidate) {
@@ -631,7 +633,7 @@ export async function runRestaurantAgent({ message, history = [], pageContext = 
 
   if (!cleanMessage) {
     return {
-      reply: 'Please send a town and the kind of place you want.',
+      reply: 'Please send a town or ZIP, and I’ll find the top restaurants there.',
       restaurants: [],
       sources: [],
       requestId: requestLabel
@@ -640,7 +642,7 @@ export async function runRestaurantAgent({ message, history = [], pageContext = 
 
   if (!likelyRestaurantRequest) {
     return {
-      reply: `Hello! I’m ${FOOD_BRAND}. Tell me a town and the kind of place you want, and I’ll find real restaurants using live tools.`,
+      reply: `Hello! I’m ${FOOD_BRAND}. Tell me a town or ZIP, and I’ll find the top restaurants using live tools.`,
       restaurants: [],
       sources: [],
       requestId: requestLabel

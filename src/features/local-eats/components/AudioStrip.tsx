@@ -178,7 +178,7 @@ export function AudioStrip({
             ))
           ) : (
             <div className="rounded-[1.1rem] border border-dashed border-stone-200 bg-white/80 px-4 py-4 text-sm text-stone-500">
-              Ask for a town and food type, and 618FOOD.COM will find real restaurants.
+              Ask for a town or ZIP, and 618FOOD.COM will find the top restaurants.
             </div>
           )}
 
@@ -200,7 +200,7 @@ export function AudioStrip({
           <input
             value={followUpText}
             onChange={(event) => setFollowUpText(event.target.value)}
-            placeholder="Ask for a town and food type..."
+            placeholder="Ask for a town or ZIP..."
             className="min-w-0 h-12 rounded-full border border-stone-200 bg-white px-4 py-3 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
           />
           <button
