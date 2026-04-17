@@ -111,16 +111,16 @@ export default function App(): JSX.Element {
       ];
       setAssistantTranscript(nextTranscript);
 
-      const assistant = await ask618Chat({
-        message: followUp,
-        history: historyBeforeMessage,
-        pageContext: {
-          brand: FOOD_BRAND,
-          pageTitle: '618FOOD.COM',
-          pageSummary:
-            'A true restaurant-finder agent powered by OpenAI Agents SDK. Use real APIs to search, verify, and rank restaurants before answering.'
-        }
-      });
+        const assistant = await ask618Chat({
+          message: followUp,
+          history: historyBeforeMessage,
+          pageContext: {
+            brand: FOOD_BRAND,
+            pageTitle: '618FOOD.COM',
+            pageSummary:
+              'A restaurant-finder powered by live tool calls to Google Places and OpenAI.'
+          }
+        });
 
       setAssistantTranscript((current) => [
         ...current,
@@ -136,7 +136,7 @@ export default function App(): JSX.Element {
         ...current,
         {
           role: 'assistant',
-          content: 'I could not reach the live assistant just now. Please try again in a moment.',
+          content: 'I could not reach 618FOOD.COM right now. Please try again in a moment.',
           sources: [],
           restaurants: []
         }

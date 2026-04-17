@@ -1,102 +1,18 @@
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
-import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { createEmptySearchResponse, normalizeSearchRequest, FOOD_BRAND } from './services/food/schemas.js';
 import { describeFoodIntent, inferFoodIntent } from './services/food/intent.js';
 import { searchWithOpenAI } from './services/food/openai-search.js';
 import { generateFoodSpeech } from './services/food/audio.js';
+import { runRestaurantAgent } from './services/restaurant-agent/node-agent.js';
 
 const app = express();
 const port = process.env.PORT || 3000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const salesLeadsPath = path.join(__dirname, 'data', 'sales-leads.json');
-const restaurantAgentPort = Number(process.env.AGENT_SERVICE_PORT || 8787);
-async function proxyRestaurantAgentRequest(payload) {
-  const scriptPath = path.join(__dirname, 'services', 'restaurant-agent', 'agent_service.py');
-  const venvPython = path.join(__dirname, '.venv', 'bin', 'python');
-  const pythonBinary = process.env.PYTHON_BIN || (fs.existsSync(venvPython) ? venvPython : 'python3');
-  console.log(`[restaurant-agent] invoking one-shot agent python binary=${pythonBinary} request=${payload?.requestId || 'unknown'}`);
-
-  return await new Promise((resolve, reject) => {
-    const child = spawn(pythonBinary, [scriptPath, '--once'], {
-      env: {
-        ...process.env
-      },
-      stdio: ['pipe', 'pipe', 'pipe']
-    });
-
-    let stdout = '';
-    let stderr = '';
-    let settled = false;
-
-    const finish = (error, value) => {
-      if (settled) return;
-      settled = true;
-      if (error) {
-        reject(error);
-      } else {
-        resolve(value);
-      }
-    };
-
-    const timeout = setTimeout(() => {
-      child.kill('SIGKILL');
-      const error = new Error('Restaurant agent request timed out.');
-      error.details = { stderr, stdout };
-      finish(error);
-    }, 120000);
-
-    child.stdout.on('data', (chunk) => {
-      stdout += chunk.toString();
-    });
-
-    child.stderr.on('data', (chunk) => {
-      stderr += chunk.toString();
-    });
-
-    child.on('error', (error) => {
-      clearTimeout(timeout);
-      error.details = { stderr, stdout };
-      finish(error);
-    });
-
-    child.on('close', (code) => {
-      clearTimeout(timeout);
-      const trimmedStdout = stdout.trim();
-      let data = null;
-      if (trimmedStdout) {
-        try {
-          data = JSON.parse(trimmedStdout);
-        } catch (parseError) {
-          const error = new Error(`Restaurant agent returned invalid JSON: ${parseError.message}`);
-          error.details = { stderr, stdout };
-          return finish(error);
-        }
-      }
-
-      if (!data || typeof data !== 'object') {
-        const error = new Error('Restaurant agent returned no data.');
-        error.details = { stderr, stdout, code, data };
-        return finish(error);
-      }
-
-      if (code !== 0 && typeof data?.reply !== 'string') {
-        const message = typeof data?.error === 'string' ? data.error : stderr.trim() || 'Restaurant agent request failed.';
-        const error = new Error(message);
-        error.details = { stderr, stdout, code, data };
-        return finish(error);
-      }
-
-      finish(null, data);
-    });
-
-    child.stdin.write(JSON.stringify(payload || {}));
-    child.stdin.end();
-  });
-}
 
 app.use(express.json({ limit: '1mb' }));
 app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
@@ -565,18 +481,18 @@ async function handleRestaurantAgentRequest(req, res) {
     }
 
     const requestId = `chat_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
-    const agentResult = await proxyRestaurantAgentRequest({
-      requestId,
+    const agentResult = await runRestaurantAgent({
       message: cleanMessage,
       history: Array.isArray(history) ? history : [],
-      pageContext: pageContext && typeof pageContext === 'object' ? pageContext : null
+      pageContext: pageContext && typeof pageContext === 'object' ? pageContext : null,
+      requestId
     });
 
     return res.json(agentResult);
   } catch (error) {
     console.error(`[restaurant-agent] chat failed`, error);
     return res.status(500).json({
-      error: 'Unable to answer restaurant agent chat right now.',
+      error: 'Unable to answer 618FOOD.COM right now.',
       details: String(error.message || error)
     });
   }
