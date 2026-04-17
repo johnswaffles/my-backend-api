@@ -90,7 +90,7 @@ function buildSystemPrompt() {
     'Call search_places first, then get_place_details on the strongest candidates, then rank_restaurants on the verified restaurant objects.',
     'When the user gives enough information, answer directly from the tool results instead of asking them to repeat themselves.',
     'After the tools finish, reply in short plain language only.',
-    'When writing about a top restaurant, sound like a local food writer: describe the atmosphere, service, value, and customer praise using the actual place details and review snippets.',
+    'When writing about a top restaurant, sound like a polished food magazine writer: describe the atmosphere, service, value, and customer praise using the actual place details and review snippets.',
     'Do not mention tools, search mechanics, strongest matches, or anything about the internal process.',
     'Do not include raw URLs, markdown source blocks, or JSON in the assistant text; the server will package results separately.',
     'Do not include markdown code fences.'
@@ -260,7 +260,7 @@ function buildReply({ restaurants, locationText, cuisineText }) {
   if (!cuisineText) {
     return `Here are the top five restaurants I found in ${locationLabel}: ${lead}.`;
   }
-  return `Here are the top verified ${cuisineText} options I found in ${locationLabel}: ${lead}.`;
+  return `Here are the top ${cuisineText} spots I found in ${locationLabel}: ${lead}.`;
 }
 
 function toFinalRestaurant(candidate) {
@@ -405,22 +405,21 @@ function buildFeaturedWriteup({ restaurant, locationText, cuisineText }) {
   if (!restaurant || !restaurant.name) return '';
 
   const locationLabel = locationText || restaurant.city || restaurant.formatted_address || 'the area';
-  const cuisineLabel = cuisineText || 'restaurant';
   const ratingText = Number.isFinite(restaurant.rating) ? restaurant.rating.toFixed(1) : '';
   const reviewCount = Number.isFinite(restaurant.review_count) ? restaurant.review_count.toLocaleString() : '';
   const themes = extractReviewThemes(restaurant, cuisineText);
   const themeSentence = themes.length
-    ? `Review snippets keep pointing to ${humanJoin(themes)}.`
-    : 'Customer feedback is a little thinner here, so I’m leaning more on the rating, review count, and verified business details.';
+    ? `Customers keep coming back to mention ${humanJoin(themes)}.`
+    : 'Customer feedback is a little thinner here, so the rating, review count, and verified business details do most of the talking.';
   const atmosphereSentence = describeAtmosphereFromCategories(restaurant.categories);
   const scoreSentence = ratingText && reviewCount
-    ? `It carries a ${ratingText} rating across ${reviewCount} reviews, which suggests a place with a real following.`
+    ? `A ${ratingText} rating across ${reviewCount} reviews gives it the feel of a place with a real, steady following.`
     : ratingText
-      ? `It carries a ${ratingText} rating, which suggests a place with a real following.`
+      ? `A ${ratingText} rating gives it the feel of a place with a real, steady following.`
       : reviewCount
-        ? `It has ${reviewCount} reviews, which suggests a place with a real following.`
-        : 'It has verified business details and enough support to land at the top of the list.';
-  const closing = `If you want a first stop that feels grounded in the local crowd, this is the one to start with.`;
+        ? `Its ${reviewCount} reviews give it the feel of a place with a real, steady following.`
+        : 'Its verified business details are enough to land it at the top of the list.';
+  const closing = `Altogether, it reads like a dependable local favorite and an easy first stop if you want a place that feels grounded in the local crowd.`;
 
   return `#1 pick: ${restaurant.name} in ${locationLabel}. ${atmosphereSentence} ${scoreSentence} ${themeSentence} ${closing}`;
 }
@@ -642,7 +641,7 @@ export async function runRestaurantAgent({ message, history = [], pageContext = 
 
   if (!likelyRestaurantRequest) {
     return {
-      reply: `Hello! I’m ${FOOD_BRAND}. Tell me a town or ZIP, and I’ll find the top restaurants using live tools.`,
+      reply: `Hello! I’m ${FOOD_BRAND}. Tell me a town or ZIP, and I’ll find the top restaurants there.`,
       restaurants: [],
       sources: [],
       requestId: requestLabel

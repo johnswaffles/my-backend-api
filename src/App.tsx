@@ -20,7 +20,7 @@ export default function App(): JSX.Element {
   const [assistantTranscript, setAssistantTranscript] = useState<ChatTurn[]>([
     {
       role: 'assistant',
-      content: "Hello! I’m 618FOOD.COM. Tell me a town or ZIP, and I’ll find the top restaurants using live tools."
+      content: "Hello! I’m 618FOOD.COM. Tell me a town or ZIP, and I’ll find the top restaurants there."
     }
   ]);
   const [speakerEnabled, setSpeakerEnabled] = useState(true);
@@ -119,8 +119,7 @@ export default function App(): JSX.Element {
           pageContext: {
             brand: FOOD_BRAND,
             pageTitle: '618FOOD.COM',
-            pageSummary:
-              'A restaurant-finder powered by live tool calls to Google Places and OpenAI.'
+            pageSummary: 'A restaurant finder focused on real places and customer experience.'
           }
         });
 
