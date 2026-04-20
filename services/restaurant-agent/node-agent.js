@@ -518,6 +518,7 @@ function normalizeRestaurantRecord(candidate) {
     review_count: reviewCount,
     score,
     summary: String(candidate.summary || '').trim(),
+    search_query: String(candidate.search_query || candidate.searchQuery || '').trim() || null,
     formatted_address: String(candidate.formatted_address || candidate.formattedAddress || '').trim() || null,
     phone: String(candidate.phone || '').trim() || null,
     website: String(candidate.website || '').trim() || null,
@@ -640,6 +641,7 @@ function scoreCuisineRelevance(restaurant, cuisineText) {
     Array.isArray(restaurant?.reviews) ? restaurant.reviews.join(' ') : '',
     Array.isArray(restaurant?.reviewHighlights) ? restaurant.reviewHighlights.map((item) => item?.text || '').join(' ') : '',
     restaurant?.summary,
+    restaurant?.search_query,
     restaurant?.website,
     restaurant?.formatted_address,
     restaurant?.city
@@ -669,6 +671,9 @@ function scoreCuisineRelevance(restaurant, cuisineText) {
 
   const websiteMatches = normalizeWriteupText(restaurant?.website || '').includes(signals.label);
   if (websiteMatches) score += 0.5;
+
+  const searchQueryMatches = normalizeWriteupText(restaurant?.search_query || '').includes(signals.label);
+  if (searchQueryMatches) score += 0.5;
 
   if (signals.label === 'steakhouse' && /subway|sandwich|deli|sub shop|subs?/i.test(haystack)) {
     score -= 1.5;
@@ -714,7 +719,7 @@ function rankRestaurantsForIntent(restaurants, cuisineText) {
   }
 
   const matched = ranked.filter((restaurant) => restaurant.cuisineScore > 0);
-  if (matched.length) {
+  if (matched.length >= 7) {
     return matched.slice(0, 7);
   }
 
@@ -766,6 +771,7 @@ function toFinalRestaurant(candidate) {
     review_count: normalized.review_count,
     score: normalized.score,
     summary: normalized.summary,
+    search_query: normalized.search_query,
     formatted_address: normalized.formatted_address,
     phone: normalized.phone,
     website: normalized.website,

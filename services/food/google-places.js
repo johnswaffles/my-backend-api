@@ -156,12 +156,25 @@ export function buildFoodQueries(request) {
   const steakIntent = /steak|steakhouse|prime rib|ribeye|t-bone|sirloin|filet|porterhouse|chop house|chophouse|grill|grille|roadhouse/i.test(
     [cuisine, query, destination].filter(Boolean).join(' ')
   );
+  const burgerIntent = /\bburger\b|\bburgers\b|\bhamburger\b|\bcheeseburger\b/i.test(
+    [cuisine, query, destination].filter(Boolean).join(' ')
+  );
   const cuisineQueries = cuisine
     ? [
         `${cuisine} restaurant`,
         `${cuisine} places`,
         `${cuisine} near ${destination || query}`,
         cuisine
+      ]
+    : [];
+  const burgerQueries = burgerIntent
+    ? [
+        'burger restaurant',
+        'burger joint',
+        'hamburger restaurant',
+        'cheeseburger restaurant',
+        'burger place',
+        `burger near ${destination || query}`
       ]
     : [];
   const steakQueries = steakIntent ? ['steakhouse', 'steak restaurant', 'chophouse', 'grill', 'steak'] : [];
@@ -177,8 +190,9 @@ export function buildFoodQueries(request) {
   const baseQuery = locationLikeQuery ? (cuisine || query || 'restaurants') : (destination || query || 'local restaurants');
   const locationQueries = locationLikeQuery
     ? [
-        ...cuisineQueries,
-        cuisine ? `${cuisine} restaurant` : 'restaurant',
+      ...cuisineQueries,
+      ...burgerQueries,
+      cuisine ? `${cuisine} restaurant` : 'restaurant',
         ...steakQueries,
         ...preferenceQueries,
         'restaurants',
@@ -201,7 +215,7 @@ export function buildFoodQueries(request) {
     request.filters?.localOnly ? `${baseQuery} locally owned` : null
   ];
 
-  return [...new Set(searches.filter(Boolean).map((item) => item.trim()))].slice(0, 5);
+  return [...new Set(searches.filter(Boolean).map((item) => item.trim()))].slice(0, 7);
 }
 
 export async function searchGooglePlaces(request, apiKey) {
