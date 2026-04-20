@@ -191,11 +191,27 @@ function matchRecentRestaurantContext(message, history, intent, pageContext) {
   const rawCombined = [message, buildHistoryText(history)].filter(Boolean).join(' ');
   const combined = normalizeWriteupText(rawCombined);
   const messageText = normalizeWriteupText(message || '');
+  const explicitSubject = cleanPlaceFollowupText(intent?.querySubject || message);
   const followupPattern = /^(what about|how about|tell me about|tell us about|show me|what is|what's|whats|give me|find me|do you know|any info on|information on|details on|my favorite|that place|this place|that restaurant|this restaurant|it)\b/i;
   const followupish =
     followupPattern.test(combined) ||
     followupPattern.test(messageText) ||
     messageText.split(/\s+/).filter(Boolean).length <= 4;
+
+  const explicitMatches = recentRestaurants.filter((restaurant) => {
+    const name = normalizeWriteupText(restaurant.name);
+    if (!name) return false;
+    if (!explicitSubject) return false;
+    return name === explicitSubject || name.includes(explicitSubject) || explicitSubject.includes(name);
+  });
+
+  if (explicitSubject && !explicitMatches.length) {
+    return null;
+  }
+
+  if (explicitMatches.length === 1) {
+    return explicitMatches[0];
+  }
 
   const subject = normalizeWriteupText(intent?.querySubject || '');
   let best = null;
@@ -233,7 +249,7 @@ function matchRecentRestaurantContext(message, history, intent, pageContext) {
     }
   }
 
-  if (bestScore >= 40 || (followupish && best)) {
+  if (bestScore >= 40 || (followupish && best && !explicitSubject)) {
     return best;
   }
 
@@ -241,11 +257,13 @@ function matchRecentRestaurantContext(message, history, intent, pageContext) {
 }
 
 function cleanPlaceFollowupText(value) {
-  return normalizeWriteupText(value || '')
+  const cleaned = normalizeWriteupText(value || '')
     .replace(/^(what about|how about|tell me about|tell us about|show me|what is|what's|whats|give me|find me|do you know|any info on|information on|details on)\s+/i, '')
     .replace(/^(the|a|an)\s+/i, '')
     .replace(/\b(my favorite|that place|this place|that restaurant|this restaurant)\b/i, '')
     .trim();
+
+  return /^(it|this|that|there|here|them|they)$/i.test(cleaned) ? '' : cleaned;
 }
 
 function shouldTreatAsSpecificPlaceRequest(message, history, intent) {
