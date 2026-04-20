@@ -32,7 +32,7 @@ export const DEFAULT_SEARCH_REQUEST: SearchRequest = {
   location: null,
   mealType: 'any',
   mode: 'nearby',
-  radiusMiles: 18,
+  radiusMiles: 14,
   filters: DEFAULT_SEARCH_FILTERS,
   demo: false
 };
@@ -199,4 +199,3 @@ export function createEmptyResponse(intentSummary = 'No search has been run yet.
     sourceMode: 'empty'
   };
 }
-

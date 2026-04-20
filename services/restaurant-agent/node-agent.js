@@ -229,7 +229,7 @@ async function runSpecificPlaceLookup({
   const searchRequest = normalizeSearchRequest({
     query: intent?.querySubject || message,
     destinationText: intent?.inferredLocation || '',
-    radiusMiles: 18,
+    radiusMiles: 14,
     mealType: 'any',
     mode: 'nearby',
     filters: {
@@ -382,7 +382,7 @@ function buildSearchRequest(location, query, requestId) {
   return normalizeSearchRequest({
     query: query || '',
     destinationText: location || '',
-    radiusMiles: 18,
+    radiusMiles: 14,
     mealType: 'any',
     mode: 'nearby',
     filters: {
