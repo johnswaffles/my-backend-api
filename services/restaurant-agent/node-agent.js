@@ -477,6 +477,132 @@ function rankRestaurantsDeterministically(restaurants) {
   return ranked.slice(0, 5);
 }
 
+function inferCuisineFocus(cuisineText) {
+  const text = normalizeWriteupText(cuisineText || '');
+  if (!text) return '';
+
+  if (/\bpizza\b|\bpizzeria\b|\bcalzone\b|\bstromboli\b/.test(text)) return 'pizza';
+  if (/\bsteak\b|\bsteakhouse\b|\bchophouse\b|\bchop house\b|\bprime rib\b|\bribeye\b|\bfilet\b|\bsirloin\b|\bporterhouse\b|\broadhouse\b/.test(text)) {
+    return 'steakhouse';
+  }
+  if (/\bitalian\b|\bpasta\b|\blasagna\b|\bspaghetti\b|\bravioli\b|\bfettuccine\b|\bmarinara\b/.test(text)) return 'italian';
+  if (/\bburger\b|\bburgers\b|\bhamburger\b|\bcheeseburger\b/.test(text)) return 'burgers';
+  if (/\bbbq\b|\bbarbecue\b|\bbarbeque\b|\bsmokehouse\b/.test(text)) return 'bbq';
+  if (/\bmexican\b|\btaco\b|\btacos\b|\bburrito\b|\bquesadilla\b/.test(text)) return 'mexican';
+  if (/\bseafood\b|\bcatfish\b|\bshrimp\b/.test(text)) return 'seafood';
+  if (/\bcoffee\b|\bcafe\b|\bcafé\b|\bespresso\b|\blatte\b/.test(text)) return 'coffee';
+  if (/\bbreakfast\b|\bbrunch\b|\bpancake\b|\bomelet\b|\bomelette\b/.test(text)) return 'breakfast';
+  if (/\bdessert\b|\bbakery\b|\bice cream\b/.test(text)) return 'dessert';
+  return text;
+}
+
+function cuisineSignalsForText(cuisineKey) {
+  const key = normalizeWriteupText(cuisineKey || '');
+  if (!key) return null;
+
+  const map = {
+    pizza: ['pizza', 'pizzeria', 'slice', 'pepperoni', 'calzone', 'stromboli'],
+    steakhouse: ['steak', 'steakhouse', 'chophouse', 'chop house', 'prime rib', 'ribeye', 'filet', 'sirloin', 'porterhouse', 'roadhouse', 'grill', 'grille'],
+    italian: ['italian', 'pasta', 'lasagna', 'spaghetti', 'ravioli', 'fettuccine', 'marinara'],
+    burgers: ['burger', 'burgers', 'hamburger', 'cheeseburger'],
+    bbq: ['bbq', 'barbecue', 'barbeque', 'smokehouse'],
+    mexican: ['mexican', 'taco', 'tacos', 'burrito', 'quesadilla'],
+    seafood: ['seafood', 'catfish', 'shrimp', 'oyster', 'oysters'],
+    coffee: ['coffee', 'cafe', 'café', 'espresso', 'latte', 'bakery'],
+    breakfast: ['breakfast', 'brunch', 'pancake', 'omelet', 'omelette'],
+    dessert: ['dessert', 'bakery', 'ice cream', 'pie', 'sweet']
+  };
+
+  for (const [label, terms] of Object.entries(map)) {
+    if (key === label || terms.some((term) => key.includes(normalizeWriteupText(term)))) {
+      return { label, terms };
+    }
+  }
+
+  return { label: key, terms: [key] };
+}
+
+function scoreCuisineRelevance(restaurant, cuisineText) {
+  const cuisine = inferCuisineFocus(cuisineText);
+  const signals = cuisineSignalsForText(cuisine);
+  if (!signals) return 0;
+
+  const haystackParts = [
+    restaurant?.name,
+    Array.isArray(restaurant?.categories) ? restaurant.categories.join(' ') : '',
+    Array.isArray(restaurant?.reviews) ? restaurant.reviews.join(' ') : '',
+    Array.isArray(restaurant?.reviewHighlights) ? restaurant.reviewHighlights.map((item) => item?.text || '').join(' ') : '',
+    restaurant?.summary,
+    restaurant?.website,
+    restaurant?.formatted_address,
+    restaurant?.city
+  ].filter(Boolean);
+  const haystack = normalizeWriteupText(haystackParts.join(' '));
+  if (!haystack) return 0;
+
+  let score = 0;
+  const matches = signals.terms.filter((term) => haystack.includes(normalizeWriteupText(term)));
+  if (matches.length) {
+    score += 120;
+    score += matches.length * 15;
+  }
+
+  const categoryMatches = Array.isArray(restaurant?.categories)
+    ? restaurant.categories.some((category) => signals.terms.some((term) => normalizeWriteupText(category).includes(normalizeWriteupText(term))))
+    : false;
+  if (categoryMatches) score += 80;
+
+  if (signals.label === 'steakhouse' && /subway|sandwich|deli|sub shop|subs?/i.test(haystack)) {
+    score -= 120;
+  }
+  if (signals.label === 'pizza' && /subway|sandwich|deli|sub shop|subs?/i.test(haystack)) {
+    score -= 100;
+  }
+
+  if (score <= 0 && cuisine) {
+    return -40;
+  }
+
+  return score;
+}
+
+function rankRestaurantsForIntent(restaurants, cuisineText) {
+  const cuisine = normalizeWriteupText(cuisineText || '');
+  const ranked = (Array.isArray(restaurants) ? restaurants : [])
+    .map((restaurant) => {
+      const normalized = normalizeRestaurantRecord(restaurant);
+      if (!normalized || !normalized.name) return null;
+
+      const baseScore = Number.isFinite(normalized.score)
+        ? Number(normalized.score)
+        : ((Number.isFinite(normalized.rating) ? normalized.rating : 0) * 0.7) +
+          (Math.log((Number.isFinite(normalized.review_count) ? normalized.review_count : 0) + 1) * 0.3);
+      const cuisineScore = cuisine ? scoreCuisineRelevance(normalized, cuisine) : 0;
+
+      return {
+        ...normalized,
+        score: Number((baseScore + cuisineScore).toFixed(4)),
+        cuisineScore
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => {
+      if (b.cuisineScore !== a.cuisineScore) return b.cuisineScore - a.cuisineScore;
+      return b.score - a.score;
+    });
+
+  if (!cuisine) {
+    return ranked.slice(0, 5);
+  }
+
+  const matched = ranked.filter((restaurant) => restaurant.cuisineScore > 0);
+  if (matched.length) {
+    return matched.slice(0, 5);
+  }
+
+  return ranked.slice(0, 5);
+}
+
 function buildSources(restaurants) {
   const sources = [];
   const seen = new Set();
@@ -1193,6 +1319,7 @@ export async function runRestaurantAgent({ message, history = [], pageContext = 
   }
 
   finalRestaurants = mergeKnownDetails(finalRestaurants, context.detailsById);
+  finalRestaurants = rankRestaurantsForIntent(finalRestaurants, cuisineText);
   const rankedTopRestaurant = finalRestaurants[0] || null;
   const websiteSignals = rankedTopRestaurant?.website ? await fetchWebsiteSignals(rankedTopRestaurant.website, requestLabel) : null;
 
