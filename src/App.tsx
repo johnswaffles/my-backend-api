@@ -9,6 +9,8 @@ import {
 } from './features/local-eats/lib/client';
 import type { ChatTurn } from './features/local-eats/types';
 
+const LOADING_MESSAGES = ['Thinking...', 'Researching reviews...', 'Searching the internet...'];
+
 function getAudioSummary(conversation: ChatTurn[]): string {
   const assistantTurns = conversation.filter((turn) => turn.role === 'assistant');
   const latest = assistantTurns.at(-1);
@@ -28,6 +30,7 @@ export default function App(): JSX.Element {
   const [audioLoading, setAudioLoading] = useState(false);
   const [playedResponseContent, setPlayedResponseContent] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [assistantLoadingLabel, setAssistantLoadingLabel] = useState(LOADING_MESSAGES[0]);
 
   useEffect(() => {
     return () => {
@@ -38,6 +41,24 @@ export default function App(): JSX.Element {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!assistantLoading) {
+      setAssistantLoadingLabel(LOADING_MESSAGES[0]);
+      return;
+    }
+
+    let index = 0;
+    setAssistantLoadingLabel(LOADING_MESSAGES[index]);
+    const interval = window.setInterval(() => {
+      index = (index + 1) % LOADING_MESSAGES.length;
+      setAssistantLoadingLabel(LOADING_MESSAGES[index]);
+    }, 1100);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [assistantLoading]);
 
   async function handlePlaySummary(): Promise<void> {
     if (!speakerEnabled) return;
@@ -182,18 +203,19 @@ const audioSummary = getAudioSummary(assistantTranscript);
         </header>
 
         <section className="mx-auto w-full max-w-3xl">
-          <AudioStrip
-            summary={audioSummary}
-            responsePlayed={hasPlayedLatestResponse}
-            speakerEnabled={speakerEnabled}
-            isPlaying={isPlaying}
-            isLoading={audioLoading}
-            assistantLoading={assistantLoading}
-            conversation={assistantTranscript}
-            onToggleSpeaker={toggleSpeaker}
-            onPlay={handlePlaySummary}
-            onAskAssistant={handleAssistantChat}
-          />
+        <AudioStrip
+          summary={audioSummary}
+          responsePlayed={hasPlayedLatestResponse}
+          speakerEnabled={speakerEnabled}
+          isPlaying={isPlaying}
+          isLoading={audioLoading}
+          assistantLoading={assistantLoading}
+          assistantLoadingLabel={assistantLoadingLabel}
+          conversation={assistantTranscript}
+          onToggleSpeaker={toggleSpeaker}
+          onPlay={handlePlaySummary}
+          onAskAssistant={handleAssistantChat}
+        />
         </section>
       </main>
     </div>

@@ -8,6 +8,7 @@ interface AudioStripProps {
   isPlaying: boolean;
   isLoading: boolean;
   assistantLoading: boolean;
+  assistantLoadingLabel: string;
   conversation: ChatTurn[];
   onToggleSpeaker: () => void;
   onPlay: () => void;
@@ -96,6 +97,7 @@ export function AudioStrip({
   isPlaying,
   isLoading,
   assistantLoading,
+  assistantLoadingLabel,
   conversation,
   onToggleSpeaker,
   onPlay,
@@ -185,7 +187,7 @@ export function AudioStrip({
           {assistantLoading ? (
             <div className="flex justify-start">
               <div className="rounded-[1.2rem] bg-white px-4 py-3 text-sm leading-7 text-stone-500 ring-1 ring-stone-200">
-                Thinking...
+                {assistantLoadingLabel}
               </div>
             </div>
           ) : null}
@@ -227,7 +229,7 @@ export function AudioStrip({
             disabled={!followUpText.trim() || isLoading || assistantLoading}
             className="h-12 rounded-full bg-emerald-700 px-4 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {assistantLoading ? 'Thinking...' : 'Send'}
+            {assistantLoading ? assistantLoadingLabel : 'Send'}
           </button>
         </div>
       </form>

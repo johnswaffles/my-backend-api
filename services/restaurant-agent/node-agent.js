@@ -495,7 +495,7 @@ function rankRestaurantsDeterministically(restaurants) {
     .filter(Boolean)
     .sort((a, b) => b.score - a.score);
 
-  return ranked.slice(0, 5);
+  return ranked.slice(0, 7);
 }
 
 function inferCuisineFocus(cuisineText) {
@@ -624,15 +624,15 @@ function rankRestaurantsForIntent(restaurants, cuisineText) {
     });
 
   if (!cuisine) {
-    return ranked.slice(0, 5);
+    return ranked.slice(0, 7);
   }
 
   const matched = ranked.filter((restaurant) => restaurant.cuisineScore > 0);
   if (matched.length) {
-    return matched.slice(0, 5);
+    return matched.slice(0, 7);
   }
 
-  return ranked.slice(0, 5);
+  return ranked.slice(0, 7);
 }
 
 function buildSources(restaurants) {
@@ -661,10 +661,10 @@ function buildReply({ restaurants, locationText, cuisineText }) {
   }
 
   const locationLabel = locationText || 'that area';
-  const names = restaurants.slice(0, cuisineText ? 3 : 5).map((restaurant) => restaurant.name).filter(Boolean);
+  const names = restaurants.slice(0, cuisineText ? 3 : 7).map((restaurant) => restaurant.name).filter(Boolean);
   const lead = names.length ? names.join(', ') : 'the top verified options';
   if (!cuisineText) {
-    return `Here are the top five restaurants I found in ${locationLabel}: ${lead}.`;
+    return `Here are the top seven restaurants I found in ${locationLabel}: ${lead}.`;
   }
   return `Here are the top ${cuisineText} spots I found in ${locationLabel}: ${lead}.`;
 }
@@ -1449,7 +1449,7 @@ export async function runRestaurantAgent({ message, history = [], pageContext = 
     });
 
   const finalResultRestaurants = finalRestaurants
-    .slice(0, 5)
+    .slice(0, 7)
     .map((restaurant) => {
       const resolved = toFinalRestaurant(restaurant);
       if (!resolved) return null;
