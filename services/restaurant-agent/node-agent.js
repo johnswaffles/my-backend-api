@@ -34,43 +34,49 @@ function normalizeWriteupText(value) {
     .replace(/\bmt\b/g, 'mount');
 }
 
-function buildRestaurantWriteupKeys(restaurant) {
-  const names = [
-    restaurant?.name,
-    restaurant?.displayName,
-    restaurant?.alias,
-    restaurant?.formatted_address,
-    restaurant?.city,
-    restaurant?.phone
-  ].filter(Boolean);
-  return new Set(names.map((value) => normalizeWriteupText(value)).filter(Boolean));
+function isStrongWriteupMatch(restaurant, entry) {
+  const match = entry.match && typeof entry.match === 'object' ? entry.match : {};
+  const restaurantName = normalizeWriteupText(restaurant?.name || restaurant?.displayName || '');
+  const restaurantAddress = normalizeWriteupText(restaurant?.formatted_address || '');
+  const restaurantCity = normalizeWriteupText(restaurant?.city || '');
+  const restaurantPhone = normalizeWriteupText(restaurant?.phone || '');
+  const entryName = normalizeWriteupText(match.name || '');
+  const entryAddress = normalizeWriteupText(match.address || '');
+  const entryCity = normalizeWriteupText(match.city || '');
+  const entryPhone = normalizeWriteupText(match.phone || '');
+  const aliases = Array.isArray(match.aliases) ? match.aliases.map((value) => normalizeWriteupText(value)).filter(Boolean) : [];
+
+  if (match.place_id && normalizeWriteupText(match.place_id) === normalizeWriteupText(restaurant?.place_id || '')) {
+    return true;
+  }
+
+  if (entryName && restaurantName === entryName) return true;
+  if (aliases.includes(restaurantName)) return true;
+  if (entryPhone && restaurantPhone && entryPhone === restaurantPhone) return true;
+
+  if (entryAddress && restaurantAddress) {
+    const addressParts = [entryAddress, entryCity].filter(Boolean).join(' ').trim();
+    if (addressParts && restaurantAddress.includes(addressParts)) return true;
+    if (restaurantAddress.includes(entryAddress)) return true;
+  }
+
+  if (entryName && entryAddress && restaurantName === entryName && restaurantAddress.includes(entryAddress)) {
+    return true;
+  }
+
+  if (entryName && entryCity && restaurantName === entryName && restaurantCity && restaurantCity.includes(entryCity)) {
+    return true;
+  }
+
+  return false;
 }
 
 function matchRestaurantWriteup(restaurant) {
   const library = loadWriteupLibrary();
   if (!library.length || !restaurant) return null;
 
-  const restaurantKeys = buildRestaurantWriteupKeys(restaurant);
   for (const entry of library) {
-    const match = entry.match && typeof entry.match === 'object' ? entry.match : {};
-    const entryKeys = [
-      match.place_id,
-      match.placeId,
-      match.name,
-      match.address,
-      match.city,
-      ...(Array.isArray(match.aliases) ? match.aliases : [])
-    ]
-      .filter(Boolean)
-      .map((value) => normalizeWriteupText(value))
-      .filter(Boolean);
-
-    const addressMatch =
-      entryKeys.some((value) => restaurantKeys.has(value)) ||
-      (entry.address && normalizeWriteupText(restaurant.formatted_address || '').includes(normalizeWriteupText(entry.address))) ||
-      (entry.city && normalizeWriteupText(restaurant.city || '').includes(normalizeWriteupText(entry.city)));
-
-    if (addressMatch) {
+    if (isStrongWriteupMatch(restaurant, entry)) {
       return {
         title: String(entry.title || '').trim() || `#1 pick: ${restaurant.name}`,
         writeup: String(entry.writeup || '').trim(),
