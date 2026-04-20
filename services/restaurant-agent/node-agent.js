@@ -543,27 +543,35 @@ function scoreCuisineRelevance(restaurant, cuisineText) {
   let score = 0;
   const matches = signals.terms.filter((term) => haystack.includes(normalizeWriteupText(term)));
   if (matches.length) {
-    score += 120;
-    score += matches.length * 15;
+    score += 1.5;
+    score += Math.min(matches.length - 1, 2) * 0.35;
   }
+
+  const nameMatches = signals.terms.some((term) => normalizeWriteupText(restaurant?.name || '').includes(normalizeWriteupText(term)));
+  if (nameMatches) score += 1.25;
 
   const categoryMatches = Array.isArray(restaurant?.categories)
     ? restaurant.categories.some((category) => signals.terms.some((term) => normalizeWriteupText(category).includes(normalizeWriteupText(term))))
     : false;
-  if (categoryMatches) score += 80;
+  if (categoryMatches) score += 1.25;
+
+  const reviewMatches = Array.isArray(restaurant?.reviews) && restaurant.reviews.some((review) =>
+    signals.terms.some((term) => normalizeWriteupText(review).includes(normalizeWriteupText(term)))
+  );
+  if (reviewMatches) score += 0.75;
+
+  const websiteMatches = normalizeWriteupText(restaurant?.website || '').includes(signals.label);
+  if (websiteMatches) score += 0.5;
 
   if (signals.label === 'steakhouse' && /subway|sandwich|deli|sub shop|subs?/i.test(haystack)) {
-    score -= 120;
+    score -= 1.5;
   }
   if (signals.label === 'pizza' && /subway|sandwich|deli|sub shop|subs?/i.test(haystack)) {
-    score -= 100;
+    score -= 1.25;
   }
 
-  if (score <= 0 && cuisine) {
-    return -40;
-  }
-
-  return score;
+  if (score < 0) score = 0;
+  return Number(score.toFixed(2));
 }
 
 function rankRestaurantsForIntent(restaurants, cuisineText) {
@@ -587,8 +595,8 @@ function rankRestaurantsForIntent(restaurants, cuisineText) {
     })
     .filter(Boolean)
     .sort((a, b) => {
-      if (b.cuisineScore !== a.cuisineScore) return b.cuisineScore - a.cuisineScore;
-      return b.score - a.score;
+      if (b.score !== a.score) return b.score - a.score;
+      return b.cuisineScore - a.cuisineScore;
     });
 
   if (!cuisine) {
