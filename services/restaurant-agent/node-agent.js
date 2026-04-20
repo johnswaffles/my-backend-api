@@ -166,12 +166,30 @@ function buildHistoryText(history) {
     : '';
 }
 
+function cleanPlaceFollowupText(value) {
+  return normalizeWriteupText(value || '')
+    .replace(/^(what about|how about|tell me about|tell us about|show me|what is|what's|whats|give me|find me|do you know|any info on|information on|details on)\s+/i, '')
+    .replace(/^(the|a|an)\s+/i, '')
+    .replace(/\b(my favorite|that place|this place|that restaurant|this restaurant)\b/i, '')
+    .trim();
+}
+
 function shouldTreatAsSpecificPlaceRequest(message, history, intent) {
   const rawCombined = [message, buildHistoryText(history)].filter(Boolean).join(' ');
   const combined = normalizeWriteupText(rawCombined);
   if (!combined) return false;
 
   if (/\b(address|phone|hours|menu|about|details|info|information|review|reviews|where is|what is|what's|tell me about|tell me more|how is|how's|directions)\b/i.test(combined)) {
+    return true;
+  }
+
+  const followupCandidate = cleanPlaceFollowupText(rawCombined);
+  if (
+    /^(what about|how about|tell me about|tell us about|show me|what is|what's|whats|give me|find me|do you know|any info on|information on|details on)/i.test(rawCombined) &&
+    followupCandidate &&
+    followupCandidate.split(/\s+/).filter(Boolean).length >= 1 &&
+    followupCandidate.split(/\s+/).filter(Boolean).length <= 8
+  ) {
     return true;
   }
 
@@ -226,8 +244,9 @@ async function runSpecificPlaceLookup({
   requestId,
   apiKey
 }) {
+  const subjectQuery = cleanPlaceFollowupText(intent?.querySubject || message) || normalizeWriteupText(intent?.querySubject || message);
   const searchRequest = normalizeSearchRequest({
-    query: intent?.querySubject || message,
+    query: subjectQuery,
     destinationText: intent?.inferredLocation || '',
     radiusMiles: 14,
     mealType: 'any',
@@ -246,7 +265,7 @@ async function runSpecificPlaceLookup({
   const bestCandidate = [...(searchResult.candidates || [])]
     .map((candidate) => ({
       ...candidate,
-      _score: scoreSpecificPlaceCandidate(candidate, intent?.querySubject || message, intent?.inferredLocation || '')
+      _score: scoreSpecificPlaceCandidate(candidate, subjectQuery, intent?.inferredLocation || '')
     }))
     .sort((a, b) => b._score - a._score)[0] || null;
 
