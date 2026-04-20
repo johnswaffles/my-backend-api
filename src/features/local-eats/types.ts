@@ -153,6 +153,7 @@ export interface RestaurantAgentRestaurant {
   summary: string;
   place_id: string;
   formatted_address?: string | null;
+  city?: string | null;
   phone?: string | null;
   website?: string | null;
   maps_url?: string | null;
@@ -172,6 +173,15 @@ export interface GeneralChatRequest {
     brand?: string;
     pageTitle?: string;
     pageSummary?: string;
+    recentLocation?: string;
+    recentRestaurants?: Array<{
+      place_id?: string;
+      name: string;
+      formatted_address?: string | null;
+      city?: string | null;
+      phone?: string | null;
+      website?: string | null;
+    }>;
   };
 }
 

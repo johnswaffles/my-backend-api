@@ -7,7 +7,7 @@ import {
   request618FoodAudio,
   stopBrowserNarration
 } from './features/local-eats/lib/client';
-import type { ChatTurn } from './features/local-eats/types';
+import type { ChatTurn, GeneralChatRequest } from './features/local-eats/types';
 
 const LOADING_MESSAGES = ['Thinking...', 'Researching reviews...', 'Searching the internet...'];
 
@@ -15,6 +15,65 @@ function getAudioSummary(conversation: ChatTurn[]): string {
   const assistantTurns = conversation.filter((turn) => turn.role === 'assistant');
   const latest = assistantTurns.at(-1);
   return latest?.featuredWriteup || latest?.content || 'Ask anything and 618FOOD.COM will chat with you.';
+}
+
+function summarizeAssistantTurn(turn: ChatTurn): string {
+  if (turn.restaurants?.length) {
+    const names = turn.restaurants
+      .slice(0, 7)
+      .map((restaurant) => restaurant.name)
+      .filter(Boolean);
+    if (names.length) {
+      return `Previous restaurant results: ${names.join(', ')}.`;
+    }
+  }
+
+  if (turn.featuredWriteup) {
+    return turn.featuredWriteup.slice(0, 260);
+  }
+
+  return turn.content;
+}
+
+function buildChatHistoryForApi(conversation: ChatTurn[]): ChatTurn[] {
+  return conversation
+    .filter((turn, index) => !(index === 0 && turn.role === 'assistant'))
+    .slice(-8)
+    .map((turn) => {
+      if (turn.role === 'assistant') {
+        return {
+          role: 'assistant' as const,
+          content: summarizeAssistantTurn(turn)
+        };
+      }
+
+      return {
+        role: 'user' as const,
+        content: turn.content
+      };
+    });
+}
+
+function getRecentRestaurantContext(conversation: ChatTurn[]): NonNullable<GeneralChatRequest['pageContext']> {
+  const latestRestaurantTurn = [...conversation].reverse().find((turn) => turn.role === 'assistant' && turn.restaurants?.length);
+  const recentRestaurants = latestRestaurantTurn?.restaurants?.slice(0, 7).map((restaurant) => ({
+    place_id: restaurant.place_id,
+    name: restaurant.name,
+    formatted_address: restaurant.formatted_address ?? null,
+    city: restaurant.city ?? null,
+    phone: restaurant.phone ?? null,
+    website: restaurant.website ?? null
+  }));
+
+  const recentLocation =
+    latestRestaurantTurn?.restaurants?.find((restaurant) => restaurant.city)?.city ||
+    latestRestaurantTurn?.restaurants?.[0]?.formatted_address ||
+    undefined;
+
+  return {
+    recentLocation,
+    recentRestaurants
+  };
 }
 
 export default function App(): JSX.Element {
@@ -53,7 +112,7 @@ export default function App(): JSX.Element {
     const interval = window.setInterval(() => {
       index = (index + 1) % LOADING_MESSAGES.length;
       setAssistantLoadingLabel(LOADING_MESSAGES[index]);
-    }, 1100);
+    }, 10000);
 
     return () => {
       window.clearInterval(interval);
@@ -127,11 +186,9 @@ export default function App(): JSX.Element {
     setAssistantLoading(true);
     try {
       const historyBeforeMessage = assistantTranscript;
-      const historyForApi = historyBeforeMessage.filter((turn, index) => !(index === 0 && turn.role === 'assistant'));
-      const nextTranscript: ChatTurn[] = [
-        ...historyBeforeMessage,
-        { role: 'user', content: followUp }
-      ];
+      const historyForApi = buildChatHistoryForApi(historyBeforeMessage);
+      const nextTranscript: ChatTurn[] = [...historyBeforeMessage, { role: 'user', content: followUp }];
+      const recentRestaurantContext = getRecentRestaurantContext(historyBeforeMessage);
       setAssistantTranscript(nextTranscript);
 
         const assistant = await ask618Chat({
@@ -140,7 +197,8 @@ export default function App(): JSX.Element {
           pageContext: {
             brand: FOOD_BRAND,
             pageTitle: '618FOOD.COM',
-            pageSummary: 'A restaurant finder focused on real places and customer experience.'
+            pageSummary: 'A restaurant finder focused on real places and customer experience.',
+            ...recentRestaurantContext
           }
         });
 

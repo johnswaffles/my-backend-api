@@ -166,6 +166,80 @@ function buildHistoryText(history) {
     : '';
 }
 
+function normalizeRecentRestaurants(pageContext) {
+  const restaurants = Array.isArray(pageContext?.recentRestaurants) ? pageContext.recentRestaurants : [];
+  return restaurants
+    .map((restaurant) => {
+      const name = String(restaurant?.name || '').trim();
+      if (!name) return null;
+      return {
+        place_id: String(restaurant?.place_id || '').trim(),
+        name,
+        formatted_address: String(restaurant?.formatted_address || '').trim() || null,
+        city: String(restaurant?.city || '').trim() || null,
+        phone: String(restaurant?.phone || '').trim() || null,
+        website: String(restaurant?.website || '').trim() || null
+      };
+    })
+    .filter(Boolean);
+}
+
+function matchRecentRestaurantContext(message, history, intent, pageContext) {
+  const recentRestaurants = normalizeRecentRestaurants(pageContext);
+  if (!recentRestaurants.length) return null;
+
+  const rawCombined = [message, buildHistoryText(history)].filter(Boolean).join(' ');
+  const combined = normalizeWriteupText(rawCombined);
+  const messageText = normalizeWriteupText(message || '');
+  const followupPattern = /^(what about|how about|tell me about|tell us about|show me|what is|what's|whats|give me|find me|do you know|any info on|information on|details on|my favorite|that place|this place|that restaurant|this restaurant|it)\b/i;
+  const followupish =
+    followupPattern.test(combined) ||
+    followupPattern.test(messageText) ||
+    messageText.split(/\s+/).filter(Boolean).length <= 4;
+
+  const subject = normalizeWriteupText(intent?.querySubject || '');
+  let best = null;
+  let bestScore = 0;
+
+  for (const restaurant of recentRestaurants) {
+    const name = normalizeWriteupText(restaurant.name);
+    if (!name) continue;
+
+    let score = 0;
+    if (subject && (name === subject || name.includes(subject) || subject.includes(name))) {
+      score += 120;
+    }
+
+    if (messageText && (name === messageText || name.includes(messageText) || messageText.includes(name))) {
+      score += 100;
+    }
+
+    const messageTokens = messageText.split(/\s+/).filter(Boolean);
+    if (messageTokens.length && messageTokens.every((token) => name.includes(token))) {
+      score += 60;
+    }
+
+    if (combined.includes(name)) {
+      score += 40;
+    }
+
+    if (followupish && restaurant === recentRestaurants[0]) {
+      score += 15;
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      best = restaurant;
+    }
+  }
+
+  if (bestScore >= 40 || (followupish && best)) {
+    return best;
+  }
+
+  return null;
+}
+
 function cleanPlaceFollowupText(value) {
   return normalizeWriteupText(value || '')
     .replace(/^(what about|how about|tell me about|tell us about|show me|what is|what's|whats|give me|find me|do you know|any info on|information on|details on)\s+/i, '')
@@ -358,7 +432,7 @@ function buildSystemPrompt() {
     'When the user gives enough information, answer directly from the tool results instead of asking them to repeat themselves.',
     'After the tools finish, reply in short plain language only.',
     'When writing about a top restaurant, sound like a polished food magazine writer: describe the atmosphere, service, value, and customer praise using the actual place details and review snippets.',
-    'Do not mention tools, search mechanics, strongest matches, or anything about the internal process.',
+    'Do not mention tools, search mechanics, strongest matches, previous lists, or anything about the internal process.',
     'Do not include raw URLs, markdown source blocks, or JSON in the assistant text; the server will package results separately.',
     'Do not include markdown code fences.'
   ].join('\n');
@@ -379,6 +453,18 @@ function buildConversation(message, history, pageContext) {
     }
     if (typeof pageContext.pageSummary === 'string' && pageContext.pageSummary.trim()) {
       contextBits.push(`Page summary: ${pageContext.pageSummary.trim()}`);
+    }
+    if (Array.isArray(pageContext.recentRestaurants) && pageContext.recentRestaurants.length) {
+      contextBits.push(
+        `Recent restaurants: ${pageContext.recentRestaurants
+          .map((restaurant) => String(restaurant?.name || '').trim())
+          .filter(Boolean)
+          .slice(0, 7)
+          .join(', ')}`
+      );
+    }
+    if (typeof pageContext.recentLocation === 'string' && pageContext.recentLocation.trim()) {
+      contextBits.push(`Recent location: ${pageContext.recentLocation.trim()}`);
     }
     if (contextBits.length) {
       conversation.push({
@@ -1321,9 +1407,22 @@ export async function runRestaurantAgent({ message, history = [], pageContext = 
   };
 
   const { intent, likelyRestaurantRequest } = buildRestaurantIntentContext(cleanMessage, history);
+  const recentRestaurantContext = matchRecentRestaurantContext(cleanMessage, history, intent, pageContext);
+  if (recentRestaurantContext) {
+    intent.querySubject = recentRestaurantContext.name;
+    intent.inferredLocation =
+      intent.inferredLocation ||
+      recentRestaurantContext.city ||
+      String(pageContext?.recentLocation || '').trim();
+    intent.queryLocation =
+      intent.queryLocation ||
+      recentRestaurantContext.city ||
+      String(pageContext?.recentLocation || '').trim();
+  }
   const locationText = intent.inferredLocation || '';
   const cuisineText = intent.inferredCuisine || '';
-  const specificPlaceRequest = shouldTreatAsSpecificPlaceRequest(cleanMessage, history, intent);
+  const specificPlaceRequest =
+    shouldTreatAsSpecificPlaceRequest(cleanMessage, history, intent) || Boolean(recentRestaurantContext);
 
   if (!cleanMessage) {
     return {
