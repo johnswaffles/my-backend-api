@@ -784,6 +784,89 @@ function buildFeaturedWriteup({ restaurant, locationText, cuisineText, websiteSi
     .join(' ');
 }
 
+function buildTopSpotWriteupPrompt({ restaurant, locationText, cuisineText, websiteSignals }) {
+  const reviewHighlights = Array.isArray(restaurant.reviewHighlights) ? restaurant.reviewHighlights : [];
+  const reviewSnippets = reviewHighlights
+    .map((item, index) => {
+      const author = String(item?.author || '').trim();
+      const relativeTime = String(item?.relativeTime || '').trim();
+      const rating = Number.isFinite(item?.rating) ? `${Number(item.rating).toFixed(1)} stars` : '';
+      const meta = [author, relativeTime, rating].filter(Boolean).join(' • ');
+      return `${index + 1}. ${meta ? `${meta}: ` : ''}${String(item?.text || '').trim()}`;
+    })
+    .filter(Boolean)
+    .slice(0, 4);
+
+  const menuHighlights = Array.isArray(websiteSignals?.menuHighlights) ? websiteSignals.menuHighlights.filter(Boolean) : [];
+  const menuMentions = Array.isArray(websiteSignals?.menuLinkMentions) ? websiteSignals.menuLinkMentions.filter(Boolean) : [];
+
+  const facts = [
+    `Restaurant name: ${restaurant.name}`,
+    `Location focus: ${locationText || restaurant.city || restaurant.formatted_address || 'the area'}`,
+    cuisineText ? `Cuisine/query: ${cuisineText}` : '',
+    restaurant.formatted_address ? `Address: ${restaurant.formatted_address}` : '',
+    restaurant.phone ? `Phone: ${restaurant.phone}` : '',
+    Number.isFinite(restaurant.rating) ? `Rating: ${restaurant.rating.toFixed(1)}` : '',
+    Number.isFinite(restaurant.review_count) ? `Review count: ${restaurant.review_count.toLocaleString()}` : '',
+    Array.isArray(restaurant.categories) && restaurant.categories.length ? `Categories: ${restaurant.categories.join(', ')}` : '',
+    restaurant.open_now === true ? 'Open now: yes' : restaurant.open_now === false ? 'Open now: no' : '',
+    restaurant.business_status ? `Business status: ${restaurant.business_status}` : '',
+    menuHighlights.length ? `Website menu cues: ${menuHighlights.join(', ')}` : '',
+    menuMentions.length ? `Website menu links mentioned: ${menuMentions.join(', ')}` : '',
+    websiteSignals?.title ? `Website title: ${websiteSignals.title}` : '',
+    websiteSignals?.description ? `Website description: ${websiteSignals.description}` : '',
+    reviewSnippets.length ? `Customer review snippets:\n${reviewSnippets.map((item) => `- ${item}`).join('\n')}` : 'Customer review snippets: none available.'
+  ].filter(Boolean);
+
+  return [
+    'Write a polished, magazine-style spotlight for the top restaurant only.',
+    'Use only the facts below. Do not mention Google, tools, search mechanics, internal ranking, or the agent.',
+    'Do not use a template. Vary the structure so it sounds tailored to this restaurant, not generic.',
+    'Focus on atmosphere, menu character, customer praise, and what makes the place memorable.',
+    'Ground the copy in the review snippets and website clues when they exist.',
+    'If the evidence is thin, stay tasteful and concise rather than inventing details.',
+    'Write 2 short paragraphs, about 120-180 words total.',
+    'Return only the review text itself, with no heading or bullet list.',
+    '',
+    ...facts
+  ].join('\n');
+}
+
+async function generateTopSpotWriteup({ apiKey, model, restaurant, locationText, cuisineText, websiteSignals, requestId }) {
+  if (!restaurant || !restaurant.name) return '';
+
+  log(requestId, `generating top-spot writeup for ${restaurant.name}`);
+  try {
+    const response = await callOpenAiResponses({
+      apiKey,
+      model,
+      conversation: [
+        {
+          role: 'system',
+          content: 'You are a careful food writer who writes vivid but factual restaurant spotlights.'
+        },
+        {
+          role: 'user',
+          content: buildTopSpotWriteupPrompt({ restaurant, locationText, cuisineText, websiteSignals })
+        }
+      ],
+      tools: [],
+      requestId,
+      maxOutputTokens: 300,
+      reasoningEffort: 'low'
+    });
+
+    const text = extractResponseText(response).trim();
+    if (text) {
+      return text;
+    }
+  } catch (error) {
+    log(requestId, `top-spot writeup generation failed: ${String(error.message || error)}`);
+  }
+
+  return buildFeaturedWriteup({ restaurant, locationText, cuisineText, websiteSignals });
+}
+
 function mergeUniqueRestaurants(existing, next) {
   const byKey = new Map();
   for (const restaurant of [...existing, ...next]) {
@@ -796,7 +879,15 @@ function mergeUniqueRestaurants(existing, next) {
   return [...byKey.values()];
 }
 
-async function callOpenAiResponses({ apiKey, model, conversation, tools, requestId }) {
+async function callOpenAiResponses({
+  apiKey,
+  model,
+  conversation,
+  tools,
+  requestId,
+  maxOutputTokens = 1200,
+  reasoningEffort = 'low'
+}) {
   const response = await fetch(OPENAI_RESPONSES_URL, {
     method: 'POST',
     headers: {
@@ -808,8 +899,8 @@ async function callOpenAiResponses({ apiKey, model, conversation, tools, request
       input: conversation,
       tools,
       parallel_tool_calls: false,
-      reasoning: { effort: 'low' },
-      max_output_tokens: 1200,
+      reasoning: { effort: reasoningEffort },
+      max_output_tokens: maxOutputTokens,
       metadata: {
         request_id: requestId,
         service: '618food-node-restaurant-agent'
@@ -1134,12 +1225,16 @@ export async function runRestaurantAgent({ message, history = [], pageContext = 
   const topRestaurant = finalResultRestaurants[0] || null;
   const editorialWriteup = topRestaurant ? matchRestaurantWriteup(topRestaurant) : null;
   const featuredWriteup = finalResultRestaurants.length
-    ? (editorialWriteup?.writeup || buildFeaturedWriteup({
-        restaurant: finalResultRestaurants[0],
-        locationText: locationText || String(pageContext?.pageSummary || '').trim(),
-        cuisineText,
-        websiteSignals
-      }))
+    ? (editorialWriteup?.writeup ||
+        await generateTopSpotWriteup({
+          apiKey,
+          model: process.env.OPENAI_MODEL || 'gpt-5.4',
+          restaurant: finalResultRestaurants[0],
+          locationText: locationText || String(pageContext?.pageSummary || '').trim(),
+          cuisineText,
+          websiteSignals,
+          requestId: requestLabel
+        }))
     : '';
 
   log(
