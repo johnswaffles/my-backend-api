@@ -458,11 +458,13 @@ function rankRestaurantsDeterministically(restaurants) {
 
       const rating = Number.isFinite(normalized.rating) ? normalized.rating : 0;
       const reviewCount = Number.isFinite(normalized.review_count) ? normalized.review_count : 0;
-      const score = (rating * 0.7) + (Math.log(reviewCount + 1) * 0.3);
+      const ownershipScore = scoreOwnershipSignal(normalized);
+      const score = (rating * 0.7) + (Math.log(reviewCount + 1) * 0.3) + ownershipScore;
 
       return {
         ...normalized,
         score: Number(score.toFixed(4)),
+        ownershipScore,
         summary:
           normalized.summary ||
           [
@@ -586,16 +588,19 @@ function rankRestaurantsForIntent(restaurants, cuisineText) {
         : ((Number.isFinite(normalized.rating) ? normalized.rating : 0) * 0.7) +
           (Math.log((Number.isFinite(normalized.review_count) ? normalized.review_count : 0) + 1) * 0.3);
       const cuisineScore = cuisine ? scoreCuisineRelevance(normalized, cuisine) : 0;
+      const ownershipScore = scoreOwnershipSignal(normalized);
 
       return {
         ...normalized,
-        score: Number((baseScore + cuisineScore).toFixed(4)),
-        cuisineScore
+        score: Number((baseScore + cuisineScore + ownershipScore).toFixed(4)),
+        cuisineScore,
+        ownershipScore
       };
     })
     .filter(Boolean)
     .sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
+      if (b.ownershipScore !== a.ownershipScore) return b.ownershipScore - a.ownershipScore;
       return b.cuisineScore - a.cuisineScore;
     });
 
@@ -748,6 +753,91 @@ function hashText(text) {
 function pickByHash(text, options) {
   if (!Array.isArray(options) || !options.length) return '';
   return options[hashText(text) % options.length];
+}
+
+function domainFromUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+  try {
+    return new URL(url).hostname.replace(/^www\./i, '').toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+const CHAIN_NAME_HINTS = [
+  'subway',
+  'mcdonald',
+  'burger king',
+  'wendy',
+  'arbys',
+  'arby',
+  'taco bell',
+  'domino',
+  'little caesar',
+  'papa john',
+  'pizza hut',
+  'kfc',
+  'sonic',
+  'dairy queen',
+  'chipotle',
+  'qdoba',
+  'panda express',
+  'steak n shake',
+  'carls jr',
+  'hardee',
+  'popeyes',
+  'hungry howie',
+  'wingstop',
+  'jimmy john',
+  'godfather'
+];
+
+const CHAIN_DOMAIN_HINTS = [
+  'subway.com',
+  'mcdonalds.com',
+  'burgerking.com',
+  'wendys.com',
+  'arbys.com',
+  'arbysrestaurants.com',
+  'tacobell.com',
+  'dominos.com',
+  'littlecaesars.com',
+  'papajohns.com',
+  'pizzahut.com',
+  'kfc.com',
+  'sonicdrivein.com',
+  'dairyqueen.com',
+  'chipotle.com',
+  'qdoba.com',
+  'pandaexpress.com',
+  'steaknshake.com',
+  'carlsjr.com',
+  'hardees.com',
+  'popeyes.com',
+  'hungryhowies.com',
+  'wingstop.com',
+  'jimmyjohns.com',
+  'godfathers.com'
+];
+
+function classifyRestaurantOwnership(restaurant) {
+  const name = normalizeWriteupText(restaurant?.name || '');
+  const websiteDomain = normalizeWriteupText(domainFromUrl(restaurant?.website || ''));
+  const combined = [name, websiteDomain].filter(Boolean).join(' ');
+
+  if (!combined) return 'unknown';
+  if (/\bculver\b/.test(combined)) return 'culvers';
+  if (CHAIN_NAME_HINTS.some((hint) => combined.includes(normalizeWriteupText(hint)))) return 'chain';
+  if (CHAIN_DOMAIN_HINTS.some((hint) => websiteDomain.includes(normalizeWriteupText(hint)))) return 'chain';
+  return 'local';
+}
+
+function scoreOwnershipSignal(restaurant) {
+  const signal = classifyRestaurantOwnership(restaurant);
+  if (signal === 'culvers') return 1.0;
+  if (signal === 'local') return 1.5;
+  if (signal === 'chain') return -1.25;
+  return 0;
 }
 
 function extractReviewThemes(restaurant, cuisineText) {
