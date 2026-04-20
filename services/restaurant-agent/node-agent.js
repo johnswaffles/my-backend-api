@@ -157,6 +157,174 @@ function hasRestaurantContext(history) {
     : false;
 }
 
+function buildHistoryText(history) {
+  return Array.isArray(history)
+    ? history
+        .filter((turn) => turn && typeof turn.content === 'string')
+        .map((turn) => turn.content)
+        .join(' ')
+    : '';
+}
+
+function shouldTreatAsSpecificPlaceRequest(message, history, intent) {
+  const rawCombined = [message, buildHistoryText(history)].filter(Boolean).join(' ');
+  const combined = normalizeWriteupText(rawCombined);
+  if (!combined) return false;
+
+  if (/\b(address|phone|hours|menu|about|details|info|information|review|reviews|where is|what is|what's|tell me about|tell me more|how is|how's|directions)\b/i.test(combined)) {
+    return true;
+  }
+
+  if (/\b(best|top|recommend|recommendation|options|places|spots|find|show|list)\b/i.test(combined)) {
+    return false;
+  }
+
+  const subject = normalizeWriteupText(intent?.querySubject || '');
+  if (!subject) return false;
+
+  const subjectWords = subject.split(/\s+/).filter(Boolean);
+  const hasQueryLocation = Boolean(intent?.queryLocation || intent?.inferredLocation);
+  const hasNameLikeCue = /[&'’]/.test(rawCombined) || /(?:\b[A-Z][a-z]+\b){2,}/.test(rawCombined);
+  const hasPlaceSuffix = /\b(steakhouse|steak house|restaurant|restaurants|tavern|bistro|kitchen|cafe|coffee|grill|grille|diner|bar|pub|pizzeria|seafood|house)\b/i.test(rawCombined);
+
+  if (hasNameLikeCue && subjectWords.length >= 1) return true;
+  if (!/\b(food|place|places|restaurant|restaurants|spot|spots|options|best|top|find|show|recommend|recommendation)\b/i.test(combined) && hasPlaceSuffix) {
+    return true;
+  }
+  if (!hasQueryLocation && subjectWords.length >= 2 && subjectWords.length <= 6 && !/\b(food|restaurant|restaurants|places|spots)\b/i.test(subject)) return true;
+
+  return false;
+}
+
+function scoreSpecificPlaceCandidate(candidate, querySubject, locationText) {
+  if (!candidate || !candidate.name) return Number.NEGATIVE_INFINITY;
+  const candidateName = normalizeWriteupText(candidate.name);
+  const candidateAddress = normalizeWriteupText(candidate.formatted_address || candidate.place?.formatted_address || '');
+  const subject = normalizeWriteupText(querySubject || '');
+  const location = normalizeWriteupText(locationText || '');
+  let score = 0;
+
+  if (subject && candidateName === subject) score += 1000;
+  else if (subject && (candidateName.includes(subject) || subject.includes(candidateName))) score += 500;
+
+  const subjectTokens = subject.split(/\s+/).filter(Boolean);
+  if (subjectTokens.length && subjectTokens.every((token) => candidateName.includes(token))) score += 250;
+
+  if (location && candidateAddress.includes(location)) score += 40;
+  if (Number.isFinite(candidate.review_count)) score += Math.log(candidate.review_count + 1);
+  if (Number.isFinite(candidate.rating)) score += candidate.rating;
+
+  return score;
+}
+
+async function runSpecificPlaceLookup({
+  message,
+  history,
+  pageContext,
+  intent,
+  googlePlacesKey,
+  requestId,
+  apiKey
+}) {
+  const searchRequest = normalizeSearchRequest({
+    query: intent?.querySubject || message,
+    destinationText: intent?.inferredLocation || '',
+    radiusMiles: 18,
+    mealType: 'any',
+    mode: 'nearby',
+    filters: {
+      ...DEFAULT_SEARCH_FILTERS,
+      localOnly: false,
+      cuisine: ''
+    },
+    meta: {
+      requestId
+    }
+  });
+
+  const searchResult = await searchGooglePlaces(searchRequest, googlePlacesKey);
+  const bestCandidate = [...(searchResult.candidates || [])]
+    .map((candidate) => ({
+      ...candidate,
+      _score: scoreSpecificPlaceCandidate(candidate, intent?.querySubject || message, intent?.inferredLocation || '')
+    }))
+    .sort((a, b) => b._score - a._score)[0] || null;
+
+  if (!bestCandidate?.placeId) {
+    return {
+      reply: `I couldn't confidently match that place yet. If you want, send the full restaurant name or city and I can try again.`,
+      restaurants: [],
+      sources: [],
+      featuredWriteup: '',
+      requestId
+    };
+  }
+
+  const detail = await fetchGooglePlaceDetails(bestCandidate.placeId, googlePlacesKey);
+  const normalized = normalizeGooglePlace(detail, bestCandidate, searchRequest);
+  const restaurant = {
+    place_id: normalized.placeId,
+    name: normalized.name,
+    rating: normalized.rating,
+    review_count: normalized.reviewCount,
+    score: Number.isFinite(bestCandidate._score) ? Number(bestCandidate._score.toFixed(4)) : null,
+    summary:
+      [
+        Number.isFinite(normalized.rating) ? `${normalized.rating.toFixed(1)} rating` : 'Rating unavailable',
+        Number.isFinite(normalized.reviewCount) ? `${normalized.reviewCount.toLocaleString()} reviews` : 'Review count unavailable'
+      ].join(', '),
+    formatted_address: normalized.formattedAddress,
+    phone: normalized.phone,
+    website: normalized.website,
+    maps_url: normalized.mapsUrl,
+    city: normalized.city,
+    categories: normalized.categories,
+    open_now: normalized.openNow,
+    business_status: normalized.businessStatus,
+    reviews: normalized.reviews,
+    reviewHighlights: normalized.reviewHighlights,
+    price_level: normalized.priceLevel
+  };
+
+  const websiteSignals = restaurant.website ? await fetchWebsiteSignals(restaurant.website, requestId) : null;
+  const editorialWriteup = matchRestaurantWriteup(restaurant);
+  const featuredWriteup =
+    editorialWriteup?.writeup ||
+    buildFeaturedWriteup({
+      restaurant,
+      locationText: intent?.inferredLocation || String(pageContext?.pageSummary || '').trim(),
+      cuisineText: intent?.inferredCuisine || '',
+      websiteSignals
+    });
+
+  const sources = buildSources([restaurant]);
+  const locationLabel = restaurant.city || intent?.inferredLocation || 'that area';
+  const detailsBits = [];
+  if (restaurant.formatted_address) detailsBits.push(restaurant.formatted_address);
+  if (restaurant.phone) detailsBits.push(`phone ${restaurant.phone}`);
+  if (restaurant.open_now === true) detailsBits.push('open now');
+  if (Number.isFinite(restaurant.rating)) {
+    detailsBits.push(`${restaurant.rating.toFixed(1)} rating`);
+  }
+  if (Number.isFinite(restaurant.review_count)) {
+    detailsBits.push(`${restaurant.review_count.toLocaleString()} reviews`);
+  }
+
+  const reply = [
+    `Here’s ${restaurant.name} in ${locationLabel}.`,
+    detailsBits.length ? detailsBits.join(' • ') : 'I found the place and pulled its verified details.',
+    editorialWriteup?.writeup ? 'I also added a custom writeup for this one.' : ''
+  ].filter(Boolean).join(' ');
+
+  return {
+    reply,
+    restaurants: [restaurant],
+    sources,
+    featuredWriteup,
+    requestId
+  };
+}
+
 function buildSystemPrompt() {
   return [
     `You are ${FOOD_BRAND}, a restaurant-finder agent for Southern Illinois.`,
@@ -821,6 +989,7 @@ export async function runRestaurantAgent({ message, history = [], pageContext = 
   const { intent, likelyRestaurantRequest } = buildRestaurantIntentContext(cleanMessage, history);
   const locationText = intent.inferredLocation || '';
   const cuisineText = intent.inferredCuisine || '';
+  const specificPlaceRequest = shouldTreatAsSpecificPlaceRequest(cleanMessage, history, intent);
 
   if (!cleanMessage) {
     return {
@@ -829,6 +998,23 @@ export async function runRestaurantAgent({ message, history = [], pageContext = 
       sources: [],
       requestId: requestLabel
     };
+  }
+
+  if (specificPlaceRequest && googlePlacesKey) {
+    log(requestLabel, `specific-place lookup enabled for ${JSON.stringify(cleanMessage)}`);
+    try {
+      return await runSpecificPlaceLookup({
+        message: cleanMessage,
+        history,
+        pageContext,
+        intent,
+        googlePlacesKey,
+        requestId: requestLabel,
+        apiKey
+      });
+    } catch (error) {
+      log(requestLabel, `specific-place lookup failed: ${String(error.message || error)}`);
+    }
   }
 
   if (!likelyRestaurantRequest) {
