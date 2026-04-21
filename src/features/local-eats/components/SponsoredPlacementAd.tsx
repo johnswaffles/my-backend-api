@@ -6,12 +6,12 @@ interface SponsoredPlacementAdProps {
   restaurant: RestaurantAgentRestaurant | null;
 }
 
-const DISMISSED_KEY = '618food.dismissedSponsoredPlacements';
+const DISMISSED_KEY = '618food.dismissedSponsoredPlacements.session';
 
 function loadDismissedIds(): Set<string> {
   if (typeof window === 'undefined') return new Set();
   try {
-    const raw = window.localStorage.getItem(DISMISSED_KEY);
+    const raw = window.sessionStorage.getItem(DISMISSED_KEY);
     if (!raw) return new Set();
     const parsed = JSON.parse(raw);
     return new Set(Array.isArray(parsed) ? parsed.filter((item) => typeof item === 'string') : []);
@@ -22,7 +22,7 @@ function loadDismissedIds(): Set<string> {
 
 function saveDismissedIds(ids: Set<string>): void {
   try {
-    window.localStorage.setItem(DISMISSED_KEY, JSON.stringify(Array.from(ids)));
+    window.sessionStorage.setItem(DISMISSED_KEY, JSON.stringify(Array.from(ids)));
   } catch {
     // Ignore storage failures.
   }

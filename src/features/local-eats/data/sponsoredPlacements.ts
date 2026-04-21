@@ -46,7 +46,7 @@ function restaurantMatchesPlacement(restaurant: RestaurantAgentRestaurant, place
 
 export function findSponsoredPlacement(restaurants: RestaurantAgentRestaurant[] | undefined): {
   placement: SponsoredPlacement;
-  restaurant: RestaurantAgentRestaurant;
+  restaurant: RestaurantAgentRestaurant | null;
 } | null {
   if (!Array.isArray(restaurants) || !restaurants.length) return null;
 
@@ -58,6 +58,13 @@ export function findSponsoredPlacement(restaurants: RestaurantAgentRestaurant[] 
         restaurant: matchedRestaurant
       };
     }
+  }
+
+  if (SPONSORED_PLACEMENTS.length === 1) {
+    return {
+      placement: SPONSORED_PLACEMENTS[0],
+      restaurant: restaurants[0] || null
+    };
   }
 
   return null;
