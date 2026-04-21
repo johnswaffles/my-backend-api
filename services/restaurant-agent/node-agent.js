@@ -192,6 +192,7 @@ function matchRecentRestaurantContext(message, history, intent, pageContext) {
   const combined = normalizeWriteupText(rawCombined);
   const messageText = normalizeWriteupText(message || '');
   const explicitSubject = cleanPlaceFollowupText(intent?.querySubject || message);
+  const hasCuisineCue = Boolean(intent?.inferredCuisine);
   const followupPattern = /^(what about|how about|tell me about|tell us about|show me|what is|what's|whats|give me|find me|do you know|any info on|information on|details on|my favorite|that place|this place|that restaurant|this restaurant|it)\b/i;
   const followupish =
     followupPattern.test(combined) ||
@@ -211,6 +212,10 @@ function matchRecentRestaurantContext(message, history, intent, pageContext) {
 
   if (explicitMatches.length === 1) {
     return explicitMatches[0];
+  }
+
+  if (hasCuisineCue) {
+    return null;
   }
 
   const subject = normalizeWriteupText(intent?.querySubject || '');
