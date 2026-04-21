@@ -724,18 +724,21 @@ function rankRestaurantsForIntent(restaurants, cuisineText) {
           (Math.log((Number.isFinite(normalized.review_count) ? normalized.review_count : 0) + 1) * 0.3);
       const cuisineScore = cuisine ? scoreCuisineRelevance(normalized, cuisine) : 0;
       const ownershipScore = scoreOwnershipSignal(normalized);
+      const chainCuisinePenalty = scoreChainCuisinePenalty(normalized, cuisine, cuisineScore);
 
       return {
         ...normalized,
-        score: Number((baseScore + cuisineScore + ownershipScore).toFixed(4)),
+        score: Number((baseScore + cuisineScore + ownershipScore + chainCuisinePenalty).toFixed(4)),
         cuisineScore,
-        ownershipScore
+        ownershipScore,
+        chainCuisinePenalty
       };
     })
     .filter(Boolean)
     .sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
       if (b.ownershipScore !== a.ownershipScore) return b.ownershipScore - a.ownershipScore;
+      if (b.chainCuisinePenalty !== a.chainCuisinePenalty) return a.chainCuisinePenalty - b.chainCuisinePenalty;
       return b.cuisineScore - a.cuisineScore;
     });
 
@@ -1362,6 +1365,14 @@ function scoreOwnershipSignal(restaurant) {
   if (signal === 'local') return 1.5;
   if (signal === 'chain') return -10.0;
   return 0;
+}
+
+function scoreChainCuisinePenalty(restaurant, cuisineText, cuisineScore) {
+  const cuisine = normalizeWriteupText(cuisineText || '');
+  if (!cuisine) return 0;
+  if (classifyRestaurantOwnership(restaurant) !== 'chain') return 0;
+  if (Number.isFinite(cuisineScore) && cuisineScore >= 1.5) return 0;
+  return -20.0;
 }
 
 function extractReviewThemes(restaurant, cuisineText) {
