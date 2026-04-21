@@ -7,6 +7,7 @@ const SPONSORED_PLACEMENTS: SponsoredPlacement[] = [
     title: 'Casa Raya Mexican Restaurant & Taqueria',
     tagline: 'Authentic flavor. Made fresh. Made for you.',
     callToAction: 'Visit website',
+    thumbnailUrl: '/sponsored/casa-raya.png',
     website: 'https://casarayatogo.com',
     aliases: [
       'Casa Raya',
