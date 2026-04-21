@@ -80,6 +80,67 @@ function inferPreferenceFromText(text) {
   return 'best overall';
 }
 
+function cuisineTermsForText(text) {
+  const normalized = normalizeComparable(text);
+  for (const item of FOOD_CUISINE_ALIASES) {
+    if (item.terms.some((term) => normalized.includes(normalizeComparable(term)))) {
+      return item.terms;
+    }
+  }
+  return [];
+}
+
+function splitImplicitLocationFromQuery(query) {
+  const text = normalizeText(query);
+  if (!text) return { subject: '', location: '' };
+
+  const cuisine = inferCuisineFromText(text);
+  const terms = cuisineTermsForText(cuisine);
+  if (!cuisine || !terms.length) return { subject: text, location: '' };
+
+  const escaped = terms
+    .map((term) => normalizeText(term))
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length)
+    .map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  if (!escaped.length) return { subject: text, location: '' };
+
+  const match = text.match(new RegExp(`\\b(${escaped.join('|')})\\b`, 'i'));
+  if (!match || typeof match.index !== 'number') return { subject: text, location: '' };
+
+  const before = normalizeText(text.slice(0, match.index)).replace(/\s+/g, ' ').trim();
+  const after = normalizeText(text.slice(match.index + match[0].length)).replace(/\s+/g, ' ').trim();
+
+  const beforeLooksLikeLocation = looksLikeLocationQuery(before);
+  const afterLooksLikeLocation = looksLikeLocationQuery(after);
+
+  if (beforeLooksLikeLocation && !afterLooksLikeLocation) {
+    return { subject: cuisine, location: before };
+  }
+
+  if (afterLooksLikeLocation && !beforeLooksLikeLocation) {
+    return { subject: cuisine, location: after };
+  }
+
+  if (before && !after) {
+    return { subject: cuisine, location: before };
+  }
+
+  if (after && !before) {
+    return { subject: cuisine, location: after };
+  }
+
+  if (beforeLooksLikeLocation) {
+    return { subject: cuisine, location: before };
+  }
+
+  if (afterLooksLikeLocation) {
+    return { subject: cuisine, location: after };
+  }
+
+  return { subject: text, location: '' };
+}
+
 function splitQueryLocation(value) {
   const text = normalizeText(value);
   if (!text) return { subject: '', location: '' };
@@ -101,11 +162,17 @@ export function inferFoodIntent(request) {
   const split = splitQueryLocation(query);
   const embeddedZip = query.match(/\b\d{5}(?:-\d{4})?\b/)?.[0] || '';
   const queryLooksLikeLocation = looksLikeLocationQuery(query) && !inferCuisineFromText(query);
+  const implicitSplit = splitImplicitLocationFromQuery(query);
   const querySubject =
     split.subject ||
+    (implicitSplit.location ? implicitSplit.subject : '') ||
     (queryLooksLikeLocation ? '' : query.replace(/\b\d{5}(?:-\d{4})?\b/g, ' ').replace(/\s+/g, ' ').trim()) ||
     query;
-  const queryLocation = split.location || embeddedZip || (queryLooksLikeLocation ? query : '');
+  const queryLocation =
+    split.location ||
+    implicitSplit.location ||
+    embeddedZip ||
+    (queryLooksLikeLocation ? query : '');
   const destinationLikeLocation = looksLikeLocationQuery(destinationText) ? destinationText : '';
   const inferredLocation = assumeIllinoisLocationText(destinationLikeLocation || queryLocation);
   const inferredCuisine = inferCuisineFromText([querySubject, destinationText].filter(Boolean).join(' '));
