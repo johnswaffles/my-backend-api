@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AudioStrip } from './features/local-eats/components/AudioStrip';
 import { FOOD_BRAND } from './features/local-eats/schemas';
+import { findSponsoredPlacement } from './features/local-eats/data/sponsoredPlacements';
 import {
   ask618Chat,
   playBrowserNarration,
@@ -238,6 +239,7 @@ const audioSummary = getAudioSummary(assistantTranscript);
   const latestAssistantResponse = [...assistantTranscript].reverse().find((turn) => turn.role === 'assistant');
   const hasPlayedLatestResponse =
     Boolean(latestAssistantResponse?.content) && latestAssistantResponse?.content === playedResponseContent;
+  const sponsoredMatch = findSponsoredPlacement(latestAssistantResponse?.restaurants || []);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.96),_rgba(250,246,236,0.82)_34%,_rgba(236,244,227,0.96)_66%,_rgba(247,241,228,1)_100%)] text-stone-900">
@@ -270,6 +272,8 @@ const audioSummary = getAudioSummary(assistantTranscript);
           assistantLoading={assistantLoading}
           assistantLoadingLabel={assistantLoadingLabel}
           conversation={assistantTranscript}
+          sponsoredPlacement={sponsoredMatch?.placement || null}
+          sponsoredRestaurant={sponsoredMatch?.restaurant || null}
           onToggleSpeaker={toggleSpeaker}
           onPlay={handlePlaySummary}
           onAskAssistant={handleAssistantChat}

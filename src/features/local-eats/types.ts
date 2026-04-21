@@ -193,6 +193,17 @@ export interface GeneralChatResponse {
   requestId?: string;
 }
 
+export interface SponsoredPlacement {
+  id: string;
+  restaurantName: string;
+  title: string;
+  tagline: string;
+  callToAction: string;
+  website?: string | null;
+  thumbnailUrl?: string | null;
+  aliases?: string[];
+}
+
 export interface LiveSearchState {
   query: string;
   destinationText: string;

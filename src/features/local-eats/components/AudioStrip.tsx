@@ -1,5 +1,7 @@
 import type { ChatTurn, RestaurantAgentRestaurant } from '../types';
 import { useState, type FormEvent } from 'react';
+import { SponsoredPlacementAd } from './SponsoredPlacementAd';
+import type { SponsoredPlacement } from '../types';
 
 interface AudioStripProps {
   summary: string;
@@ -10,6 +12,8 @@ interface AudioStripProps {
   assistantLoading: boolean;
   assistantLoadingLabel: string;
   conversation: ChatTurn[];
+  sponsoredPlacement: SponsoredPlacement | null;
+  sponsoredRestaurant: RestaurantAgentRestaurant | null;
   onToggleSpeaker: () => void;
   onPlay: () => void;
   onAskAssistant: (value: string) => void | Promise<void>;
@@ -99,6 +103,8 @@ export function AudioStrip({
   assistantLoading,
   assistantLoadingLabel,
   conversation,
+  sponsoredPlacement,
+  sponsoredRestaurant,
   onToggleSpeaker,
   onPlay,
   onAskAssistant
@@ -114,125 +120,129 @@ export function AudioStrip({
   }
 
   return (
-    <section className="rounded-[1.6rem] border border-stone-200 bg-white/80 p-4 shadow-[0_16px_40px_rgba(62,84,50,0.1)] backdrop-blur-xl">
-      <div className="mt-4 rounded-[1.35rem] border border-stone-200 bg-stone-50/90 px-4 py-3">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
-          Chat
-        </div>
-        <div className="mt-3 space-y-3">
-          {conversation.length ? (
-            conversation.map((turn, index) => (
-              <div
-                key={`${turn.role}-${index}-${turn.content.slice(0, 24)}`}
-                className={`flex ${turn.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
+    <>
+      <section className="rounded-[1.6rem] border border-stone-200 bg-white/80 p-4 shadow-[0_16px_40px_rgba(62,84,50,0.1)] backdrop-blur-xl">
+        <div className="mt-4 rounded-[1.35rem] border border-stone-200 bg-stone-50/90 px-4 py-3">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
+            Chat
+          </div>
+          <div className="mt-3 space-y-3">
+            {conversation.length ? (
+              conversation.map((turn, index) => (
                 <div
-                  className={`max-w-[92%] rounded-[1.2rem] px-4 py-3 text-sm leading-7 ${
-                    turn.role === 'user'
-                      ? 'bg-emerald-700 text-white shadow-[0_14px_30px_rgba(22,83,44,0.16)]'
-                      : 'bg-white text-stone-700 ring-1 ring-stone-200'
-                  }`}
+                  key={`${turn.role}-${index}-${turn.content.slice(0, 24)}`}
+                  className={`flex ${turn.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[92%] rounded-[1.2rem] px-4 py-3 text-sm leading-7 ${
+                      turn.role === 'user'
+                        ? 'bg-emerald-700 text-white shadow-[0_14px_30px_rgba(22,83,44,0.16)]'
+                        : 'bg-white text-stone-700 ring-1 ring-stone-200'
+                    }`}
                   >
-                  {turn.role === 'assistant' && turn.featuredWriteup ? (
-                    <div className="mt-4 rounded-[1.15rem] border border-emerald-200 bg-emerald-50/80 px-4 py-3">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-800">
-                        Top spot writeup
+                    {turn.role === 'assistant' && turn.featuredWriteup ? (
+                      <div className="mt-4 rounded-[1.15rem] border border-emerald-200 bg-emerald-50/80 px-4 py-3">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-800">
+                          Top spot writeup
+                        </div>
+                        <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-stone-700">
+                          {turn.featuredWriteup}
+                        </p>
                       </div>
-                      <p className="mt-2 text-sm leading-7 text-stone-700 whitespace-pre-wrap">
-                        {turn.featuredWriteup}
-                      </p>
-                    </div>
-                  ) : null}
-                  <p className={`${turn.featuredWriteup ? 'mt-4' : ''} whitespace-pre-wrap`}>{turn.content}</p>
-                  {turn.role === 'assistant' && turn.restaurants?.length ? (
-                    <div className="mt-4 space-y-3">
-                      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
-                        Top results
+                    ) : null}
+                    <p className={`${turn.featuredWriteup ? 'mt-4' : ''} whitespace-pre-wrap`}>{turn.content}</p>
+                    {turn.role === 'assistant' && turn.restaurants?.length ? (
+                      <div className="mt-4 space-y-3">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
+                          Top results
+                        </div>
+                        <div className="space-y-3">
+                          {turn.restaurants.map((restaurant, restaurantIndex) => (
+                            <RestaurantResultRow
+                              key={`${restaurant.place_id}-${restaurantIndex}`}
+                              restaurant={restaurant}
+                              rank={restaurantIndex + 1}
+                            />
+                          ))}
+                        </div>
                       </div>
-                      <div className="space-y-3">
-                        {turn.restaurants.map((restaurant, restaurantIndex) => (
-                          <RestaurantResultRow
-                            key={`${restaurant.place_id}-${restaurantIndex}`}
-                            restaurant={restaurant}
-                            rank={restaurantIndex + 1}
-                          />
+                    ) : null}
+                    {turn.role === 'assistant' && turn.sources?.length ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {turn.sources.map((source) => (
+                          <a
+                            key={`${source.title}-${source.url}`}
+                            href={source.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-semibold text-emerald-900 transition hover:border-emerald-300 hover:bg-emerald-50"
+                          >
+                            {source.title}
+                          </a>
                         ))}
                       </div>
-                    </div>
-                  ) : null}
-                  {turn.role === 'assistant' && turn.sources?.length ? (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {turn.sources.map((source) => (
-                        <a
-                          key={`${source.title}-${source.url}`}
-                          href={source.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="rounded-full border border-emerald-200 bg-white px-3 py-1 text-xs font-semibold text-emerald-900 transition hover:border-emerald-300 hover:bg-emerald-50"
-                        >
-                          {source.title}
-                        </a>
-                      ))}
-                    </div>
-                  ) : null}
+                    ) : null}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-[1.1rem] border border-dashed border-stone-200 bg-white/80 px-4 py-4 text-sm text-stone-500">
+                Ask for a town or ZIP, and 618FOOD.COM will find the top restaurants.
+              </div>
+            )}
+
+            {assistantLoading ? (
+              <div className="flex justify-start">
+                <div className="rounded-[1.2rem] bg-white px-4 py-3 text-sm leading-7 text-stone-500 ring-1 ring-stone-200">
+                  {assistantLoadingLabel}
                 </div>
               </div>
-            ))
-          ) : (
-            <div className="rounded-[1.1rem] border border-dashed border-stone-200 bg-white/80 px-4 py-4 text-sm text-stone-500">
-              Ask for a town or ZIP, and 618FOOD.COM will find the top restaurants.
-            </div>
-          )}
+            ) : null}
+          </div>
+        </div>
 
-          {assistantLoading ? (
-            <div className="flex justify-start">
-              <div className="rounded-[1.2rem] bg-white px-4 py-3 text-sm leading-7 text-stone-500 ring-1 ring-stone-200">
-                {assistantLoadingLabel}
-              </div>
-            </div>
-          ) : null}
-        </div>
-      </div>
+        <form onSubmit={handleSubmit} className="mt-4 rounded-[1.4rem] border border-stone-200 bg-stone-50/80 p-3">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
+            Chat with 618FOOD.COM
+          </div>
+          <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
+            <input
+              value={followUpText}
+              onChange={(event) => setFollowUpText(event.target.value)}
+              placeholder="Ask for a town or ZIP..."
+              className="min-w-0 h-12 rounded-full border border-stone-200 bg-white px-4 py-3 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
+            />
+            <button
+              type="button"
+              onClick={onToggleSpeaker}
+              className={`h-12 rounded-full px-4 text-sm font-semibold transition ${
+                speakerEnabled
+                  ? 'bg-emerald-700 text-white shadow-[0_14px_30px_rgba(22,83,44,0.18)]'
+                  : 'bg-stone-100 text-stone-700'
+              }`}
+            >
+              {speakerEnabled ? 'Speaker on' : 'Speaker off'}
+            </button>
+            <button
+              type="button"
+              onClick={onPlay}
+              disabled={!summary || isLoading || responsePlayed}
+              className="h-12 rounded-full bg-stone-900 px-4 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isPlaying ? 'Playing...' : 'Play response'}
+            </button>
+            <button
+              type="submit"
+              disabled={!followUpText.trim() || isLoading || assistantLoading}
+              className="h-12 rounded-full bg-emerald-700 px-4 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {assistantLoading ? assistantLoadingLabel : 'Send'}
+            </button>
+          </div>
+        </form>
+      </section>
 
-      <form onSubmit={handleSubmit} className="mt-4 rounded-[1.4rem] border border-stone-200 bg-stone-50/80 p-3">
-        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
-          Chat with 618FOOD.COM
-        </div>
-        <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
-          <input
-            value={followUpText}
-            onChange={(event) => setFollowUpText(event.target.value)}
-            placeholder="Ask for a town or ZIP..."
-            className="min-w-0 h-12 rounded-full border border-stone-200 bg-white px-4 py-3 text-sm text-stone-900 outline-none transition placeholder:text-stone-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10"
-          />
-          <button
-            type="button"
-            onClick={onToggleSpeaker}
-            className={`h-12 rounded-full px-4 text-sm font-semibold transition ${
-              speakerEnabled
-                ? 'bg-emerald-700 text-white shadow-[0_14px_30px_rgba(22,83,44,0.18)]'
-                : 'bg-stone-100 text-stone-700'
-            }`}
-          >
-            {speakerEnabled ? 'Speaker on' : 'Speaker off'}
-          </button>
-          <button
-            type="button"
-            onClick={onPlay}
-            disabled={!summary || isLoading || responsePlayed}
-            className="h-12 rounded-full bg-stone-900 px-4 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {isPlaying ? 'Playing...' : 'Play response'}
-          </button>
-          <button
-            type="submit"
-            disabled={!followUpText.trim() || isLoading || assistantLoading}
-            className="h-12 rounded-full bg-emerald-700 px-4 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {assistantLoading ? assistantLoadingLabel : 'Send'}
-          </button>
-        </div>
-      </form>
-    </section>
+      <SponsoredPlacementAd placement={sponsoredPlacement} restaurant={sponsoredRestaurant} />
+    </>
   );
 }
