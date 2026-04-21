@@ -1827,9 +1827,16 @@ export async function runRestaurantAgent({ message, history = [], pageContext = 
   };
 
   const { intent, likelyRestaurantRequest } = buildRestaurantIntentContext(cleanMessage, history);
-  const recentRestaurantContext = matchRecentRestaurantContext(cleanMessage, history, intent, pageContext);
-  if (recentRestaurantContext) {
+  const explicitPlaceSubject = cleanPlaceFollowupText(cleanMessage);
+  const recentRestaurantContext = explicitPlaceSubject ? null : matchRecentRestaurantContext(cleanMessage, history, intent, pageContext);
+
+  if (explicitPlaceSubject) {
+    intent.querySubject = explicitPlaceSubject;
+  } else if (recentRestaurantContext) {
     intent.querySubject = recentRestaurantContext.name;
+  }
+
+  if (recentRestaurantContext) {
     intent.inferredLocation =
       intent.inferredLocation ||
       recentRestaurantContext.city ||
@@ -1842,7 +1849,7 @@ export async function runRestaurantAgent({ message, history = [], pageContext = 
   const locationText = intent.inferredLocation || '';
   const cuisineText = intent.inferredCuisine || '';
   const specificPlaceRequest =
-    shouldTreatAsSpecificPlaceRequest(cleanMessage, history, intent) || Boolean(recentRestaurantContext);
+    shouldTreatAsSpecificPlaceRequest(cleanMessage, history, intent) || Boolean(recentRestaurantContext) || Boolean(explicitPlaceSubject);
 
   if (!cleanMessage) {
     return {
