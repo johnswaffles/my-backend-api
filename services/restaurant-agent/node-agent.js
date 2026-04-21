@@ -710,6 +710,26 @@ function scoreCuisineRelevance(restaurant, cuisineText) {
   return Number(score.toFixed(2));
 }
 
+function scoreRelevanceConfidence(restaurant) {
+  const rating = Number.isFinite(restaurant?.rating) ? Number(restaurant.rating) : 0;
+  const reviewCount = Number.isFinite(restaurant?.review_count) ? Number(restaurant.review_count) : 0;
+
+  if (!rating && !reviewCount) return 0.25;
+
+  const reviewConfidence = reviewCount > 0
+    ? Math.min(1, Math.log(reviewCount + 1) / Math.log(75 + 1))
+    : 0.15;
+  const ratingConfidence = rating > 0
+    ? Math.min(1, Math.max(0.15, (rating - 2.5) / 2))
+    : 0.2;
+
+  if (reviewCount < 10 && rating < 3.5) {
+    return 0.15;
+  }
+
+  return Number(Math.max(0.15, Math.min(1, (reviewConfidence * 0.6) + (ratingConfidence * 0.4))).toFixed(2));
+}
+
 function rankRestaurantsForIntent(restaurants, cuisineText) {
   const cuisine = normalizeWriteupText(cuisineText || '');
   const ranked = (Array.isArray(restaurants) ? restaurants : [])
@@ -723,13 +743,17 @@ function rankRestaurantsForIntent(restaurants, cuisineText) {
         : ((Number.isFinite(normalized.rating) ? normalized.rating : 0) * 0.7) +
           (Math.log((Number.isFinite(normalized.review_count) ? normalized.review_count : 0) + 1) * 0.3);
       const cuisineScore = cuisine ? scoreCuisineRelevance(normalized, cuisine) : 0;
+      const relevanceConfidence = cuisine ? scoreRelevanceConfidence(normalized) : 1;
+      const adjustedCuisineScore = Number((cuisineScore * relevanceConfidence).toFixed(4));
       const ownershipScore = scoreOwnershipSignal(normalized);
-      const chainCuisinePenalty = scoreChainCuisinePenalty(normalized, cuisine, cuisineScore);
+      const chainCuisinePenalty = scoreChainCuisinePenalty(normalized, cuisine, adjustedCuisineScore);
 
       return {
         ...normalized,
-        score: Number((baseScore + cuisineScore + ownershipScore + chainCuisinePenalty).toFixed(4)),
+        score: Number((baseScore + adjustedCuisineScore + ownershipScore + chainCuisinePenalty).toFixed(4)),
         cuisineScore,
+        adjustedCuisineScore,
+        relevanceConfidence,
         ownershipScore,
         chainCuisinePenalty
       };
@@ -739,6 +763,7 @@ function rankRestaurantsForIntent(restaurants, cuisineText) {
       if (b.score !== a.score) return b.score - a.score;
       if (b.ownershipScore !== a.ownershipScore) return b.ownershipScore - a.ownershipScore;
       if (b.chainCuisinePenalty !== a.chainCuisinePenalty) return a.chainCuisinePenalty - b.chainCuisinePenalty;
+      if (b.adjustedCuisineScore !== a.adjustedCuisineScore) return b.adjustedCuisineScore - a.adjustedCuisineScore;
       return b.cuisineScore - a.cuisineScore;
     });
 
@@ -746,7 +771,7 @@ function rankRestaurantsForIntent(restaurants, cuisineText) {
     return ranked.slice(0, 7);
   }
 
-  const matched = ranked.filter((restaurant) => restaurant.cuisineScore > 0);
+  const matched = ranked.filter((restaurant) => restaurant.adjustedCuisineScore > 0.3);
   if (matched.length >= 7) {
     return matched.slice(0, 7);
   }
