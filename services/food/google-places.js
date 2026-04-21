@@ -294,7 +294,8 @@ export async function searchGooglePlaces(request, apiKey) {
           placeId: place.place_id,
           name: place.name,
           place,
-          searchQuery: plan.searchQuery
+          searchQuery: plan.searchQuery,
+          businessStatus: place.business_status || ''
         });
       }
     } catch {

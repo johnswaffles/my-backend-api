@@ -584,6 +584,7 @@ function rankRestaurantsDeterministically(restaurants) {
     .map((restaurant) => {
       const normalized = normalizeRestaurantRecord(restaurant);
       if (!normalized || !normalized.name) return null;
+      if (isClosedRestaurant(normalized)) return null;
 
       const rating = Number.isFinite(normalized.rating) ? normalized.rating : 0;
       const reviewCount = Number.isFinite(normalized.review_count) ? normalized.review_count : 0;
@@ -715,6 +716,7 @@ function rankRestaurantsForIntent(restaurants, cuisineText) {
     .map((restaurant) => {
       const normalized = normalizeRestaurantRecord(restaurant);
       if (!normalized || !normalized.name) return null;
+      if (isClosedRestaurant(normalized)) return null;
 
       const baseScore = Number.isFinite(normalized.score)
         ? Number(normalized.score)
@@ -896,6 +898,17 @@ function domainFromUrl(url) {
   } catch {
     return '';
   }
+}
+
+function isClosedBusinessStatus(status) {
+  const text = normalizeWriteupText(status || '');
+  if (!text) return false;
+  return /closed permanently|closed temporarily|permanently closed|temporarily closed/i.test(text);
+}
+
+function isClosedRestaurant(restaurant) {
+  if (!restaurant || typeof restaurant !== 'object') return false;
+  return isClosedBusinessStatus(restaurant.business_status || restaurant.businessStatus || '');
 }
 
 const CHAIN_NAME_HINTS = [
@@ -1343,7 +1356,8 @@ async function executeToolCall({ call, googlePlacesKey, requestId, context }) {
       review_count: Number.isFinite(candidate.place?.user_ratings_total) ? candidate.place.user_ratings_total : null,
       price_level: Number.isFinite(candidate.place?.price_level) ? candidate.place.price_level : null,
       maps_url: String(candidate.place?.url || '').trim() || null,
-      search_query: String(candidate.searchQuery || '').trim() || null
+      search_query: String(candidate.searchQuery || '').trim() || null,
+      business_status: String(candidate.place?.business_status || candidate.place?.businessStatus || '').trim() || null
     }));
 
     context.searchCandidates = mergeUniqueRestaurants(context.searchCandidates, candidates);
