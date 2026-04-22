@@ -85,7 +85,6 @@ export default function App(): JSX.Element {
       content: "Hello! I’m 618FOOD.COM. Tell me a town or ZIP, and I’ll find the top restaurants there."
     }
   ]);
-  const [speakerEnabled, setSpeakerEnabled] = useState(true);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioLoading, setAudioLoading] = useState(false);
   const [playedResponseContent, setPlayedResponseContent] = useState<string | null>(null);
@@ -121,10 +120,31 @@ export default function App(): JSX.Element {
   }, [assistantLoading]);
 
   async function handlePlaySummary(): Promise<void> {
-    if (!speakerEnabled) return;
     const text = getAudioSummary(assistantTranscript);
     if (!text.trim()) return;
-    if (playedResponseContent === text) return;
+
+    if (audioLoading) return;
+
+    const currentAudio = audioRef.current;
+    if (currentAudio) {
+      if (!isPlaying) {
+        if (currentAudio.ended) {
+          currentAudio.currentTime = 0;
+        }
+        try {
+          await currentAudio.play();
+          setIsPlaying(true);
+          return;
+        } catch {
+          // Fall through and regenerate audio if resuming fails.
+        }
+      } else {
+        currentAudio.pause();
+        stopBrowserNarration();
+        setIsPlaying(false);
+        return;
+      }
+    }
 
     setAudioLoading(true);
     try {
@@ -159,25 +179,6 @@ export default function App(): JSX.Element {
     } finally {
       setAudioLoading(false);
     }
-  }
-
-  function toggleSpeaker(): void {
-    setSpeakerEnabled((current) => {
-      const next = !current;
-      if (!next) {
-        if (audioRef.current) {
-          audioRef.current.pause();
-        }
-        stopBrowserNarration();
-        setIsPlaying(false);
-      } else if (audioRef.current && audioRef.current.paused) {
-        audioRef.current
-          .play()
-          .then(() => setIsPlaying(true))
-          .catch(() => setIsPlaying(false));
-      }
-      return next;
-    });
   }
 
   async function handleAssistantChat(value: string): Promise<void> {
@@ -231,14 +232,18 @@ export default function App(): JSX.Element {
   useEffect(() => {
     const latestAssistant = [...assistantTranscript].reverse().find((turn) => turn.role === 'assistant');
     if (latestAssistant?.content && latestAssistant.content !== playedResponseContent) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+      }
+      stopBrowserNarration();
+      setIsPlaying(false);
       setPlayedResponseContent(null);
     }
   }, [assistantTranscript, playedResponseContent]);
 
-const audioSummary = getAudioSummary(assistantTranscript);
+  const audioSummary = getAudioSummary(assistantTranscript);
   const latestAssistantResponse = [...assistantTranscript].reverse().find((turn) => turn.role === 'assistant');
-  const hasPlayedLatestResponse =
-    Boolean(latestAssistantResponse?.content) && latestAssistantResponse?.content === playedResponseContent;
   const sponsoredMatch = findSponsoredPlacement(latestAssistantResponse?.restaurants || []);
 
   return (
@@ -263,21 +268,18 @@ const audioSummary = getAudioSummary(assistantTranscript);
         </header>
 
         <section className="mx-auto w-full max-w-3xl">
-        <AudioStrip
-          summary={audioSummary}
-          responsePlayed={hasPlayedLatestResponse}
-          speakerEnabled={speakerEnabled}
-          isPlaying={isPlaying}
-          isLoading={audioLoading}
-          assistantLoading={assistantLoading}
-          assistantLoadingLabel={assistantLoadingLabel}
-          conversation={assistantTranscript}
-          sponsoredPlacement={sponsoredMatch?.placement || null}
-          sponsoredRestaurant={sponsoredMatch?.restaurant || null}
-          onToggleSpeaker={toggleSpeaker}
-          onPlay={handlePlaySummary}
-          onAskAssistant={handleAssistantChat}
-        />
+          <AudioStrip
+            summary={audioSummary}
+            isPlaying={isPlaying}
+            isLoading={audioLoading}
+            assistantLoading={assistantLoading}
+            assistantLoadingLabel={assistantLoadingLabel}
+            conversation={assistantTranscript}
+            sponsoredPlacement={sponsoredMatch?.placement || null}
+            sponsoredRestaurant={sponsoredMatch?.restaurant || null}
+            onPlay={handlePlaySummary}
+            onAskAssistant={handleAssistantChat}
+          />
         </section>
       </main>
     </div>

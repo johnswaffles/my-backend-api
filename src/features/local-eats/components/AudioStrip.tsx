@@ -5,8 +5,6 @@ import type { SponsoredPlacement } from '../types';
 
 interface AudioStripProps {
   summary: string;
-  responsePlayed: boolean;
-  speakerEnabled: boolean;
   isPlaying: boolean;
   isLoading: boolean;
   assistantLoading: boolean;
@@ -14,7 +12,6 @@ interface AudioStripProps {
   conversation: ChatTurn[];
   sponsoredPlacement: SponsoredPlacement | null;
   sponsoredRestaurant: RestaurantAgentRestaurant | null;
-  onToggleSpeaker: () => void;
   onPlay: () => void;
   onAskAssistant: (value: string) => void | Promise<void>;
 }
@@ -96,8 +93,6 @@ function RestaurantResultRow({
 
 export function AudioStrip({
   summary,
-  responsePlayed,
-  speakerEnabled,
   isPlaying,
   isLoading,
   assistantLoading,
@@ -105,7 +100,6 @@ export function AudioStrip({
   conversation,
   sponsoredPlacement,
   sponsoredRestaurant,
-  onToggleSpeaker,
   onPlay,
   onAskAssistant
 }: AudioStripProps): JSX.Element {
@@ -205,7 +199,7 @@ export function AudioStrip({
           <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
             Chat with 618FOOD.COM
           </div>
-          <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
+          <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
             <input
               value={followUpText}
               onChange={(event) => setFollowUpText(event.target.value)}
@@ -214,22 +208,11 @@ export function AudioStrip({
             />
             <button
               type="button"
-              onClick={onToggleSpeaker}
-              className={`h-12 rounded-full px-4 text-sm font-semibold transition ${
-                speakerEnabled
-                  ? 'bg-emerald-700 text-white shadow-[0_14px_30px_rgba(22,83,44,0.18)]'
-                  : 'bg-stone-100 text-stone-700'
-              }`}
-            >
-              {speakerEnabled ? 'Speaker on' : 'Speaker off'}
-            </button>
-            <button
-              type="button"
               onClick={onPlay}
-              disabled={!summary || isLoading || responsePlayed}
+              disabled={!summary || isLoading || assistantLoading}
               className="h-12 rounded-full bg-stone-900 px-4 text-sm font-semibold text-white transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isPlaying ? 'Playing...' : 'Play response'}
+              {isLoading ? 'Loading...' : isPlaying ? 'Pause response' : 'Play response'}
             </button>
             <button
               type="submit"
