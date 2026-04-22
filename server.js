@@ -509,9 +509,9 @@ app.post('/api/food/audio', async (req, res) => {
     }
 
     const audio = await generateFoodSpeech({
-      apiKey: process.env.OPENAI_API_KEY,
-      model: process.env.OPENAI_TTS_MODEL || 'gpt-4o-mini-tts',
-      voice: process.env.OPENAI_TTS_VOICE || 'nova',
+      apiKey: process.env.GEMINI_API_KEY,
+      model: process.env.GEMINI_TTS || 'gemini-3.1-flash-tts-preview',
+      voice: process.env.GEMINI_TTS_VOICE || 'Orus',
       text: text.trim()
     });
 

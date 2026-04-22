@@ -1,5 +1,5 @@
 {
-  "name": "cozy-town-builder",
+  "name": "618food-com",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -10,6 +10,7 @@
     "start": "node server.js"
   },
   "dependencies": {
+    "@google/genai": "^1.50.1",
     "express": "^4.21.2",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

@@ -1,13 +1,13 @@
 # 618FOOD.COM
 
-618FOOD.COM is a rural-first restaurant discovery app for Southern Illinois. It uses Google Places as the canonical source of restaurant identity and OpenAI as a verifier, ranker, explainer, and audio narrator.
+618FOOD.COM is a rural-first restaurant discovery app for Southern Illinois. It uses Google Places as the canonical source of restaurant identity and OpenAI as a verifier, ranker, explainer, and Gemini-powered audio narrator.
 
 ## What it does
 
 - Searches verified restaurants near you or near a destination
 - Prioritizes local favorites, hidden gems, and real-world signals over raw star ratings
 - Surfaces explainable results with confidence labels and evidence notes
-- Reads the short shortlist aloud with `gpt-4o-mini-tts` and the `nova` voice when configured
+- Reads the short shortlist aloud with Gemini 3.1 Flash TTS and a prebuilt Gemini voice when configured
 
 ## Stack
 
@@ -37,8 +37,9 @@ Copy [.env.example](/Users/johnshopinski/Documents/New%20project/.env.example) a
 
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL=gpt-5.4`
-- `OPENAI_TTS_MODEL=gpt-4o-mini-tts`
-- `OPENAI_TTS_VOICE=nova`
+- `GEMINI_API_KEY`
+- `GEMINI_TTS=gemini-3.1-flash-tts-preview`
+- `GEMINI_TTS_VOICE=Orus`
 - `GOOGLE_PLACES_API_KEY` (or `GOOGLE_PLACES_KEY` / `GOOGLE_MAPS_KEY`)
 
 ## Render + Domain
@@ -49,8 +50,9 @@ If you are wiring the deployment in Render, make sure these values are present o
 
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL=gpt-5.4`
-- `OPENAI_TTS_MODEL=gpt-4o-mini-tts`
-- `OPENAI_TTS_VOICE=nova`
+- `GEMINI_API_KEY`
+- `GEMINI_TTS=gemini-3.1-flash-tts-preview`
+- `GEMINI_TTS_VOICE=Orus`
 - `GOOGLE_PLACES_API_KEY` or the fallback aliases `GOOGLE_PLACES_KEY` / `GOOGLE_MAPS_KEY`
 
 After the Render service is live, attach `618food.com` as the custom domain in Cloudflare and set `www.618food.com` to redirect to the root domain.
