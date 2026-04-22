@@ -11,6 +11,8 @@ import {
 import type { ChatTurn, GeneralChatRequest } from './features/local-eats/types';
 
 const LOADING_MESSAGES = ['Thinking...', 'Researching reviews...', 'Searching the internet...'];
+const INITIAL_GREETING =
+  "Hello! I’m 618FOOD.COM. Tell me a town or ZIP, and I’ll find the top restaurants there. If you have a food type in mind, include it for even better results.";
 
 function getAudioSummary(conversation: ChatTurn[]): string {
   const assistantTurns = conversation.filter((turn) => turn.role === 'assistant');
@@ -82,8 +84,7 @@ export default function App(): JSX.Element {
   const [assistantTranscript, setAssistantTranscript] = useState<ChatTurn[]>([
     {
       role: 'assistant',
-      content:
-        "Hello! I’m 618FOOD.COM. Tell me a town or ZIP, and I’ll find the top restaurants there. If you have a food type in mind, include it for even better results."
+      content: INITIAL_GREETING
     }
   ]);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -91,6 +92,8 @@ export default function App(): JSX.Element {
   const [playedResponseContent, setPlayedResponseContent] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [assistantLoadingLabel, setAssistantLoadingLabel] = useState(LOADING_MESSAGES[0]);
+
+  const hasSearched = assistantTranscript.some((turn) => turn.role === 'user');
 
   useEffect(() => {
     return () => {
@@ -230,6 +233,27 @@ export default function App(): JSX.Element {
     }
   }
 
+  function handleResetSearch(): void {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current.src = '';
+      audioRef.current = null;
+    }
+    stopBrowserNarration();
+    setIsPlaying(false);
+    setAudioLoading(false);
+    setAssistantLoading(false);
+    setAssistantLoadingLabel(LOADING_MESSAGES[0]);
+    setPlayedResponseContent(null);
+    setAssistantTranscript([
+      {
+        role: 'assistant',
+        content: INITIAL_GREETING
+      }
+    ]);
+  }
+
   useEffect(() => {
     const latestAssistant = [...assistantTranscript].reverse().find((turn) => turn.role === 'assistant');
     if (latestAssistant?.content && latestAssistant.content !== playedResponseContent) {
@@ -276,9 +300,11 @@ export default function App(): JSX.Element {
             assistantLoading={assistantLoading}
             assistantLoadingLabel={assistantLoadingLabel}
             conversation={assistantTranscript}
+            showSearchInput={!hasSearched}
             sponsoredPlacement={sponsoredMatch?.placement || null}
             sponsoredRestaurant={sponsoredMatch?.restaurant || null}
             onPlay={handlePlaySummary}
+            onResetSearch={handleResetSearch}
             onAskAssistant={handleAssistantChat}
           />
         </section>
