@@ -8,18 +8,12 @@ import {
   request618FoodAudio,
   stopBrowserNarration
 } from './features/local-eats/lib/client';
+import type { FoodAudioResponse } from './features/local-eats/lib/client';
 import type { ChatTurn, GeneralChatRequest } from './features/local-eats/types';
 
 const LOADING_MESSAGES = ['Thinking...', 'Researching reviews...', 'Searching the internet...'];
 const INITIAL_GREETING =
   "Hello! I’m 618FOOD.COM. Tell me a town or ZIP, and I’ll find the top restaurants there. If you have a food type in mind, include it for even better results.";
-
-function normalizeSpeechText(text: string): string {
-  return text
-    .replace(/\b618\s*food\.com\b/gi, '618food.com')
-    .replace(/\b618food\.com\b/gi, '618food.com')
-    .replace(/\b618FOOD\.COM\b/g, '618food.com');
-}
 
 function getAudioSummary(conversation: ChatTurn[]): string {
   const assistantTurns = conversation.filter((turn) => turn.role === 'assistant');
@@ -99,6 +93,17 @@ export default function App(): JSX.Element {
   const [playedResponseContent, setPlayedResponseContent] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const browserSpeechRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const audioCacheRef = useRef<{
+    text: string;
+    audio: FoodAudioResponse | null;
+    promise: Promise<FoodAudioResponse> | null;
+  }>({
+    text: '',
+    audio: null,
+    promise: null
+  });
+  const autoPlayedSummaryRef = useRef('');
+  const [autoPlaybackEnabled, setAutoPlaybackEnabled] = useState(false);
   const [assistantLoadingLabel, setAssistantLoadingLabel] = useState(LOADING_MESSAGES[0]);
 
   const hasSearched = assistantTranscript.some((turn) => turn.role === 'user');
@@ -131,6 +136,67 @@ export default function App(): JSX.Element {
     };
   }, [assistantLoading]);
 
+  useEffect(() => {
+    const enableAutoPlayback = () => {
+      setAutoPlaybackEnabled(true);
+    };
+
+    window.addEventListener('pointerdown', enableAutoPlayback, { once: true, passive: true });
+    window.addEventListener('touchstart', enableAutoPlayback, { once: true, passive: true });
+    window.addEventListener('keydown', enableAutoPlayback, { once: true });
+
+    return () => {
+      window.removeEventListener('pointerdown', enableAutoPlayback);
+      window.removeEventListener('touchstart', enableAutoPlayback);
+      window.removeEventListener('keydown', enableAutoPlayback);
+    };
+  }, []);
+
+  async function prefetchAudio(text: string): Promise<FoodAudioResponse> {
+    const normalizedText = text.trim();
+    if (!normalizedText) {
+      return { fallback: true, text: normalizedText };
+    }
+
+    const cached = audioCacheRef.current;
+    if (cached.text === normalizedText && cached.audio) {
+      return cached.audio;
+    }
+    if (cached.text === normalizedText && cached.promise) {
+      return cached.promise;
+    }
+
+    const request = request618FoodAudio(normalizedText)
+      .then((audio) => {
+        audioCacheRef.current = {
+          text: normalizedText,
+          audio,
+          promise: null
+        };
+        return audio;
+      })
+      .catch(() => {
+        const fallbackAudio: FoodAudioResponse = {
+          fallback: true,
+          text: normalizedText
+        };
+        audioCacheRef.current = {
+          text: normalizedText,
+          audio: fallbackAudio,
+          promise: null
+        };
+        return fallbackAudio;
+      });
+
+    audioCacheRef.current = {
+      text: normalizedText,
+      audio: null,
+      promise: request
+    };
+
+    return request;
+  }
+
   async function handlePlaySummary(): Promise<void> {
     const text = getAudioSummary(assistantTranscript);
     if (!text.trim()) return;
@@ -158,56 +224,10 @@ export default function App(): JSX.Element {
       }
     }
 
-    const browserSpeech = typeof window !== 'undefined' ? window.speechSynthesis : null;
-    if (browserSpeech) {
-      const activeUtterance = browserSpeechRef.current;
-      if (activeUtterance && browserSpeech.paused) {
-        browserSpeech.resume();
-        setIsPlaying(true);
-        return;
-      }
-
-      if (activeUtterance && isPlaying) {
-        browserSpeech.pause();
-        setIsPlaying(false);
-        return;
-      }
-
-      if (activeUtterance) {
-        browserSpeech.cancel();
-        browserSpeechRef.current = null;
-      }
-
-      setPlayedResponseContent(text);
-      setIsPlaying(true);
-      browserSpeech.cancel();
-      const utterance = new SpeechSynthesisUtterance(normalizeSpeechText(text));
-      browserSpeechRef.current = utterance;
-      utterance.rate = 1;
-      utterance.pitch = 1;
-      utterance.volume = 1;
-      utterance.onend = () => {
-        browserSpeechRef.current = null;
-        setIsPlaying(false);
-      };
-      utterance.onerror = () => {
-        browserSpeechRef.current = null;
-        setIsPlaying(false);
-      };
-
-      try {
-        browserSpeech.speak(utterance);
-      } catch {
-        browserSpeechRef.current = null;
-        setIsPlaying(false);
-      }
-      return;
-    }
-
     setAudioLoading(true);
     try {
       setPlayedResponseContent(text);
-      const audio = await request618FoodAudio(text);
+      const audio = await prefetchAudio(text);
       if (audio.audioBase64) {
         if (audioRef.current) {
           audioRef.current.pause();
@@ -294,6 +314,12 @@ export default function App(): JSX.Element {
       audioRef.current.src = '';
       audioRef.current = null;
     }
+    audioCacheRef.current = {
+      text: '',
+      audio: null,
+      promise: null
+    };
+    autoPlayedSummaryRef.current = '';
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
@@ -312,12 +338,18 @@ export default function App(): JSX.Element {
     ]);
   }
 
+  const audioSummary = getAudioSummary(assistantTranscript);
+  const latestAssistantResponse = [...assistantTranscript].reverse().find((turn) => turn.role === 'assistant');
+  const sponsoredMatch = findSponsoredPlacement(latestAssistantResponse?.restaurants || []);
+
   useEffect(() => {
     const latestAssistant = [...assistantTranscript].reverse().find((turn) => turn.role === 'assistant');
     if (latestAssistant?.content && latestAssistant.content !== playedResponseContent) {
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
+        audioRef.current.src = '';
+        audioRef.current = null;
       }
       if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
         window.speechSynthesis.cancel();
@@ -329,9 +361,19 @@ export default function App(): JSX.Element {
     }
   }, [assistantTranscript, playedResponseContent]);
 
-  const audioSummary = getAudioSummary(assistantTranscript);
-  const latestAssistantResponse = [...assistantTranscript].reverse().find((turn) => turn.role === 'assistant');
-  const sponsoredMatch = findSponsoredPlacement(latestAssistantResponse?.restaurants || []);
+  useEffect(() => {
+    const text = audioSummary.trim();
+    if (!text) return;
+    void prefetchAudio(text);
+  }, [audioSummary]);
+
+  useEffect(() => {
+    const text = audioSummary.trim();
+    if (!autoPlaybackEnabled || !text) return;
+    if (autoPlayedSummaryRef.current === text) return;
+    autoPlayedSummaryRef.current = text;
+    void handlePlaySummary();
+  }, [autoPlaybackEnabled, audioSummary]);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.96),_rgba(250,246,236,0.82)_34%,_rgba(236,244,227,0.96)_66%,_rgba(247,241,228,1)_100%)] text-stone-900">
