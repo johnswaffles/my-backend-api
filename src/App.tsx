@@ -14,6 +14,13 @@ const LOADING_MESSAGES = ['Thinking...', 'Researching reviews...', 'Searching th
 const INITIAL_GREETING =
   "Hello! I’m 618FOOD.COM. Tell me a town or ZIP, and I’ll find the top restaurants there. If you have a food type in mind, include it for even better results.";
 
+function normalizeSpeechText(text: string): string {
+  return text
+    .replace(/\b618\s*food\.com\b/gi, '618food.com')
+    .replace(/\b618food\.com\b/gi, '618food.com')
+    .replace(/\b618FOOD\.COM\b/g, '618food.com');
+}
+
 function getAudioSummary(conversation: ChatTurn[]): string {
   const assistantTurns = conversation.filter((turn) => turn.role === 'assistant');
   const latest = assistantTurns.at(-1);
@@ -91,6 +98,7 @@ export default function App(): JSX.Element {
   const [audioLoading, setAudioLoading] = useState(false);
   const [playedResponseContent, setPlayedResponseContent] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const browserSpeechRef = useRef<SpeechSynthesisUtterance | null>(null);
   const [assistantLoadingLabel, setAssistantLoadingLabel] = useState(LOADING_MESSAGES[0]);
 
   const hasSearched = assistantTranscript.some((turn) => turn.role === 'user');
@@ -152,26 +160,47 @@ export default function App(): JSX.Element {
 
     const browserSpeech = typeof window !== 'undefined' ? window.speechSynthesis : null;
     if (browserSpeech) {
-      if (browserSpeech.speaking || browserSpeech.paused) {
-        if (browserSpeech.paused) {
-          browserSpeech.resume();
-          setIsPlaying(true);
-        } else {
-          browserSpeech.pause();
-          setIsPlaying(false);
-        }
+      const activeUtterance = browserSpeechRef.current;
+      if (activeUtterance && browserSpeech.paused) {
+        browserSpeech.resume();
+        setIsPlaying(true);
         return;
+      }
+
+      if (activeUtterance && isPlaying) {
+        browserSpeech.pause();
+        setIsPlaying(false);
+        return;
+      }
+
+      if (activeUtterance) {
+        browserSpeech.cancel();
+        browserSpeechRef.current = null;
       }
 
       setPlayedResponseContent(text);
       setIsPlaying(true);
-      void playBrowserNarration(text)
-        .catch(() => {
-          setIsPlaying(false);
-        })
-        .finally(() => {
-          setIsPlaying(false);
-        });
+      browserSpeech.cancel();
+      const utterance = new SpeechSynthesisUtterance(normalizeSpeechText(text));
+      browserSpeechRef.current = utterance;
+      utterance.rate = 1;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+      utterance.onend = () => {
+        browserSpeechRef.current = null;
+        setIsPlaying(false);
+      };
+      utterance.onerror = () => {
+        browserSpeechRef.current = null;
+        setIsPlaying(false);
+      };
+
+      try {
+        browserSpeech.speak(utterance);
+      } catch {
+        browserSpeechRef.current = null;
+        setIsPlaying(false);
+      }
       return;
     }
 
@@ -265,6 +294,10 @@ export default function App(): JSX.Element {
       audioRef.current.src = '';
       audioRef.current = null;
     }
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    browserSpeechRef.current = null;
     stopBrowserNarration();
     setIsPlaying(false);
     setAudioLoading(false);
@@ -286,6 +319,10 @@ export default function App(): JSX.Element {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
       }
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      browserSpeechRef.current = null;
       stopBrowserNarration();
       setIsPlaying(false);
       setPlayedResponseContent(null);
