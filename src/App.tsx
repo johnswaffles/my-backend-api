@@ -150,6 +150,31 @@ export default function App(): JSX.Element {
       }
     }
 
+    const browserSpeech = typeof window !== 'undefined' ? window.speechSynthesis : null;
+    if (browserSpeech) {
+      if (browserSpeech.speaking || browserSpeech.paused) {
+        if (browserSpeech.paused) {
+          browserSpeech.resume();
+          setIsPlaying(true);
+        } else {
+          browserSpeech.pause();
+          setIsPlaying(false);
+        }
+        return;
+      }
+
+      setPlayedResponseContent(text);
+      setIsPlaying(true);
+      void playBrowserNarration(text)
+        .catch(() => {
+          setIsPlaying(false);
+        })
+        .finally(() => {
+          setIsPlaying(false);
+        });
+      return;
+    }
+
     setAudioLoading(true);
     try {
       setPlayedResponseContent(text);
