@@ -1915,7 +1915,7 @@ export async function runRestaurantAgent({ message, history = [], pageContext = 
 
   if (!likelyRestaurantRequest) {
     return {
-      reply: `Hello! I’m ${FOOD_BRAND}. Tell me a town or ZIP, and I’ll find the top restaurants there.`,
+      reply: `Hello! I’m ${FOOD_BRAND}. Tell me a town or ZIP, and I’ll find the top restaurants there. If you have a food type in mind, include it for even better results.`,
       restaurants: [],
       sources: [],
       requestId: requestLabel
