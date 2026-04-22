@@ -48,7 +48,14 @@ export function findSponsoredPlacement(restaurants: RestaurantAgentRestaurant[] 
   placement: SponsoredPlacement;
   restaurant: RestaurantAgentRestaurant | null;
 } | null {
-  if (!Array.isArray(restaurants) || !restaurants.length) return null;
+  if (!SPONSORED_PLACEMENTS.length) return null;
+
+  if (!Array.isArray(restaurants) || !restaurants.length) {
+    return {
+      placement: SPONSORED_PLACEMENTS[0],
+      restaurant: null
+    };
+  }
 
   for (const placement of SPONSORED_PLACEMENTS) {
     const matchedRestaurant = restaurants.find((restaurant) => restaurantMatchesPlacement(restaurant, placement));
