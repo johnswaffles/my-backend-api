@@ -1,92 +1,12 @@
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { FOOD_BRAND, DEFAULT_SEARCH_FILTERS, normalizeSearchRequest } from '../food/schemas.js';
 import { inferFoodIntent, normalizeComparableText } from '../food/intent.js';
 import { searchGooglePlaces, fetchGooglePlaceDetails, normalizeGooglePlace } from '../food/google-places.js';
 
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 const MAX_TOOL_ROUNDS = 6;
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const WRITEUPS_PATH = path.join(__dirname, '..', '..', 'data', 'restaurant-writeups.json');
-let WRITEUP_LIBRARY = null;
 
 function log(requestId, message) {
   console.log(`[restaurant-agent:${requestId}] ${message}`);
-}
-
-function loadWriteupLibrary() {
-  if (WRITEUP_LIBRARY) return WRITEUP_LIBRARY;
-  try {
-    const raw = fs.readFileSync(WRITEUPS_PATH, 'utf8');
-    const parsed = JSON.parse(raw);
-    WRITEUP_LIBRARY = Array.isArray(parsed) ? parsed.filter((item) => item && typeof item === 'object') : [];
-  } catch {
-    WRITEUP_LIBRARY = [];
-  }
-  return WRITEUP_LIBRARY;
-}
-
-function normalizeWriteupText(value) {
-  return normalizeComparableText(String(value || ''))
-    .replace(/\billinois\b/g, 'il')
-    .replace(/\bmt\b/g, 'mount');
-}
-
-function isStrongWriteupMatch(restaurant, entry) {
-  const match = entry.match && typeof entry.match === 'object' ? entry.match : {};
-  const restaurantName = normalizeWriteupText(restaurant?.name || restaurant?.displayName || '');
-  const restaurantAddress = normalizeWriteupText(restaurant?.formatted_address || '');
-  const restaurantCity = normalizeWriteupText(restaurant?.city || '');
-  const restaurantPhone = normalizeWriteupText(restaurant?.phone || '');
-  const entryName = normalizeWriteupText(match.name || '');
-  const entryAddress = normalizeWriteupText(match.address || '');
-  const entryCity = normalizeWriteupText(match.city || '');
-  const entryPhone = normalizeWriteupText(match.phone || '');
-  const aliases = Array.isArray(match.aliases) ? match.aliases.map((value) => normalizeWriteupText(value)).filter(Boolean) : [];
-
-  if (match.place_id && normalizeWriteupText(match.place_id) === normalizeWriteupText(restaurant?.place_id || '')) {
-    return true;
-  }
-
-  if (entryName && restaurantName === entryName) return true;
-  if (aliases.includes(restaurantName)) return true;
-  if (entryPhone && restaurantPhone && entryPhone === restaurantPhone) return true;
-
-  if (entryAddress && restaurantAddress) {
-    const addressParts = [entryAddress, entryCity].filter(Boolean).join(' ').trim();
-    if (addressParts && restaurantAddress.includes(addressParts)) return true;
-    if (restaurantAddress.includes(entryAddress)) return true;
-  }
-
-  if (entryName && entryAddress && restaurantName === entryName && restaurantAddress.includes(entryAddress)) {
-    return true;
-  }
-
-  if (entryName && entryCity && restaurantName === entryName && restaurantCity && restaurantCity.includes(entryCity)) {
-    return true;
-  }
-
-  return false;
-}
-
-function matchRestaurantWriteup(restaurant) {
-  const library = loadWriteupLibrary();
-  if (!library.length || !restaurant) return null;
-
-  for (const entry of library) {
-    if (isStrongWriteupMatch(restaurant, entry)) {
-      return {
-        title: String(entry.title || '').trim() || `#1 pick: ${restaurant.name}`,
-        writeup: String(entry.writeup || '').trim(),
-        notes: String(entry.notes || '').trim() || '',
-        source: 'editorial'
-      };
-    }
-  }
-
-  return null;
 }
 
 function getOpenAiKey() {
@@ -403,15 +323,12 @@ async function runSpecificPlaceLookup({
   };
 
   const websiteSignals = restaurant.website ? await fetchWebsiteSignals(restaurant.website, requestId) : null;
-  const editorialWriteup = matchRestaurantWriteup(restaurant);
-  const featuredWriteup =
-    editorialWriteup?.writeup ||
-    buildFeaturedWriteup({
-      restaurant,
-      locationText: intent?.inferredLocation || String(pageContext?.pageSummary || '').trim(),
-      cuisineText: intent?.inferredCuisine || '',
-      websiteSignals
-    });
+  const featuredWriteup = buildFeaturedWriteup({
+    restaurant,
+    locationText: intent?.inferredLocation || String(pageContext?.pageSummary || '').trim(),
+    cuisineText: intent?.inferredCuisine || '',
+    websiteSignals
+  });
 
   const sources = buildSources([restaurant]);
   const locationLabel = restaurant.city || intent?.inferredLocation || 'that area';
@@ -429,7 +346,6 @@ async function runSpecificPlaceLookup({
   const reply = [
     `Here’s ${restaurant.name} in ${locationLabel}.`,
     detailsBits.length ? detailsBits.join(' • ') : 'I found the place and pulled its verified details.',
-    editorialWriteup?.writeup ? 'I also added a custom writeup for this one.' : ''
   ].filter(Boolean).join(' ');
 
   return {
@@ -2030,10 +1946,8 @@ export async function runRestaurantAgent({ message, history = [], pageContext = 
 
   const sources = buildSources(finalResultRestaurants);
   const topRestaurant = finalResultRestaurants[0] || null;
-  const editorialWriteup = topRestaurant ? matchRestaurantWriteup(topRestaurant) : null;
   const featuredWriteup = finalResultRestaurants.length
-    ? (editorialWriteup?.writeup ||
-        await generateTopSpotWriteup({
+    ? (await generateTopSpotWriteup({
           apiKey,
           model: process.env.OPENAI_MODEL || 'gpt-5.4',
           restaurant: finalResultRestaurants[0],
@@ -2046,7 +1960,7 @@ export async function runRestaurantAgent({ message, history = [], pageContext = 
 
   log(
     requestLabel,
-    `done restaurants=${finalResultRestaurants.length} sources=${sources.length} warnings=${context.warnings.length} editorial=${Boolean(editorialWriteup)}`
+    `done restaurants=${finalResultRestaurants.length} sources=${sources.length} warnings=${context.warnings.length}`
   );
 
   return {
