@@ -67,9 +67,15 @@ export function SponsoredPlacementAd({ placement, restaurant }: SponsoredPlaceme
             ×
           </button>
 
-          <div className="relative aspect-[16/10] overflow-hidden bg-stone-900 sm:aspect-[21/9]">
+          <div className="relative aspect-square overflow-hidden bg-stone-900">
             {imageUrl ? (
-              <img src={imageUrl} alt={placement.title} className="h-full w-full object-cover" />
+              <div className="flex h-full w-full items-center justify-center bg-black">
+                <img
+                  src={imageUrl}
+                  alt={placement.title}
+                  className="h-full w-full object-contain"
+                />
+              </div>
             ) : (
               <div className="flex h-full w-full items-end bg-[radial-gradient(circle_at_top_right,_rgba(255,176,53,0.4),_transparent_34%),linear-gradient(135deg,_#101010,_#1f4d39_54%,_#0f172a)] p-4 text-white">
                 <div>
