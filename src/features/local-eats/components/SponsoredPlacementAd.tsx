@@ -55,8 +55,8 @@ export function SponsoredPlacementAd({ placement, restaurant }: SponsoredPlaceme
   }
 
   return (
-    <aside className="fixed inset-x-4 bottom-4 z-50 sm:inset-x-auto sm:right-6 sm:bottom-6 sm:w-[360px]">
-      <div className="overflow-hidden rounded-[1.5rem] border border-stone-200 bg-white shadow-[0_20px_55px_rgba(44,64,37,0.22)]">
+    <aside className="mt-4 w-full">
+      <div className="overflow-hidden rounded-[1.5rem] border border-stone-200 bg-white shadow-[0_20px_55px_rgba(44,64,37,0.14)]">
         <div className="relative">
           <button
             type="button"
@@ -67,13 +67,9 @@ export function SponsoredPlacementAd({ placement, restaurant }: SponsoredPlaceme
             ×
           </button>
 
-          <div className="relative h-44 overflow-hidden bg-stone-900">
+          <div className="relative aspect-[16/10] overflow-hidden bg-stone-900 sm:aspect-[21/9]">
             {imageUrl ? (
-              <img
-                src={imageUrl}
-                alt={placement.title}
-                className="h-full w-full object-cover"
-              />
+              <img src={imageUrl} alt={placement.title} className="h-full w-full object-cover" />
             ) : (
               <div className="flex h-full w-full items-end bg-[radial-gradient(circle_at_top_right,_rgba(255,176,53,0.4),_transparent_34%),linear-gradient(135deg,_#101010,_#1f4d39_54%,_#0f172a)] p-4 text-white">
                 <div>
@@ -90,9 +86,7 @@ export function SponsoredPlacementAd({ placement, restaurant }: SponsoredPlaceme
               </div>
             )}
 
-            {!imageUrl ? (
-              <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/35 to-transparent" />
-            ) : null}
+            {!imageUrl ? <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/35 to-transparent" /> : null}
           </div>
         </div>
 
