@@ -40,15 +40,16 @@ function normalizeSpeechSummary(text: string): string {
 }
 
 function getAudioSummary(conversation: ChatTurn[]): string {
-  const userTurns = conversation.filter((turn) => turn.role === 'user');
-  if (!userTurns.length) {
+  const latestWithResults = [...conversation]
+    .reverse()
+    .find((turn) => turn.role === 'assistant' && (turn.featuredWriteup || turn.restaurants?.length));
+
+  if (!latestWithResults) {
     return '';
   }
 
-  const assistantTurns = conversation.filter((turn) => turn.role === 'assistant');
-  const latest = assistantTurns.at(-1);
   return normalizeSpeechSummary(
-    latest?.featuredWriteup || latest?.restaurants?.[0]?.summary || latest?.content || ''
+    latestWithResults.featuredWriteup || latestWithResults.restaurants?.[0]?.summary || ''
   );
 }
 
