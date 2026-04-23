@@ -9,6 +9,12 @@ function log(requestId, message) {
   console.log(`[restaurant-agent:${requestId}] ${message}`);
 }
 
+function normalizeWriteupText(value) {
+  return normalizeComparableText(String(value || ''))
+    .replace(/\billinois\b/g, 'il')
+    .replace(/\bmt\b/g, 'mount');
+}
+
 function getOpenAiKey() {
   return (process.env.OPENAI_API_KEY || '').trim();
 }
