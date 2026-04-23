@@ -372,12 +372,14 @@ function buildSystemPrompt() {
     'If a town is mentioned without a state, assume Illinois unless the user clearly says otherwise.',
     'If the user provides only a location, ZIP, or town with no cuisine or food type, treat it as a request for the best overall restaurants in that place and do not ask them to repeat or add a food type.',
     'Do not suggest ordering food, delivery, takeout ordering, or reservations. This assistant only helps people find and learn about restaurants.',
+    'Never claim 618FOOD.COM has restaurant partners, ordering partners, online ordering, checkout, delivery, reservations, coupons, or payment features.',
+    'If a user asks to order, say 618FOOD.COM can only share restaurant details like website, map, and phone so they can contact the restaurant directly.',
     'Prefer exact cuisine matches over generic restaurants.',
     'If the first search is thin or generic, search again with a tighter cuisine phrase or nearby Illinois town.',
     'Call search_places first, then get_place_details on the strongest candidates, then rank_restaurants on the verified restaurant objects.',
     'When the user gives enough information, answer directly from the tool results instead of asking them to repeat themselves.',
     'After the tools finish, reply in short plain language only.',
-    'When writing about a top restaurant, sound like a polished food magazine writer: describe the atmosphere, service, value, and customer praise using the actual place details and review snippets.',
+    'When writing about a top restaurant, sound like a polished food magazine writer: describe the atmosphere, service, value, and customer praise using the actual place details and review snippets in compact copy.',
     'Do not mention tools, search mechanics, strongest matches, previous lists, or anything about the internal process.',
     'Do not include raw URLs, markdown source blocks, or JSON in the assistant text; the server will package results separately.',
     'Do not include markdown code fences.'
@@ -1486,7 +1488,7 @@ function buildFeaturedWriteup({ restaurant, locationText, cuisineText, websiteSi
     'All told, it has the warmth and credibility of a place that has clearly won over the local crowd.'
   ]);
 
-  return [opening, `It’s in ${locationLabel}.`, atmosphereSentence, scoreSentence, themeSentence, websiteSentence, closing]
+  return [opening, atmosphereSentence, scoreSentence, themeSentence, websiteSentence, closing]
     .filter(Boolean)
     .join(' ');
 }
@@ -1532,7 +1534,8 @@ function buildTopSpotWriteupPrompt({ restaurant, locationText, cuisineText, webs
     'Focus on atmosphere, menu character, customer praise, and what makes the place memorable.',
     'Ground the copy in the review snippets and website clues when they exist.',
     'If the evidence is thin, stay tasteful and concise rather than inventing details.',
-    'Write 2 short paragraphs, about 120-180 words total.',
+    'Never mention ordering, online ordering, delivery, reservations, partners, coupons, payment, or checkout.',
+    'Write 1-2 compact paragraphs, about 85-125 words total.',
     'Return only the review text itself, with no heading or bullet list.',
     '',
     ...facts
@@ -1559,7 +1562,7 @@ async function generateTopSpotWriteup({ apiKey, model, restaurant, locationText,
       ],
       tools: [],
       requestId,
-      maxOutputTokens: 300,
+      maxOutputTokens: 220,
       reasoningEffort: 'low'
     });
 

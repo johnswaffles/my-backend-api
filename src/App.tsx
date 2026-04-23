@@ -332,7 +332,8 @@ export default function App(): JSX.Element {
           pageContext: {
             brand: FOOD_BRAND,
             pageTitle: '618FOOD.COM',
-            pageSummary: 'A restaurant finder focused on real places and customer experience.',
+            pageSummary:
+              'A restaurant finder focused on real places and customer experience. It does not provide ordering, reservations, delivery, checkout, or partner services.',
             ...recentRestaurantContext
           }
         });

@@ -220,7 +220,6 @@ export function VoiceWidgetPanel(): JSX.Element {
   const [statusLabel, setStatusLabel] = useState('PRESS TO CHAT');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [searchLocked, setSearchLocked] = useState(false);
-  const [voicePulseTick, setVoicePulseTick] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const textInputRef = useRef<HTMLInputElement | null>(null);
   const transcriptRef = useRef('');
@@ -257,19 +256,6 @@ export function VoiceWidgetPanel(): JSX.Element {
     if (!messageListRef.current) return;
     messageListRef.current.scrollTop = messageListRef.current.scrollHeight;
   }, [conversation, assistantLoading]);
-
-  useEffect(() => {
-    if (!voiceActive) {
-      setVoicePulseTick(0);
-      return;
-    }
-
-    const interval = window.setInterval(() => {
-      setVoicePulseTick((current) => current + 1);
-    }, 140);
-
-    return () => window.clearInterval(interval);
-  }, [voiceActive]);
 
   useEffect(() => {
     if (isCollapsed) return;
@@ -338,15 +324,6 @@ export function VoiceWidgetPanel(): JSX.Element {
         track.enabled = enabled;
       });
     }
-  }
-
-  function getVoiceBarHeight(base: number, phase: number, amplitude: number): string {
-    if (!voiceActive) {
-      return `${base}px`;
-    }
-
-    const wave = (Math.sin(voicePulseTick * 0.6 + phase) + 1) / 2;
-    return `${base + Math.round(wave * amplitude)}px`;
   }
 
   async function ensureRealtimeBridge(): Promise<void> {
@@ -638,7 +615,8 @@ export function VoiceWidgetPanel(): JSX.Element {
         pageContext: {
           brand: FOOD_BRAND,
           pageTitle: '618FOOD.COM',
-          pageSummary: 'A restaurant finder focused on real places and customer experience.',
+          pageSummary:
+            'A restaurant finder focused on real places and customer experience. It does not provide ordering, reservations, delivery, checkout, or partner services.',
           ...recentRestaurantContext
         }
       });
@@ -817,7 +795,6 @@ export function VoiceWidgetPanel(): JSX.Element {
     setAssistantLoadingLabel(LOADING_MESSAGES[0]);
     setIsMuted(false);
     setSearchLocked(false);
-    setVoicePulseTick(0);
     setDraftText('');
     setConversation([
       {
@@ -902,31 +879,37 @@ export function VoiceWidgetPanel(): JSX.Element {
               aria-label={isListening ? 'Stop listening' : isPlaying ? 'Pause playback' : 'Press to talk'}
             >
               <span className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_50%_38%,rgba(255,255,255,0.05),transparent_60%)]" />
-              <div className="absolute inset-0 flex flex-col items-center justify-center rounded-full">
-                <div className="text-[11px] font-semibold uppercase tracking-[0.32em] text-white/45">
+              <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden rounded-full">
+                <span className="absolute inset-6 rounded-full border border-cyan-300/10 bg-[radial-gradient(circle_at_50%_35%,rgba(34,211,238,0.12),transparent_58%)]" />
+                <span className="absolute left-9 right-9 top-10 h-px bg-gradient-to-r from-transparent via-cyan-200/50 to-transparent" />
+                <div className="relative z-10 min-h-[14px] text-[10px] font-semibold uppercase tracking-[0.3em] text-white/45">
                   {statusLabel}
                 </div>
-                <div className="mt-4 flex items-end gap-1">
+                <div
+                  className={`relative z-10 mt-4 h-16 w-24 rounded-[1.4rem] border bg-[linear-gradient(145deg,rgba(4,10,18,0.96),rgba(8,19,28,0.98))] shadow-[inset_0_0_22px_rgba(255,255,255,0.05)] transition ${
+                    voiceActive
+                      ? 'border-cyan-300/35 shadow-[0_0_28px_rgba(34,211,238,0.18),inset_0_0_22px_rgba(255,255,255,0.05)]'
+                      : 'border-white/10'
+                  }`}
+                  aria-hidden="true"
+                >
+                  <span className="absolute left-4 right-4 top-4 h-3 rounded-full border border-cyan-200/15 bg-cyan-300/5 shadow-[inset_0_0_12px_rgba(34,211,238,0.12)]" />
                   <span
-                    className="w-1.5 rounded-full bg-cyan-400/80 transition-all duration-150 ease-in-out"
-                    style={{ height: getVoiceBarHeight(18, 0.2, 18) }}
+                    className={`absolute left-6 top-[1.05rem] h-1.5 w-5 rounded-full bg-cyan-300 shadow-[0_0_14px_rgba(34,211,238,0.8)] ${
+                      voiceActive ? 'animate-pulse' : 'opacity-70'
+                    }`}
                   />
                   <span
-                    className="w-1.5 rounded-full bg-white/20 transition-all duration-150 ease-in-out"
-                    style={{ height: getVoiceBarHeight(22, 1.3, 26) }}
+                    className={`absolute right-6 top-[1.05rem] h-1.5 w-5 rounded-full bg-emerald-300 shadow-[0_0_14px_rgba(52,211,153,0.75)] ${
+                      voiceActive ? 'animate-pulse' : 'opacity-70'
+                    }`}
                   />
-                  <span
-                    className="w-1.5 rounded-full bg-fuchsia-400/70 transition-all duration-150 ease-in-out"
-                    style={{ height: getVoiceBarHeight(16, 2.1, 20) }}
-                  />
-                  <span
-                    className="w-1.5 rounded-full bg-white/15 transition-all duration-150 ease-in-out"
-                    style={{ height: getVoiceBarHeight(24, 3.2, 30) }}
-                  />
-                  <span
-                    className="w-1.5 rounded-full bg-emerald-400/80 transition-all duration-150 ease-in-out"
-                    style={{ height: getVoiceBarHeight(14, 4.4, 22) }}
-                  />
+                  <span className="absolute left-7 right-7 top-9 h-px bg-gradient-to-r from-transparent via-fuchsia-300/55 to-transparent" />
+                  <span className="absolute bottom-4 left-5 h-1 w-2 rounded-full bg-white/20" />
+                  <span className={`absolute bottom-4 left-9 h-1 w-2 rounded-full bg-cyan-300/70 ${voiceActive ? 'animate-pulse' : ''}`} />
+                  <span className="absolute bottom-4 left-[3.25rem] h-1 w-2 rounded-full bg-white/20" />
+                  <span className={`absolute bottom-4 right-9 h-1 w-2 rounded-full bg-fuchsia-300/70 ${voiceActive ? 'animate-pulse' : ''}`} />
+                  <span className="absolute bottom-4 right-5 h-1 w-2 rounded-full bg-white/20" />
                 </div>
               </div>
             </button>

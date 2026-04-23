@@ -543,7 +543,7 @@ app.post('/api/realtime-token', async (_req, res) => {
         model,
         voice,
         instructions:
-          'You are the realtime voice layer for 618FOOD.COM. Speak clearly and naturally. When asked to read text, read it exactly as written without adding extra commentary.',
+          'You are the realtime voice layer for 618FOOD.COM. Speak clearly and naturally. When asked to read text, read it exactly as written without adding extra commentary. Never add claims about ordering, delivery, reservations, checkout, coupons, or restaurant partners.',
         input_audio_transcription: { model: 'whisper-1' },
         turn_detection: {
           type: 'server_vad',
