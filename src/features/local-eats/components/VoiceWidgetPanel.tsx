@@ -212,6 +212,7 @@ export function VoiceWidgetPanel(): JSX.Element {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const recognitionRef = useRef<any | null>(null);
+  const textInputRef = useRef<HTMLInputElement | null>(null);
   const transcriptRef = useRef('');
   const audioCacheRef = useRef<{
     text: string;
@@ -245,6 +246,12 @@ export function VoiceWidgetPanel(): JSX.Element {
     if (!messageListRef.current) return;
     messageListRef.current.scrollTop = messageListRef.current.scrollHeight;
   }, [conversation, assistantLoading]);
+
+  useEffect(() => {
+    if (isCollapsed) return;
+    if (isListening || assistantLoading) return;
+    textInputRef.current?.focus();
+  }, [assistantLoading, isCollapsed, isListening]);
 
   useEffect(() => {
     return () => {
@@ -596,6 +603,7 @@ export function VoiceWidgetPanel(): JSX.Element {
 
   function openIfClosed(): void {
     hadUserGestureRef.current = true;
+    textInputRef.current?.focus();
   }
 
   return (
@@ -647,33 +655,42 @@ export function VoiceWidgetPanel(): JSX.Element {
         </div>
       ) : (
         <div className="flex flex-1 flex-col">
-          <div className="relative mx-auto mt-6 flex h-[150px] w-[150px] items-center justify-center">
+          <div className="relative mx-auto mt-6 flex h-[184px] w-[184px] items-center justify-center">
             <div className="absolute inset-[-28px] rounded-full bg-[conic-gradient(from_120deg,_rgba(34,211,238,0.08),_rgba(168,85,247,0.14),_rgba(236,72,153,0.12),_rgba(34,211,238,0.08))] blur-3xl" />
-            <div className="absolute inset-0 rounded-full border border-white/10 bg-[radial-gradient(circle_at_35%_30%,rgba(255,255,255,0.08),rgba(0,0,0,1)_70%)] shadow-[0_0_40px_rgba(34,211,238,0.1),inset_0_0_24px_rgba(255,255,255,0.04)]" />
-            <div className="absolute inset-0 flex flex-col items-center justify-center rounded-full">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.32em] text-white/45">
-                {statusLabel}
-              </div>
-              <div className="mt-4 flex items-end gap-1">
-                <span className={`h-5 w-1.5 rounded-full bg-cyan-400/80 ${isListening || isPlaying ? 'animate-pulse' : ''}`} />
+            <button
+              type="button"
+              onClick={toggleVoice}
+              className={`absolute inset-[14px] rounded-full border border-white/10 bg-[radial-gradient(circle_at_35%_30%,rgba(255,255,255,0.08),rgba(0,0,0,1)_70%)] shadow-[0_0_40px_rgba(34,211,238,0.1),inset_0_0_24px_rgba(255,255,255,0.04)] transition hover:scale-[1.01] focus:outline-none focus:ring-4 focus:ring-emerald-400/10 ${
+                isListening || isPlaying ? 'scale-[1.01]' : ''
+              }`}
+              aria-label={isListening ? 'Stop listening' : isPlaying ? 'Pause playback' : 'Press to talk'}
+            >
+              <span className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_50%_38%,rgba(255,255,255,0.05),transparent_60%)]" />
+              <div className="absolute inset-0 flex flex-col items-center justify-center rounded-full">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.32em] text-white/45">
+                  {statusLabel}
+                </div>
+                <div className="mt-4 flex items-end gap-1">
+                  <span className={`h-5 w-1.5 rounded-full bg-cyan-400/80 ${isListening || isPlaying ? 'animate-pulse' : ''}`} />
                 <span className={`h-9 w-1.5 rounded-full bg-white/20 ${isListening ? 'animate-pulse' : ''}`} />
                 <span className={`h-6 w-1.5 rounded-full bg-fuchsia-400/70 ${isListening || isPlaying ? 'animate-pulse' : ''}`} />
                 <span className={`h-11 w-1.5 rounded-full bg-white/15 ${isListening ? 'animate-pulse' : ''}`} />
-                <span className={`h-4 w-1.5 rounded-full bg-emerald-400/80 ${isListening || isPlaying ? 'animate-pulse' : ''}`} />
+                  <span className={`h-4 w-1.5 rounded-full bg-emerald-400/80 ${isListening || isPlaying ? 'animate-pulse' : ''}`} />
+                </div>
               </div>
-            </div>
+            </button>
 
             <button
               type="button"
               onClick={toggleVoice}
-              className={`absolute bottom-6 left-0 flex h-12 w-12 items-center justify-center rounded-full border text-xl shadow-[0_0_0_2px_rgba(32,185,96,0.2)] transition ${
+              className={`absolute bottom-4 left-[-14px] flex h-14 w-14 items-center justify-center rounded-full border text-xl shadow-[0_0_0_2px_rgba(32,185,96,0.2)] transition ${
                 isListening
                   ? 'border-emerald-300 bg-emerald-500 text-white shadow-[0_0_0_3px_rgba(34,197,94,0.2),0_0_16px_rgba(34,197,94,0.4)]'
                   : isPlaying
                     ? 'border-cyan-300 bg-cyan-500 text-white shadow-[0_0_0_3px_rgba(6,182,212,0.18),0_0_16px_rgba(6,182,212,0.35)]'
                     : 'border-emerald-400/30 bg-emerald-500/90 text-white hover:bg-emerald-400'
               }`}
-              aria-label={isListening ? 'Stop listening' : isPlaying ? 'Stop speaking' : 'Start talking'}
+              aria-label={isListening ? 'Stop listening' : isPlaying ? 'Pause playback' : 'Start talking'}
             >
               🎤
             </button>
@@ -681,7 +698,7 @@ export function VoiceWidgetPanel(): JSX.Element {
             <button
               type="button"
               onClick={resetWidget}
-              className="absolute bottom-6 right-0 rounded-[1.1rem] border border-white/15 bg-white/8 px-3.5 py-3 text-sm font-semibold text-white/90 shadow-[0_0_0_1px_rgba(255,255,255,0.04)] transition hover:bg-white/12"
+              className="absolute bottom-4 right-[-14px] rounded-[1.1rem] border border-white/15 bg-white/8 px-3.5 py-3 text-sm font-semibold text-white/90 shadow-[0_0_0_1px_rgba(255,255,255,0.04)] transition hover:bg-white/12"
             >
               NEW
             </button>
@@ -773,9 +790,13 @@ export function VoiceWidgetPanel(): JSX.Element {
               Chat with 618FOOD.COM
             </div>
             <input
+              ref={textInputRef}
               value={draftText}
               onChange={(event) => setDraftText(event.target.value)}
               placeholder="Type a message..."
+              onPointerDown={() => {
+                hadUserGestureRef.current = true;
+              }}
               className="mt-2 h-12 w-full rounded-full border border-white/10 bg-black/55 px-4 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-emerald-400/30 focus:ring-4 focus:ring-emerald-400/10"
             />
           </form>
