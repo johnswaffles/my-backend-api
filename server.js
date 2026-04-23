@@ -524,6 +524,58 @@ app.post('/api/food/audio', async (req, res) => {
   }
 });
 
+app.post('/api/realtime-token', async (_req, res) => {
+  try {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: 'OPENAI_API_KEY is not configured on server.' });
+    }
+
+    const model = process.env.OPENAI_REALTIME_MODEL || process.env.OPENAI_LIVE_MODEL || 'gpt-realtime-1.5';
+    const voice = process.env.OPENAI_REALTIME_VOICE || 'echo';
+    const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model,
+        voice,
+        instructions:
+          'You are the realtime voice layer for 618FOOD.COM. Speak clearly and naturally. When asked to read text, read it exactly as written without adding extra commentary.',
+        input_audio_transcription: { model: 'whisper-1' },
+        turn_detection: {
+          type: 'server_vad',
+          threshold: 0.72,
+          prefix_padding_ms: 350,
+          silence_duration_ms: 1800
+        },
+        tools: []
+      })
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      return res.status(response.status).json({
+        error: 'OpenAI realtime token request failed',
+        details: data
+      });
+    }
+
+    return res.json({
+      ...data,
+      model,
+      voice
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: 'Unable to generate OpenAI Realtime token.',
+      details: String(error.message || error)
+    });
+  }
+});
+
 app.get('/health', (_req, res) => {
   res.json({ ok: true });
 });

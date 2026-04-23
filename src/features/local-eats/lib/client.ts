@@ -52,6 +52,26 @@ export async function request618FoodAudio(text: string): Promise<FoodAudioRespon
   return parseJsonResponse<FoodAudioResponse>(response);
 }
 
+export interface RealtimeTokenResponse {
+  client_secret?: {
+    value?: string;
+    expires_at?: number;
+  };
+  model?: string;
+  voice?: string;
+}
+
+export async function request618RealtimeToken(): Promise<RealtimeTokenResponse> {
+  const response = await fetch('/api/realtime-token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
+
+  return parseJsonResponse<RealtimeTokenResponse>(response);
+}
+
 export async function ask618Chat(request: GeneralChatRequest): Promise<GeneralChatResponse> {
   const response = await fetch('/api/chat', {
     method: 'POST',

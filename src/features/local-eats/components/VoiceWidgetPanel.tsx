@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ask618Chat, playBrowserNarration, request618FoodAudio, stopBrowserNarration } from '../lib/client';
+import { ask618Chat, playBrowserNarration, request618RealtimeToken } from '../lib/client';
 import { FOOD_BRAND } from '../schemas';
 import type {
   ChatTurn,
@@ -12,6 +12,15 @@ const INITIAL_GREETING =
   "Hello! I’m 618FOOD.COM. Press the mic or type a town or ZIP, and I’ll help you find the top restaurants.";
 const LOADING_MESSAGES = ['Thinking...', 'Researching reviews...', 'Searching the internet...'];
 const MAX_AUDIO_CHARS = 900;
+
+type RealtimeBridgeState = {
+  pc: RTCPeerConnection | null;
+  dc: RTCDataChannel | null;
+  stream: MediaStream | null;
+  audioEl: HTMLAudioElement | null;
+  readyPromise: Promise<void> | null;
+  pendingSpeakText: string | null;
+};
 
 function normalizeSpeechSummary(text: string): string {
   const compact = text
@@ -214,14 +223,13 @@ export function VoiceWidgetPanel(): JSX.Element {
   const recognitionRef = useRef<any | null>(null);
   const textInputRef = useRef<HTMLInputElement | null>(null);
   const transcriptRef = useRef('');
-  const audioCacheRef = useRef<{
-    text: string;
-    audio: { audioBase64?: string; mimeType?: string; text?: string; fallback?: boolean } | null;
-    promise: Promise<{ audioBase64?: string; mimeType?: string; text?: string; fallback?: boolean }> | null;
-  }>({
-    text: '',
-    audio: null,
-    promise: null
+  const realtimeBridgeRef = useRef<RealtimeBridgeState>({
+    pc: null,
+    dc: null,
+    stream: null,
+    audioEl: null,
+    readyPromise: null,
+    pendingSpeakText: null
   });
   const messageListRef = useRef<HTMLDivElement | null>(null);
   const hadUserGestureRef = useRef(false);
@@ -255,11 +263,7 @@ export function VoiceWidgetPanel(): JSX.Element {
 
   useEffect(() => {
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = '';
-      }
-      stopBrowserNarration();
+      stopRealtimeBridge();
       if (recognitionRef.current) {
         try {
           recognitionRef.current.abort?.();
@@ -277,49 +281,227 @@ export function VoiceWidgetPanel(): JSX.Element {
       .replace(/\b618FOOD\.COM\b/g, '618food.com');
   }
 
-  async function prefetchAudio(text: string): Promise<{ audioBase64?: string; mimeType?: string; text?: string; fallback?: boolean }> {
-    const normalizedText = text.trim();
-    if (!normalizedText) {
-      return { fallback: true, text: normalizedText };
+  function stopRealtimeBridge(): void {
+    const bridge = realtimeBridgeRef.current;
+
+    if (bridge.audioEl) {
+      bridge.audioEl.pause();
+      bridge.audioEl.srcObject = null;
+      bridge.audioEl.remove();
     }
 
-    const cached = audioCacheRef.current;
-    if (cached.text === normalizedText && cached.audio) {
-      return cached.audio;
-    }
-    if (cached.text === normalizedText && cached.promise) {
-      return cached.promise;
+    if (bridge.pc) {
+      try {
+        bridge.pc.close();
+      } catch {
+        // ignore
+      }
     }
 
-    const request = request618FoodAudio(normalizedText)
-      .then((audio) => {
-        audioCacheRef.current = {
-          text: normalizedText,
-          audio,
-          promise: null
-        };
-        return audio;
-      })
-      .catch(() => {
-        const fallbackAudio = {
-          fallback: true,
-          text: normalizedText
-        };
-        audioCacheRef.current = {
-          text: normalizedText,
-          audio: fallbackAudio,
-          promise: null
-        };
-        return fallbackAudio;
+    if (bridge.stream) {
+      bridge.stream.getTracks().forEach((track) => track.stop());
+    }
+
+    audioRef.current = null;
+    realtimeBridgeRef.current = {
+      pc: null,
+      dc: null,
+      stream: null,
+      audioEl: null,
+      readyPromise: null,
+      pendingSpeakText: null
+    };
+    setIsPlaying(false);
+    setAudioLoading(false);
+  }
+
+  async function ensureRealtimeBridge(): Promise<void> {
+    const bridge = realtimeBridgeRef.current;
+    if (
+      bridge.pc &&
+      bridge.dc &&
+      bridge.pc.connectionState !== 'closed' &&
+      bridge.pc.connectionState !== 'failed'
+    ) {
+      if (bridge.readyPromise) {
+        await bridge.readyPromise;
+      }
+      return;
+    }
+
+    if (bridge.readyPromise) {
+      await bridge.readyPromise;
+      return;
+    }
+
+    const readyPromise = (async () => {
+      const token = await request618RealtimeToken();
+      const clientSecret = token.client_secret?.value;
+      if (!clientSecret) {
+        throw new Error('Missing realtime client secret.');
+      }
+
+      const audioConstraints: MediaTrackConstraints & Record<string, boolean> = {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        googEchoCancellation: true,
+        googNoiseSuppression: true,
+        googAutoGainControl: true
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: audioConstraints
       });
 
-    audioCacheRef.current = {
-      text: normalizedText,
-      audio: null,
-      promise: request
-    };
+      stream.getAudioTracks().forEach((track) => {
+        track.enabled = false;
+      });
 
-    return request;
+      const pc = new RTCPeerConnection();
+      const audioEl = document.createElement('audio');
+      audioEl.autoplay = true;
+      audioEl.setAttribute('playsinline', 'true');
+      audioEl.preload = 'auto';
+      audioEl.muted = false;
+      audioEl.setAttribute('aria-hidden', 'true');
+      audioEl.style.display = 'none';
+      document.body.appendChild(audioEl);
+
+      audioEl.onplay = () => {
+        setIsPlaying(true);
+      };
+      audioEl.onended = () => {
+        setIsPlaying(false);
+        if (!assistantLoading && !isListening) {
+          setStatusLabel('READY');
+        }
+      };
+      audioEl.onerror = () => {
+        setIsPlaying(false);
+        if (!assistantLoading && !isListening) {
+          setStatusLabel('READY');
+        }
+      };
+
+      pc.ontrack = async (event) => {
+        audioEl.srcObject = event.streams[0];
+        try {
+          await audioEl.play();
+        } catch {
+          // ignore autoplay retry noise
+        }
+      };
+      pc.onconnectionstatechange = () => {
+        if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) {
+          if (!assistantLoading && !isListening) {
+            setStatusLabel('READY');
+          }
+        }
+      };
+
+      pc.addTrack(stream.getAudioTracks()[0], stream);
+
+      const dc = pc.createDataChannel('oai-events');
+      dc.onopen = () => {
+        const pendingSpeakText = realtimeBridgeRef.current.pendingSpeakText;
+        if (pendingSpeakText) {
+          realtimeBridgeRef.current.pendingSpeakText = null;
+          sendRealtimeSpeech(pendingSpeakText).catch(() => {
+            // ignore flush failures
+          });
+        }
+      };
+      dc.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          if (message?.type === 'response.done') {
+            setAudioLoading(false);
+            setIsPlaying(false);
+            if (!assistantLoading && !isListening) {
+              setStatusLabel('READY');
+            }
+          }
+        } catch {
+          // ignore malformed realtime events
+        }
+      };
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      const realtimeModel = token.model || 'gpt-realtime-1.5';
+      const realtimeResponse = await fetch(`https://api.openai.com/v1/realtime?model=${encodeURIComponent(realtimeModel)}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${clientSecret}`,
+          'Content-Type': 'application/sdp'
+        },
+        body: offer.sdp
+      });
+
+      if (!realtimeResponse.ok) {
+        throw new Error('OpenAI Realtime handshake failed.');
+      }
+
+      const answerSdp = await realtimeResponse.text();
+      await pc.setRemoteDescription({ type: 'answer', sdp: answerSdp });
+
+      realtimeBridgeRef.current = {
+        pc,
+        dc,
+        stream,
+        audioEl,
+        readyPromise: null,
+        pendingSpeakText: null
+      };
+      audioRef.current = audioEl;
+    })()
+      .catch((error) => {
+        stopRealtimeBridge();
+        throw error;
+      })
+      .finally(() => {
+        if (realtimeBridgeRef.current.readyPromise === readyPromise) {
+          realtimeBridgeRef.current.readyPromise = null;
+        }
+      });
+
+    realtimeBridgeRef.current.readyPromise = readyPromise;
+    await readyPromise;
+  }
+
+  async function sendRealtimeSpeech(text: string): Promise<void> {
+    const normalizedText = normalizeSpeechText(text.trim());
+    if (!normalizedText || isMuted) return;
+
+    await ensureRealtimeBridge();
+    const bridge = realtimeBridgeRef.current;
+    if (!bridge.dc || bridge.dc.readyState !== 'open') {
+      bridge.pendingSpeakText = normalizedText;
+      return;
+    }
+
+    bridge.dc.send(
+      JSON.stringify({
+        type: 'conversation.item.create',
+        item: {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text: normalizedText }]
+        }
+      })
+    );
+
+    bridge.dc.send(
+      JSON.stringify({
+        type: 'response.create',
+        response: {
+          instructions:
+            `Read the following text exactly as written in a warm, natural voice. Do not add commentary or change the wording.\n\n${normalizedText}`
+        }
+      })
+    );
   }
 
   async function playSummaryText(text: string): Promise<void> {
@@ -330,51 +512,28 @@ export function VoiceWidgetPanel(): JSX.Element {
     const currentAudio = audioRef.current;
     if (currentAudio && isPlaying) {
       currentAudio.pause();
-      stopBrowserNarration();
       setIsPlaying(false);
-      return;
     }
 
     setAudioLoading(true);
     setStatusLabel('SPEAKING...');
     try {
-      const audio = await prefetchAudio(normalizedText);
-      if (audio.audioBase64) {
-        if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current = null;
-        }
-        const mimeType = audio.mimeType || 'audio/mpeg';
-        const player = new Audio(`data:${mimeType};base64,${audio.audioBase64}`);
-        player.onplay = () => setIsPlaying(true);
-        player.onended = () => {
-          setIsPlaying(false);
-          if (!assistantLoading && !isListening) {
-            setStatusLabel('READY');
-          }
-        };
-        player.onerror = () => {
-          setIsPlaying(false);
-          if (!assistantLoading && !isListening) {
-            setStatusLabel('READY');
-          }
-        };
-        audioRef.current = player;
-        await player.play();
-        return;
+      await sendRealtimeSpeech(normalizedText);
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
       }
-
-      await playBrowserNarration(normalizedText);
-      setIsPlaying(true);
     } catch {
       try {
-        await playBrowserNarration(normalizedText);
         setIsPlaying(true);
+        await playBrowserNarration(normalizedText);
       } catch {
         setIsPlaying(false);
         if (!assistantLoading && !isListening) {
           setStatusLabel('READY');
         }
+      } finally {
+        setIsPlaying(false);
       }
     } finally {
       setAudioLoading(false);
@@ -404,6 +563,7 @@ export function VoiceWidgetPanel(): JSX.Element {
     const nextConversation: ChatTurn[] = [...historyBeforeMessage, { role: 'user', content: message }];
     const recentRestaurantContext = getRecentRestaurantContext(historyBeforeMessage);
     setConversation(nextConversation);
+    void ensureRealtimeBridge();
 
     try {
       const assistant: GeneralChatResponse = await ask618Chat({
@@ -425,7 +585,6 @@ export function VoiceWidgetPanel(): JSX.Element {
         featuredWriteup: assistant.featuredWriteup || ''
       };
       const assistantAudioText = getAudioSummary([...historyBeforeMessage, assistantTurn]);
-      void prefetchAudio(assistantAudioText);
       setConversation((current) => [...current, assistantTurn]);
 
       if (!isMuted && hadUserGestureRef.current && assistantAudioText) {
@@ -469,6 +628,7 @@ export function VoiceWidgetPanel(): JSX.Element {
     setIsMuted(false);
     setIsListening(true);
     setStatusLabel('LISTENING...');
+    void ensureRealtimeBridge();
     transcriptRef.current = '';
     setDraftText('');
 
@@ -541,7 +701,6 @@ export function VoiceWidgetPanel(): JSX.Element {
 
     if (isPlaying && audioRef.current) {
       audioRef.current.pause();
-      stopBrowserNarration();
       setIsPlaying(false);
       return;
     }
@@ -557,7 +716,6 @@ export function VoiceWidgetPanel(): JSX.Element {
           audioRef.current.pause();
           audioRef.current.currentTime = 0;
         }
-        stopBrowserNarration();
         setIsPlaying(false);
       }
       return next;
@@ -566,18 +724,13 @@ export function VoiceWidgetPanel(): JSX.Element {
 
   function resetWidget(): void {
     stopListening();
+    stopRealtimeBridge();
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
-      audioRef.current.src = '';
+      audioRef.current.srcObject = null;
       audioRef.current = null;
     }
-    stopBrowserNarration();
-    audioCacheRef.current = {
-      text: '',
-      audio: null,
-      promise: null
-    };
     setIsPlaying(false);
     setAudioLoading(false);
     setAssistantLoading(false);
