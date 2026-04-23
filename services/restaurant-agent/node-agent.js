@@ -371,6 +371,7 @@ function buildSystemPrompt() {
     'Never invent restaurants, addresses, phone numbers, websites, ratings, or hours.',
     'If a town is mentioned without a state, assume Illinois unless the user clearly says otherwise.',
     'If the user provides only a location, ZIP, or town with no cuisine or food type, treat it as a request for the best overall restaurants in that place and do not ask them to repeat or add a food type.',
+    'Do not suggest ordering food, delivery, takeout ordering, or reservations. This assistant only helps people find and learn about restaurants.',
     'Prefer exact cuisine matches over generic restaurants.',
     'If the first search is thin or generic, search again with a tighter cuisine phrase or nearby Illinois town.',
     'Call search_places first, then get_place_details on the strongest candidates, then rank_restaurants on the verified restaurant objects.',
@@ -1837,7 +1838,7 @@ export async function runRestaurantAgent({ message, history = [], pageContext = 
 
   if (!likelyRestaurantRequest) {
     return {
-      reply: `Hello! I’m ${FOOD_BRAND}. Tell me a town or ZIP, and I’ll find the top restaurants there. If you have a food type in mind, include it for even better results.`,
+      reply: `Hello! I’m ${FOOD_BRAND}. Just tell me a town and what kind of food you want, and I’ll find the top restaurants.`,
       restaurants: [],
       sources: [],
       requestId: requestLabel

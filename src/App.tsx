@@ -15,7 +15,7 @@ import type { ChatTurn, GeneralChatRequest } from './features/local-eats/types';
 
 const LOADING_MESSAGES = ['Thinking...', 'Researching reviews...', 'Searching the internet...'];
 const INITIAL_GREETING =
-  "Hello! I’m 618FOOD.COM. Tell me a town or ZIP, and I’ll find the top restaurants there. If you have a food type in mind, include it for even better results.";
+  "Hello! I’m 618FOOD.COM. Just tell me a town and what kind of food you want, and I’ll find the top restaurants.";
 const MAX_AUDIO_CHARS = 900;
 
 function getNormalizedPathname(): string {

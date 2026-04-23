@@ -9,7 +9,7 @@ import type {
 } from '../types';
 
 const INITIAL_GREETING =
-  "Hello! I’m 618FOOD.COM. Press the mic or type a town or ZIP, and I’ll help you find the top restaurants.";
+  "Hello! I’m 618FOOD.COM. Just tell me a town and what kind of food you want, and I’ll find the top restaurants.";
 const LOADING_MESSAGES = ['Thinking...', 'Researching reviews...', 'Searching the internet...'];
 const MAX_AUDIO_CHARS = 900;
 
@@ -219,6 +219,8 @@ export function VoiceWidgetPanel(): JSX.Element {
   const [isListening, setIsListening] = useState(false);
   const [statusLabel, setStatusLabel] = useState('PRESS TO CHAT');
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [searchLocked, setSearchLocked] = useState(false);
+  const [voicePulseTick, setVoicePulseTick] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const textInputRef = useRef<HTMLInputElement | null>(null);
   const transcriptRef = useRef('');
@@ -233,6 +235,7 @@ export function VoiceWidgetPanel(): JSX.Element {
   const messageListRef = useRef<HTMLDivElement | null>(null);
   const hadUserGestureRef = useRef(false);
   const legacyRecognitionRef = useRef<any | null>(null);
+  const voiceActive = assistantLoading || isListening || isPlaying;
 
   useEffect(() => {
     let index = 0;
@@ -256,10 +259,23 @@ export function VoiceWidgetPanel(): JSX.Element {
   }, [conversation, assistantLoading]);
 
   useEffect(() => {
+    if (!voiceActive) {
+      setVoicePulseTick(0);
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      setVoicePulseTick((current) => current + 1);
+    }, 140);
+
+    return () => window.clearInterval(interval);
+  }, [voiceActive]);
+
+  useEffect(() => {
     if (isCollapsed) return;
-    if (isListening || assistantLoading) return;
+    if (isListening || assistantLoading || searchLocked) return;
     textInputRef.current?.focus();
-  }, [assistantLoading, isCollapsed, isListening]);
+  }, [assistantLoading, isCollapsed, isListening, searchLocked]);
 
   useEffect(() => {
     return () => {
@@ -322,6 +338,15 @@ export function VoiceWidgetPanel(): JSX.Element {
         track.enabled = enabled;
       });
     }
+  }
+
+  function getVoiceBarHeight(base: number, phase: number, amplitude: number): string {
+    if (!voiceActive) {
+      return `${base}px`;
+    }
+
+    const wave = (Math.sin(voicePulseTick * 0.6 + phase) + 1) / 2;
+    return `${base + Math.round(wave * amplitude)}px`;
   }
 
   async function ensureRealtimeBridge(): Promise<void> {
@@ -548,6 +573,7 @@ export function VoiceWidgetPanel(): JSX.Element {
   }
 
   async function startVoiceSession(): Promise<void> {
+    if (searchLocked) return;
     hadUserGestureRef.current = true;
     setIsMuted(false);
     setIsListening(true);
@@ -583,6 +609,7 @@ export function VoiceWidgetPanel(): JSX.Element {
     if (!message) return;
 
     hadUserGestureRef.current = true;
+    setSearchLocked(true);
     if (legacyRecognitionRef.current) {
       try {
         legacyRecognitionRef.current.abort?.();
@@ -595,6 +622,7 @@ export function VoiceWidgetPanel(): JSX.Element {
     setDraftText('');
     setAssistantLoading(true);
     setStatusLabel('THINKING...');
+    setRealtimeMicEnabled(false);
 
     const historyBeforeMessage = conversation;
     const historyForApi = buildChatHistoryForApi(historyBeforeMessage);
@@ -647,7 +675,7 @@ export function VoiceWidgetPanel(): JSX.Element {
   }
 
   function startListening(): void {
-    if (assistantLoading) return;
+    if (assistantLoading || searchLocked) return;
     void startVoiceSession().catch(() => {
       const recognition = createSpeechRecognition();
       if (!recognition) {
@@ -740,6 +768,14 @@ export function VoiceWidgetPanel(): JSX.Element {
       return;
     }
 
+    if (searchLocked) {
+      if (isPlaying && audioRef.current) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+      }
+      return;
+    }
+
     if (isPlaying && audioRef.current) {
       audioRef.current.pause();
       setIsPlaying(false);
@@ -780,6 +816,8 @@ export function VoiceWidgetPanel(): JSX.Element {
     setAssistantLoading(false);
     setAssistantLoadingLabel(LOADING_MESSAGES[0]);
     setIsMuted(false);
+    setSearchLocked(false);
+    setVoicePulseTick(0);
     setDraftText('');
     setConversation([
       {
@@ -793,6 +831,7 @@ export function VoiceWidgetPanel(): JSX.Element {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
+    if (searchLocked) return;
     const next = draftText.trim();
     if (!next) return;
     void sendAssistantMessage(next);
@@ -868,11 +907,26 @@ export function VoiceWidgetPanel(): JSX.Element {
                   {statusLabel}
                 </div>
                 <div className="mt-4 flex items-end gap-1">
-                  <span className={`h-5 w-1.5 rounded-full bg-cyan-400/80 ${isListening || isPlaying ? 'animate-pulse' : ''}`} />
-                <span className={`h-9 w-1.5 rounded-full bg-white/20 ${isListening ? 'animate-pulse' : ''}`} />
-                <span className={`h-6 w-1.5 rounded-full bg-fuchsia-400/70 ${isListening || isPlaying ? 'animate-pulse' : ''}`} />
-                <span className={`h-11 w-1.5 rounded-full bg-white/15 ${isListening ? 'animate-pulse' : ''}`} />
-                  <span className={`h-4 w-1.5 rounded-full bg-emerald-400/80 ${isListening || isPlaying ? 'animate-pulse' : ''}`} />
+                  <span
+                    className="w-1.5 rounded-full bg-cyan-400/80 transition-all duration-150 ease-in-out"
+                    style={{ height: getVoiceBarHeight(18, 0.2, 18) }}
+                  />
+                  <span
+                    className="w-1.5 rounded-full bg-white/20 transition-all duration-150 ease-in-out"
+                    style={{ height: getVoiceBarHeight(22, 1.3, 26) }}
+                  />
+                  <span
+                    className="w-1.5 rounded-full bg-fuchsia-400/70 transition-all duration-150 ease-in-out"
+                    style={{ height: getVoiceBarHeight(16, 2.1, 20) }}
+                  />
+                  <span
+                    className="w-1.5 rounded-full bg-white/15 transition-all duration-150 ease-in-out"
+                    style={{ height: getVoiceBarHeight(24, 3.2, 30) }}
+                  />
+                  <span
+                    className="w-1.5 rounded-full bg-emerald-400/80 transition-all duration-150 ease-in-out"
+                    style={{ height: getVoiceBarHeight(14, 4.4, 22) }}
+                  />
                 </div>
               </div>
             </button>
@@ -895,7 +949,7 @@ export function VoiceWidgetPanel(): JSX.Element {
               onClick={resetWidget}
               className="absolute bottom-4 right-[-14px] rounded-[1.1rem] border border-white/15 bg-white/8 px-3.5 py-3 text-sm font-semibold text-white/90 shadow-[0_0_0_1px_rgba(255,255,255,0.04)] transition hover:bg-white/12"
             >
-              NEW
+              NEW CHAT
             </button>
           </div>
 
@@ -966,7 +1020,7 @@ export function VoiceWidgetPanel(): JSX.Element {
                 </div>
               ) : (
                 <div className="rounded-[1.1rem] border border-dashed border-white/10 bg-white/4 px-4 py-4 text-sm text-white/55">
-                  Ask for a town or ZIP, and 618FOOD.COM will find the top restaurants.
+                  Ask for a town and food type, and 618FOOD.COM will find the top restaurants.
                 </div>
               )}
 
@@ -980,21 +1034,32 @@ export function VoiceWidgetPanel(): JSX.Element {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="border-t border-white/10 bg-[linear-gradient(180deg,rgba(10,12,13,0.96),rgba(6,8,9,0.98))] px-4 py-4">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">
-              Chat with 618FOOD.COM
+          {searchLocked ? (
+            <div className="border-t border-white/10 bg-[linear-gradient(180deg,rgba(10,12,13,0.96),rgba(6,8,9,0.98))] px-4 py-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">
+                New Chat Required
+              </div>
+              <div className="mt-2 rounded-full border border-white/10 bg-black/55 px-4 py-3 text-sm text-white/72">
+                Search complete. Tap New Chat to start a new town and food search.
+              </div>
             </div>
-            <input
-              ref={textInputRef}
-              value={draftText}
-              onChange={(event) => setDraftText(event.target.value)}
-              placeholder="Type a message..."
-              onPointerDown={() => {
-                hadUserGestureRef.current = true;
-              }}
-              className="mt-2 h-12 w-full rounded-full border border-white/10 bg-black/55 px-4 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-emerald-400/30 focus:ring-4 focus:ring-emerald-400/10"
-            />
-          </form>
+          ) : (
+            <form onSubmit={handleSubmit} className="border-t border-white/10 bg-[linear-gradient(180deg,rgba(10,12,13,0.96),rgba(6,8,9,0.98))] px-4 py-4">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">
+                Chat with 618FOOD.COM
+              </div>
+              <input
+                ref={textInputRef}
+                value={draftText}
+                onChange={(event) => setDraftText(event.target.value)}
+                placeholder="Type a message..."
+                onPointerDown={() => {
+                  hadUserGestureRef.current = true;
+                }}
+                className="mt-2 h-12 w-full rounded-full border border-white/10 bg-black/55 px-4 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-emerald-400/30 focus:ring-4 focus:ring-emerald-400/10"
+              />
+            </form>
+          )}
         </div>
       )}
     </div>
