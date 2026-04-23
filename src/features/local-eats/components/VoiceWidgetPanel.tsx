@@ -220,7 +220,6 @@ export function VoiceWidgetPanel(): JSX.Element {
   const [statusLabel, setStatusLabel] = useState('PRESS TO CHAT');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const recognitionRef = useRef<any | null>(null);
   const textInputRef = useRef<HTMLInputElement | null>(null);
   const transcriptRef = useRef('');
   const realtimeBridgeRef = useRef<RealtimeBridgeState>({
@@ -233,6 +232,7 @@ export function VoiceWidgetPanel(): JSX.Element {
   });
   const messageListRef = useRef<HTMLDivElement | null>(null);
   const hadUserGestureRef = useRef(false);
+  const legacyRecognitionRef = useRef<any | null>(null);
 
   useEffect(() => {
     let index = 0;
@@ -264,9 +264,9 @@ export function VoiceWidgetPanel(): JSX.Element {
   useEffect(() => {
     return () => {
       stopRealtimeBridge();
-      if (recognitionRef.current) {
+      if (legacyRecognitionRef.current) {
         try {
-          recognitionRef.current.abort?.();
+          legacyRecognitionRef.current.abort?.();
         } catch {
           // ignore
         }
@@ -315,6 +315,15 @@ export function VoiceWidgetPanel(): JSX.Element {
     setAudioLoading(false);
   }
 
+  function setRealtimeMicEnabled(enabled: boolean): void {
+    const bridge = realtimeBridgeRef.current;
+    if (bridge.stream) {
+      bridge.stream.getAudioTracks().forEach((track) => {
+        track.enabled = enabled;
+      });
+    }
+  }
+
   async function ensureRealtimeBridge(): Promise<void> {
     const bridge = realtimeBridgeRef.current;
     if (
@@ -352,10 +361,6 @@ export function VoiceWidgetPanel(): JSX.Element {
 
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: audioConstraints
-      });
-
-      stream.getAudioTracks().forEach((track) => {
-        track.enabled = false;
       });
 
       const pc = new RTCPeerConnection();
@@ -415,6 +420,12 @@ export function VoiceWidgetPanel(): JSX.Element {
       dc.onmessage = (event) => {
         try {
           const message = JSON.parse(event.data);
+          if (message?.type === 'conversation.item.input_audio_transcription.completed') {
+            const transcript = String(message.transcript || '').trim();
+            if (transcript) {
+              void sendAssistantMessage(transcript);
+            }
+          }
           if (message?.type === 'response.done') {
             setAudioLoading(false);
             setIsPlaying(false);
@@ -519,10 +530,6 @@ export function VoiceWidgetPanel(): JSX.Element {
     setStatusLabel('SPEAKING...');
     try {
       await sendRealtimeSpeech(normalizedText);
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
     } catch {
       try {
         setIsPlaying(true);
@@ -540,18 +547,49 @@ export function VoiceWidgetPanel(): JSX.Element {
     }
   }
 
+  async function startVoiceSession(): Promise<void> {
+    hadUserGestureRef.current = true;
+    setIsMuted(false);
+    setIsListening(true);
+    setStatusLabel('LISTENING...');
+
+    try {
+      await ensureRealtimeBridge();
+      setRealtimeMicEnabled(true);
+      const bridge = realtimeBridgeRef.current;
+      if (bridge.audioEl) {
+        try {
+          await bridge.audioEl.play();
+        } catch {
+          // ignore autoplay retry noise
+        }
+      }
+    } catch {
+      stopRealtimeBridge();
+      setIsListening(false);
+      setStatusLabel('READY');
+      throw new Error('Unable to start realtime voice session.');
+    }
+  }
+
+  function stopVoiceSession(): void {
+    stopListening();
+    stopRealtimeBridge();
+    setStatusLabel('READY');
+  }
+
   async function sendAssistantMessage(text: string): Promise<void> {
     const message = text.trim();
     if (!message) return;
 
     hadUserGestureRef.current = true;
-    if (recognitionRef.current) {
+    if (legacyRecognitionRef.current) {
       try {
-        recognitionRef.current.abort?.();
+        legacyRecognitionRef.current.abort?.();
       } catch {
         // ignore
       }
-      recognitionRef.current = null;
+      legacyRecognitionRef.current = null;
     }
     setIsListening(false);
     setDraftText('');
@@ -610,84 +648,87 @@ export function VoiceWidgetPanel(): JSX.Element {
 
   function startListening(): void {
     if (assistantLoading) return;
-    const recognition = createSpeechRecognition();
-    if (!recognition) {
-      setConversation((current) => [
-        ...current,
-        {
-          role: 'assistant',
-          content: 'Speech recognition is not available in this browser. You can still type in the box below.',
-          sources: [],
-          restaurants: []
-        }
-      ]);
-      return;
-    }
-
-    hadUserGestureRef.current = true;
-    setIsMuted(false);
-    setIsListening(true);
-    setStatusLabel('LISTENING...');
-    void ensureRealtimeBridge();
-    transcriptRef.current = '';
-    setDraftText('');
-
-    recognition.lang = 'en-US';
-    recognition.interimResults = true;
-    recognition.continuous = false;
-
-    recognition.onresult = (event: any) => {
-      let finalText = '';
-      let interimText = '';
-      for (let i = event.resultIndex; i < event.results.length; i += 1) {
-        const result = event.results[i];
-        const transcript = String(result?.[0]?.transcript || '').trim();
-        if (!transcript) continue;
-        if (result.isFinal) {
-          finalText += `${transcript} `;
-        } else {
-          interimText += `${transcript} `;
-        }
+    void startVoiceSession().catch(() => {
+      const recognition = createSpeechRecognition();
+      if (!recognition) {
+        setConversation((current) => [
+          ...current,
+          {
+            role: 'assistant',
+            content: 'Speech recognition is not available in this browser. You can still type in the box below.',
+            sources: [],
+            restaurants: []
+          }
+        ]);
+        setIsListening(false);
+        setStatusLabel('READY');
+        return;
       }
 
-      const combined = `${transcriptRef.current} ${finalText}`.trim();
-      if (finalText.trim()) {
-        transcriptRef.current = combined;
-      }
-
-      setDraftText((combined || interimText).trim());
-    };
-
-    recognition.onerror = () => {
-      setIsListening(false);
-      setStatusLabel('READY');
-      recognitionRef.current = null;
+      // Legacy fallback when realtime startup is unavailable.
+      setIsMuted(false);
+      setIsListening(true);
+      setStatusLabel('LISTENING...');
       transcriptRef.current = '';
-    };
+      setDraftText('');
 
-    recognition.onend = () => {
-      recognitionRef.current = null;
-      setIsListening(false);
-      setStatusLabel('READY');
-      const transcript = transcriptRef.current.trim();
-      transcriptRef.current = '';
-      if (transcript) {
-        void sendAssistantMessage(transcript);
-      }
-    };
+      recognition.lang = 'en-US';
+      recognition.interimResults = true;
+      recognition.continuous = false;
 
-    recognitionRef.current = recognition;
-    recognition.start();
+      recognition.onresult = (event: any) => {
+        let finalText = '';
+        let interimText = '';
+        for (let i = event.resultIndex; i < event.results.length; i += 1) {
+          const result = event.results[i];
+          const transcript = String(result?.[0]?.transcript || '').trim();
+          if (!transcript) continue;
+          if (result.isFinal) {
+            finalText += `${transcript} `;
+          } else {
+            interimText += `${transcript} `;
+          }
+        }
+
+        const combined = `${transcriptRef.current} ${finalText}`.trim();
+        if (finalText.trim()) {
+          transcriptRef.current = combined;
+        }
+
+        setDraftText((combined || interimText).trim());
+      };
+
+      recognition.onerror = () => {
+        setIsListening(false);
+        setStatusLabel('READY');
+        legacyRecognitionRef.current = null;
+        transcriptRef.current = '';
+      };
+
+      recognition.onend = () => {
+        legacyRecognitionRef.current = null;
+        setIsListening(false);
+        setStatusLabel('READY');
+        const transcript = transcriptRef.current.trim();
+        transcriptRef.current = '';
+        if (transcript) {
+          void sendAssistantMessage(transcript);
+        }
+      };
+
+      legacyRecognitionRef.current = recognition;
+      recognition.start();
+    });
   }
 
   function stopListening(): void {
-    if (!recognitionRef.current) return;
+    if (!legacyRecognitionRef.current) return;
     try {
-      recognitionRef.current.abort?.();
+      legacyRecognitionRef.current.abort?.();
     } catch {
       // ignore
     }
-    recognitionRef.current = null;
+    legacyRecognitionRef.current = null;
     transcriptRef.current = '';
     setIsListening(false);
     setStatusLabel('READY');
@@ -695,7 +736,7 @@ export function VoiceWidgetPanel(): JSX.Element {
 
   function toggleVoice(): void {
     if (isListening) {
-      stopListening();
+      stopVoiceSession();
       return;
     }
 
@@ -711,11 +752,14 @@ export function VoiceWidgetPanel(): JSX.Element {
   function handleMuteToggle(): void {
     setIsMuted((current) => {
       const next = !current;
-      if (next) {
-        if (audioRef.current) {
+      if (audioRef.current) {
+        if (next) {
           audioRef.current.pause();
           audioRef.current.currentTime = 0;
         }
+      }
+      setRealtimeMicEnabled(!next);
+      if (next) {
         setIsPlaying(false);
       }
       return next;
@@ -835,15 +879,13 @@ export function VoiceWidgetPanel(): JSX.Element {
 
             <button
               type="button"
-              onClick={toggleVoice}
+              onClick={handleMuteToggle}
               className={`absolute bottom-4 left-[-14px] flex h-14 w-14 items-center justify-center rounded-full border text-xl shadow-[0_0_0_2px_rgba(32,185,96,0.2)] transition ${
-                isListening
-                  ? 'border-emerald-300 bg-emerald-500 text-white shadow-[0_0_0_3px_rgba(34,197,94,0.2),0_0_16px_rgba(34,197,94,0.4)]'
-                  : isPlaying
-                    ? 'border-cyan-300 bg-cyan-500 text-white shadow-[0_0_0_3px_rgba(6,182,212,0.18),0_0_16px_rgba(6,182,212,0.35)]'
-                    : 'border-emerald-400/30 bg-emerald-500/90 text-white hover:bg-emerald-400'
+                isMuted
+                  ? 'border-rose-300 bg-rose-500 text-white shadow-[0_0_0_3px_rgba(244,63,94,0.18),0_0_16px_rgba(244,63,94,0.3)]'
+                  : 'border-emerald-400/30 bg-emerald-500/90 text-white hover:bg-emerald-400'
               }`}
-              aria-label={isListening ? 'Stop listening' : isPlaying ? 'Pause playback' : 'Start talking'}
+              aria-label={isMuted ? 'Unmute microphone' : 'Mute microphone'}
             >
               🎤
             </button>
