@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AudioStrip } from './features/local-eats/components/AudioStrip';
+import { FoodWidgetPage } from './features/local-eats/components/FoodWidgetPage';
 import { FOOD_BRAND } from './features/local-eats/schemas';
 import { findSponsoredPlacement } from './features/local-eats/data/sponsoredPlacements';
 import {
@@ -177,6 +178,7 @@ export default function App(): JSX.Element {
   }, [assistantLoading]);
 
   useEffect(() => {
+    if (isWidgetPage) return;
     const enableAutoPlayback = () => {
       setAutoPlaybackEnabled(true);
     };
@@ -416,6 +418,7 @@ export default function App(): JSX.Element {
   }
 
   useEffect(() => {
+    if (isWidgetPage) return;
     const latestAssistant = [...assistantTranscript].reverse().find((turn) => turn.role === 'assistant');
     if (latestAssistant?.content && latestAssistant.content !== playedResponseContent) {
       if (audioRef.current) {
@@ -435,18 +438,24 @@ export default function App(): JSX.Element {
   }, [assistantTranscript, playedResponseContent]);
 
   useEffect(() => {
+    if (isWidgetPage) return;
     const text = audioSummary.trim();
     if (!text || !hasSearched) return;
     void prefetchAudio(text);
   }, [audioSummary, hasSearched]);
 
   useEffect(() => {
+    if (isWidgetPage) return;
     const text = audioSummary.trim();
     if (!autoPlaybackEnabled || !hasSearched || !text) return;
     if (autoPlayedSummaryRef.current === text) return;
     autoPlayedSummaryRef.current = text;
     void handlePlaySummary();
   }, [autoPlaybackEnabled, audioSummary, hasSearched]);
+
+  if (isWidgetPage) {
+    return <FoodWidgetPage />;
+  }
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.96),_rgba(250,246,236,0.82)_34%,_rgba(236,244,227,0.96)_66%,_rgba(247,241,228,1)_100%)] text-stone-900">

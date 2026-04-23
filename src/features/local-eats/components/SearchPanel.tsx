@@ -33,7 +33,7 @@ const FILTER_OPTIONS: Array<{ value: 'localOnly' | 'dogFriendly' | 'patio'; labe
   { value: 'patio', label: 'Patio seating', description: 'Prioritize places with outdoor seating.' }
 ];
 
-const TOWN_OPTIONS = [
+export const TOWN_OPTIONS = [
   'Marion, IL',
   'Carbondale, IL',
   'Harrisburg, IL',
