@@ -16,6 +16,12 @@ const INITIAL_GREETING =
   "Hello! I’m 618FOOD.COM. Tell me a town or ZIP, and I’ll find the top restaurants there. If you have a food type in mind, include it for even better results.";
 const MAX_AUDIO_CHARS = 900;
 
+function getNormalizedPathname(): string {
+  if (typeof window === 'undefined') return '/';
+  const normalized = window.location.pathname.replace(/\/+$/, '');
+  return normalized || '/';
+}
+
 function normalizeSpeechSummary(text: string): string {
   const compact = text
     .replace(/\s+/g, ' ')
@@ -113,6 +119,7 @@ function getRecentRestaurantContext(conversation: ChatTurn[]): NonNullable<Gener
 }
 
 export default function App(): JSX.Element {
+  const [currentPath, setCurrentPath] = useState(getNormalizedPathname);
   const [assistantLoading, setAssistantLoading] = useState(false);
   const [assistantTranscript, setAssistantTranscript] = useState<ChatTurn[]>([
     {
@@ -137,6 +144,7 @@ export default function App(): JSX.Element {
   const autoPlayedSummaryRef = useRef('');
   const [autoPlaybackEnabled, setAutoPlaybackEnabled] = useState(false);
   const [assistantLoadingLabel, setAssistantLoadingLabel] = useState(LOADING_MESSAGES[0]);
+  const isWidgetPage = currentPath === '/widget';
 
   const hasSearched = assistantTranscript.some((turn) => turn.role === 'user');
 
@@ -182,6 +190,12 @@ export default function App(): JSX.Element {
       window.removeEventListener('touchstart', enableAutoPlayback);
       window.removeEventListener('keydown', enableAutoPlayback);
     };
+  }, []);
+
+  useEffect(() => {
+    const handlePopState = () => setCurrentPath(getNormalizedPathname());
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   async function prefetchAudio(text: string): Promise<FoodAudioResponse> {
@@ -383,6 +397,24 @@ export default function App(): JSX.Element {
   const latestAssistantResponse = [...assistantTranscript].reverse().find((turn) => turn.role === 'assistant');
   const sponsoredMatch = findSponsoredPlacement(latestAssistantResponse?.restaurants || []);
 
+  function renderPageTitle(): JSX.Element {
+    return (
+      <div className="flex items-center gap-3">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-700 text-lg font-black text-white shadow-[0_16px_30px_rgba(22,83,44,0.18)]">
+          618
+        </div>
+        <div>
+          <div className="font-display text-2xl font-semibold tracking-tight text-[#173528] sm:text-3xl">
+            {FOOD_BRAND}
+          </div>
+          <div className="mt-1 text-xs font-medium uppercase tracking-[0.24em] text-stone-500">
+            {isWidgetPage ? 'Compact widget' : 'Restaurant finder'}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   useEffect(() => {
     const latestAssistant = [...assistantTranscript].reverse().find((turn) => turn.role === 'assistant');
     if (latestAssistant?.content && latestAssistant.content !== playedResponseContent) {
@@ -421,23 +453,51 @@ export default function App(): JSX.Element {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(111,162,98,0.24),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(206,179,95,0.18),_transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.42),rgba(255,255,255,0))]" />
       <div className="pointer-events-none absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg viewBox=%270 0 200 200%27 xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cfilter id=%27n%27%3E%3CfeTurbulence type=%27fractalNoise%27 baseFrequency=%270.9%27 numOctaves=%274%27 stitchTiles=%27stitch%27/%3E%3C/filter%3E%3Crect width=%27100%25%27 height=%27100%25%27 filter=%27url(%23n)%27 opacity=%270.14%27/%3E%3C/svg%3E')] opacity-25" />
 
-      <main className="relative mx-auto flex min-h-screen w-full max-w-[1080px] flex-col gap-5 px-4 py-4 sm:px-5 sm:py-5 lg:px-6">
+      <main
+        className={`relative mx-auto flex min-h-screen w-full flex-col gap-5 px-4 py-4 sm:px-5 sm:py-5 lg:px-6 ${
+          isWidgetPage ? 'max-w-5xl' : 'max-w-[1080px]'
+        }`}
+      >
         <header className="rounded-[2rem] border border-white/70 bg-white/72 px-4 py-4 shadow-[0_18px_55px_rgba(61,79,42,0.12)] backdrop-blur-2xl">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-700 text-lg font-black text-white shadow-[0_16px_30px_rgba(22,83,44,0.18)]">
-                618
-              </div>
-              <div>
-                <div className="font-display text-2xl font-semibold tracking-tight text-[#173528] sm:text-3xl">
-                  {FOOD_BRAND}
-                </div>
-              </div>
+            {renderPageTitle()}
+            <div className="flex flex-wrap gap-2">
+              <a
+                href={isWidgetPage ? '/' : '/widget'}
+                className="rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-50"
+              >
+                {isWidgetPage ? 'Home' : 'Widget'}
+              </a>
             </div>
           </div>
         </header>
 
-        <section className="mx-auto w-full max-w-3xl">
+        <section className={`mx-auto w-full ${isWidgetPage ? 'max-w-2xl' : 'max-w-3xl'}`}>
+          {isWidgetPage ? (
+            <div className="mb-4 rounded-[1.7rem] border border-white/80 bg-white/70 p-5 shadow-[0_14px_40px_rgba(62,84,50,0.08)] backdrop-blur-xl">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-800">
+                618FOOD Widget
+              </div>
+              <div className="mt-2 text-2xl font-semibold tracking-tight text-stone-900">
+                A compact restaurant finder for any website.
+              </div>
+              <p className="mt-3 max-w-xl text-sm leading-6 text-stone-600">
+                Ask for a town or ZIP, add a food type for tighter results, and the widget will return the top local picks in a clean
+                embedded layout.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-semibold text-stone-600">
+                  Town or ZIP
+                </span>
+                <span className="rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-semibold text-stone-600">
+                  Food type optional
+                </span>
+                <span className="rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-semibold text-stone-600">
+                  Top results plus audio
+                </span>
+              </div>
+            </div>
+          ) : null}
           <AudioStrip
             summary={audioSummary}
             isPlaying={isPlaying}
