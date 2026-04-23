@@ -1493,6 +1493,33 @@ function buildFeaturedWriteup({ restaurant, locationText, cuisineText, websiteSi
     .join(' ');
 }
 
+function compactRestaurantWriteup(text, maxWords = 110) {
+  const compact = String(text || '').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+  if (!compact) return '';
+
+  const words = compact.split(/\s+/).filter(Boolean);
+  if (words.length <= maxWords) return compact;
+
+  const sentences = compact.split(/(?<=[.!?])\s+/).filter(Boolean);
+  const selected = [];
+  let wordCount = 0;
+
+  for (const sentence of sentences) {
+    const sentenceWords = sentence.split(/\s+/).filter(Boolean);
+    if (selected.length && wordCount + sentenceWords.length > maxWords) break;
+    selected.push(sentence);
+    wordCount += sentenceWords.length;
+    if (wordCount >= Math.max(70, maxWords - 15)) break;
+  }
+
+  if (selected.length) {
+    return selected.join(' ').trim();
+  }
+
+  const trimmed = words.slice(0, maxWords).join(' ').replace(/[,:;]\s*$/, '');
+  return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+}
+
 function buildTopSpotWriteupPrompt({ restaurant, locationText, cuisineText, websiteSignals }) {
   const reviewHighlights = Array.isArray(restaurant.reviewHighlights) ? restaurant.reviewHighlights : [];
   const reviewSnippets = reviewHighlights
@@ -1535,7 +1562,7 @@ function buildTopSpotWriteupPrompt({ restaurant, locationText, cuisineText, webs
     'Ground the copy in the review snippets and website clues when they exist.',
     'If the evidence is thin, stay tasteful and concise rather than inventing details.',
     'Never mention ordering, online ordering, delivery, reservations, partners, coupons, payment, or checkout.',
-    'Write 1-2 compact paragraphs, about 85-125 words total.',
+    'Write 1 compact paragraph, about 75-105 words total.',
     'Return only the review text itself, with no heading or bullet list.',
     '',
     ...facts
@@ -1562,11 +1589,11 @@ async function generateTopSpotWriteup({ apiKey, model, restaurant, locationText,
       ],
       tools: [],
       requestId,
-      maxOutputTokens: 220,
+      maxOutputTokens: 180,
       reasoningEffort: 'low'
     });
 
-    const text = extractResponseText(response).trim();
+    const text = compactRestaurantWriteup(extractResponseText(response), 110);
     if (text) {
       return text;
     }
@@ -1574,7 +1601,7 @@ async function generateTopSpotWriteup({ apiKey, model, restaurant, locationText,
     log(requestId, `top-spot writeup generation failed: ${String(error.message || error)}`);
   }
 
-  return buildFeaturedWriteup({ restaurant, locationText, cuisineText, websiteSignals });
+  return compactRestaurantWriteup(buildFeaturedWriteup({ restaurant, locationText, cuisineText, websiteSignals }), 110);
 }
 
 function mergeUniqueRestaurants(existing, next) {
@@ -1929,14 +1956,6 @@ export async function runRestaurantAgent({ message, history = [], pageContext = 
   const rankedTopRestaurant = finalRestaurants[0] || null;
   const websiteSignals = rankedTopRestaurant?.website ? await fetchWebsiteSignals(rankedTopRestaurant.website, requestLabel) : null;
 
-  const replyText =
-    extractResponseText(response) ||
-    buildReply({
-      restaurants: finalRestaurants,
-      locationText: locationText || String(pageContext?.pageSummary || '').trim(),
-      cuisineText
-    });
-
   const finalResultRestaurants = finalRestaurants
     .slice(0, 7)
     .map((restaurant) => {
@@ -1953,6 +1972,12 @@ export async function runRestaurantAgent({ message, history = [], pageContext = 
       };
     })
     .filter(Boolean);
+
+  const replyText = buildReply({
+    restaurants: finalResultRestaurants,
+    locationText: locationText || String(pageContext?.pageSummary || '').trim(),
+    cuisineText
+  });
 
   const sources = buildSources(finalResultRestaurants);
   const topRestaurant = finalResultRestaurants[0] || null;

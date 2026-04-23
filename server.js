@@ -549,7 +549,9 @@ app.post('/api/realtime-token', async (_req, res) => {
           type: 'server_vad',
           threshold: 0.72,
           prefix_padding_ms: 350,
-          silence_duration_ms: 1800
+          silence_duration_ms: 1800,
+          create_response: false,
+          interrupt_response: false
         },
         tools: []
       })
