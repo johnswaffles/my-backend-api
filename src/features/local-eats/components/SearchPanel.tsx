@@ -19,6 +19,7 @@ interface SearchPanelProps {
   onQuickTown: (value: string) => void;
   geoLabel?: string;
   isLoading: boolean;
+  compact?: boolean;
 }
 
 const MODES: Array<{ value: SearchMode; label: string }> = [
@@ -82,50 +83,53 @@ export function SearchPanel({
   onSurpriseMe,
   onQuickTown,
   geoLabel,
-  isLoading
+  isLoading,
+  compact = false
 }: SearchPanelProps): JSX.Element {
   return (
     <form
       onSubmit={onSubmit}
-      className="rounded-[2rem] border border-white/60 bg-white/72 p-5 shadow-[0_18px_70px_rgba(68,92,65,0.12)] backdrop-blur-2xl"
+      className={
+        compact
+          ? 'rounded-[1.6rem] border border-white/70 bg-white/84 p-4 shadow-[0_18px_50px_rgba(68,92,65,0.12)] backdrop-blur-2xl'
+          : 'rounded-[2rem] border border-white/60 bg-white/72 p-5 shadow-[0_18px_70px_rgba(68,92,65,0.12)] backdrop-blur-2xl'
+      }
     >
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className={compact ? 'flex flex-col gap-3' : 'flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between'}>
         <div className="max-w-2xl">
           <div className="inline-flex items-center gap-2 rounded-full border border-emerald-700/10 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-900">
             {FOOD_BRAND}
           </div>
-          <h2 className="mt-4 max-w-3xl font-display text-3xl font-semibold tracking-tight text-[#173528] sm:text-[2.6rem]">
+          <h2 className={compact ? 'mt-3 max-w-3xl font-display text-2xl font-semibold tracking-tight text-[#173528] sm:text-[2.3rem]' : 'mt-4 max-w-3xl font-display text-3xl font-semibold tracking-tight text-[#173528] sm:text-[2.6rem]'}>
             Search verified local places.
           </h2>
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-stone-600 sm:text-base">
-            Try natural searches like “pasta in Mount Vernon, Illinois” or “burgers near me” and
-            618FOOD.COM will map the food, the town, and the radius together.
+          <p className={compact ? 'mt-2 max-w-2xl text-sm leading-6 text-stone-600' : 'mt-3 max-w-2xl text-sm leading-7 text-stone-600 sm:text-base'}>
+            Try natural searches like “pasta in Mount Vernon, Illinois” or “burgers near me” and 618FOOD.COM will map the food,
+            the town, and the radius together.
           </p>
         </div>
 
-        <div className="flex w-full max-w-[24rem] flex-col gap-2 rounded-[1.6rem] border border-emerald-700/10 bg-emerald-50/60 p-3 text-sm text-emerald-950/80">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-900/70">
-              Location
-            </span>
-            <button
-              type="button"
-              onClick={onUseLocation}
-              className="rounded-full border border-emerald-700/20 bg-white/80 px-3 py-1 text-[11px] font-semibold text-emerald-900 transition hover:bg-white"
-            >
-              Use my location
-            </button>
+        {!compact ? (
+          <div className="flex w-full max-w-[24rem] flex-col gap-2 rounded-[1.6rem] border border-emerald-700/10 bg-emerald-50/60 p-3 text-sm text-emerald-950/80">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-900/70">Location</span>
+              <button
+                type="button"
+                onClick={onUseLocation}
+                className="rounded-full border border-emerald-700/20 bg-white/80 px-3 py-1 text-[11px] font-semibold text-emerald-900 transition hover:bg-white"
+              >
+                Use my location
+              </button>
+            </div>
+            <div className="text-sm font-medium text-emerald-900">{geoLabel ?? 'No browser location yet'}</div>
+            <div className="text-xs leading-5 text-emerald-900/70">
+              Tip: you can also enter a town, ZIP, or destination and we’ll handle the rest.
+            </div>
           </div>
-          <div className="text-sm font-medium text-emerald-900">
-            {geoLabel ?? 'No browser location yet'}
-          </div>
-          <div className="text-xs leading-5 text-emerald-900/70">
-            Tip: you can also enter a town, ZIP, or destination and we’ll handle the rest.
-          </div>
-        </div>
+        ) : null}
       </div>
 
-      <div className="mt-5 grid gap-3 lg:grid-cols-[1.3fr_0.9fr]">
+      <div className={compact ? 'mt-4 grid gap-3 lg:grid-cols-[1.15fr_0.95fr]' : 'mt-5 grid gap-3 lg:grid-cols-[1.3fr_0.9fr]'}>
         <label className="block">
           <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
             Find food near
@@ -155,7 +159,7 @@ export function SearchPanel({
         </label>
       </div>
 
-      <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr]">
+      <div className={compact ? 'mt-3 grid gap-3 lg:grid-cols-[1fr_1fr]' : 'mt-4 grid gap-3 lg:grid-cols-[1fr_1fr]'}>
         <div className="rounded-[1.6rem] border border-stone-200 bg-white/92 p-4">
           <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
             Search mode + radius
@@ -183,7 +187,7 @@ export function SearchPanel({
               Surprise me
             </button>
           </div>
-          <div className="mt-4 flex items-center gap-2 rounded-full bg-stone-100 px-3 py-2 text-sm text-stone-700">
+          <div className={compact ? 'mt-3 flex items-center gap-2 rounded-full bg-stone-100 px-3 py-2 text-sm text-stone-700' : 'mt-4 flex items-center gap-2 rounded-full bg-stone-100 px-3 py-2 text-sm text-stone-700'}>
             <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
               Radius
             </span>
@@ -223,7 +227,7 @@ export function SearchPanel({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr]">
+      <div className={compact ? 'mt-3 grid gap-3 lg:grid-cols-[1fr_1fr]' : 'mt-4 grid gap-3 lg:grid-cols-[1fr_1fr]'}>
         <div className="rounded-[1.6rem] border border-stone-200 bg-white/92 p-4">
           <div className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
             Browse towns
@@ -253,7 +257,7 @@ export function SearchPanel({
         </div>
       </div>
 
-      <div className="mt-5 flex flex-col gap-3 border-t border-stone-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className={compact ? 'mt-4 flex flex-col gap-3 border-t border-stone-200 pt-4 sm:flex-row sm:items-center sm:justify-between' : 'mt-5 flex flex-col gap-3 border-t border-stone-200 pt-4 sm:flex-row sm:items-center sm:justify-between'}>
         <div className="text-sm text-stone-600">
           {destinationText ? (
             <span>

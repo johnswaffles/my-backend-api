@@ -116,14 +116,14 @@ export function WidgetLauncherPage(): JSX.Element {
   }, []);
 
   const launcherClassName = [
-    'fixed z-[10000001] flex items-center gap-2 overflow-hidden rounded-full border-2 px-6 py-4 font-semibold uppercase tracking-[0.08em] text-amber-300 shadow-[0_8px_32px_rgba(0,0,0,0.35)] transition-all duration-300',
+    'fixed z-[10000001] flex items-center gap-2 overflow-hidden rounded-full border px-5 py-3 font-semibold uppercase tracking-[0.08em] text-emerald-950 shadow-[0_8px_32px_rgba(0,0,0,0.18)] transition-all duration-300 backdrop-blur-xl',
     isOpen
-      ? 'right-4 bottom-4 h-14 w-14 justify-center border-amber-300/60 bg-slate-900 p-0 text-transparent shadow-[0_8px_24px_rgba(0,0,0,0.28)]'
-      : 'right-7 bottom-7 border-amber-300/40 bg-gradient-to-br from-slate-900 to-slate-800'
+      ? 'right-4 bottom-4 h-14 w-14 justify-center border-emerald-700/20 bg-white/90 p-0 text-transparent shadow-[0_8px_24px_rgba(0,0,0,0.12)]'
+      : 'right-7 bottom-7 border-emerald-700/15 bg-white/92'
   ].join(' ');
 
   const panelClassName = [
-    'fixed z-[9999999] flex flex-col overflow-hidden rounded-[24px] border border-white/10 bg-gradient-to-b from-slate-900/95 to-slate-950/95 shadow-[0_28px_90px_rgba(0,0,0,0.44)] transition-all duration-200',
+    'fixed z-[9999999] flex flex-col overflow-hidden rounded-[24px] border border-white/80 bg-white/92 shadow-[0_28px_90px_rgba(0,0,0,0.18)] transition-all duration-200 backdrop-blur-2xl',
     isOpen ? 'opacity-100 visible translate-y-0 scale-100 pointer-events-auto' : 'pointer-events-none invisible opacity-0 translate-y-3 scale-[0.98]'
   ].join(' ');
 
@@ -136,61 +136,19 @@ export function WidgetLauncherPage(): JSX.Element {
         width: 'calc(100vw - 16px)',
         height: 'calc(100vh - 16px)'
       }
-    : {
-        left: 'auto',
-        top: 'auto',
-        right: '28px',
-        bottom: '28px',
-        width: 'min(420px, calc(100vw - 24px))',
-        height: 'min(760px, calc(100vh - 24px))'
-      };
+      : {
+          left: 'auto',
+          top: 'auto',
+          right: '28px',
+          bottom: '28px',
+          width: 'min(390px, calc(100vw - 24px))',
+          height: 'min(680px, calc(100vh - 24px))'
+        };
 
-  return (
-    <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.96),_rgba(250,246,236,0.82)_34%,_rgba(236,244,227,0.96)_66%,_rgba(247,241,228,1)_100%)] text-stone-900">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(111,162,98,0.24),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(206,179,95,0.18),_transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.42),rgba(255,255,255,0))]" />
-      <div className="pointer-events-none absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg viewBox=%270 0 200 200%27 xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cfilter id=%27n%27%3E%3CfeTurbulence type=%27fractalNoise%27 baseFrequency=%270.9%27 numOctaves=%274%27 stitchTiles=%27stitch%27/%3E%3C/filter%3E%3Crect width=%27100%25%27 height=%27100%25%27 filter=%27url(%23n)%27 opacity=%270.14%27/%3E%3C/svg%3E')] opacity-25" />
-
-      <main className="relative mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-5 px-4 py-4 sm:px-5 sm:py-5 lg:px-6">
-        <header className="rounded-[2rem] border border-white/70 bg-white/72 px-4 py-4 shadow-[0_18px_55px_rgba(61,79,42,0.12)] backdrop-blur-2xl">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-700 text-lg font-black text-white shadow-[0_16px_30px_rgba(22,83,44,0.18)]">
-                618
-              </div>
-              <div>
-                <div className="font-display text-2xl font-semibold tracking-tight text-[#173528] sm:text-3xl">
-                  618FOOD.COM
-                </div>
-                <div className="mt-1 text-xs font-medium uppercase tracking-[0.24em] text-stone-500">
-                  Floating widget
-                </div>
-              </div>
-            </div>
-
-            <a
-              href="/"
-              className="rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-50"
-            >
-              Home
-            </a>
-          </div>
-        </header>
-
-        <section className="rounded-[2rem] border border-white/70 bg-white/72 p-5 shadow-[0_18px_55px_rgba(61,79,42,0.12)] backdrop-blur-2xl">
-          <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-700/10 bg-emerald-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-900">
-              Floating launcher
-            </div>
-            <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-[#173528] sm:text-[2.7rem]">
-              Open the restaurant widget as a movable panel.
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-stone-600 sm:text-base">
-              Click the launcher in the lower-right corner to open the widget. Drag the header to move it, and close it when you’re
-              done.
-            </p>
-          </div>
-        </section>
-      </main>
+    return (
+    <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.98),_rgba(250,246,236,0.92)_34%,_rgba(236,244,227,0.98)_66%,_rgba(247,241,228,1)_100%)] text-stone-900">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(111,162,98,0.18),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(206,179,95,0.14),_transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.48),rgba(255,255,255,0))]" />
+      <div className="pointer-events-none absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg viewBox=%270 0 200 200%27 xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cfilter id=%27n%27%3E%3CfeTurbulence type=%27fractalNoise%27 baseFrequency=%270.9%27 numOctaves=%274%27 stitchTiles=%27stitch%27/%3E%3C/filter%3E%3Crect width=%27100%25%27 height=%27100%25%27 filter=%27url(%23n)%27 opacity=%270.1%27/%3E%3C/svg%3E')] opacity-25" />
 
       <button
         type="button"
@@ -198,7 +156,7 @@ export function WidgetLauncherPage(): JSX.Element {
         className={launcherClassName}
         aria-label={isOpen ? 'Close restaurant widget' : 'Open restaurant widget'}
       >
-        <span className={`h-3 w-3 rounded-full bg-amber-300 ${isOpen ? 'hidden' : 'animate-pulse'}`} />
+        <span className={`h-3 w-3 rounded-full bg-emerald-700 ${isOpen ? 'hidden' : 'animate-pulse'}`} />
         <span className={isOpen ? 'sr-only' : 'text-sm font-bold tracking-wide'}>Find Food</span>
       </button>
 
@@ -211,22 +169,22 @@ export function WidgetLauncherPage(): JSX.Element {
       <section ref={panelRef} className={panelClassName} style={panelStyle} aria-hidden={!isOpen}>
         <div
           ref={headerRef}
-          className={`flex h-12 items-center justify-between border-b border-white/8 bg-gradient-to-b from-slate-800/95 to-slate-950/95 px-3.5 text-sm text-white ${
+          className={`flex h-12 items-center justify-between border-b border-stone-200 bg-white/95 px-3.5 text-sm text-stone-900 ${
             useMobileLayout ? 'cursor-default' : 'cursor-grab'
           } ${isDragging ? 'select-none' : ''}`}
         >
           <div className="flex min-w-0 items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.9)]" />
+            <span className="h-2 w-2 rounded-full bg-emerald-700 shadow-[0_0_8px_rgba(34,197,94,0.55)]" />
             <span className="truncate font-semibold tracking-tight">618FOOD.COM Widget</span>
           </div>
           <div className="flex items-center gap-2">
             {!useMobileLayout ? (
-              <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/45">Drag</span>
+              <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-stone-400">Drag</span>
             ) : null}
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-white/12 bg-white/8 text-lg text-white transition hover:bg-white/16"
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-stone-200 bg-white text-lg text-stone-700 transition hover:bg-stone-50"
               aria-label="Close widget"
             >
               ×
@@ -237,7 +195,7 @@ export function WidgetLauncherPage(): JSX.Element {
           title="618FOOD widget"
           src={getWidgetPanelUrl()}
           allow="autoplay; microphone"
-          className="h-full w-full flex-1 border-0 bg-[#0b1110]"
+          className="h-full w-full flex-1 border-0 bg-white"
         />
       </section>
     </div>
