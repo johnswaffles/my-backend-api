@@ -40,10 +40,15 @@ function normalizeSpeechSummary(text: string): string {
 }
 
 function getAudioSummary(conversation: ChatTurn[]): string {
+  const userTurns = conversation.filter((turn) => turn.role === 'user');
+  if (!userTurns.length) {
+    return '';
+  }
+
   const assistantTurns = conversation.filter((turn) => turn.role === 'assistant');
   const latest = assistantTurns.at(-1);
   return normalizeSpeechSummary(
-    latest?.featuredWriteup || latest?.content || 'Ask anything and 618FOOD.COM will chat with you.'
+    latest?.featuredWriteup || latest?.restaurants?.[0]?.summary || latest?.content || ''
   );
 }
 
@@ -398,17 +403,17 @@ export default function App(): JSX.Element {
 
   useEffect(() => {
     const text = audioSummary.trim();
-    if (!text) return;
+    if (!text || !hasSearched) return;
     void prefetchAudio(text);
-  }, [audioSummary]);
+  }, [audioSummary, hasSearched]);
 
   useEffect(() => {
     const text = audioSummary.trim();
-    if (!autoPlaybackEnabled || !text) return;
+    if (!autoPlaybackEnabled || !hasSearched || !text) return;
     if (autoPlayedSummaryRef.current === text) return;
     autoPlayedSummaryRef.current = text;
     void handlePlaySummary();
-  }, [autoPlaybackEnabled, audioSummary]);
+  }, [autoPlaybackEnabled, audioSummary, hasSearched]);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.96),_rgba(250,246,236,0.82)_34%,_rgba(236,244,227,0.96)_66%,_rgba(247,241,228,1)_100%)] text-stone-900">
