@@ -1,5 +1,8 @@
 import { GoogleGenAI } from '@google/genai';
 
+const audioCache = new Map();
+const AUDIO_CACHE_TTL_MS = 15 * 60 * 1000;
+
 function createWavHeader({ dataLength, sampleRate, channels = 1, bitsPerSample = 16 }) {
   const bytesPerSample = bitsPerSample / 8;
   const byteRate = sampleRate * channels * bytesPerSample;
@@ -41,6 +44,13 @@ function buildSpeechPrompt(text) {
   return typeof text === 'string' ? text.trim() : '';
 }
 
+function normalizeAudioCacheKey(value) {
+  return String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+}
+
 export async function generateFoodSpeech({ apiKey, model, voice = 'Orus', text }) {
   const spokenText = buildSpeechPrompt(text);
   if (!spokenText) {
@@ -51,31 +61,59 @@ export async function generateFoodSpeech({ apiKey, model, voice = 'Orus', text }
     return { audioBase64: '', mimeType: 'audio/wav', fallback: true, text: spokenText };
   }
 
-  const ai = new GoogleGenAI({ apiKey });
-  const response = await ai.models.generateContent({
-    model,
-    contents: spokenText,
-    config: {
-      responseModalities: ['AUDIO'],
-      speechConfig: {
-        voiceConfig: {
-          prebuiltVoiceConfig: {
-            voiceName: voice
+  const cacheKey = normalizeAudioCacheKey(`${model}::${voice}::${spokenText}`);
+  const cached = audioCache.get(cacheKey);
+  const now = Date.now();
+  if (cached && cached.expiresAt > now) {
+    return cached.promise || cached.value;
+  }
+
+  const request = (async () => {
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
+      model,
+      contents: spokenText,
+      config: {
+        responseModalities: ['AUDIO'],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: {
+              voiceName: voice
+            }
           }
         }
       }
+    });
+
+    const audioBase64 = response.data || '';
+    if (!audioBase64) {
+      return { audioBase64: '', mimeType: 'audio/wav', fallback: true, text: spokenText };
     }
+
+    return {
+      audioBase64: pcmBase64ToWavBase64(audioBase64, 24000, 1, 16),
+      mimeType: 'audio/wav',
+      fallback: false,
+      text: spokenText
+    };
+  })();
+
+  audioCache.set(cacheKey, {
+    promise: request,
+    value: null,
+    expiresAt: now + AUDIO_CACHE_TTL_MS
   });
 
-  const audioBase64 = response.data || '';
-  if (!audioBase64) {
-    return { audioBase64: '', mimeType: 'audio/wav', fallback: true, text: spokenText };
+  try {
+    const value = await request;
+    audioCache.set(cacheKey, {
+      promise: null,
+      value,
+      expiresAt: Date.now() + AUDIO_CACHE_TTL_MS
+    });
+    return value;
+  } catch (error) {
+    audioCache.delete(cacheKey);
+    throw error;
   }
-
-  return {
-    audioBase64: pcmBase64ToWavBase64(audioBase64, 24000, 1, 16),
-    mimeType: 'audio/wav',
-    fallback: false,
-    text: spokenText
-  };
 }

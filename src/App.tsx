@@ -14,11 +14,37 @@ import type { ChatTurn, GeneralChatRequest } from './features/local-eats/types';
 const LOADING_MESSAGES = ['Thinking...', 'Researching reviews...', 'Searching the internet...'];
 const INITIAL_GREETING =
   "Hello! I’m 618FOOD.COM. Tell me a town or ZIP, and I’ll find the top restaurants there. If you have a food type in mind, include it for even better results.";
+const MAX_AUDIO_CHARS = 900;
+
+function normalizeSpeechSummary(text: string): string {
+  const compact = text
+    .replace(/\s+/g, ' ')
+    .replace(/\s+([.,!?;:])/g, '$1')
+    .trim();
+
+  if (compact.length <= MAX_AUDIO_CHARS) {
+    return compact;
+  }
+
+  const sentenceEnd = compact.lastIndexOf('. ', MAX_AUDIO_CHARS);
+  if (sentenceEnd > 280) {
+    return compact.slice(0, sentenceEnd + 1).trim();
+  }
+
+  const softCut = compact.lastIndexOf(', ', MAX_AUDIO_CHARS);
+  if (softCut > 280) {
+    return compact.slice(0, softCut).trim();
+  }
+
+  return compact.slice(0, MAX_AUDIO_CHARS).trim();
+}
 
 function getAudioSummary(conversation: ChatTurn[]): string {
   const assistantTurns = conversation.filter((turn) => turn.role === 'assistant');
   const latest = assistantTurns.at(-1);
-  return latest?.featuredWriteup || latest?.content || 'Ask anything and 618FOOD.COM will chat with you.';
+  return normalizeSpeechSummary(
+    latest?.featuredWriteup || latest?.content || 'Ask anything and 618FOOD.COM will chat with you.'
+  );
 }
 
 function summarizeAssistantTurn(turn: ChatTurn): string {
@@ -197,8 +223,7 @@ export default function App(): JSX.Element {
     return request;
   }
 
-  async function handlePlaySummary(): Promise<void> {
-    const text = getAudioSummary(assistantTranscript);
+  async function playSummaryText(text: string): Promise<void> {
     if (!text.trim()) return;
 
     if (audioLoading) return;
@@ -259,6 +284,11 @@ export default function App(): JSX.Element {
     }
   }
 
+  async function handlePlaySummary(): Promise<void> {
+    const text = getAudioSummary(assistantTranscript);
+    await playSummaryText(text);
+  }
+
   async function handleAssistantChat(value: string): Promise<void> {
     const followUp = value.trim();
     if (!followUp) return;
@@ -282,16 +312,21 @@ export default function App(): JSX.Element {
           }
         });
 
-        setAssistantTranscript((current) => [
-          ...current,
-          {
-            role: 'assistant',
-            content: assistant.reply,
-            sources: assistant.sources || [],
-            restaurants: assistant.restaurants || [],
-            featuredWriteup: assistant.featuredWriteup || ''
-          }
-        ]);
+        const assistantTurn: ChatTurn = {
+          role: 'assistant',
+          content: assistant.reply,
+          sources: assistant.sources || [],
+          restaurants: assistant.restaurants || [],
+          featuredWriteup: assistant.featuredWriteup || ''
+        };
+        const assistantAudioText = getAudioSummary([...historyBeforeMessage, assistantTurn]);
+        void prefetchAudio(assistantAudioText);
+        if (autoPlaybackEnabled && assistantAudioText && autoPlayedSummaryRef.current !== assistantAudioText) {
+          autoPlayedSummaryRef.current = assistantAudioText;
+          void playSummaryText(assistantAudioText);
+        }
+
+        setAssistantTranscript((current) => [...current, assistantTurn]);
     } catch {
       setAssistantTranscript((current) => [
         ...current,
