@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AudioStrip } from './features/local-eats/components/AudioStrip';
-import { FoodWidgetPage } from './features/local-eats/components/FoodWidgetPage';
 import { WidgetLauncherPage } from './features/local-eats/components/WidgetLauncherPage';
+import { VoiceWidgetPanel } from './features/local-eats/components/VoiceWidgetPanel';
 import { FOOD_BRAND } from './features/local-eats/schemas';
 import { findSponsoredPlacement } from './features/local-eats/data/sponsoredPlacements';
 import {
@@ -461,7 +461,7 @@ export default function App(): JSX.Element {
   }
 
   if (isWidgetPanelPage) {
-    return <FoodWidgetPage />;
+    return <VoiceWidgetPanel />;
   }
 
   return (

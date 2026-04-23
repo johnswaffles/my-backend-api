@@ -1,0 +1,786 @@
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { ask618Chat, playBrowserNarration, request618FoodAudio, stopBrowserNarration } from '../lib/client';
+import { FOOD_BRAND } from '../schemas';
+import type {
+  ChatTurn,
+  GeneralChatRequest,
+  GeneralChatResponse,
+  RestaurantAgentRestaurant
+} from '../types';
+
+const INITIAL_GREETING =
+  "Hello! I’m 618FOOD.COM. Press the mic or type a town or ZIP, and I’ll help you find the top restaurants.";
+const LOADING_MESSAGES = ['Thinking...', 'Researching reviews...', 'Searching the internet...'];
+const MAX_AUDIO_CHARS = 900;
+
+function normalizeSpeechSummary(text: string): string {
+  const compact = text
+    .replace(/\s+/g, ' ')
+    .replace(/\s+([.,!?;:])/g, '$1')
+    .trim();
+
+  if (compact.length <= MAX_AUDIO_CHARS) {
+    return compact;
+  }
+
+  const sentenceEnd = compact.lastIndexOf('. ', MAX_AUDIO_CHARS);
+  if (sentenceEnd > 240) {
+    return compact.slice(0, sentenceEnd + 1).trim();
+  }
+
+  const softCut = compact.lastIndexOf(', ', MAX_AUDIO_CHARS);
+  if (softCut > 240) {
+    return compact.slice(0, softCut).trim();
+  }
+
+  return compact.slice(0, MAX_AUDIO_CHARS).trim();
+}
+
+function summarizeAssistantTurn(turn: ChatTurn): string {
+  if (turn.restaurants?.length) {
+    const names = turn.restaurants
+      .slice(0, 7)
+      .map((restaurant) => restaurant.name)
+      .filter(Boolean);
+    if (names.length) {
+      return `Previous restaurant results: ${names.join(', ')}.`;
+    }
+  }
+
+  if (turn.featuredWriteup) {
+    return turn.featuredWriteup.slice(0, 260);
+  }
+
+  return turn.content;
+}
+
+function getAudioSummary(conversation: ChatTurn[]): string {
+  const latestWithResults = [...conversation]
+    .reverse()
+    .find((turn) => turn.role === 'assistant' && (turn.featuredWriteup || turn.restaurants?.length));
+
+  if (!latestWithResults) {
+    return '';
+  }
+
+  return normalizeSpeechSummary(
+    latestWithResults.featuredWriteup || latestWithResults.restaurants?.[0]?.summary || ''
+  );
+}
+
+function buildChatHistoryForApi(conversation: ChatTurn[]): ChatTurn[] {
+  return conversation
+    .filter((turn, index) => !(index === 0 && turn.role === 'assistant'))
+    .slice(-8)
+    .map((turn) => {
+      if (turn.role === 'assistant') {
+        return {
+          role: 'assistant' as const,
+          content: summarizeAssistantTurn(turn)
+        };
+      }
+
+      return {
+        role: 'user' as const,
+        content: turn.content
+      };
+    });
+}
+
+function getRecentRestaurantContext(conversation: ChatTurn[]): NonNullable<GeneralChatRequest['pageContext']> {
+  const latestRestaurantTurn = [...conversation].reverse().find((turn) => turn.role === 'assistant' && turn.restaurants?.length);
+  const recentRestaurants = latestRestaurantTurn?.restaurants?.slice(0, 7).map((restaurant) => ({
+    place_id: restaurant.place_id,
+    name: restaurant.name,
+    formatted_address: restaurant.formatted_address ?? null,
+    city: restaurant.city ?? null,
+    phone: restaurant.phone ?? null,
+    website: restaurant.website ?? null
+  }));
+
+  const recentLocation =
+    latestRestaurantTurn?.restaurants?.find((restaurant) => restaurant.city)?.city ||
+    latestRestaurantTurn?.restaurants?.[0]?.formatted_address ||
+    undefined;
+
+  return {
+    recentLocation,
+    recentRestaurants
+  };
+}
+
+function domainFromUrl(url?: string | null): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return null;
+  }
+}
+
+function createSpeechRecognition(): any | null {
+  if (typeof window === 'undefined') return null;
+  const SpeechRecognitionCtor = (window as Window & {
+    SpeechRecognition?: any;
+    webkitSpeechRecognition?: any;
+  }).SpeechRecognition || (window as Window & { webkitSpeechRecognition?: any }).webkitSpeechRecognition;
+
+  if (!SpeechRecognitionCtor) return null;
+
+  try {
+    return new SpeechRecognitionCtor();
+  } catch {
+    return null;
+  }
+}
+
+function RestaurantPreview({ restaurant, rank }: { restaurant: RestaurantAgentRestaurant; rank: number }): JSX.Element {
+  const websiteDomain = domainFromUrl(restaurant.website);
+  const ratingText =
+    typeof restaurant.rating === 'number' && Number.isFinite(restaurant.rating)
+      ? `${restaurant.rating.toFixed(1)}`
+      : 'Unrated';
+  const reviewText =
+    typeof restaurant.review_count === 'number' && Number.isFinite(restaurant.review_count)
+      ? `${restaurant.review_count.toLocaleString()} reviews`
+      : 'Review count unavailable';
+
+  return (
+    <div className="rounded-[1.1rem] border border-white/10 bg-white/6 px-4 py-3 shadow-[0_10px_24px_rgba(0,0,0,0.18)]">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/50">#{rank}</div>
+          <div className="mt-1 text-sm font-semibold text-white">{restaurant.name}</div>
+          <div className="mt-1 text-xs leading-5 text-white/65">
+            {ratingText} • {reviewText}
+            {typeof restaurant.score === 'number' ? ` • Score ${restaurant.score.toFixed(2)}` : ''}
+          </div>
+        </div>
+        <div className="inline-flex rounded-full bg-emerald-400/12 px-3 py-1 text-xs font-semibold text-emerald-100">
+          {typeof restaurant.score === 'number' ? `Score ${restaurant.score.toFixed(1)}` : 'Ranked result'}
+        </div>
+      </div>
+
+      {restaurant.summary ? <p className="mt-2 text-sm leading-6 text-white/75">{restaurant.summary}</p> : null}
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {websiteDomain && restaurant.website ? (
+          <a
+            href={restaurant.website}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-50 transition hover:border-emerald-300/40 hover:bg-emerald-300/15"
+          >
+            {websiteDomain}
+          </a>
+        ) : null}
+        {restaurant.maps_url ? (
+          <a
+            href={restaurant.maps_url}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-full border border-white/10 bg-white/8 px-3 py-1 text-xs font-semibold text-white/85 transition hover:border-emerald-300/40 hover:bg-white/12"
+          >
+            Open map
+          </a>
+        ) : null}
+        {restaurant.phone ? (
+          <span className="rounded-full border border-white/10 bg-white/8 px-3 py-1 text-xs font-semibold text-white/65">
+            {restaurant.phone}
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+export function VoiceWidgetPanel(): JSX.Element {
+  const [conversation, setConversation] = useState<ChatTurn[]>([
+    {
+      role: 'assistant',
+      content: INITIAL_GREETING
+    }
+  ]);
+  const [draftText, setDraftText] = useState('');
+  const [assistantLoading, setAssistantLoading] = useState(false);
+  const [assistantLoadingLabel, setAssistantLoadingLabel] = useState(LOADING_MESSAGES[0]);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [audioLoading, setAudioLoading] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [statusLabel, setStatusLabel] = useState('PRESS TO CHAT');
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const recognitionRef = useRef<any | null>(null);
+  const transcriptRef = useRef('');
+  const audioCacheRef = useRef<{
+    text: string;
+    audio: { audioBase64?: string; mimeType?: string; text?: string; fallback?: boolean } | null;
+    promise: Promise<{ audioBase64?: string; mimeType?: string; text?: string; fallback?: boolean }> | null;
+  }>({
+    text: '',
+    audio: null,
+    promise: null
+  });
+  const messageListRef = useRef<HTMLDivElement | null>(null);
+  const hadUserGestureRef = useRef(false);
+
+  useEffect(() => {
+    let index = 0;
+    if (!assistantLoading) {
+      setAssistantLoadingLabel(LOADING_MESSAGES[0]);
+      return;
+    }
+
+    setAssistantLoadingLabel(LOADING_MESSAGES[index]);
+    const interval = window.setInterval(() => {
+      index = (index + 1) % LOADING_MESSAGES.length;
+      setAssistantLoadingLabel(LOADING_MESSAGES[index]);
+    }, 10000);
+
+    return () => window.clearInterval(interval);
+  }, [assistantLoading]);
+
+  useEffect(() => {
+    if (!messageListRef.current) return;
+    messageListRef.current.scrollTop = messageListRef.current.scrollHeight;
+  }, [conversation, assistantLoading]);
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = '';
+      }
+      stopBrowserNarration();
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort?.();
+        } catch {
+          // ignore
+        }
+      }
+    };
+  }, []);
+
+  function normalizeSpeechText(text: string): string {
+    return text
+      .replace(/\b618\s*food\.com\b/gi, '618food.com')
+      .replace(/\b618food\.com\b/gi, '618food.com')
+      .replace(/\b618FOOD\.COM\b/g, '618food.com');
+  }
+
+  async function prefetchAudio(text: string): Promise<{ audioBase64?: string; mimeType?: string; text?: string; fallback?: boolean }> {
+    const normalizedText = text.trim();
+    if (!normalizedText) {
+      return { fallback: true, text: normalizedText };
+    }
+
+    const cached = audioCacheRef.current;
+    if (cached.text === normalizedText && cached.audio) {
+      return cached.audio;
+    }
+    if (cached.text === normalizedText && cached.promise) {
+      return cached.promise;
+    }
+
+    const request = request618FoodAudio(normalizedText)
+      .then((audio) => {
+        audioCacheRef.current = {
+          text: normalizedText,
+          audio,
+          promise: null
+        };
+        return audio;
+      })
+      .catch(() => {
+        const fallbackAudio = {
+          fallback: true,
+          text: normalizedText
+        };
+        audioCacheRef.current = {
+          text: normalizedText,
+          audio: fallbackAudio,
+          promise: null
+        };
+        return fallbackAudio;
+      });
+
+    audioCacheRef.current = {
+      text: normalizedText,
+      audio: null,
+      promise: request
+    };
+
+    return request;
+  }
+
+  async function playSummaryText(text: string): Promise<void> {
+    if (!text.trim() || isMuted) return;
+    if (audioLoading) return;
+
+    const normalizedText = normalizeSpeechText(text);
+    const currentAudio = audioRef.current;
+    if (currentAudio && isPlaying) {
+      currentAudio.pause();
+      stopBrowserNarration();
+      setIsPlaying(false);
+      return;
+    }
+
+    setAudioLoading(true);
+    setStatusLabel('SPEAKING...');
+    try {
+      const audio = await prefetchAudio(normalizedText);
+      if (audio.audioBase64) {
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current = null;
+        }
+        const mimeType = audio.mimeType || 'audio/mpeg';
+        const player = new Audio(`data:${mimeType};base64,${audio.audioBase64}`);
+        player.onplay = () => setIsPlaying(true);
+        player.onended = () => {
+          setIsPlaying(false);
+          if (!assistantLoading && !isListening) {
+            setStatusLabel('READY');
+          }
+        };
+        player.onerror = () => {
+          setIsPlaying(false);
+          if (!assistantLoading && !isListening) {
+            setStatusLabel('READY');
+          }
+        };
+        audioRef.current = player;
+        await player.play();
+        return;
+      }
+
+      await playBrowserNarration(normalizedText);
+      setIsPlaying(true);
+    } catch {
+      try {
+        await playBrowserNarration(normalizedText);
+        setIsPlaying(true);
+      } catch {
+        setIsPlaying(false);
+        if (!assistantLoading && !isListening) {
+          setStatusLabel('READY');
+        }
+      }
+    } finally {
+      setAudioLoading(false);
+    }
+  }
+
+  async function sendAssistantMessage(text: string): Promise<void> {
+    const message = text.trim();
+    if (!message) return;
+
+    hadUserGestureRef.current = true;
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort?.();
+      } catch {
+        // ignore
+      }
+      recognitionRef.current = null;
+    }
+    setIsListening(false);
+    setDraftText('');
+    setAssistantLoading(true);
+    setStatusLabel('THINKING...');
+
+    const historyBeforeMessage = conversation;
+    const historyForApi = buildChatHistoryForApi(historyBeforeMessage);
+    const nextConversation: ChatTurn[] = [...historyBeforeMessage, { role: 'user', content: message }];
+    const recentRestaurantContext = getRecentRestaurantContext(historyBeforeMessage);
+    setConversation(nextConversation);
+
+    try {
+      const assistant: GeneralChatResponse = await ask618Chat({
+        message,
+        history: historyForApi,
+        pageContext: {
+          brand: FOOD_BRAND,
+          pageTitle: '618FOOD.COM',
+          pageSummary: 'A restaurant finder focused on real places and customer experience.',
+          ...recentRestaurantContext
+        }
+      });
+
+      const assistantTurn: ChatTurn = {
+        role: 'assistant',
+        content: assistant.reply,
+        sources: assistant.sources || [],
+        restaurants: assistant.restaurants || [],
+        featuredWriteup: assistant.featuredWriteup || ''
+      };
+      const assistantAudioText = getAudioSummary([...historyBeforeMessage, assistantTurn]);
+      void prefetchAudio(assistantAudioText);
+      setConversation((current) => [...current, assistantTurn]);
+
+      if (!isMuted && hadUserGestureRef.current && assistantAudioText) {
+        void playSummaryText(assistantAudioText);
+      }
+    } catch {
+      setConversation((current) => [
+        ...current,
+        {
+          role: 'assistant',
+          content: 'I could not reach 618FOOD.COM right now. Please try again in a moment.',
+          sources: [],
+          restaurants: []
+        }
+      ]);
+    } finally {
+      setAssistantLoading(false);
+      if (!isListening && !isPlaying) {
+        setStatusLabel('READY');
+      }
+    }
+  }
+
+  function startListening(): void {
+    if (assistantLoading) return;
+    const recognition = createSpeechRecognition();
+    if (!recognition) {
+      setConversation((current) => [
+        ...current,
+        {
+          role: 'assistant',
+          content: 'Speech recognition is not available in this browser. You can still type in the box below.',
+          sources: [],
+          restaurants: []
+        }
+      ]);
+      return;
+    }
+
+    hadUserGestureRef.current = true;
+    setIsMuted(false);
+    setIsListening(true);
+    setStatusLabel('LISTENING...');
+    transcriptRef.current = '';
+    setDraftText('');
+
+    recognition.lang = 'en-US';
+    recognition.interimResults = true;
+    recognition.continuous = false;
+
+    recognition.onresult = (event: any) => {
+      let finalText = '';
+      let interimText = '';
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        const result = event.results[i];
+        const transcript = String(result?.[0]?.transcript || '').trim();
+        if (!transcript) continue;
+        if (result.isFinal) {
+          finalText += `${transcript} `;
+        } else {
+          interimText += `${transcript} `;
+        }
+      }
+
+      const combined = `${transcriptRef.current} ${finalText}`.trim();
+      if (finalText.trim()) {
+        transcriptRef.current = combined;
+      }
+
+      setDraftText((combined || interimText).trim());
+    };
+
+    recognition.onerror = () => {
+      setIsListening(false);
+      setStatusLabel('READY');
+      recognitionRef.current = null;
+      transcriptRef.current = '';
+    };
+
+    recognition.onend = () => {
+      recognitionRef.current = null;
+      setIsListening(false);
+      setStatusLabel('READY');
+      const transcript = transcriptRef.current.trim();
+      transcriptRef.current = '';
+      if (transcript) {
+        void sendAssistantMessage(transcript);
+      }
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  }
+
+  function stopListening(): void {
+    if (!recognitionRef.current) return;
+    try {
+      recognitionRef.current.abort?.();
+    } catch {
+      // ignore
+    }
+    recognitionRef.current = null;
+    transcriptRef.current = '';
+    setIsListening(false);
+    setStatusLabel('READY');
+  }
+
+  function toggleVoice(): void {
+    if (isListening) {
+      stopListening();
+      return;
+    }
+
+    if (isPlaying && audioRef.current) {
+      audioRef.current.pause();
+      stopBrowserNarration();
+      setIsPlaying(false);
+      return;
+    }
+
+    startListening();
+  }
+
+  function handleMuteToggle(): void {
+    setIsMuted((current) => {
+      const next = !current;
+      if (next) {
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.currentTime = 0;
+        }
+        stopBrowserNarration();
+        setIsPlaying(false);
+      }
+      return next;
+    });
+  }
+
+  function resetWidget(): void {
+    stopListening();
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current.src = '';
+      audioRef.current = null;
+    }
+    stopBrowserNarration();
+    audioCacheRef.current = {
+      text: '',
+      audio: null,
+      promise: null
+    };
+    setIsPlaying(false);
+    setAudioLoading(false);
+    setAssistantLoading(false);
+    setAssistantLoadingLabel(LOADING_MESSAGES[0]);
+    setIsMuted(false);
+    setDraftText('');
+    setConversation([
+      {
+        role: 'assistant',
+        content: INITIAL_GREETING
+      }
+    ]);
+    setStatusLabel('PRESS TO CHAT');
+    hadUserGestureRef.current = false;
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>): void {
+    event.preventDefault();
+    const next = draftText.trim();
+    if (!next) return;
+    void sendAssistantMessage(next);
+  }
+
+  function openIfClosed(): void {
+    hadUserGestureRef.current = true;
+  }
+
+  return (
+    <div className="flex h-full min-h-[680px] flex-col overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(16,18,19,0.96),_rgba(4,6,7,0.98)_58%,_rgba(0,0,0,1)_100%)] text-white">
+      <div className="flex h-12 items-center justify-between border-b border-white/10 bg-[linear-gradient(180deg,rgba(26,31,34,0.98),rgba(11,14,16,0.98))] px-3.5 text-sm text-white">
+        <button
+          type="button"
+          className="flex min-w-0 items-center gap-2 text-left"
+          onClick={openIfClosed}
+        >
+          <span className="h-2.5 w-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.9)]" />
+          <span className="truncate font-semibold tracking-tight">618FOOD.COM Widget</span>
+          <span aria-hidden="true" className="text-sm text-white/80">💬</span>
+        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleMuteToggle}
+            className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] transition ${
+              isMuted
+                ? 'border-rose-400/20 bg-rose-500/10 text-rose-100 hover:bg-rose-500/15'
+                : 'border-emerald-400/20 bg-emerald-500/10 text-emerald-50 hover:bg-emerald-500/15'
+            }`}
+            aria-pressed={isMuted}
+          >
+            {isMuted ? 'Muted' : 'Voice on'}
+          </button>
+          <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/40">Drag</span>
+          <button
+            type="button"
+            onClick={() => setIsCollapsed((current) => !current)}
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-white/12 bg-white/6 text-lg text-white transition hover:bg-white/12"
+            aria-label={isCollapsed ? 'Expand widget' : 'Collapse widget'}
+          >
+            {isCollapsed ? '□' : '−'}
+          </button>
+        </div>
+      </div>
+
+      {isCollapsed ? (
+        <div className="flex flex-1 items-center justify-center px-4 py-6">
+          <button
+            type="button"
+            onClick={() => setIsCollapsed(false)}
+            className="rounded-full border border-white/10 bg-white/8 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/12"
+          >
+            Open widget
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-1 flex-col">
+          <div className="relative mx-auto mt-6 flex h-[150px] w-[150px] items-center justify-center">
+            <div className="absolute inset-[-28px] rounded-full bg-[conic-gradient(from_120deg,_rgba(34,211,238,0.08),_rgba(168,85,247,0.14),_rgba(236,72,153,0.12),_rgba(34,211,238,0.08))] blur-3xl" />
+            <div className="absolute inset-0 rounded-full border border-white/10 bg-[radial-gradient(circle_at_35%_30%,rgba(255,255,255,0.08),rgba(0,0,0,1)_70%)] shadow-[0_0_40px_rgba(34,211,238,0.1),inset_0_0_24px_rgba(255,255,255,0.04)]" />
+            <div className="absolute inset-0 flex flex-col items-center justify-center rounded-full">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.32em] text-white/45">
+                {statusLabel}
+              </div>
+              <div className="mt-4 flex items-end gap-1">
+                <span className={`h-5 w-1.5 rounded-full bg-cyan-400/80 ${isListening || isPlaying ? 'animate-pulse' : ''}`} />
+                <span className={`h-9 w-1.5 rounded-full bg-white/20 ${isListening ? 'animate-pulse' : ''}`} />
+                <span className={`h-6 w-1.5 rounded-full bg-fuchsia-400/70 ${isListening || isPlaying ? 'animate-pulse' : ''}`} />
+                <span className={`h-11 w-1.5 rounded-full bg-white/15 ${isListening ? 'animate-pulse' : ''}`} />
+                <span className={`h-4 w-1.5 rounded-full bg-emerald-400/80 ${isListening || isPlaying ? 'animate-pulse' : ''}`} />
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={toggleVoice}
+              className={`absolute bottom-6 left-0 flex h-12 w-12 items-center justify-center rounded-full border text-xl shadow-[0_0_0_2px_rgba(32,185,96,0.2)] transition ${
+                isListening
+                  ? 'border-emerald-300 bg-emerald-500 text-white shadow-[0_0_0_3px_rgba(34,197,94,0.2),0_0_16px_rgba(34,197,94,0.4)]'
+                  : isPlaying
+                    ? 'border-cyan-300 bg-cyan-500 text-white shadow-[0_0_0_3px_rgba(6,182,212,0.18),0_0_16px_rgba(6,182,212,0.35)]'
+                    : 'border-emerald-400/30 bg-emerald-500/90 text-white hover:bg-emerald-400'
+              }`}
+              aria-label={isListening ? 'Stop listening' : isPlaying ? 'Stop speaking' : 'Start talking'}
+            >
+              🎤
+            </button>
+
+            <button
+              type="button"
+              onClick={resetWidget}
+              className="absolute bottom-6 right-0 rounded-[1.1rem] border border-white/15 bg-white/8 px-3.5 py-3 text-sm font-semibold text-white/90 shadow-[0_0_0_1px_rgba(255,255,255,0.04)] transition hover:bg-white/12"
+            >
+              NEW
+            </button>
+          </div>
+
+          <div className="mt-4 flex-1 overflow-hidden px-4 pb-4">
+            <div
+              ref={messageListRef}
+              className="h-[calc(100%-68px)] overflow-y-auto rounded-[1.4rem] border border-white/10 bg-black/60 p-3"
+            >
+              {conversation.length ? (
+                <div className="space-y-3">
+                  {conversation.map((turn, index) => (
+                    <div key={`${turn.role}-${index}-${turn.content.slice(0, 16)}`} className={`flex ${turn.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div
+                        className={`max-w-[92%] rounded-[1.2rem] px-4 py-3 text-sm leading-7 ${
+                          turn.role === 'user'
+                            ? 'bg-emerald-600 text-white shadow-[0_14px_30px_rgba(22,83,44,0.26)]'
+                            : 'bg-white/8 text-white ring-1 ring-white/10'
+                        }`}
+                      >
+                        {turn.role === 'assistant' && turn.featuredWriteup ? (
+                          <div className="mb-3 rounded-[1rem] border border-emerald-400/15 bg-emerald-400/10 px-4 py-3">
+                            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-100">
+                              Top spot writeup
+                            </div>
+                            <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-white/85">
+                              {turn.featuredWriteup}
+                            </p>
+                          </div>
+                        ) : null}
+
+                        <p className={`${turn.featuredWriteup ? 'mt-3' : ''} whitespace-pre-wrap`}>{turn.content}</p>
+
+                        {turn.role === 'assistant' && turn.restaurants?.length ? (
+                          <div className="mt-4 space-y-2">
+                            <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+                              Top results
+                            </div>
+                            <div className="space-y-2">
+                              {turn.restaurants.slice(0, 4).map((restaurant, restaurantIndex) => (
+                                <RestaurantPreview
+                                  key={`${restaurant.place_id}-${restaurantIndex}`}
+                                  restaurant={restaurant}
+                                  rank={restaurantIndex + 1}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {turn.role === 'assistant' && turn.sources?.length ? (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {turn.sources.slice(0, 3).map((source) => (
+                              <a
+                                key={`${source.title}-${source.url}`}
+                                href={source.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="rounded-full border border-emerald-400/20 bg-white/8 px-3 py-1 text-xs font-semibold text-emerald-50 transition hover:border-emerald-300/40 hover:bg-white/12"
+                              >
+                                {source.title}
+                              </a>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-[1.1rem] border border-dashed border-white/10 bg-white/4 px-4 py-4 text-sm text-white/55">
+                  Ask for a town or ZIP, and 618FOOD.COM will find the top restaurants.
+                </div>
+              )}
+
+              {assistantLoading ? (
+                <div className="mt-3 flex justify-start">
+                  <div className="rounded-[1.2rem] bg-white/8 px-4 py-3 text-sm leading-7 text-white/60 ring-1 ring-white/10">
+                    {assistantLoadingLabel}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="border-t border-white/10 bg-[linear-gradient(180deg,rgba(10,12,13,0.96),rgba(6,8,9,0.98))] px-4 py-4">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">
+              Chat with 618FOOD.COM
+            </div>
+            <input
+              value={draftText}
+              onChange={(event) => setDraftText(event.target.value)}
+              placeholder="Type a message..."
+              className="mt-2 h-12 w-full rounded-full border border-white/10 bg-black/55 px-4 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-emerald-400/30 focus:ring-4 focus:ring-emerald-400/10"
+            />
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
