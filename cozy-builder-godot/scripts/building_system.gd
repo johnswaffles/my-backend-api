@@ -2793,6 +2793,7 @@ func _spawn_ambient_car(road_cell: Vector2i, index: int) -> Node3D:
 		Vector3(0.2, 0.135, 0.22),
 	]:
 		_add_box(fender_data, Vector3(0.06, 0.035, 0.14), body_material, root)
+	_add_car_detail_package(root, index, body_material, trim_material, dark_trim, window_glass)
 	_add_vehicle_headlights_local(root, 0.39, 0.12, 0.15, 3.2, 0.34)
 	return root
 
@@ -2856,6 +2857,7 @@ func _spawn_ambient_trolley(road_cell: Vector2i) -> Node3D:
 	_add_box(Vector3(0.0, 1.5, -0.44), Vector3(0.16, 0.025, 0.04), pole_material, root)
 	_add_box(Vector3(0.0, 0.2, 0.72), Vector3(0.5, 0.04, 0.08), brass_material, root)
 	_add_box(Vector3(0.0, 0.2, -0.72), Vector3(0.5, 0.04, 0.08), brass_material, root)
+	_add_trolley_detail_package(root, trim_material, stripe_material, brass_material, rail_glass)
 	_add_vehicle_headlights_local(root, 0.66, 0.18, 0.18, 4.0, 0.42)
 	return root
 
@@ -4501,7 +4503,7 @@ func _apply_park_tier_visuals(root: Node3D, tier: int, variant: int, profile: Di
 		_add_bench_local(Vector3(0.52, 0.0, -0.16), -0.9, lot_root)
 	if tier >= 4:
 		if bool(profile.get("fountain", false)):
-			_add_local_sphere(Vector3(0.0, 0.14, 0.0), 0.22, 0.16, _make_material_from_color(palette.accent, 0.44), lot_root)
+			_add_park_fountain_local(Vector3(0.0, 0.07, 0.0), lot_root)
 		if bool(profile.get("paths", false)):
 			_add_box(Vector3(0.0, 0.06, 0.0), Vector3(0.82, 0.03, 0.82), _make_material_from_color(palette.trim, 0.56), lot_root)
 			_add_box(Vector3(0.0, 0.12, 0.0), Vector3(0.08, 0.24, 1.34), _make_material("d8c7ab", 0.9), lot_root)
@@ -4666,6 +4668,7 @@ func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = [
 
 	if not preview:
 		_add_road_finish_details(root, vertical_straight, horizontal_straight, intersection, north, east, south, west)
+		_add_road_surface_polish_local(root, vertical_straight, horizontal_straight, intersection, north, east, south, west)
 
 	return root
 
@@ -4723,6 +4726,49 @@ func _add_crosswalk_local(root: Node3D, center: Vector3, horizontal: bool) -> vo
 			_add_box(center + Vector3(offset, 0.0, 0.0), Vector3(0.12, 0.018, 0.66), _crosswalk_material, root)
 		else:
 			_add_box(center + Vector3(0.0, 0.0, offset), Vector3(0.66, 0.018, 0.12), _crosswalk_material, root)
+
+
+func _add_road_surface_polish_local(root: Node3D, vertical_straight: bool, horizontal_straight: bool, intersection: bool, north: bool, east: bool, south: bool, west: bool) -> void:
+	var seam_material := _make_material("333a42", 0.98)
+	var grate_material := _make_material("2d3034", 0.96)
+	var curb_cap_material := _make_material("f0eadc", 0.9)
+	if vertical_straight:
+		for z in [-1.6, 1.6]:
+			_add_box(Vector3(-1.78, 0.156, z), Vector3(0.16, 0.014, 0.08), curb_cap_material, root)
+			_add_box(Vector3(1.78, 0.156, z), Vector3(0.16, 0.014, 0.08), curb_cap_material, root)
+		_add_box(Vector3(-0.86, 0.13, 0.0), Vector3(0.025, 0.012, 3.28), seam_material, root)
+		_add_box(Vector3(0.86, 0.13, 0.0), Vector3(0.025, 0.012, 3.28), seam_material, root)
+		_add_drain_grate_local(root, Vector3(-1.48, 0.16, -1.18), true, grate_material)
+		_add_drain_grate_local(root, Vector3(1.48, 0.16, 1.18), true, grate_material)
+	elif horizontal_straight:
+		for x in [-1.6, 1.6]:
+			_add_box(Vector3(x, 0.156, -1.78), Vector3(0.08, 0.014, 0.16), curb_cap_material, root)
+			_add_box(Vector3(x, 0.156, 1.78), Vector3(0.08, 0.014, 0.16), curb_cap_material, root)
+		_add_box(Vector3(0.0, 0.13, -0.86), Vector3(3.28, 0.012, 0.025), seam_material, root)
+		_add_box(Vector3(0.0, 0.13, 0.86), Vector3(3.28, 0.012, 0.025), seam_material, root)
+		_add_drain_grate_local(root, Vector3(-1.18, 0.16, -1.48), false, grate_material)
+		_add_drain_grate_local(root, Vector3(1.18, 0.16, 1.48), false, grate_material)
+	elif intersection:
+		_add_ellipse_disc_local(Vector3(0.0, 0.158, 0.0), Vector2(0.32, 0.32), 0.012, seam_material, root, 0.0)
+		if north:
+			_add_drain_grate_local(root, Vector3(-1.42, 0.16, -1.44), true, grate_material)
+		if south:
+			_add_drain_grate_local(root, Vector3(1.42, 0.16, 1.44), true, grate_material)
+		if east:
+			_add_drain_grate_local(root, Vector3(1.44, 0.16, -1.42), false, grate_material)
+		if west:
+			_add_drain_grate_local(root, Vector3(-1.44, 0.16, 1.42), false, grate_material)
+
+
+func _add_drain_grate_local(root: Node3D, center: Vector3, vertical: bool, material: Material) -> void:
+	var grate_size := Vector3(0.22, 0.012, 0.08) if vertical else Vector3(0.08, 0.012, 0.22)
+	_add_box(center, grate_size, material, root)
+	for i in range(3):
+		var offset := (float(i) - 1.0) * 0.055
+		if vertical:
+			_add_box(center + Vector3(offset, 0.008, 0.0), Vector3(0.012, 0.008, 0.08), _road_edge_highlight_material, root)
+		else:
+			_add_box(center + Vector3(0.0, 0.008, offset), Vector3(0.08, 0.008, 0.012), _road_edge_highlight_material, root)
 
 
 func _road_in_source(cell: Vector2i, road_source: Array) -> bool:
@@ -4960,6 +5006,7 @@ func _add_tree(position_3d: Vector3) -> void:
 	_add_local_sphere(Vector3(0.24, 0.84, -0.08), 0.32, 0.58, _leaf_material_dark, root)
 	_add_local_sphere(Vector3(0.08, 1.13, -0.06), 0.26, 0.4, _leaf_material_light, root)
 	_add_local_sphere(Vector3(-0.02, 0.74, 0.12), 0.3, 0.36, _leaf_material_dark, root)
+	_add_tree_detail_local(Vector3.ZERO, root)
 
 
 func _add_grass_clump(position_3d: Vector3, scale_factor: float) -> void:
@@ -4987,15 +5034,29 @@ func _add_park_corner(position_3d: Vector3) -> void:
 	_nature_root.add_child(root)
 	_register_nature_feature(root, 1.08)
 	_add_box(Vector3(0.0, 0.02, 0.0), Vector3(1.8, 0.05, 1.8), _make_material("eef4f5", 0.84), root)
+	_add_ellipse_disc_local(Vector3(0.0, 0.055, 0.0), Vector2(1.34, 1.16), 0.025, _make_material("9caf78", 0.98), root, 18.0)
+	_add_box(Vector3(0.0, 0.08, 0.0), Vector3(1.48, 0.024, 0.14), _make_material("d9cbb7", 0.9), root)
+	_add_box(Vector3(0.0, 0.082, 0.0), Vector3(0.14, 0.024, 1.28), _make_material("d9cbb7", 0.9), root)
+	_add_park_fountain_local(Vector3(0.0, 0.09, 0.04), root)
 	_add_local_tree(Vector3(-0.55, 0.0, -0.1), root)
 	_add_local_tree(Vector3(0.52, 0.0, 0.28), root)
 	_add_bench_local(Vector3(0.0, 0.06, -0.58), 0.0, root)
+	_add_box(Vector3(-0.62, 0.1, 0.58), Vector3(0.42, 0.08, 0.12), _make_material("a57649", 0.72), root)
 	_add_local_flower_patch(Vector3(0.58, 0.08, -0.55), 4, _flower_material_pink, root)
 
 
 func _add_planter(position_3d: Vector3) -> void:
 	_add_box(position_3d, Vector3(0.22, 0.14, 0.22), _stone_material, building_root)
 	_add_sphere(position_3d + Vector3(0.0, 0.18, 0.0), 0.14, 0.2, _leaf_material)
+
+
+func _add_park_fountain_local(position_3d: Vector3, parent: Node) -> void:
+	var basin_material := _make_material("d8d4c8", 0.88)
+	var water_material := _make_transparent_material(Color("aee0eb"), 0.24, 0.38)
+	_add_ellipse_disc_local(position_3d + Vector3(0.0, 0.0, 0.0), Vector2(0.44, 0.44), 0.08, basin_material, parent, 0.0)
+	_add_ellipse_disc_local(position_3d + Vector3(0.0, 0.052, 0.0), Vector2(0.32, 0.32), 0.02, water_material, parent, 0.0)
+	_add_local_cylinder(position_3d + Vector3(0.0, 0.16, 0.0), 0.045, 0.06, 0.18, basin_material, parent)
+	_add_local_sphere(position_3d + Vector3(0.0, 0.28, 0.0), 0.08, 0.08, water_material, parent)
 
 
 func _add_flower_patch(center: Vector3, count: int, material: StandardMaterial3D) -> void:
@@ -5292,6 +5353,46 @@ func _add_lantern_glow_local(position_3d: Vector3, parent: Node) -> void:
 	parent.add_child(ground_glow)
 
 
+func _add_car_detail_package(root: Node3D, index: int, body_material: Material, trim_material: Material, dark_trim: Material, glass_material: Material) -> void:
+	var style := posmod(index, 3)
+	var chrome_material := _make_material("ddd6c8", 0.72)
+	var amber_material := _make_material("f0b14e", 0.42, 0.0, true, "ffc069", 0.16)
+	_add_box(Vector3(-0.225, 0.31, 0.16), Vector3(0.045, 0.045, 0.06), dark_trim, root)
+	_add_box(Vector3(0.225, 0.31, 0.16), Vector3(0.045, 0.045, 0.06), dark_trim, root)
+	_add_box(Vector3(-0.155, 0.152, 0.368), Vector3(0.045, 0.026, 0.018), amber_material, root)
+	_add_box(Vector3(0.155, 0.152, 0.368), Vector3(0.045, 0.026, 0.018), amber_material, root)
+	match style:
+		0:
+			_add_box(Vector3(0.0, 0.402, -0.06), Vector3(0.24, 0.025, 0.26), chrome_material, root)
+			_add_box(Vector3(-0.12, 0.424, -0.06), Vector3(0.025, 0.035, 0.3), dark_trim, root)
+			_add_box(Vector3(0.12, 0.424, -0.06), Vector3(0.025, 0.035, 0.3), dark_trim, root)
+		1:
+			_add_soft_block(Vector3(0.0, 0.27, -0.2), Vector3(0.34, 0.2, 0.28), body_material, root, 0.05)
+			_add_box(Vector3(0.0, 0.35, -0.36), Vector3(0.24, 0.075, 0.035), glass_material, root)
+			_add_box(Vector3(0.0, 0.16, -0.47), Vector3(0.28, 0.05, 0.035), chrome_material, root)
+		2:
+			_add_box(Vector3(0.0, 0.24, -0.22), Vector3(0.32, 0.05, 0.24), dark_trim, root)
+			_add_box(Vector3(-0.16, 0.28, -0.22), Vector3(0.035, 0.11, 0.26), body_material, root)
+			_add_box(Vector3(0.16, 0.28, -0.22), Vector3(0.035, 0.11, 0.26), body_material, root)
+			_add_box(Vector3(0.0, 0.3, -0.36), Vector3(0.32, 0.045, 0.035), body_material, root)
+
+
+func _add_trolley_detail_package(root: Node3D, trim_material: Material, stripe_material: Material, brass_material: Material, rail_glass: Material) -> void:
+	var dark_material := _make_material("3d3430", 0.84)
+	for z in [-0.28, 0.28]:
+		_add_box(Vector3(-0.326, 0.36, z), Vector3(0.03, 0.28, 0.18), dark_material, root)
+		_add_box(Vector3(0.326, 0.36, z), Vector3(0.03, 0.28, 0.18), dark_material, root)
+		_add_box(Vector3(-0.345, 0.44, z), Vector3(0.022, 0.08, 0.11), rail_glass, root)
+		_add_box(Vector3(0.345, 0.44, z), Vector3(0.022, 0.08, 0.11), rail_glass, root)
+	_add_box(Vector3(0.0, 0.36, 0.705), Vector3(0.26, 0.2, 0.025), trim_material, root)
+	_add_box(Vector3(0.0, 0.43, 0.73), Vector3(0.16, 0.055, 0.018), stripe_material, root)
+	_add_box(Vector3(0.0, 0.36, -0.705), Vector3(0.26, 0.2, 0.025), trim_material, root)
+	_add_box(Vector3(0.0, 0.66, 0.66), Vector3(0.4, 0.035, 0.03), brass_material, root)
+	_add_box(Vector3(0.0, 0.66, -0.66), Vector3(0.4, 0.035, 0.03), brass_material, root)
+	_add_box(Vector3(-0.36, 0.18, 0.0), Vector3(0.035, 0.04, 0.86), brass_material, root)
+	_add_box(Vector3(0.36, 0.18, 0.0), Vector3(0.035, 0.04, 0.86), brass_material, root)
+
+
 func _add_vehicle_headlights_local(parent: Node, front_z: float, half_width: float, light_y: float, light_range: float, light_energy: float) -> void:
 	var headlight_material := _make_material("fff5dd", 0.04, 0.0, true, "fff0b9", 1.25)
 	var halo_material := _make_transparent_material(Color("fff1b8"), 0.08, 0.18)
@@ -5427,6 +5528,31 @@ func _add_local_tree(position_3d: Vector3, parent: Node) -> void:
 	_add_local_sphere(position_3d + Vector3(0.24, 0.84, -0.08), 0.32, 0.58, _leaf_material_dark, parent)
 	_add_local_sphere(position_3d + Vector3(0.06, 1.11, -0.04), 0.24, 0.38, _leaf_material_light, parent)
 	_add_local_sphere(position_3d + Vector3(-0.02, 0.74, 0.12), 0.28, 0.34, _leaf_material_dark, parent)
+	_add_tree_detail_local(position_3d, parent)
+
+
+func _add_tree_detail_local(position_3d: Vector3, parent: Node) -> void:
+	var bark_dark := _make_material("5c412d", 0.96)
+	var leaf_spark := _make_material("9dc06e", 0.9)
+	var fruit_material := _make_material("d96d5c", 0.78)
+	var variant := posmod(int(round((position_3d.x + 17.0) * 11.0 + (position_3d.z + 23.0) * 7.0)), 4)
+	for root_angle in [0.0, 120.0, 240.0]:
+		var root_dir := Vector3(cos(deg_to_rad(root_angle)), 0.0, sin(deg_to_rad(root_angle)))
+		var root_piece := _add_box(position_3d + root_dir * 0.12 + Vector3(0.0, 0.07, 0.0), Vector3(0.22, 0.045, 0.055), bark_dark, parent)
+		root_piece.rotation_degrees.y = -root_angle
+	for branch_data in [
+		{"offset": Vector3(-0.12, 0.68, 0.02), "rot_z": -28.0, "rot_x": 8.0},
+		{"offset": Vector3(0.12, 0.72, -0.03), "rot_z": 26.0, "rot_x": -5.0},
+	]:
+		var offset: Vector3 = branch_data["offset"]
+		var branch := _add_local_cylinder(position_3d + offset, 0.035, 0.05, 0.36, bark_dark, parent)
+		branch.rotation_degrees.z = float(branch_data["rot_z"])
+		branch.rotation_degrees.x = float(branch_data["rot_x"])
+	_add_local_sphere(position_3d + Vector3(-0.18, 1.1, 0.14), 0.11, 0.08, leaf_spark, parent)
+	_add_local_sphere(position_3d + Vector3(0.18, 1.02, -0.18), 0.1, 0.07, leaf_spark, parent)
+	if variant == 0 or variant == 2:
+		_add_local_sphere(position_3d + Vector3(-0.22, 0.88, 0.16), 0.045, 0.045, fruit_material, parent)
+		_add_local_sphere(position_3d + Vector3(0.16, 0.78, -0.24), 0.038, 0.038, fruit_material, parent)
 
 
 func _add_local_flower_patch(center: Vector3, count: int, material: StandardMaterial3D, parent: Node) -> void:
