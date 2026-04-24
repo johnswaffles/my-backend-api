@@ -78,19 +78,19 @@ const TOOL_YIELDS := {
 		"population": [0, 0, 0, 0],
 		"jobs": [0, 0, 0, 0],
 		"cashflow": [0, 0, 0, 0],
-		"appeal": [7, 7, 7, 7],
+		"appeal": [10, 10, 10, 10],
 	},
 	"pond_medium": {
 		"population": [0, 0, 0, 0],
 		"jobs": [0, 0, 0, 0],
 		"cashflow": [0, 0, 0, 0],
-		"appeal": [11, 11, 11, 11],
+		"appeal": [16, 16, 16, 16],
 	},
 	"pond_large": {
 		"population": [0, 0, 0, 0],
 		"jobs": [0, 0, 0, 0],
 		"cashflow": [0, 0, 0, 0],
-		"appeal": [16, 16, 16, 16],
+		"appeal": [26, 26, 26, 26],
 	},
 	"forest_small": {
 		"population": [0, 0, 0, 0],

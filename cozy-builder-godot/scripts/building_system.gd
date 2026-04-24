@@ -99,9 +99,9 @@ const BUILDING_MAX_TIERS := {
 	BUILD_TOOL_PARK: 4,
 }
 const SCENIC_TOOL_SPECS := {
-	BUILD_TOOL_POND_SMALL: {"label": "Small Pond", "footprint": Vector2i(3, 3), "kind": "pond", "water_size": Vector2(1.72, 1.64), "shore_size": Vector2(2.18, 2.04), "cost": 260, "appeal": 6},
-	BUILD_TOOL_POND_MEDIUM: {"label": "Medium Pond", "footprint": Vector2i(4, 4), "kind": "pond", "water_size": Vector2(2.16, 1.96), "shore_size": Vector2(2.72, 2.46), "cost": 420, "appeal": 10},
-	BUILD_TOOL_POND_LARGE: {"label": "Large Lake", "footprint": Vector2i(5, 5), "kind": "pond", "water_size": Vector2(2.62, 2.42), "shore_size": Vector2(3.26, 3.0), "cost": 640, "appeal": 16},
+	BUILD_TOOL_POND_SMALL: {"label": "Small Pond", "footprint": Vector2i(7, 6), "kind": "pond", "water_size": Vector2(5.5, 4.8), "shore_size": Vector2(6.5, 5.6), "cost": 260, "appeal": 10},
+	BUILD_TOOL_POND_MEDIUM: {"label": "Medium Pond", "footprint": Vector2i(9, 8), "kind": "pond", "water_size": Vector2(7.7, 6.7), "shore_size": Vector2(8.7, 7.7), "cost": 420, "appeal": 16},
+	BUILD_TOOL_POND_LARGE: {"label": "Large Lake", "footprint": Vector2i(12, 10), "kind": "pond", "water_size": Vector2(10.2, 8.8), "shore_size": Vector2(11.3, 9.8), "cost": 640, "appeal": 26},
 	BUILD_TOOL_FOREST_SMALL: {"label": "Small Forest", "footprint": Vector2i(4, 4), "kind": "forest", "tree_count": 6, "cost": 240, "appeal": 8},
 	BUILD_TOOL_FOREST_MEDIUM: {"label": "Medium Forest", "footprint": Vector2i(5, 5), "kind": "forest", "tree_count": 10, "cost": 380, "appeal": 12},
 	BUILD_TOOL_FOREST_LARGE: {"label": "Large Forest", "footprint": Vector2i(6, 6), "kind": "forest", "tree_count": 15, "cost": 560, "appeal": 18},
@@ -114,7 +114,8 @@ const AMBIENT_LIGHT_PRESETS := [
 	{"label": "Daylight 60%", "scale": 0.6},
 	{"label": "Daylight 40%", "scale": 0.4},
 	{"label": "Daylight 20%", "scale": 0.2},
-	{"label": "Daylight 0%", "scale": 0.0},
+	{"label": "Night 10%", "scale": 0.1},
+	{"label": "Deep Night 0%", "scale": 0.0},
 ]
 const PROPERTY_FRONT_SETBACK := 1.0
 const PROPERTY_FRONT_SETBACK_BY_TOOL := {
@@ -2170,13 +2171,11 @@ func _spawn_scenic_preview(tool: String) -> Node3D:
 	var root := Node3D.new()
 	var label := str(spec.get("kind", ""))
 	if label == "pond":
-		_add_box(Vector3(0.0, 0.02, 0.0), Vector3(2.0, 0.04, 2.0), _ghost_base_material, root)
-		_add_box(Vector3(0.0, 0.04, 0.0), Vector3(1.6, 0.02, 1.6), _ghost_accent_material, root)
-		_add_box(Vector3(0.0, 0.06, 0.0), Vector3(1.2, 0.02, 1.2), _ghost_accent_material, root)
-		_add_box(Vector3(0.0, 0.08, 0.0), Vector3(1.5, 0.01, 0.28), _ghost_base_material, root)
-		_add_box(Vector3(0.0, 0.08, 0.0), Vector3(0.28, 0.01, 1.5), _ghost_base_material, root)
-		_add_local_sphere(Vector3(-0.54, 0.06, -0.42), 0.14, 0.12, _ghost_base_material, root)
-		_add_local_sphere(Vector3(0.48, 0.06, 0.46), 0.12, 0.1, _ghost_base_material, root)
+		var water_size: Vector2 = spec.get("water_size", Vector2(4.6, 3.6))
+		var shore_size: Vector2 = spec.get("shore_size", Vector2(5.5, 4.4))
+		_add_organic_pond_layer_local(Vector3(0.0, 0.02, 0.0), shore_size, 0.04, _ghost_base_material, root, 0.0)
+		_add_organic_pond_layer_local(Vector3(0.0, 0.05, 0.0), water_size, 0.03, _ghost_accent_material, root, 8.0)
+		_add_organic_pond_highlights_local(water_size, root, true)
 		return root
 	if label == "forest":
 		_add_box(Vector3(0.0, 0.02, 0.0), Vector3(2.1, 0.04, 2.1), _ghost_base_material, root)
@@ -3216,36 +3215,38 @@ func _update_day_night_visuals() -> void:
 		return
 	var town_strength := _town_light_strength()
 	var daylight_scale := clampf(_ambient_light_scale, 0.0, 1.0)
-	var sky_top: Color = Color(0.34, 0.62, 0.95).lerp(Color(0.24, 0.44, 0.72), 1.0 - daylight_scale)
-	var sky_horizon: Color = Color(0.74, 0.88, 1.0).lerp(Color(0.54, 0.70, 0.90), 1.0 - daylight_scale)
+	var night_amount := 1.0 - daylight_scale
+	var daylight_curve := pow(daylight_scale, 1.35)
+	var sky_top: Color = Color(0.34, 0.62, 0.95).lerp(Color(0.015, 0.024, 0.055), night_amount)
+	var sky_horizon: Color = Color(0.74, 0.88, 1.0).lerp(Color(0.04, 0.055, 0.095), night_amount)
 	if world_environment and world_environment.environment:
 		var env: Environment = world_environment.environment
 		env.background_mode = Environment.BG_SKY
 		env.background_color = sky_top.lerp(sky_horizon, 0.08)
 		env.ambient_light_color = sky_top.lerp(sky_horizon, 0.35)
-		env.ambient_light_energy = 0.22 * daylight_scale
+		env.ambient_light_energy = lerpf(0.035, 0.22, daylight_curve)
 		env.fog_enabled = false
 		env.fog_density = 0.0
 		env.glow_bloom = 0.0
 		env.glow_intensity = 0.0
 		env.adjustment_enabled = true
-		env.adjustment_brightness = 1.0
-		env.adjustment_contrast = 1.0
+		env.adjustment_brightness = lerpf(0.62, 1.0, daylight_scale)
+		env.adjustment_contrast = lerpf(1.08, 1.0, daylight_scale)
 		env.adjustment_saturation = 1.0
 	if sun:
-		sun.light_color = Color(1.0, 0.98, 0.93).lerp(Color(0.92, 0.96, 1.0), town_strength * 0.02)
-		sun.light_energy = 1.35 * daylight_scale
-		sun.rotation_degrees = Vector3(-62.0, -30.0, 0.0)
+		sun.light_color = Color(1.0, 0.98, 0.93).lerp(Color(0.58, 0.66, 0.86), night_amount)
+		sun.light_energy = lerpf(0.025, 1.35, daylight_curve)
+		sun.rotation_degrees = Vector3(lerpf(-34.0, -62.0, daylight_scale), -30.0, 0.0)
 		sun.shadow_blur = 0.75
 	if fill_light:
-		fill_light.light_color = Color(0.86, 0.93, 1.0).lerp(Color(0.78, 0.84, 0.92), town_strength * 0.02)
-		fill_light.light_energy = 0.2 * daylight_scale
+		fill_light.light_color = Color(0.86, 0.93, 1.0).lerp(Color(0.2, 0.26, 0.4), night_amount)
+		fill_light.light_energy = lerpf(0.07, 0.2, daylight_curve)
 
 	for band in _window_bands:
 		if is_instance_valid(band):
 			var material := band.material_override as StandardMaterial3D
 			if material:
-				material.emission_energy_multiplier = 0.08 + town_strength * 0.025 + (1.0 - daylight_scale) * 0.08
+				material.emission_energy_multiplier = 0.08 + town_strength * 0.025 + night_amount * 0.18
 
 
 func _spawn_road_tile(world_position: Vector3, preview: bool) -> Node3D:
@@ -3697,31 +3698,24 @@ func _populate_pond_variant(root: Node3D, lot_root: Node3D, structure_root: Node
 	var footprint: Vector2i = spec.get("footprint", Vector2i(3, 3))
 	var water_size: Vector2 = spec.get("water_size", Vector2(1.72, 1.64))
 	var shore_size: Vector2 = spec.get("shore_size", Vector2(2.18, 2.04))
-	var shore_color := _make_material("d4c09f", 0.92)
-	var grass_color := _make_material("8da86a", 0.98)
+	var shore_color := _make_material("d6c39d", 0.94)
+	var grass_color := _make_material("8fa86a", 0.98)
 	var water_surface := _make_transparent_material(Color("aee0eb"), 0.24, 0.38)
 	var water_deep := _make_material("5b93a2", 0.32, 0.0, true, "d2f3f7", 0.05)
-	_add_parcel_shadow(root, Vector2(float(footprint.x) + 0.6, float(footprint.y) + 0.6), 0.18)
-	_add_box(Vector3(0.0, 0.012, 0.0), Vector3(shore_size.x, 0.04, shore_size.y), grass_color, lot_root)
-	_add_soft_block(Vector3(0.0, 0.04, 0.0), Vector3(shore_size.x * 0.86, 0.04, shore_size.y * 0.86), shore_color, lot_root, 0.18)
-	_add_soft_block(Vector3(0.0, 0.06, 0.0), Vector3(water_size.x, 0.03, water_size.y), water_deep, structure_root, 0.22)
-	_add_soft_block(Vector3(0.0, 0.08, 0.0), Vector3(water_size.x * 0.82, 0.02, water_size.y * 0.82), water_surface, structure_root, 0.18)
-	_add_box(Vector3(-water_size.x * 0.14, 0.096, -water_size.y * 0.12), Vector3(water_size.x * 0.46, 0.012, 0.035), _water_highlight_material, structure_root)
-	_add_box(Vector3(water_size.x * 0.18, 0.098, water_size.y * 0.16), Vector3(water_size.x * 0.28, 0.012, 0.03), _water_highlight_material, structure_root)
-	_add_box(Vector3(water_size.x * 0.06, 0.1, 0.0), Vector3(0.035, 0.012, water_size.y * 0.36), _water_highlight_material, structure_root)
+	var variant_turn := float(posmod(variant, 6)) * 9.0
+	_add_parcel_shadow(root, Vector2(float(footprint.x) + 0.8, float(footprint.y) + 0.8), 0.16)
+	_add_organic_pond_layer_local(Vector3(0.0, 0.012, 0.0), shore_size * 1.08, 0.04, grass_color, lot_root, variant_turn - 5.0)
+	_add_organic_pond_layer_local(Vector3(0.0, 0.04, 0.0), shore_size * 0.94, 0.04, shore_color, lot_root, variant_turn + 7.0)
+	_add_organic_pond_layer_local(Vector3(0.0, 0.065, 0.0), water_size, 0.035, water_deep, structure_root, variant_turn)
+	_add_organic_pond_layer_local(Vector3(0.0, 0.09, 0.0), water_size * 0.88, 0.018, water_surface, structure_root, variant_turn + 13.0)
+	_add_organic_pond_highlights_local(water_size, structure_root)
 	_add_ripple_ring_local(Vector3(0.0, 0.106, 0.0), water_size.x * 0.36, water_size.y * 0.3, structure_root)
 	_add_ripple_ring_local(Vector3(water_size.x * 0.12, 0.108, water_size.y * 0.1), water_size.x * 0.24, water_size.y * 0.18, structure_root)
-	_add_box(Vector3(0.0, 0.07, water_size.y * 0.46), Vector3(water_size.x * 0.92, 0.02, 0.08), shore_color, lot_root)
-	_add_box(Vector3(0.0, 0.07, -water_size.y * 0.46), Vector3(water_size.x * 0.92, 0.02, 0.08), shore_color, lot_root)
-	_add_box(Vector3(water_size.x * 0.46, 0.07, 0.0), Vector3(0.08, 0.02, water_size.y * 0.92), shore_color, lot_root)
-	_add_box(Vector3(-water_size.x * 0.46, 0.07, 0.0), Vector3(0.08, 0.02, water_size.y * 0.92), shore_color, lot_root)
-	_add_local_sphere(Vector3(-water_size.x * 0.24, 0.09, -water_size.y * 0.18), 0.12, 0.08, _make_material("d8e7c5", 0.9), structure_root)
-	_add_local_sphere(Vector3(water_size.x * 0.2, 0.09, water_size.y * 0.2), 0.1, 0.08, _make_material("d8e7c5", 0.9), structure_root)
-	_add_local_cylinder(Vector3(-water_size.x * 0.4, 0.08, water_size.y * 0.36), 0.02, 0.02, 0.2, _grass_blade_material, lot_root)
-	_add_local_cylinder(Vector3(water_size.x * 0.36, 0.08, -water_size.y * 0.34), 0.02, 0.02, 0.22, _grass_blade_material, lot_root)
+	_add_pond_edge_details_local(water_size, shore_size, lot_root, variant)
 	if tool == BUILD_TOOL_POND_LARGE:
-		_add_box(Vector3(0.22, 0.076, -0.12), Vector3(0.32, 0.02, 0.18), _stone_material, lot_root)
-		_add_box(Vector3(-0.18, 0.076, 0.16), Vector3(0.24, 0.02, 0.12), _stone_material, lot_root)
+		_add_local_sphere(Vector3(water_size.x * 0.18, 0.09, -water_size.y * 0.08), 0.22, 0.12, _stone_material, lot_root)
+		_add_local_sphere(Vector3(water_size.x * 0.24, 0.096, -water_size.y * 0.03), 0.16, 0.1, _stone_material, lot_root)
+		_add_local_sphere(Vector3(-water_size.x * 0.2, 0.09, water_size.y * 0.14), 0.18, 0.1, _stone_material, lot_root)
 
 
 func _add_forest_variant(tool: String, position_3d: Vector3, variant: int) -> Node3D:
@@ -5558,6 +5552,87 @@ func _add_shadow_disc_local(center: Vector3, size: Vector2, alpha: float, parent
 	shadow.scale = Vector3(size.x, 1.0, size.y)
 	shadow.position = center
 	parent.add_child(shadow)
+
+
+func _add_ellipse_disc_local(center: Vector3, size: Vector2, height: float, material: Material, parent: Node, rotation_y: float = 0.0) -> MeshInstance3D:
+	var disc := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.5
+	mesh.bottom_radius = 0.52
+	mesh.height = height
+	mesh.radial_segments = 40
+	disc.mesh = mesh
+	disc.material_override = material
+	disc.position = center
+	disc.scale = Vector3(size.x, 1.0, size.y)
+	disc.rotation_degrees.y = rotation_y
+	disc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(disc)
+	return disc
+
+
+func _add_organic_pond_layer_local(center: Vector3, size: Vector2, height: float, material: Material, parent: Node, rotation_y: float = 0.0) -> void:
+	var lobes := [
+		{"offset": Vector2(0.0, 0.0), "scale": Vector2(1.0, 0.82), "rotation": 0.0},
+		{"offset": Vector2(-0.24, 0.1), "scale": Vector2(0.54, 0.48), "rotation": -18.0},
+		{"offset": Vector2(0.23, -0.13), "scale": Vector2(0.5, 0.43), "rotation": 16.0},
+		{"offset": Vector2(0.06, 0.28), "scale": Vector2(0.58, 0.34), "rotation": 8.0},
+	]
+	for index in range(lobes.size()):
+		var lobe: Dictionary = lobes[index]
+		var offset: Vector2 = lobe["offset"]
+		var lobe_scale: Vector2 = lobe["scale"]
+		var lobe_rotation := float(lobe["rotation"])
+		_add_ellipse_disc_local(
+			center + Vector3(offset.x * size.x, float(index) * 0.0015, offset.y * size.y),
+			Vector2(size.x * lobe_scale.x, size.y * lobe_scale.y),
+			height,
+			material,
+			parent,
+			rotation_y + lobe_rotation
+		)
+
+
+func _add_organic_pond_highlights_local(water_size: Vector2, parent: Node, preview: bool = false) -> void:
+	var material := _ghost_base_material if preview else _water_highlight_material
+	var y := 0.108 if not preview else 0.075
+	var highlights := [
+		{"position": Vector2(-0.18, -0.14), "size": Vector2(0.34, 0.032), "rotation": -8.0},
+		{"position": Vector2(0.18, 0.12), "size": Vector2(0.24, 0.026), "rotation": 11.0},
+		{"position": Vector2(0.02, 0.0), "size": Vector2(0.18, 0.022), "rotation": 4.0},
+	]
+	for highlight in highlights:
+		var position: Vector2 = highlight["position"]
+		var size: Vector2 = highlight["size"]
+		_add_ellipse_disc_local(
+			Vector3(position.x * water_size.x, y, position.y * water_size.y),
+			Vector2(water_size.x * size.x, maxf(0.035, water_size.y * size.y)),
+			0.008,
+			material,
+			parent,
+			float(highlight["rotation"])
+		)
+
+
+func _add_pond_edge_details_local(water_size: Vector2, shore_size: Vector2, parent: Node, variant: int) -> void:
+	var pebble_material := _make_material("d7d2bd", 0.9)
+	var reed_material := _make_material("566f3c", 0.92)
+	var flower_material := _make_material("f2d4e6", 0.78)
+	for index in range(14):
+		var angle := float(index) / 14.0 * TAU + float(posmod(variant, 5)) * 0.18
+		var radius_jitter := 0.88 + 0.06 * sin(float(index) * 1.7)
+		var x := cos(angle) * shore_size.x * 0.44 * radius_jitter
+		var z := sin(angle) * shore_size.y * 0.36 * radius_jitter
+		if index % 3 == 0:
+			_add_local_cylinder(Vector3(x, 0.12, z), 0.018, 0.022, 0.24, reed_material, parent)
+			_add_local_cylinder(Vector3(x + 0.08, 0.1, z - 0.04), 0.014, 0.018, 0.18, reed_material, parent)
+		elif index % 5 == 0:
+			_add_local_sphere(Vector3(x, 0.105, z), 0.06, 0.045, flower_material, parent)
+		else:
+			_add_local_sphere(Vector3(x, 0.08, z), 0.07 + float(index % 2) * 0.018, 0.045, pebble_material, parent)
+	var lily_material := _make_material("7cab70", 0.86)
+	_add_ellipse_disc_local(Vector3(-water_size.x * 0.22, 0.112, water_size.y * 0.08), Vector2(0.32, 0.2), 0.006, lily_material, parent, -18.0)
+	_add_ellipse_disc_local(Vector3(water_size.x * 0.2, 0.114, -water_size.y * 0.16), Vector2(0.26, 0.18), 0.006, lily_material, parent, 24.0)
 
 
 func _add_round_canopy(center: Vector3, size: Vector3, material: Material, parent: Node) -> void:
