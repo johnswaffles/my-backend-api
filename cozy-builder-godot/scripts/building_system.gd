@@ -3344,7 +3344,6 @@ func _build_ground_tiles() -> void:
 			tile.material_override = material
 			tile.position = Vector3(x - half, -0.02, z - half)
 			grid_root.add_child(tile)
-			_add_ground_micro_detail(Vector3(x - half, 0.055, z - half), x, z)
 
 	for edge in range(GRID_SIZE):
 		_add_edge_post(Vector3(-half - 0.9, 0.12, edge - half))
@@ -3401,14 +3400,6 @@ func _build_meadow() -> void:
 		Vector3(2.6, 0.06, -9.55),
 	]:
 		_add_grass_clump(tuft, 1.12)
-	for patch in [
-		Vector3(-14.0, 0.03, -11.0),
-		Vector3(12.6, 0.03, -14.6),
-		Vector3(-10.5, 0.03, 14.2),
-		Vector3(14.1, 0.03, 11.6),
-	]:
-		_add_wildflower_cluster(patch, 8, _flower_material_blue if patch.x > 0.0 else _flower_material_pink, grid_root, 0.16)
-
 
 func _build_nature() -> void:
 	var edge_ring := float(GRID_SIZE) * 0.5 - 5.4
@@ -3433,30 +3424,6 @@ func _build_nature() -> void:
 		Vector3(0.0, 0.04, side_ring + 2.0)
 	]:
 		_add_park_corner(park_pos)
-
-	for flower_pos in [
-		Vector3(-4.25, 0.08, 6.8),
-		Vector3(4.55, 0.08, 6.4),
-		Vector3(-7.4, 0.08, -5.8),
-		Vector3(7.2, 0.08, -6.2)
-	]:
-		_add_flower_patch(flower_pos, 5, _flower_material_pink if flower_pos.x < 0.0 else _flower_material_blue)
-
-
-func _add_ground_micro_detail(center: Vector3, x: int, z: int) -> void:
-	if x < 2 or z < 2 or x > GRID_SIZE - 3 or z > GRID_SIZE - 3:
-		return
-	var pattern := posmod(x * 17 + z * 29, 37)
-	if pattern == 0:
-		_add_grass_clump(center + Vector3(0.22, 0.0, -0.16), 0.42)
-	elif pattern == 7:
-		_add_box(center + Vector3(-0.24, 0.0, 0.18), Vector3(0.12, 0.025, 0.08), _stone_material, grid_root)
-		_add_box(center + Vector3(-0.12, 0.004, 0.24), Vector3(0.08, 0.02, 0.06), _stone_material, grid_root)
-	elif pattern == 14:
-		_add_wildflower_cluster(center + Vector3(0.16, 0.0, 0.18), 3, _flower_material_pink if posmod(x + z, 2) == 0 else _flower_material_blue, grid_root, 0.06)
-	elif pattern == 22:
-		var leaf := _add_box(center + Vector3(0.14, 0.0, -0.18), Vector3(0.16, 0.015, 0.05), _leaf_material_light, grid_root)
-		leaf.rotation_degrees.y = float(posmod(x * 41 + z * 13, 180))
 
 
 func _cozy_palette(kind: String, variant: int) -> Dictionary:
@@ -4332,7 +4299,6 @@ func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = [
 	var road_material: Material = _ghost_accent_material if preview else _road_material
 	var road_top_material: Material = _ghost_accent_material if preview else _make_material("7a8088", 0.88)
 	var lane_material: Material = _ghost_base_material if preview else _road_mark_material
-	var rail_material: Material = _ghost_base_material if preview else _make_material("4f4641", 0.94)
 	var source := road_source if road_source.size() > 0 else [cell]
 	var north := _road_in_source(Vector2i(cell.x, cell.y - 1), source)
 	var east := _road_in_source(Vector2i(cell.x + 1, cell.y), source)
@@ -4377,15 +4343,11 @@ func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = [
 			_add_box(Vector3(0.0, 0.12, z), Vector3(0.16, 0.01, 0.3), lane_material, root)
 		for x in [-2.06, 2.06]:
 			_add_box(Vector3(x, 0.104, 0.0), Vector3(0.16, 0.01, 3.56), sidewalk_material, root)
-		for rail_x in [-0.18, 0.18]:
-			_add_box(Vector3(rail_x, 0.108, 0.0), Vector3(0.05, 0.012, 3.56), rail_material, root)
 	elif horizontal_straight:
 		for x in [-1.24, -0.44, 0.44, 1.24]:
 			_add_box(Vector3(x, 0.12, 0.0), Vector3(0.3, 0.01, 0.16), lane_material, root)
 		for z in [-2.06, 2.06]:
 			_add_box(Vector3(0.0, 0.104, z), Vector3(3.56, 0.01, 0.16), sidewalk_material, root)
-		for rail_z in [-0.18, 0.18]:
-			_add_box(Vector3(0.0, 0.108, rail_z), Vector3(3.56, 0.012, 0.05), rail_material, root)
 	elif intersection:
 		_add_box(Vector3(0.0, 0.074, 0.0), Vector3(4.18, 0.07, 4.18), road_material, root)
 		_add_box(Vector3(0.0, 0.094, 0.0), Vector3(3.82, 0.024, 3.82), road_top_material, root)
@@ -4395,13 +4357,8 @@ func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = [
 		for offset in [-0.58, 0.58]:
 			_add_box(Vector3(offset, 0.12, 0.0), Vector3(0.16, 0.01, 0.34), lane_material, root)
 			_add_box(Vector3(0.0, 0.12, offset), Vector3(0.34, 0.01, 0.16), lane_material, root)
-		for rail_offset in [-0.18, 0.18]:
-			_add_box(Vector3(rail_offset, 0.108, 0.0), Vector3(0.05, 0.012, 4.18), rail_material, root)
-			_add_box(Vector3(0.0, 0.108, rail_offset), Vector3(4.18, 0.012, 0.05), rail_material, root)
 	else:
 		_add_box(Vector3(0.0, 0.12, 0.0), Vector3(0.18, 0.01, 0.18), lane_material, root)
-		_add_box(Vector3(-0.18, 0.108, 0.0), Vector3(0.05, 0.012, 0.84), rail_material, root)
-		_add_box(Vector3(0.18, 0.108, 0.0), Vector3(0.05, 0.012, 0.84), rail_material, root)
 
 	if not preview:
 		_add_road_finish_details(root, vertical_straight, horizontal_straight, intersection, north, east, south, west)
@@ -4410,17 +4367,12 @@ func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = [
 
 
 func _add_road_finish_details(root: Node3D, vertical_straight: bool, horizontal_straight: bool, intersection: bool, north: bool, east: bool, south: bool, west: bool) -> void:
-	_add_road_surface_character(root, vertical_straight, horizontal_straight, intersection)
 	if vertical_straight:
 		_add_box(Vector3(-1.76, 0.122, 0.0), Vector3(0.035, 0.012, 3.58), _road_edge_highlight_material, root)
 		_add_box(Vector3(1.76, 0.122, 0.0), Vector3(0.035, 0.012, 3.58), _road_edge_highlight_material, root)
-		_add_road_patch(root, Vector3(-0.58, 0.123, -0.72), Vector3(0.62, 0.01, 0.34))
-		_add_road_patch(root, Vector3(0.72, 0.123, 0.58), Vector3(0.54, 0.01, 0.28))
 	elif horizontal_straight:
 		_add_box(Vector3(0.0, 0.122, -1.76), Vector3(3.58, 0.012, 0.035), _road_edge_highlight_material, root)
 		_add_box(Vector3(0.0, 0.122, 1.76), Vector3(3.58, 0.012, 0.035), _road_edge_highlight_material, root)
-		_add_road_patch(root, Vector3(-0.72, 0.123, -0.58), Vector3(0.34, 0.01, 0.62))
-		_add_road_patch(root, Vector3(0.58, 0.123, 0.72), Vector3(0.28, 0.01, 0.54))
 	elif intersection:
 		for offset in [-1.76, 1.76]:
 			_add_box(Vector3(offset, 0.122, 0.0), Vector3(0.035, 0.012, 3.82), _road_edge_highlight_material, root)
@@ -4433,33 +4385,6 @@ func _add_road_finish_details(root: Node3D, vertical_straight: bool, horizontal_
 			_add_crosswalk_local(root, Vector3(1.34, 0.128, 0.0), false)
 		if west:
 			_add_crosswalk_local(root, Vector3(-1.34, 0.128, 0.0), false)
-		_add_road_patch(root, Vector3(-0.68, 0.123, 0.58), Vector3(0.38, 0.01, 0.48))
-		_add_road_patch(root, Vector3(0.72, 0.123, -0.54), Vector3(0.42, 0.01, 0.42))
-
-
-func _add_road_surface_character(root: Node3D, vertical_straight: bool, horizontal_straight: bool, intersection: bool) -> void:
-	var tar_material := _make_transparent_material(Color("232831"), 0.95, 0.26)
-	var soft_mark_material := _make_transparent_material(Color("74808b"), 0.92, 0.2)
-	if vertical_straight:
-		_add_box(Vector3(-0.74, 0.126, -0.18), Vector3(0.04, 0.01, 1.22), tar_material, root)
-		_add_box(Vector3(0.84, 0.126, 0.22), Vector3(0.05, 0.01, 0.86), tar_material, root)
-		_add_box(Vector3(0.0, 0.127, -1.5), Vector3(0.84, 0.01, 0.035), soft_mark_material, root)
-		_add_box(Vector3(0.0, 0.127, 1.5), Vector3(0.84, 0.01, 0.035), soft_mark_material, root)
-	elif horizontal_straight:
-		_add_box(Vector3(-0.18, 0.126, -0.74), Vector3(1.22, 0.01, 0.04), tar_material, root)
-		_add_box(Vector3(0.22, 0.126, 0.84), Vector3(0.86, 0.01, 0.05), tar_material, root)
-		_add_box(Vector3(-1.5, 0.127, 0.0), Vector3(0.035, 0.01, 0.84), soft_mark_material, root)
-		_add_box(Vector3(1.5, 0.127, 0.0), Vector3(0.035, 0.01, 0.84), soft_mark_material, root)
-	elif intersection:
-		var manhole := _add_local_cylinder(Vector3(0.66, 0.128, -0.58), 0.16, 0.16, 0.012, soft_mark_material, root)
-		manhole.rotation_degrees.y = 45.0
-		_add_box(Vector3(-0.8, 0.126, 0.76), Vector3(0.72, 0.01, 0.04), tar_material, root)
-		_add_box(Vector3(0.74, 0.126, -0.78), Vector3(0.04, 0.01, 0.72), tar_material, root)
-
-
-func _add_road_patch(root: Node3D, center: Vector3, size: Vector3) -> void:
-	var patch := _add_box(center, size, _road_top_detail_material, root)
-	patch.rotation_degrees.y = 0.0
 
 
 func _add_crosswalk_local(root: Node3D, center: Vector3, horizontal: bool) -> void:
