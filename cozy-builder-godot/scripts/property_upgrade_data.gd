@@ -3,9 +3,11 @@ class_name PropertyUpgradeData
 
 const MAX_TIER := 4
 const HOUSE_MAX_TIER := 5
+const RESTAURANT_MAX_TIER := 5
 
 const DEFAULT_TIER_LABELS := ["base", "refined", "developed", "grand"]
 const HOUSE_TIER_LABELS := ["base", "entry", "family", "two-story", "estate"]
+const RESTAURANT_TIER_LABELS := ["base", "expanded", "dining hall", "landmark", "two-story"]
 
 const UPGRADEABLE_TOOLS := {
 	"house": true,
@@ -22,7 +24,7 @@ const UPGRADE_COST_FACTORS := {
 	"fire": [0.0, 0.62, 0.90, 1.15],
 	"bank": [0.0, 0.60, 0.86, 1.12],
 	"grocery": [0.0, 0.58, 0.84, 1.10],
-	"restaurant": [0.0, 0.58, 0.82, 1.08],
+	"restaurant": [0.0, 0.54, 0.76, 0.98, 1.20],
 	"corner_store": [0.0, 0.54, 0.78, 1.02],
 	"park": [0.0, 0.46, 0.68, 0.92],
 }
@@ -53,10 +55,10 @@ const TOOL_YIELDS := {
 		"appeal": [10, 12, 15, 18],
 	},
 	"restaurant": {
-		"population": [0, 0, 0, 0],
-		"jobs": [20, 24, 29, 35],
-		"cashflow": [246, 312, 392, 486],
-		"appeal": [12, 15, 19, 24],
+		"population": [0, 0, 0, 0, 0],
+		"jobs": [20, 24, 29, 35, 42],
+		"cashflow": [246, 312, 392, 486, 612],
+		"appeal": [12, 15, 19, 24, 31],
 	},
 	"corner_store": {
 		"population": [0, 0, 0, 0],
@@ -190,10 +192,11 @@ const VISUAL_PROFILES := {
 		4: {"awning": true, "service_wing": true, "parking": true, "landscaping": true},
 	},
 	"restaurant": {
-		1: {"patio": false, "pergola": false, "garden_room": false, "landscaping": false},
-		2: {"patio": true, "pergola": false, "garden_room": false, "landscaping": true},
-		3: {"patio": true, "pergola": true, "garden_room": false, "landscaping": true},
-		4: {"patio": true, "pergola": true, "garden_room": true, "landscaping": true},
+		1: {"front_expansion": false, "dining_wing": false, "kitchen_wing": false, "signature_front": false, "second_floor": false},
+		2: {"front_expansion": true, "dining_wing": false, "kitchen_wing": false, "signature_front": false, "second_floor": false},
+		3: {"front_expansion": true, "dining_wing": true, "kitchen_wing": false, "signature_front": false, "second_floor": false},
+		4: {"front_expansion": true, "dining_wing": true, "kitchen_wing": true, "signature_front": true, "second_floor": false},
+		5: {"front_expansion": true, "dining_wing": true, "kitchen_wing": true, "signature_front": true, "second_floor": true},
 	},
 	"corner_store": {
 		1: {"corner_awning": false, "delivery_nook": false, "side_sign": false, "landscaping": false},
@@ -217,6 +220,8 @@ static func is_upgradeable(tool: String) -> bool:
 static func max_tier(tool: String) -> int:
 	if tool == "house":
 		return HOUSE_MAX_TIER
+	if tool == "restaurant":
+		return RESTAURANT_MAX_TIER
 	return MAX_TIER if is_upgradeable(tool) else 1
 
 
@@ -245,21 +250,28 @@ static func tier_yield(tool: String, tier: int) -> Dictionary:
 
 
 static func visual_profile(tool: String, tier: int) -> Dictionary:
+	var tier_cap := max_tier(tool)
+	var tier_labels := _tier_labels(tool)
 	if not VISUAL_PROFILES.has(tool):
-		var fallback_tier: int = clamp(tier, 1, HOUSE_MAX_TIER if tool == "house" else MAX_TIER)
-		var fallback_labels := HOUSE_TIER_LABELS if tool == "house" else DEFAULT_TIER_LABELS
+		var fallback_tier: int = clamp(tier, 1, tier_cap)
 		return {
 			"tier": fallback_tier,
 			"detail_level": fallback_tier - 1,
-			"tier_label": fallback_labels[fallback_tier - 1],
+			"tier_label": tier_labels[fallback_tier - 1],
 		}
 	var tier_profiles: Dictionary = VISUAL_PROFILES[tool]
-	var tier_cap: int = HOUSE_MAX_TIER if tool == "house" else MAX_TIER
 	var clamped_tier: int = clamp(tier, 1, tier_cap)
-	var tier_labels := HOUSE_TIER_LABELS if tool == "house" else DEFAULT_TIER_LABELS
 	var profile: Dictionary = tier_profiles.get(clamped_tier, {})
 	profile = profile.duplicate(true)
 	profile["tier"] = clamped_tier
 	profile["detail_level"] = clamped_tier - 1
 	profile["tier_label"] = tier_labels[clamped_tier - 1]
 	return profile
+
+
+static func _tier_labels(tool: String) -> Array:
+	if tool == "house":
+		return HOUSE_TIER_LABELS
+	if tool == "restaurant":
+		return RESTAURANT_TIER_LABELS
+	return DEFAULT_TIER_LABELS

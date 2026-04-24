@@ -94,7 +94,7 @@ const BUILDING_MAX_TIERS := {
 	BUILD_TOOL_FIRE: 4,
 	BUILD_TOOL_BANK: 4,
 	BUILD_TOOL_GROCERY: 4,
-	BUILD_TOOL_RESTAURANT: 4,
+	BUILD_TOOL_RESTAURANT: 5,
 	BUILD_TOOL_CORNER_STORE: 4,
 	BUILD_TOOL_PARK: 4,
 }
@@ -3485,9 +3485,9 @@ func _cozy_palette(kind: String, variant: int) -> Dictionary:
 			roofs = ["579450", "78a45a", "cf7048", "6d9358"]
 			accents = ["f45b4d", "76d263", "ffd067", "7cc6e4"]
 		"restaurant":
-			walls = ["f7d9bf", "f3ddc8", "ead8c9", "ffe4d2"]
-			roofs = ["a44d43", "cb6a49", "835851", "b3563e"]
-			accents = ["65d8c0", "ffc064", "ef7178", "8ebdff"]
+			walls = ["f7d9bf", "f3ddc8", "e8eef0", "ffe4d2", "ead8c9"]
+			roofs = ["a44d43", "cb6a49", "55728e", "b3563e", "835851"]
+			accents = ["65d8c0", "ffc064", "7eb5e8", "ef7178", "8ebdff"]
 		"corner_store":
 			walls = ["f0d9b7", "f8e7c7", "dce6d2", "fdebd7"]
 			roofs = ["66839a", "936c50", "5e9258", "80658f"]
@@ -3827,31 +3827,94 @@ func _add_grocery_variant(position_3d: Vector3, variant: int) -> Node3D:
 	return root
 
 
+func _restaurant_variant_profile(variant: int) -> Dictionary:
+	var profiles := [
+		{"kind": "bistro", "width": 2.5, "depth": 1.78, "height": 0.96, "roof": "gabled", "canopy": "round", "columns": 3, "sign": "bistro"},
+		{"kind": "diner", "width": 2.9, "depth": 1.62, "height": 0.88, "roof": "flat", "canopy": "stripe", "columns": 4, "sign": "diner"},
+		{"kind": "cafe", "width": 2.42, "depth": 1.92, "height": 1.0, "roof": "shed", "canopy": "pergola", "columns": 2, "sign": "cafe"},
+		{"kind": "trattoria", "width": 2.66, "depth": 1.86, "height": 1.04, "roof": "gabled", "canopy": "tile", "columns": 3, "sign": "pizza"},
+		{"kind": "grill", "width": 2.76, "depth": 1.74, "height": 0.98, "roof": "flat", "canopy": "bold", "columns": 3, "sign": "grill"},
+	]
+	return profiles[posmod(variant, profiles.size())]
+
+
 func _populate_restaurant_variant(root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int) -> void:
 	var palette := _cozy_palette("restaurant", variant)
-	var width := 2.6 + float(variant % 3) * 0.16
-	var depth := 1.84 + float(variant % 2) * 0.16
-	var height := 0.96 + float(int(variant / 4)) * 0.08
+	var restaurant_profile := _restaurant_variant_profile(variant)
+	var width := float(restaurant_profile["width"])
+	var depth := float(restaurant_profile["depth"])
+	var height := float(restaurant_profile["height"])
+	var roof_style := str(restaurant_profile["roof"])
+	var canopy_style := str(restaurant_profile["canopy"])
+	var sign_kind := str(restaurant_profile["sign"])
+	var columns := int(restaurant_profile["columns"])
+	var wall_material := _make_material_from_color(palette.wall, 0.88)
+	var roof_material := _make_material_from_color(palette.roof, 0.74)
+	var trim_material := _make_material_from_color(palette.trim, 0.76)
+	var accent_material := _make_material_from_color(palette.accent, 0.5)
 	_add_parcel_shadow(root, Vector2(4.1, 3.0), 0.22)
 
 	_add_box(Vector3(0.0, 0.015, 0.0), Vector3(3.8, 0.04, 2.8), _make_material("d9d0b9", 0.98), lot_root)
-	_add_box(Vector3(0.0, 0.028, 0.88), Vector3(2.8, 0.03, 1.0), _make_material("d8cbb8", 0.92), lot_root)
-	_add_soft_block(Vector3(0.0, height * 0.5 + 0.05, -0.26), Vector3(width, height, depth), _make_material_from_color(palette.wall, 0.88), structure_root, 0.18)
-	_add_gabled_roof(Vector3(0.0, height + 0.18, -0.26), Vector3(width + 0.16, 0.2, depth + 0.2), _make_material_from_color(palette.roof, 0.74), structure_root, 11.0)
-	_add_round_canopy(Vector3(0.0, 0.42, 0.72), Vector3(width * 0.8, 0.2, 0.24), _make_material_from_color(palette.accent, 0.48), structure_root)
-	_add_facade_trim_package(structure_root, width, height, 0.62, palette, "bistro")
-	_add_box(Vector3(0.0, 0.26, 0.58), Vector3(width * 0.48, 0.36, 0.05), _window_material, structure_root)
-	_add_storefront_window_set(structure_root, width * 0.64, 0.56, 0.64, 3)
-	_add_box(Vector3(0.0, 0.82, 0.62), Vector3(width * 0.5, 0.1, 0.05), _make_material_from_color(palette.trim, 0.42), structure_root)
-	for patio_x in [-0.34, 0.0, 0.34]:
-		_add_local_cylinder(Vector3(patio_x * width, 0.12, 1.1), 0.04, 0.04, 0.18, _make_material_from_color(palette.trim, 0.7), lot_root)
-		var umbrella := _add_local_sphere(Vector3(patio_x * width, 0.28, 1.1), 0.13, 0.16, _make_material_from_color(palette.accent, 0.46), lot_root)
-		umbrella.scale = Vector3(1.4, 0.3, 1.4)
-	_add_box(Vector3(width * 0.28, height + 0.42, -0.46), Vector3(0.12, 0.4, 0.12), _stone_material, structure_root)
-	_add_string_lights_local(lot_root, 1.18, width * 0.78)
-	_add_frontage_detail_cluster(lot_root, width, 1.22, palette.accent, "bistro")
-	_add_shrub_cluster(Vector3(-1.18, 0.0, 1.18), palette.trim, lot_root, 2)
-	_add_shrub_cluster(Vector3(1.18, 0.0, 1.18), palette.accent, lot_root, 2)
+	_add_box(Vector3(0.0, 0.028, 0.88), Vector3(3.1, 0.03, 0.9), _make_material("d8cbb8", 0.92), lot_root)
+	_add_soft_block(Vector3(0.0, height * 0.5 + 0.05, -0.28), Vector3(width, height, depth), wall_material, structure_root, 0.18)
+	_add_restaurant_roof_local(Vector3(0.0, height + 0.18, -0.28), Vector3(width + 0.18, 0.2, depth + 0.2), roof_material, roof_style, structure_root)
+	_add_restaurant_canopy_local(canopy_style, Vector3(0.0, 0.42, 0.66), width, accent_material, trim_material, structure_root)
+	_add_facade_trim_package(structure_root, width, height, 0.62, palette, sign_kind)
+	_add_restaurant_front_door_local(Vector3(0.0, 0.0, 0.68), structure_root, palette.accent)
+	_add_storefront_window_set(structure_root, width * 0.72, 0.56, 0.64, columns)
+	_add_box(Vector3(0.0, 0.82, 0.62), Vector3(width * 0.58, 0.1, 0.05), trim_material, structure_root)
+	_add_signboard_local(Vector3(0.0, height + 0.08, 0.66), Vector2(width * 0.44, 0.2), palette.accent, sign_kind, structure_root)
+	if roof_style == "flat":
+		_add_box(Vector3(0.0, height + 0.36, -0.28), Vector3(width * 0.82, 0.08, depth * 0.72), _make_material_from_color(palette.roof.darkened(0.05), 0.78), structure_root)
+	else:
+		_add_box(Vector3(width * 0.28, height + 0.42, -0.46), Vector3(0.12, 0.4, 0.12), _stone_material, structure_root)
+	_add_front_lanterns(structure_root, 0.72, width * 0.74)
+	_add_string_lights_local(lot_root, 1.18, width * 0.7)
+
+
+func _add_restaurant_roof_local(center: Vector3, size: Vector3, material: Material, style: String, parent: Node) -> void:
+	if style == "flat":
+		_add_box(center + Vector3(0.0, -0.08, 0.0), Vector3(size.x, 0.16, size.z), material, parent)
+		_add_box(center + Vector3(0.0, 0.04, size.z * 0.48), Vector3(size.x, 0.16, 0.08), material, parent)
+		_add_box(center + Vector3(0.0, 0.04, -size.z * 0.48), Vector3(size.x, 0.16, 0.08), material, parent)
+		_add_box(center + Vector3(-size.x * 0.48, 0.04, 0.0), Vector3(0.08, 0.16, size.z), material, parent)
+		_add_box(center + Vector3(size.x * 0.48, 0.04, 0.0), Vector3(0.08, 0.16, size.z), material, parent)
+	elif style == "shed":
+		var roof := _add_box(center, Vector3(size.x, 0.16, size.z), material, parent)
+		roof.rotation_degrees.x = -5.0
+	else:
+		_add_gabled_roof(center, size, material, parent, 11.0)
+
+
+func _add_restaurant_canopy_local(style: String, center: Vector3, width: float, accent_material: Material, trim_material: Material, parent: Node) -> void:
+	match style:
+		"round":
+			_add_round_canopy(center, Vector3(width * 0.78, 0.2, 0.24), accent_material, parent)
+		"stripe":
+			_add_box(center, Vector3(width * 0.86, 0.12, 0.26), accent_material, parent)
+			for stripe_x in [-0.32, -0.1, 0.12, 0.34]:
+				_add_box(center + Vector3(stripe_x * width, 0.03, 0.02), Vector3(width * 0.08, 0.035, 0.3), trim_material, parent)
+		"pergola":
+			_add_box(center + Vector3(0.0, 0.08, 0.0), Vector3(width * 0.78, 0.06, 0.3), accent_material, parent)
+			for post_x in [-0.34, 0.34]:
+				_add_local_cylinder(center + Vector3(post_x * width, -0.18, 0.06), 0.025, 0.025, 0.46, trim_material, parent)
+		"tile":
+			_add_box(center, Vector3(width * 0.82, 0.12, 0.28), accent_material, parent)
+			for tile_x in [-0.36, -0.12, 0.12, 0.36]:
+				_add_box(center + Vector3(tile_x * width, 0.07, -0.02), Vector3(width * 0.12, 0.035, 0.26), trim_material, parent)
+		_:
+			_add_box(center, Vector3(width * 0.9, 0.16, 0.3), accent_material, parent)
+			_add_box(center + Vector3(0.0, 0.11, 0.02), Vector3(width * 0.62, 0.045, 0.32), trim_material, parent)
+
+
+func _add_restaurant_front_door_local(position_3d: Vector3, parent: Node, accent: Color) -> void:
+	var frame_material := _make_material("f4ecda", 0.84)
+	var door_material := _make_material_from_color(accent.darkened(0.28), 0.66)
+	var brass_material := _make_material("c29c67", 0.54)
+	_add_box(position_3d + Vector3(0.0, 0.32, 0.0), Vector3(0.34, 0.64, 0.07), frame_material, parent)
+	_add_box(position_3d + Vector3(0.0, 0.3, 0.035), Vector3(0.2, 0.5, 0.035), door_material, parent)
+	_add_box(position_3d + Vector3(0.06, 0.32, 0.06), Vector3(0.035, 0.035, 0.025), brass_material, parent)
+	_add_box(position_3d + Vector3(0.0, 0.58, 0.06), Vector3(0.14, 0.07, 0.025), _window_material, parent)
 
 
 func _add_restaurant_variant(position_3d: Vector3, variant: int) -> Node3D:
@@ -4162,42 +4225,60 @@ func _apply_grocery_tier_visuals(lot_root: Node3D, structure_root: Node3D, tier:
 
 
 func _apply_restaurant_tier_visuals(lot_root: Node3D, structure_root: Node3D, tier: int, variant: int, profile: Dictionary, palette: Dictionary, accent: Color, trim: Color) -> void:
-	var width := 2.6 + float(variant % 3) * 0.16
-	var depth := 1.84 + float(variant % 2) * 0.16
-	var height := 0.96 + float(int(variant / 4)) * 0.08
+	var restaurant_profile := _restaurant_variant_profile(variant)
+	var width := float(restaurant_profile["width"])
+	var depth := float(restaurant_profile["depth"])
+	var height := float(restaurant_profile["height"])
+	var roof_style := str(restaurant_profile["roof"])
+	var canopy_style := str(restaurant_profile["canopy"])
+	var sign_kind := str(restaurant_profile["sign"])
+	var wall_material := _make_material_from_color(palette["wall"].lightened(0.04), 0.92)
+	var wing_material := _make_material_from_color(palette["wall"].darkened(0.02), 0.92)
+	var roof_material := _make_material_from_color(palette["roof"].darkened(0.01), 0.76)
+	var trim_material := _make_material_from_color(trim, 0.52)
+	var accent_material := _make_material_from_color(accent, 0.48)
 	if tier >= 2:
-		if bool(profile.get("patio", false)):
-			_add_soft_block(Vector3(0.0, 0.38, -0.06), Vector3(width * 0.98, height + 0.18, depth + 0.18), _make_material_from_color(palette["wall"].lightened(0.04), 0.92), structure_root, 0.16)
-			_add_gabled_roof(Vector3(0.0, height + 0.24, -0.06), Vector3(width + 0.2, 0.18, depth + 0.24), _make_material_from_color(palette["roof"].darkened(0.01), 0.76), structure_root, 11.0)
-			_add_box(Vector3(0.0, 0.24, 0.5), Vector3(width * 0.5, 0.32, 0.05), _window_material, structure_root)
-			_add_box(Vector3(0.0, 0.84, 0.56), Vector3(width * 0.52, 0.1, 0.05), _make_material_from_color(trim, 0.42), structure_root)
-			_add_box(Vector3(0.0, 0.04, 1.02), Vector3(width * 0.84, 0.04, 0.08), _make_material_from_color(accent, 0.42), lot_root)
-		if bool(profile.get("landscaping", false)):
-			_add_bench_local(Vector3(-0.84, 0.02, 1.18), 0.0, lot_root)
-			_add_bench_local(Vector3(0.84, 0.02, 1.18), 0.0, lot_root)
+		if bool(profile.get("front_expansion", false)):
+			_add_soft_block(Vector3(0.0, 0.45, 0.34), Vector3(width * 0.94, height * 0.82, 0.64), wall_material, structure_root, 0.14)
+			_add_restaurant_roof_local(Vector3(0.0, height * 0.88 + 0.2, 0.34), Vector3(width + 0.12, 0.14, 0.76), roof_material, roof_style, structure_root)
+			_add_restaurant_canopy_local(canopy_style, Vector3(0.0, 0.48, 0.86), width * 0.92, accent_material, trim_material, structure_root)
+			_add_restaurant_front_door_local(Vector3(0.0, 0.0, 0.74), structure_root, accent)
+			_add_storefront_window_set(structure_root, width * 0.62, 0.56, 0.78, 3)
+			_add_box(Vector3(0.0, 0.86, 0.82), Vector3(width * 0.62, 0.1, 0.05), trim_material, structure_root)
+			_add_box(Vector3(0.0, 0.04, 1.08), Vector3(width * 0.86, 0.04, 0.08), accent_material, lot_root)
 
 	if tier >= 3:
-		if bool(profile.get("pergola", false)):
-			_add_soft_block(Vector3(0.96, 0.36, 0.36), Vector3(0.78, 0.68, 0.94), _make_material_from_color(palette["trim"].darkened(0.01), 0.9), structure_root, 0.1)
-			_add_gabled_roof(Vector3(0.96, 0.84, 0.36), Vector3(0.9, 0.12, 1.04), _make_material_from_color(palette["roof"].darkened(0.01), 0.76), structure_root, 10.0)
-			_add_box(Vector3(0.96, 0.34, 0.72), Vector3(0.3, 0.4, 0.05), _window_material, structure_root)
-		if bool(profile.get("garden_room", false)):
-			_add_soft_block(Vector3(-0.96, 0.38, 0.36), Vector3(0.82, 0.7, 0.96), _make_material_from_color(palette["wall"].darkened(0.02), 0.92), structure_root, 0.1)
-			_add_gabled_roof(Vector3(-0.96, 0.86, 0.36), Vector3(0.94, 0.12, 1.08), _make_material_from_color(palette["roof"].darkened(0.01), 0.76), structure_root, 11.0)
-			_add_box(Vector3(-0.96, 0.34, 0.72), Vector3(0.3, 0.4, 0.05), _window_material, structure_root)
-		if bool(profile.get("patio", false)):
-			_add_box(Vector3(-0.84, 0.08, 1.12), Vector3(1.42, 0.04, 0.08), _make_material_from_color(accent, 0.42), lot_root)
-			_add_box(Vector3(0.84, 0.08, 1.12), Vector3(1.42, 0.04, 0.08), _make_material_from_color(accent, 0.42), lot_root)
+		if bool(profile.get("dining_wing", false)):
+			var side := -1.0 if posmod(variant, 2) == 0 else 1.0
+			var wing_x := side * minf(1.52, width * 0.43 + 0.34)
+			_add_soft_block(Vector3(wing_x, 0.48, -0.08), Vector3(0.82, height * 0.9, 1.38), wing_material, structure_root, 0.12)
+			_add_restaurant_roof_local(Vector3(wing_x, height * 0.92 + 0.2, -0.08), Vector3(0.94, 0.12, 1.52), roof_material, roof_style, structure_root)
+			_add_box(Vector3(wing_x, 0.58, 0.58), Vector3(0.34, 0.36, 0.05), _window_material, structure_root)
+			_add_house_side_window_local(Vector3(wing_x + side * 0.42, 0.58, -0.08), Vector3(0.28, 0.34, 0.05), structure_root, side)
 
 	if tier >= 4:
-		if bool(profile.get("garden_room", false)):
-			_add_soft_block(Vector3(0.0, 1.16, -0.02), Vector3(width * 0.88, 0.78, depth * 0.88), _make_material_from_color(palette["wall"].lightened(0.06), 0.94), structure_root, 0.12)
-			_add_gabled_roof(Vector3(0.0, 1.76, -0.02), Vector3(width + 0.18, 0.14, depth + 0.18), _make_material_from_color(palette["roof"].darkened(0.01), 0.76), structure_root, 11.0)
-			_add_box(Vector3(-0.44, 1.0, 0.5), Vector3(0.22, 0.26, 0.05), _window_material, structure_root)
-			_add_box(Vector3(0.44, 1.0, 0.5), Vector3(0.22, 0.26, 0.05), _window_material, structure_root)
-			_add_box(Vector3(0.0, 1.16, -0.5), Vector3(0.4, 0.22, 0.05), _window_material, structure_root)
-		if bool(profile.get("pergola", false)):
-			_add_box(Vector3(0.0, 0.08, 1.62), Vector3(1.86, 0.04, 0.08), _make_material_from_color(accent, 0.42), lot_root)
+		if bool(profile.get("kitchen_wing", false)):
+			_add_soft_block(Vector3(0.0, 0.48, -1.0), Vector3(width * 0.74, height * 0.88, 0.72), _make_material_from_color(palette["wall"].darkened(0.03), 0.92), structure_root, 0.12)
+			_add_restaurant_roof_local(Vector3(0.0, height * 0.9 + 0.2, -1.0), Vector3(width * 0.82, 0.12, 0.84), roof_material, roof_style, structure_root)
+			_add_box(Vector3(-width * 0.22, 0.58, -0.62), Vector3(0.24, 0.28, 0.05), _window_material, structure_root)
+			_add_box(Vector3(width * 0.22, 0.58, -0.62), Vector3(0.24, 0.28, 0.05), _window_material, structure_root)
+		if bool(profile.get("signature_front", false)):
+			_add_signboard_local(Vector3(0.0, height + 0.28, 0.82), Vector2(width * 0.58, 0.24), accent, sign_kind, structure_root)
+			_add_box(Vector3(0.0, 0.08, 1.3), Vector3(width * 0.92, 0.04, 0.08), accent_material, lot_root)
+			_add_front_lanterns(structure_root, 0.9, width * 0.86)
+
+	if tier >= 5:
+		if bool(profile.get("second_floor", false)):
+			var second_height := 0.82
+			var second_y := height + 0.12
+			_add_soft_block(Vector3(0.0, second_y + second_height * 0.5, -0.28), Vector3(width + 0.08, second_height, depth + 0.04), _make_material_from_color(palette["wall"].lightened(0.06), 0.94), structure_root, 0.12)
+			_add_restaurant_roof_local(Vector3(0.0, second_y + second_height + 0.2, -0.28), Vector3(width + 0.24, 0.14, depth + 0.18), roof_material, roof_style, structure_root)
+			for window_x in [-0.52, 0.0, 0.52]:
+				_add_window_band_local(Vector3(window_x * width * 0.55, second_y + 0.34, 0.64), Vector3(0.24, 0.28, 0.05), structure_root)
+			_add_window_band_local(Vector3(-width * 0.24, second_y + 0.36, -0.84), Vector3(0.24, 0.24, 0.05), structure_root)
+			_add_window_band_local(Vector3(width * 0.24, second_y + 0.36, -0.84), Vector3(0.24, 0.24, 0.05), structure_root)
+			_add_house_side_window_local(Vector3(-(width + 0.08) * 0.52, second_y + 0.34, -0.22), Vector3(0.26, 0.3, 0.05), structure_root, -1.0)
+			_add_house_side_window_local(Vector3((width + 0.08) * 0.52, second_y + 0.34, -0.22), Vector3(0.26, 0.3, 0.05), structure_root, 1.0)
 
 
 func _apply_corner_store_tier_visuals(lot_root: Node3D, structure_root: Node3D, tier: int, variant: int, profile: Dictionary, palette: Dictionary, accent: Color, trim: Color) -> void:
@@ -4887,6 +4968,19 @@ func _add_signboard_local(position_3d: Vector3, size: Vector2, accent: Color, ki
 			_add_box(position_3d + Vector3(0.08, 0.0, 0.05), Vector3(0.08, 0.08, 0.02), _make_material("7da85b", 0.82), parent)
 		"bistro":
 			_add_box(position_3d + Vector3(0.0, 0.0, 0.05), Vector3(0.18, 0.06, 0.02), trim_material, parent)
+		"diner":
+			_add_box(position_3d + Vector3(-0.08, 0.0, 0.05), Vector3(0.06, 0.1, 0.02), trim_material, parent)
+			_add_box(position_3d + Vector3(0.04, 0.0, 0.05), Vector3(0.16, 0.05, 0.02), trim_material, parent)
+		"cafe":
+			_add_local_cylinder(position_3d + Vector3(-0.04, 0.0, 0.05), 0.055, 0.055, 0.025, trim_material, parent)
+			_add_box(position_3d + Vector3(0.06, -0.01, 0.05), Vector3(0.06, 0.035, 0.02), trim_material, parent)
+		"pizza":
+			_add_box(position_3d + Vector3(0.0, -0.01, 0.05), Vector3(0.16, 0.08, 0.02), trim_material, parent)
+			_add_box(position_3d + Vector3(0.0, 0.04, 0.055), Vector3(0.08, 0.04, 0.02), _make_material("c95d49", 0.82), parent)
+		"grill":
+			_add_box(position_3d + Vector3(0.0, 0.0, 0.05), Vector3(0.18, 0.035, 0.02), trim_material, parent)
+			_add_box(position_3d + Vector3(-0.06, 0.04, 0.05), Vector3(0.025, 0.08, 0.02), trim_material, parent)
+			_add_box(position_3d + Vector3(0.06, 0.04, 0.05), Vector3(0.025, 0.08, 0.02), trim_material, parent)
 		"corner":
 			_add_box(position_3d + Vector3(0.0, 0.0, 0.05), Vector3(0.14, 0.08, 0.02), trim_material, parent)
 
