@@ -4,10 +4,12 @@ class_name PropertyUpgradeData
 const MAX_TIER := 4
 const HOUSE_MAX_TIER := 5
 const RESTAURANT_MAX_TIER := 5
+const SERVICE_MAX_TIER := 5
 
 const DEFAULT_TIER_LABELS := ["base", "refined", "developed", "grand"]
 const HOUSE_TIER_LABELS := ["base", "entry", "family", "two-story", "estate"]
 const RESTAURANT_TIER_LABELS := ["base", "expanded", "dining hall", "landmark", "two-story"]
+const SERVICE_TIER_LABELS := ["base", "expanded", "developed", "landmark", "signature"]
 
 const UPGRADEABLE_TOOLS := {
 	"house": true,
@@ -21,11 +23,11 @@ const UPGRADEABLE_TOOLS := {
 
 const UPGRADE_COST_FACTORS := {
 	"house": [0.0, 0.56, 0.80, 1.02, 1.22],
-	"fire": [0.0, 0.62, 0.90, 1.15],
-	"bank": [0.0, 0.60, 0.86, 1.12],
-	"grocery": [0.0, 0.58, 0.84, 1.10],
+	"fire": [0.0, 0.58, 0.82, 1.06, 1.28],
+	"bank": [0.0, 0.56, 0.78, 1.02, 1.24],
+	"grocery": [0.0, 0.54, 0.76, 0.98, 1.18],
 	"restaurant": [0.0, 0.54, 0.76, 0.98, 1.20],
-	"corner_store": [0.0, 0.54, 0.78, 1.02],
+	"corner_store": [0.0, 0.52, 0.74, 0.96, 1.16],
 	"park": [0.0, 0.46, 0.68, 0.92],
 }
 
@@ -37,22 +39,22 @@ const TOOL_YIELDS := {
 		"appeal": [6, 9, 13, 17, 22],
 	},
 	"fire": {
-		"population": [0, 0, 0, 0],
-		"jobs": [14, 16, 18, 21],
-		"cashflow": [-38, -42, -47, -53],
-		"appeal": [16, 22, 29, 37],
+		"population": [0, 0, 0, 0, 0],
+		"jobs": [14, 16, 18, 21, 25],
+		"cashflow": [-38, -42, -47, -53, -60],
+		"appeal": [16, 22, 29, 37, 46],
 	},
 	"bank": {
-		"population": [0, 0, 0, 0],
-		"jobs": [18, 20, 23, 27],
-		"cashflow": [286, 352, 430, 522],
-		"appeal": [10, 13, 16, 20],
+		"population": [0, 0, 0, 0, 0],
+		"jobs": [18, 20, 23, 27, 32],
+		"cashflow": [286, 352, 430, 522, 640],
+		"appeal": [10, 13, 16, 20, 26],
 	},
 	"grocery": {
-		"population": [0, 0, 0, 0],
-		"jobs": [26, 30, 35, 41],
-		"cashflow": [278, 352, 442, 548],
-		"appeal": [10, 12, 15, 18],
+		"population": [0, 0, 0, 0, 0],
+		"jobs": [26, 30, 35, 41, 48],
+		"cashflow": [278, 352, 442, 548, 674],
+		"appeal": [10, 12, 15, 18, 24],
 	},
 	"restaurant": {
 		"population": [0, 0, 0, 0, 0],
@@ -61,10 +63,10 @@ const TOOL_YIELDS := {
 		"appeal": [12, 15, 19, 24, 31],
 	},
 	"corner_store": {
-		"population": [0, 0, 0, 0],
-		"jobs": [12, 14, 16, 18],
-		"cashflow": [178, 220, 270, 332],
-		"appeal": [8, 10, 12, 15],
+		"population": [0, 0, 0, 0, 0],
+		"jobs": [12, 14, 16, 18, 22],
+		"cashflow": [178, 220, 270, 332, 410],
+		"appeal": [8, 10, 12, 15, 20],
 	},
 	"park": {
 		"population": [0, 0, 0, 0],
@@ -178,18 +180,21 @@ const VISUAL_PROFILES := {
 		2: {"front_hall": true, "bay_extend": true, "hose_tower": false, "parking_expand": false, "second_story": false, "landscaping": false},
 		3: {"front_hall": true, "bay_extend": true, "hose_tower": true, "parking_expand": true, "second_story": false, "landscaping": false},
 		4: {"front_hall": true, "bay_extend": true, "hose_tower": true, "parking_expand": true, "second_story": true, "landscaping": false},
+		5: {"front_hall": true, "bay_extend": true, "hose_tower": true, "parking_expand": true, "second_story": true, "civic_wing": true, "landscaping": false},
 	},
 	"bank": {
 		1: {"front_hall": false, "side_wing": false, "plaza": false, "upper_story": false, "landscaping": false},
 		2: {"front_hall": true, "side_wing": false, "plaza": true, "upper_story": false, "landscaping": false},
 		3: {"front_hall": true, "side_wing": true, "plaza": true, "upper_story": false, "landscaping": true},
 		4: {"front_hall": true, "side_wing": true, "plaza": true, "upper_story": true, "landscaping": true},
+		5: {"front_hall": true, "side_wing": true, "plaza": true, "upper_story": true, "grand_hall": true, "landscaping": true},
 	},
 	"grocery": {
-		1: {"awning": false, "service_wing": false, "parking": false, "landscaping": false},
-		2: {"awning": true, "service_wing": false, "parking": true, "landscaping": true},
-		3: {"awning": true, "service_wing": true, "parking": true, "landscaping": true},
-		4: {"awning": true, "service_wing": true, "parking": true, "landscaping": true},
+		1: {"awning": false, "service_wing": false, "market_hall": false, "upper_story": false, "parking": false, "landscaping": false},
+		2: {"awning": true, "service_wing": false, "market_hall": false, "upper_story": false, "parking": true, "landscaping": true},
+		3: {"awning": true, "service_wing": true, "market_hall": false, "upper_story": false, "parking": true, "landscaping": true},
+		4: {"awning": true, "service_wing": true, "market_hall": true, "upper_story": false, "parking": true, "landscaping": true},
+		5: {"awning": true, "service_wing": true, "market_hall": true, "upper_story": true, "parking": true, "landscaping": true},
 	},
 	"restaurant": {
 		1: {"front_expansion": false, "dining_wing": false, "kitchen_wing": false, "signature_front": false, "second_floor": false},
@@ -199,10 +204,11 @@ const VISUAL_PROFILES := {
 		5: {"front_expansion": true, "dining_wing": true, "kitchen_wing": true, "signature_front": true, "second_floor": true},
 	},
 	"corner_store": {
-		1: {"corner_awning": false, "delivery_nook": false, "side_sign": false, "landscaping": false},
-		2: {"corner_awning": true, "delivery_nook": false, "side_sign": false, "landscaping": true},
-		3: {"corner_awning": true, "delivery_nook": true, "side_sign": true, "landscaping": true},
-		4: {"corner_awning": true, "delivery_nook": true, "side_sign": true, "landscaping": true},
+		1: {"corner_awning": false, "delivery_nook": false, "side_sign": false, "corner_tower": false, "upper_story": false, "landscaping": false},
+		2: {"corner_awning": true, "delivery_nook": false, "side_sign": false, "corner_tower": false, "upper_story": false, "landscaping": true},
+		3: {"corner_awning": true, "delivery_nook": true, "side_sign": true, "corner_tower": false, "upper_story": false, "landscaping": true},
+		4: {"corner_awning": true, "delivery_nook": true, "side_sign": true, "corner_tower": true, "upper_story": false, "landscaping": true},
+		5: {"corner_awning": true, "delivery_nook": true, "side_sign": true, "corner_tower": true, "upper_story": true, "landscaping": true},
 	},
 	"park": {
 		1: {"extra_trees": false, "gazebo": false, "fountain": false, "paths": false},
@@ -222,6 +228,8 @@ static func max_tier(tool: String) -> int:
 		return HOUSE_MAX_TIER
 	if tool == "restaurant":
 		return RESTAURANT_MAX_TIER
+	if tool in ["fire", "bank", "grocery", "corner_store"]:
+		return SERVICE_MAX_TIER
 	return MAX_TIER if is_upgradeable(tool) else 1
 
 
@@ -274,4 +282,6 @@ static func _tier_labels(tool: String) -> Array:
 		return HOUSE_TIER_LABELS
 	if tool == "restaurant":
 		return RESTAURANT_TIER_LABELS
+	if tool in ["fire", "bank", "grocery", "corner_store"]:
+		return SERVICE_TIER_LABELS
 	return DEFAULT_TIER_LABELS
