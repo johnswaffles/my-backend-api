@@ -2753,20 +2753,38 @@ func _spawn_ambient_car(road_cell: Vector2i, index: int) -> Node3D:
 	var body_material := _make_material_from_color(palette[index % palette.size()], 0.68)
 	var trim_material := _make_material("f6f1e4", 0.82)
 	var tire_material := _make_material("26252b", 0.98)
+	var hub_material := _make_material("d8d1c6", 0.88)
+	var bumper_material := _make_material("ddd4c4", 0.86)
+	var tail_material := _make_material("e85b49", 0.4, 0.0, true, "ff6d54", 0.2)
 	var window_glass := _make_transparent_material(Color("bfe6ff"), 0.24, 0.16)
-	_add_soft_block(Vector3(0.0, 0.16, 0.0), Vector3(0.34, 0.16, 0.58), body_material, root, 0.08)
-	_add_soft_block(Vector3(0.0, 0.27, -0.02), Vector3(0.24, 0.12, 0.28), trim_material, root, 0.06)
-	_add_box(Vector3(0.0, 0.29, -0.02), Vector3(0.18, 0.08, 0.18), window_glass, root)
-	_add_box(Vector3(0.0, 0.13, 0.29), Vector3(0.18, 0.03, 0.03), trim_material, root)
-	_add_box(Vector3(0.0, 0.13, -0.29), Vector3(0.18, 0.03, 0.03), trim_material, root)
+	_add_soft_block(Vector3(0.0, 0.16, 0.0), Vector3(0.4, 0.18, 0.66), body_material, root, 0.09)
+	_add_soft_block(Vector3(0.0, 0.3, -0.04), Vector3(0.28, 0.14, 0.32), trim_material, root, 0.06)
+	_add_box(Vector3(0.0, 0.31, 0.13), Vector3(0.22, 0.08, 0.04), window_glass, root)
+	_add_box(Vector3(0.0, 0.31, -0.22), Vector3(0.2, 0.08, 0.04), window_glass, root)
+	_add_box(Vector3(-0.15, 0.3, -0.04), Vector3(0.04, 0.08, 0.2), window_glass, root)
+	_add_box(Vector3(0.15, 0.3, -0.04), Vector3(0.04, 0.08, 0.2), window_glass, root)
+	_add_box(Vector3(0.0, 0.13, 0.35), Vector3(0.26, 0.045, 0.04), bumper_material, root)
+	_add_box(Vector3(0.0, 0.13, -0.35), Vector3(0.26, 0.045, 0.04), bumper_material, root)
+	_add_box(Vector3(-0.14, 0.15, -0.36), Vector3(0.07, 0.04, 0.025), tail_material, root)
+	_add_box(Vector3(0.14, 0.15, -0.36), Vector3(0.07, 0.04, 0.025), tail_material, root)
+	_add_box(Vector3(0.0, 0.26, -0.04), Vector3(0.3, 0.035, 0.34), _make_material_from_color(palette[index % palette.size()].lightened(0.08), 0.62), root)
 	for wheel_data in [
-		Vector3(-0.14, 0.07, -0.2),
-		Vector3(0.14, 0.07, -0.2),
-		Vector3(-0.14, 0.07, 0.2),
-		Vector3(0.14, 0.07, 0.2),
+		Vector3(-0.19, 0.075, -0.22),
+		Vector3(0.19, 0.075, -0.22),
+		Vector3(-0.19, 0.075, 0.22),
+		Vector3(0.19, 0.075, 0.22),
 	]:
 		var wheel := _add_local_cylinder(wheel_data, 0.05, 0.05, 0.04, tire_material, root)
 		wheel.rotation_degrees.z = 90.0
+		var hub := _add_local_cylinder(wheel_data + Vector3(0.0, 0.0, 0.002), 0.026, 0.026, 0.045, hub_material, root)
+		hub.rotation_degrees.z = 90.0
+	for fender_data in [
+		Vector3(-0.2, 0.135, -0.22),
+		Vector3(0.2, 0.135, -0.22),
+		Vector3(-0.2, 0.135, 0.22),
+		Vector3(0.2, 0.135, 0.22),
+	]:
+		_add_box(fender_data, Vector3(0.06, 0.035, 0.14), body_material, root)
 	_add_vehicle_headlights_local(root, 0.39, 0.12, 0.15, 3.2, 0.34)
 	return root
 
@@ -2788,10 +2806,24 @@ func _spawn_ambient_trolley(road_cell: Vector2i) -> Node3D:
 	_add_shadow_disc_local(Vector3(0.0, 0.005, 0.0), Vector2(0.72, 1.1), 0.18, root)
 	var body_material := _make_material("d3b15b", 0.74)
 	var trim_material := _make_material("f5efdf", 0.84)
+	var stripe_material := _make_material("9b5f35", 0.78)
+	var roof_material := _make_material("7b6752", 0.86)
+	var sign_material := _make_material("2e3942", 0.72, 0.0, true, "ffd875", 0.25)
+	var hub_material := _make_material("d8d1c6", 0.88)
 	var rail_glass := _make_transparent_material(Color("bfe6ff"), 0.24, 0.16)
-	_add_soft_block(Vector3(0.0, 0.28, 0.0), Vector3(0.54, 0.28, 1.08), body_material, root, 0.08)
-	_add_soft_block(Vector3(0.0, 0.52, 0.0), Vector3(0.46, 0.18, 0.98), trim_material, root, 0.06)
-	_add_box(Vector3(0.0, 0.55, 0.0), Vector3(0.38, 0.12, 0.74), rail_glass, root)
+	_add_soft_block(Vector3(0.0, 0.28, 0.0), Vector3(0.62, 0.3, 1.18), body_material, root, 0.08)
+	_add_soft_block(Vector3(0.0, 0.54, 0.0), Vector3(0.52, 0.2, 1.06), trim_material, root, 0.06)
+	_add_box(Vector3(0.0, 0.68, 0.0), Vector3(0.6, 0.08, 1.2), roof_material, root)
+	_add_box(Vector3(0.0, 0.42, 0.61), Vector3(0.44, 0.08, 0.035), stripe_material, root)
+	_add_box(Vector3(0.0, 0.42, -0.61), Vector3(0.44, 0.08, 0.035), stripe_material, root)
+	_add_box(Vector3(0.0, 0.59, 0.58), Vector3(0.3, 0.1, 0.035), sign_material, root)
+	_add_box(Vector3(0.0, 0.56, -0.58), Vector3(0.32, 0.11, 0.035), rail_glass, root)
+	for window_z in [-0.3, 0.0, 0.3]:
+		_add_box(Vector3(-0.27, 0.56, window_z), Vector3(0.035, 0.12, 0.18), rail_glass, root)
+		_add_box(Vector3(0.27, 0.56, window_z), Vector3(0.035, 0.12, 0.18), rail_glass, root)
+	for mullion_z in [-0.42, -0.15, 0.15, 0.42]:
+		_add_box(Vector3(-0.292, 0.56, mullion_z), Vector3(0.02, 0.14, 0.025), stripe_material, root)
+		_add_box(Vector3(0.292, 0.56, mullion_z), Vector3(0.02, 0.14, 0.025), stripe_material, root)
 	for wheel_data in [
 		Vector3(-0.22, 0.08, -0.36),
 		Vector3(0.22, 0.08, -0.36),
@@ -2800,7 +2832,13 @@ func _spawn_ambient_trolley(road_cell: Vector2i) -> Node3D:
 	]:
 		var wheel := _add_local_cylinder(wheel_data, 0.06, 0.06, 0.05, _make_material("26252b", 0.98), root)
 		wheel.rotation_degrees.z = 90.0
-	_add_local_cylinder(Vector3(0.0, 0.92, 0.0), 0.02, 0.02, 0.64, _make_material("55514c", 0.92), root)
+		var hub := _add_local_cylinder(wheel_data + Vector3(0.0, 0.0, 0.002), 0.03, 0.03, 0.055, hub_material, root)
+		hub.rotation_degrees.z = 90.0
+	var pole_material := _make_material("55514c", 0.92)
+	_add_local_cylinder(Vector3(0.0, 0.94, 0.0), 0.018, 0.018, 0.66, pole_material, root)
+	var trolley_arm := _add_local_cylinder(Vector3(0.0, 1.22, -0.18), 0.012, 0.012, 0.62, pole_material, root)
+	trolley_arm.rotation_degrees.x = 58.0
+	_add_box(Vector3(0.0, 1.5, -0.44), Vector3(0.16, 0.025, 0.04), pole_material, root)
 	_add_vehicle_headlights_local(root, 0.66, 0.18, 0.18, 4.0, 0.42)
 	return root
 
@@ -3960,6 +3998,7 @@ func _apply_house_tier_visuals(root: Node3D, tier: int, variant: int, profile: D
 			_add_window_band_local(Vector3(0.0, upper_y + 0.26, upper_z - 0.5), Vector3(0.48, 0.26, 0.05), structure_root)
 			_add_window_band_local(Vector3(0.0, upper_y + 0.26, upper_z + 0.28), Vector3(0.32, 0.2, 0.05), structure_root)
 		if bool(profile.get("upper_windows", false)):
+			_add_window_band_local(Vector3(0.0, upper_y + 0.2, upper_z + 0.82), Vector3(0.5, 0.32, 0.05), structure_root)
 			_add_window_band_local(Vector3(-0.72, upper_y + 0.16, upper_z + 0.42), Vector3(0.24, 0.24, 0.05), structure_root)
 			_add_window_band_local(Vector3(0.72, upper_y + 0.16, upper_z + 0.42), Vector3(0.24, 0.24, 0.05), structure_root)
 			_add_window_band_local(Vector3(-0.66, upper_y + 0.16, upper_z - 0.54), Vector3(0.2, 0.2, 0.05), structure_root)
@@ -3975,7 +4014,7 @@ func _apply_house_tier_visuals(root: Node3D, tier: int, variant: int, profile: D
 			var upper_side := 1.0 if posmod(variant, 2) == 0 else -1.0
 			_add_soft_block(Vector3(upper_side * 1.18, upper_y + 0.26, upper_z + 0.1), Vector3(0.86, 0.72, 1.0), second_story_wall, structure_root, 0.1)
 			_add_gabled_roof(Vector3(upper_side * 1.18, upper_y + 0.84, upper_z + 0.1), Vector3(1.02, 0.13, 1.12), second_story_roof, structure_root, 14.0)
-			_add_window_band_local(Vector3(upper_side * 1.18, upper_y + 0.3, upper_z + 0.56), Vector3(0.24, 0.26, 0.05), structure_root)
+			_add_window_band_local(Vector3(upper_side * 1.18, upper_y + 0.3, upper_z + 0.62), Vector3(0.34, 0.3, 0.05), structure_root)
 			_add_window_band_local(Vector3(upper_side * 1.18, upper_y + 0.34, upper_z - 0.42), Vector3(0.22, 0.24, 0.05), structure_root)
 			_add_house_side_window_local(Vector3(upper_side * 1.64, upper_y + 0.28, upper_z + 0.06), Vector3(0.24, 0.28, 0.05), structure_root, upper_side)
 		if bool(profile.get("roof_cap", false)):
