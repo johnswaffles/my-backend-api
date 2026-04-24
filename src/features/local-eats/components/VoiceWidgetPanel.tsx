@@ -425,6 +425,9 @@ export function VoiceWidgetPanel(): JSX.Element {
           if (message?.type === 'conversation.item.input_audio_transcription.completed') {
             const transcript = String(message.transcript || '').trim();
             if (transcript) {
+              setIsMuted(true);
+              setRealtimeMicEnabled(false);
+              setIsListening(false);
               void sendAssistantMessage(transcript);
             }
           }
@@ -486,9 +489,10 @@ export function VoiceWidgetPanel(): JSX.Element {
 
   async function sendRealtimeSpeech(text: string): Promise<void> {
     const normalizedText = normalizeSpeechText(text.trim());
-    if (!normalizedText || isMuted) return;
+    if (!normalizedText) return;
 
     await ensureRealtimeBridge();
+    setRealtimeMicEnabled(false);
     const bridge = realtimeBridgeRef.current;
     if (!bridge.dc || bridge.dc.readyState !== 'open') {
       bridge.pendingSpeakText = normalizedText;
@@ -518,10 +522,12 @@ export function VoiceWidgetPanel(): JSX.Element {
   }
 
   async function playSummaryText(text: string): Promise<void> {
-    if (!text.trim() || isMuted) return;
+    if (!text.trim()) return;
     if (audioLoading) return;
 
     const normalizedText = normalizeSpeechText(text);
+    setIsMuted(true);
+    setRealtimeMicEnabled(false);
     const currentAudio = audioRef.current;
     if (currentAudio && isPlaying) {
       currentAudio.pause();
@@ -587,6 +593,8 @@ export function VoiceWidgetPanel(): JSX.Element {
 
     hadUserGestureRef.current = true;
     setSearchLocked(true);
+    setIsMuted(true);
+    setRealtimeMicEnabled(false);
     if (legacyRecognitionRef.current) {
       try {
         legacyRecognitionRef.current.abort?.();
@@ -631,7 +639,7 @@ export function VoiceWidgetPanel(): JSX.Element {
       const assistantAudioText = getAudioSummary([...historyBeforeMessage, assistantTurn]);
       setConversation((current) => [...current, assistantTurn]);
 
-      if (!isMuted && hadUserGestureRef.current && assistantAudioText) {
+      if (hadUserGestureRef.current && assistantAudioText) {
         void playSummaryText(assistantAudioText);
       }
     } catch {
@@ -699,6 +707,9 @@ export function VoiceWidgetPanel(): JSX.Element {
         const combined = `${transcriptRef.current} ${finalText}`.trim();
         if (finalText.trim()) {
           transcriptRef.current = combined;
+          setIsMuted(true);
+          setRealtimeMicEnabled(false);
+          recognition.stop?.();
         }
 
         setDraftText((combined || interimText).trim());
@@ -718,6 +729,8 @@ export function VoiceWidgetPanel(): JSX.Element {
         const transcript = transcriptRef.current.trim();
         transcriptRef.current = '';
         if (transcript) {
+          setIsMuted(true);
+          setRealtimeMicEnabled(false);
           void sendAssistantMessage(transcript);
         }
       };
@@ -764,18 +777,10 @@ export function VoiceWidgetPanel(): JSX.Element {
   }
 
   function handleMuteToggle(): void {
+    if (searchLocked) return;
     setIsMuted((current) => {
       const next = !current;
-      if (audioRef.current) {
-        if (next) {
-          audioRef.current.pause();
-          audioRef.current.currentTime = 0;
-        }
-      }
       setRealtimeMicEnabled(!next);
-      if (next) {
-        setIsPlaying(false);
-      }
       return next;
     });
   }
@@ -835,14 +840,17 @@ export function VoiceWidgetPanel(): JSX.Element {
           <button
             type="button"
             onClick={handleMuteToggle}
+            disabled={searchLocked}
             className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] transition ${
-              isMuted
+              searchLocked
+                ? 'cursor-not-allowed border-white/10 bg-white/5 text-white/35'
+                : isMuted
                 ? 'border-rose-400/20 bg-rose-500/10 text-rose-100 hover:bg-rose-500/15'
                 : 'border-emerald-400/20 bg-emerald-500/10 text-emerald-50 hover:bg-emerald-500/15'
             }`}
             aria-pressed={isMuted}
           >
-            {isMuted ? 'Muted' : 'Voice on'}
+            {searchLocked ? 'Mic locked' : isMuted ? 'Muted' : 'Voice on'}
           </button>
           <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/40">Drag</span>
           <button
@@ -917,8 +925,11 @@ export function VoiceWidgetPanel(): JSX.Element {
             <button
               type="button"
               onClick={handleMuteToggle}
+              disabled={searchLocked}
               className={`absolute bottom-4 left-[-14px] flex h-14 w-14 items-center justify-center rounded-full border text-xl shadow-[0_0_0_2px_rgba(32,185,96,0.2)] transition ${
-                isMuted
+                searchLocked
+                  ? 'cursor-not-allowed border-white/10 bg-white/15 text-white/35 shadow-[0_0_0_2px_rgba(255,255,255,0.08)]'
+                  : isMuted
                   ? 'border-rose-300 bg-rose-500 text-white shadow-[0_0_0_3px_rgba(244,63,94,0.18),0_0_16px_rgba(244,63,94,0.3)]'
                   : 'border-emerald-400/30 bg-emerald-500/90 text-white hover:bg-emerald-400'
               }`}
@@ -936,7 +947,7 @@ export function VoiceWidgetPanel(): JSX.Element {
             </button>
           </div>
 
-          <div className="mt-4 flex-1 overflow-hidden px-4 pb-4">
+          <div className="mt-4 flex-1 overflow-hidden px-4 pb-3">
             <div
               ref={messageListRef}
               className="h-[calc(100%-68px)] overflow-y-auto rounded-[1.4rem] border border-white/10 bg-black/60 p-3"
@@ -1023,11 +1034,11 @@ export function VoiceWidgetPanel(): JSX.Element {
                 New Chat Required
               </div>
               <div className="mt-2 rounded-full border border-white/10 bg-black/55 px-4 py-3 text-sm text-white/72">
-                Search complete. Tap New Chat to start a new town and food search.
+                Tap New Chat to start a new town and food search.
               </div>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="border-t border-white/10 bg-[linear-gradient(180deg,rgba(10,12,13,0.96),rgba(6,8,9,0.98))] px-4 py-4">
+            <form onSubmit={handleSubmit} className="border-t border-white/10 bg-[linear-gradient(180deg,rgba(10,12,13,0.96),rgba(6,8,9,0.98))] px-4 pb-8 pt-4">
               <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">
                 Chat with 618FOOD.COM
               </div>
