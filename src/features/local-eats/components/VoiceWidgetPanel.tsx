@@ -213,7 +213,7 @@ function CasaRayaMiniAd(): JSX.Element {
     >
       <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[0.8rem] bg-black">
         <img
-          src="/sponsored/casa-raya.png"
+          src="/sponsored/raya3.png"
           alt="Casa Raya Mexican Restaurant & Taqueria"
           className="h-full w-full object-contain"
         />
