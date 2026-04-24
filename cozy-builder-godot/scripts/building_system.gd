@@ -231,6 +231,7 @@ var _lamp_glow_texture: Texture2D
 
 var _clouds: Array[Node3D] = []
 var _window_bands: Array[MeshInstance3D] = []
+var _water_ripples: Array[Node3D] = []
 var _grass_clumps: Array[Node3D] = []
 var _road_preview_nodes: Array[Node3D] = []
 var _nature_features: Array[Node3D] = []
@@ -296,6 +297,7 @@ func _process(delta: float) -> void:
 	_focus = _focus.lerp(_target_focus, min(1.0, delta * 7.0))
 	_zoom = lerp(_zoom, _target_zoom, min(1.0, delta * 6.5))
 	_animate_clouds(delta)
+	_animate_water(delta)
 	_animate_windows()
 	_animate_grass()
 	_animate_life(delta)
@@ -434,6 +436,7 @@ func _build_world() -> void:
 	building_root.add_child(_life_root)
 	_build_water_ring()
 	_build_island_base()
+	_build_diorama_backdrop()
 	_build_ground_tiles()
 	_build_meadow()
 	_build_nature()
@@ -3438,6 +3441,35 @@ func _add_island_edge_layers() -> void:
 		_add_box(Vector3(0.0, y, half), Vector3(GRID_SIZE + 0.92, 0.1, w), material, grid_root)
 
 
+func _build_diorama_backdrop() -> void:
+	var hill_materials := [
+		_make_material("6f8a5f", 0.98),
+		_make_material("789765", 0.98),
+		_make_material("5f7d58", 0.98),
+	]
+	var ridge_radius := float(GRID_SIZE) * 0.58
+	for i in range(12):
+		var angle := TAU * float(i) / 12.0 + 0.08 * sin(float(i) * 1.3)
+		var hill := _add_local_sphere(
+			Vector3(cos(angle) * ridge_radius, -0.42, sin(angle) * ridge_radius),
+			1.4 + float(i % 3) * 0.22,
+			0.8 + float(i % 2) * 0.16,
+			hill_materials[i % hill_materials.size()],
+			grid_root
+		)
+		hill.scale = Vector3(1.9 + float(i % 2) * 0.35, 0.85, 1.0 + float(i % 3) * 0.18)
+		hill.rotation_degrees.y = rad_to_deg(angle)
+	for i in range(10):
+		var angle := TAU * float(i) / 10.0 + 0.22
+		var tree_root := Node3D.new()
+		tree_root.position = Vector3(cos(angle) * (ridge_radius - 1.8), -0.18, sin(angle) * (ridge_radius - 1.8))
+		tree_root.rotation_degrees.y = rad_to_deg(angle)
+		grid_root.add_child(tree_root)
+		_add_local_cylinder(Vector3(0.0, 0.28, 0.0), 0.07, 0.09, 0.56, _trunk_material, tree_root)
+		_add_local_sphere(Vector3(0.0, 0.78, 0.0), 0.34, 0.58, _leaf_material_dark, tree_root)
+		_add_local_sphere(Vector3(0.18, 0.68, -0.04), 0.24, 0.38, _leaf_material, tree_root)
+
+
 func _build_ground_tiles() -> void:
 	var half := (GRID_SIZE - 1) * TILE_SIZE * 0.5
 
@@ -3815,6 +3847,7 @@ func _populate_fire_station_variant(root: Node3D, lot_root: Node3D, structure_ro
 	_add_box(Vector3(0.0, 0.84, 0.5), Vector3(width * 0.54, 0.12, 0.06), _make_material_from_color(palette.accent, 0.4), structure_root)
 	_add_facade_trim_package(structure_root, width, height, 0.52, palette, "fire")
 	_add_storefront_window_set(structure_root, width * 0.72, 0.72, 0.54, 3)
+	_add_commercial_roof_details_local(structure_root, width, depth, height, -0.38, palette, variant)
 	_add_local_cylinder(Vector3(width * 0.36, 2.08, -0.74), 0.1, 0.1, 0.28, _make_material_from_color(palette.accent, 0.46), structure_root)
 	match posmod(variant, 5):
 		1:
@@ -3865,6 +3898,7 @@ func _populate_bank_variant(root: Node3D, lot_root: Node3D, structure_root: Node
 	_add_facade_trim_package(structure_root, width, height, 0.74, palette, "vault")
 	_add_box(Vector3(0.0, 0.28, 0.68), Vector3(width * 0.16, 0.42, 0.05), _window_material, structure_root)
 	_add_storefront_window_set(structure_root, width * 0.58, 0.54, 0.73, 2)
+	_add_commercial_roof_details_local(structure_root, width, depth, height, -0.24, palette, variant)
 	_add_round_canopy(Vector3(0.0, 0.28, 0.92), Vector3(width * 0.44, 0.14, 0.18), _make_material_from_color(palette.trim, 0.48), structure_root)
 	_add_local_sphere(Vector3(0.0, 1.18, -0.12), 0.18, 0.22, _make_material_from_color(palette.accent, 0.36), structure_root)
 	match posmod(variant, 5):
@@ -3914,6 +3948,7 @@ func _populate_grocery_variant(root: Node3D, lot_root: Node3D, structure_root: N
 	_add_facade_trim_package(structure_root, width, height, 0.5, palette, "grocer")
 	_add_box(Vector3(0.0, 0.26, 0.34), Vector3(width * 0.52, 0.34, 0.05), _window_material, structure_root)
 	_add_storefront_window_set(structure_root, width * 0.72, 0.58, 0.46, 3)
+	_add_commercial_roof_details_local(structure_root, width, depth, height, -0.48, palette, variant)
 	_add_box(Vector3(0.0, 0.78, 0.38), Vector3(width * 0.56, 0.1, 0.05), _make_material_from_color(palette.trim, 0.42), structure_root)
 	for produce_data in [
 		{"pos": Vector3(-width * 0.28, 0.12, 0.74), "color": Color("cb644c")},
@@ -3983,6 +4018,7 @@ func _populate_restaurant_variant(root: Node3D, lot_root: Node3D, structure_root
 	_add_facade_trim_package(structure_root, width, height, 0.62, palette, sign_kind)
 	_add_restaurant_front_door_local(Vector3(0.0, 0.0, 0.68), structure_root, palette.accent)
 	_add_storefront_window_set(structure_root, width * 0.72, 0.56, 0.64, columns)
+	_add_commercial_roof_details_local(structure_root, width, depth, height, -0.28, palette, variant)
 	_add_box(Vector3(0.0, 0.82, 0.62), Vector3(width * 0.58, 0.1, 0.05), trim_material, structure_root)
 	_add_signboard_local(Vector3(0.0, height + 0.08, 0.66), Vector2(width * 0.44, 0.2), palette.accent, sign_kind, structure_root)
 	if roof_style == "flat":
@@ -4063,6 +4099,7 @@ func _populate_corner_store_variant(root: Node3D, lot_root: Node3D, structure_ro
 	_add_box(Vector3(-width * 0.18, 0.24, 0.56), Vector3(width * 0.2, 0.34, 0.05), _window_material, structure_root)
 	_add_box(Vector3(width * 0.18, 0.24, 0.56), Vector3(width * 0.2, 0.34, 0.05), _window_material, structure_root)
 	_add_storefront_window_set(structure_root, width * 0.58, 0.58, 0.62, 2)
+	_add_commercial_roof_details_local(structure_root, width, depth, height, -0.24, palette, variant)
 	_add_box(Vector3(-0.18, 0.82, 0.6), Vector3(width * 0.46, 0.1, 0.05), _make_material_from_color(palette.trim, 0.42), structure_root)
 	if variant % 2 == 1:
 		_add_soft_block(Vector3(width * 0.34, 0.56, -0.42), Vector3(0.46, 0.68, 0.52), _make_material_from_color(palette.trim, 0.84), structure_root, 0.1)
@@ -4732,6 +4769,7 @@ func _add_road_surface_polish_local(root: Node3D, vertical_straight: bool, horiz
 	var seam_material := _make_material("333a42", 0.98)
 	var grate_material := _make_material("2d3034", 0.96)
 	var curb_cap_material := _make_material("f0eadc", 0.9)
+	_add_sidewalk_paver_detail_local(root, vertical_straight, horizontal_straight, intersection)
 	if vertical_straight:
 		for z in [-1.6, 1.6]:
 			_add_box(Vector3(-1.78, 0.156, z), Vector3(0.16, 0.014, 0.08), curb_cap_material, root)
@@ -4769,6 +4807,23 @@ func _add_drain_grate_local(root: Node3D, center: Vector3, vertical: bool, mater
 			_add_box(center + Vector3(offset, 0.008, 0.0), Vector3(0.012, 0.008, 0.08), _road_edge_highlight_material, root)
 		else:
 			_add_box(center + Vector3(0.0, 0.008, offset), Vector3(0.08, 0.008, 0.012), _road_edge_highlight_material, root)
+
+
+func _add_sidewalk_paver_detail_local(root: Node3D, vertical_straight: bool, horizontal_straight: bool, intersection: bool) -> void:
+	var paver_material := _make_material("c9bea9", 0.92)
+	if vertical_straight:
+		for x in [-2.18, 2.18]:
+			for z in [-1.35, -0.45, 0.45, 1.35]:
+				_add_box(Vector3(x, 0.151, z), Vector3(0.46, 0.01, 0.028), paver_material, root)
+	elif horizontal_straight:
+		for z in [-2.18, 2.18]:
+			for x in [-1.35, -0.45, 0.45, 1.35]:
+				_add_box(Vector3(x, 0.151, z), Vector3(0.028, 0.01, 0.46), paver_material, root)
+	elif intersection:
+		for x in [-2.08, 2.08]:
+			for z in [-2.08, 2.08]:
+				_add_box(Vector3(x, 0.151, z), Vector3(0.42, 0.01, 0.03), paver_material, root)
+				_add_box(Vector3(x, 0.151, z), Vector3(0.03, 0.01, 0.42), paver_material, root)
 
 
 func _road_in_source(cell: Vector2i, road_source: Array) -> bool:
@@ -5778,7 +5833,10 @@ func _add_ripple_ring_local(center: Vector3, radius_x: float, radius_z: float, p
 	ripple.scale = Vector3(radius_x, 0.02, radius_z)
 	ripple.position = center
 	ripple.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	ripple.set_meta("base_scale", ripple.scale)
+	ripple.set_meta("phase", randf_range(0.0, TAU))
 	parent.add_child(ripple)
+	_water_ripples.append(ripple)
 
 
 func _add_gabled_roof(center: Vector3, size: Vector3, material: Material, parent: Node, tilt_degrees: float = 10.0) -> void:
@@ -5838,8 +5896,28 @@ func _add_storefront_window_set(parent: Node, width: float, y: float, z: float, 
 		var t := 0.5 if columns <= 1 else float(i) / float(columns - 1)
 		var x := lerpf(-usable_width * 0.5, usable_width * 0.5, t)
 		_add_house_wall_window_local(Vector3(x, y, z), Vector3(0.22, 0.34, 0.05), parent)
+		_add_box(Vector3(x + 0.052, y + 0.07, z + 0.045), Vector3(0.045, 0.22, 0.018), _make_transparent_material(Color("fff0b7"), 0.2, 0.18), parent)
 	_add_box(Vector3(0.0, y - 0.25, z + 0.02), Vector3(usable_width + 0.28, 0.055, 0.055), _roof_fascia_material, parent)
 	_add_box(Vector3(0.0, y + 0.25, z + 0.02), Vector3(usable_width + 0.18, 0.045, 0.055), _window_frame_material, parent)
+	_add_box(Vector3(0.0, y - 0.48, z + 0.04), Vector3(usable_width + 0.42, 0.045, 0.08), _make_material("d8c7ab", 0.88), parent)
+	for post_x in [-usable_width * 0.5 - 0.18, usable_width * 0.5 + 0.18]:
+		_add_box(Vector3(post_x, y - 0.08, z + 0.04), Vector3(0.045, 0.48, 0.045), _window_frame_material, parent)
+
+
+func _add_commercial_roof_details_local(parent: Node, width: float, depth: float, height: float, center_z: float, palette: Dictionary, variant: int) -> void:
+	var vent_material := _make_material("e8ddcc", 0.78)
+	var cap_material := _make_material_from_color(palette["roof"].darkened(0.22), 0.82)
+	var glass_material := _make_transparent_material(Color("bfe6ff"), 0.22, 0.24)
+	var roof_y := height + 0.44
+	var unit_x := width * (0.18 if posmod(variant, 2) == 0 else -0.18)
+	_add_soft_block(Vector3(unit_x, roof_y, center_z - depth * 0.18), Vector3(0.36, 0.16, 0.28), vent_material, parent, 0.04)
+	_add_box(Vector3(unit_x, roof_y + 0.1, center_z - depth * 0.18), Vector3(0.28, 0.045, 0.2), cap_material, parent)
+	for slat in [-0.08, 0.0, 0.08]:
+		_add_box(Vector3(unit_x + slat, roof_y + 0.19, center_z - depth * 0.18), Vector3(0.024, 0.025, 0.18), cap_material, parent)
+	_add_local_cylinder(Vector3(-width * 0.28, roof_y + 0.04, center_z + depth * 0.14), 0.045, 0.055, 0.24, vent_material, parent)
+	_add_local_cylinder(Vector3(-width * 0.28, roof_y + 0.2, center_z + depth * 0.14), 0.06, 0.06, 0.035, cap_material, parent)
+	if width > 2.4:
+		_add_box(Vector3(width * 0.26, roof_y + 0.03, center_z + depth * 0.05), Vector3(0.34, 0.025, 0.22), glass_material, parent)
 
 
 func _add_soft_block(center: Vector3, size: Vector3, material: Material, parent: Node, corner_radius: float = 0.14) -> Node3D:
@@ -5965,6 +6043,22 @@ func _animate_clouds(delta: float) -> void:
 		cloud.position.z = base_z + sin(Time.get_ticks_msec() * 0.0004 + cloud.position.x) * 0.18
 		if cloud.position.x > 12.0:
 			cloud.position.x = -12.0
+
+
+func _animate_water(delta: float) -> void:
+	var time := Time.get_ticks_msec() * 0.001
+	var i := 0
+	while i < _water_ripples.size():
+		var ripple := _water_ripples[i]
+		if not is_instance_valid(ripple):
+			_water_ripples.remove_at(i)
+			continue
+		var base_scale: Vector3 = ripple.get_meta("base_scale", ripple.scale)
+		var phase: float = float(ripple.get_meta("phase", 0.0))
+		var pulse := 1.0 + sin(time * 1.2 + phase) * 0.045
+		ripple.scale = Vector3(base_scale.x * pulse, base_scale.y, base_scale.z * (1.0 + cos(time * 1.05 + phase) * 0.035))
+		ripple.rotation_degrees.y += delta * 3.0
+		i += 1
 
 
 func _animate_windows() -> void:
