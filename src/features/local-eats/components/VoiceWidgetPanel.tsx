@@ -264,7 +264,7 @@ function RestaurantPreview({ restaurant, rank }: { restaurant: RestaurantAgentRe
 function CasaRayaMiniAd(): JSX.Element {
   return (
     <a
-      href="https://casaraya.toast.site/"
+      href="https://casaraya.toast.site/order"
       target="_blank"
       rel="noreferrer"
       className="mt-3 flex items-center gap-3 rounded-[1rem] border border-emerald-300/15 bg-white/[0.06] p-2 text-left transition hover:border-emerald-300/35 hover:bg-white/[0.09]"

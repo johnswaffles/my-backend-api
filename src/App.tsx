@@ -17,6 +17,13 @@ const LOADING_MESSAGES = ['Thinking...', 'Researching reviews...', 'Searching th
 const INITIAL_GREETING =
   "Hello! I’m 618FOOD.COM. Just tell me a town and what kind of food you want, and I’ll find the top restaurants.";
 const MAX_AUDIO_CHARS = 900;
+const ADVERTISING_EMAIL = 'johnswaffles@gmail.com';
+
+function navigateTo(path: string): void {
+  if (typeof window === 'undefined') return;
+  window.history.pushState({}, '', path);
+  window.dispatchEvent(new PopStateEvent('popstate'));
+}
 
 function getNormalizedPathname(): string {
   if (typeof window === 'undefined') return '/';
@@ -120,6 +127,126 @@ function getRecentRestaurantContext(conversation: ChatTurn[]): NonNullable<Gener
   };
 }
 
+function SiteNav({ currentPath }: { currentPath: string }): JSX.Element {
+  const navItems = [
+    { href: '/', label: 'Voice Widget' },
+    { href: '/classic', label: 'Classic Search' },
+    { href: '/contact', label: 'Advertise' }
+  ];
+
+  return (
+    <nav className="flex flex-wrap justify-center gap-2" aria-label="618FOOD pages">
+      {navItems.map((item) => {
+        const active = currentPath === item.href || (item.href === '/' && currentPath === '/widget');
+        return (
+          <a
+            key={item.href}
+            href={item.href}
+            onClick={(event) => {
+              event.preventDefault();
+              navigateTo(item.href);
+            }}
+            className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+              active
+                ? 'border-emerald-200 bg-emerald-700 text-white shadow-[0_12px_24px_rgba(22,83,44,0.18)]'
+                : 'border-emerald-200 bg-white/88 text-emerald-900 hover:border-emerald-300 hover:bg-emerald-50'
+            }`}
+          >
+            {item.label}
+          </a>
+        );
+      })}
+    </nav>
+  );
+}
+
+function AdvertisingContactPage({ currentPath }: { currentPath: string }): JSX.Element {
+  const mailSubject = encodeURIComponent('618FOOD.COM advertising inquiry');
+  const mailBody = encodeURIComponent(
+    'Hi, I am interested in advertising on 618FOOD.COM.\n\nBusiness name:\nRestaurant/city:\nWebsite or ordering link:\nWhat I would like to promote:\n'
+  );
+  const mailtoHref = `mailto:${ADVERTISING_EMAIL}?subject=${mailSubject}&body=${mailBody}`;
+
+  return (
+    <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.98),_rgba(250,246,236,0.9)_34%,_rgba(236,244,227,0.98)_66%,_rgba(247,241,228,1)_100%)] text-stone-900">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(17,120,82,0.16),_transparent_30%),radial-gradient(circle_at_top_right,_rgba(238,160,54,0.16),_transparent_28%)]" />
+      <main className="relative mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 px-4 py-4 sm:px-5 sm:py-5 lg:px-6">
+        <header className="rounded-[2rem] border border-white/70 bg-white/78 px-4 py-4 shadow-[0_18px_55px_rgba(61,79,42,0.12)] backdrop-blur-2xl">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-700 text-lg font-black text-white shadow-[0_16px_30px_rgba(22,83,44,0.18)]">
+                618
+              </div>
+              <div>
+                <div className="font-display text-2xl font-semibold tracking-tight text-[#173528] sm:text-3xl">
+                  {FOOD_BRAND}
+                </div>
+                <div className="mt-1 text-xs font-medium uppercase tracking-[0.24em] text-stone-500">
+                  Local restaurant advertising
+                </div>
+              </div>
+            </div>
+            <SiteNav currentPath={currentPath} />
+          </div>
+        </header>
+
+        <section className="grid flex-1 items-center gap-5 lg:grid-cols-[1.05fr_0.95fr]">
+          <div className="rounded-[2rem] border border-white/75 bg-white/82 p-6 shadow-[0_24px_70px_rgba(49,67,38,0.14)] backdrop-blur-2xl sm:p-8">
+            <div className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-emerald-800">
+              Advertise on 618FOOD.COM
+            </div>
+            <h1 className="mt-5 max-w-2xl font-display text-4xl font-semibold leading-tight tracking-tight text-[#173528] sm:text-5xl">
+              Put your restaurant in front of hungry Southern Illinois diners.
+            </h1>
+            <p className="mt-5 max-w-2xl text-base leading-8 text-stone-650 sm:text-lg">
+              618FOOD.COM helps people decide where to eat right when they are searching.
+              If you want a sponsored placement, ordering link, thumbnail ad, or custom restaurant writeup,
+              send the details and we can talk through the best fit.
+            </p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <a
+                href={mailtoHref}
+                className="rounded-full bg-emerald-700 px-5 py-3 text-sm font-bold text-white shadow-[0_16px_34px_rgba(22,83,44,0.22)] transition hover:bg-emerald-800"
+              >
+                Email about advertising
+              </a>
+              <a
+                href="/"
+                onClick={(event) => {
+                  event.preventDefault();
+                  navigateTo('/');
+                }}
+                className="rounded-full border border-emerald-200 bg-white px-5 py-3 text-sm font-bold text-emerald-900 transition hover:bg-emerald-50"
+              >
+                Try the food widget
+              </a>
+            </div>
+          </div>
+
+          <aside className="rounded-[2rem] border border-emerald-100 bg-[#10291f] p-6 text-white shadow-[0_24px_70px_rgba(16,41,31,0.2)] sm:p-7">
+            <div className="text-xs font-bold uppercase tracking-[0.22em] text-emerald-200/80">
+              Good ad fits
+            </div>
+            <div className="mt-5 space-y-4 text-sm leading-7 text-emerald-50/82">
+              <p>Restaurant thumbnails that link straight to ordering or your website.</p>
+              <p>Sponsored spots for a town, cuisine, or category when available.</p>
+              <p>Professional writeups that make your restaurant feel vivid, local, and worth visiting.</p>
+            </div>
+            <div className="mt-7 rounded-[1.25rem] border border-white/10 bg-white/8 p-4">
+              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/50">
+                Contact
+              </div>
+              <a href={mailtoHref} className="mt-2 block text-lg font-semibold text-white underline decoration-emerald-300/40 underline-offset-4">
+                {ADVERTISING_EMAIL}
+              </a>
+            </div>
+          </aside>
+        </section>
+      </main>
+    </div>
+  );
+}
+
 export default function App(): JSX.Element {
   const [currentPath, setCurrentPath] = useState(getNormalizedPathname);
   const [assistantLoading, setAssistantLoading] = useState(false);
@@ -146,8 +273,10 @@ export default function App(): JSX.Element {
   const autoPlayedSummaryRef = useRef('');
   const [autoPlaybackEnabled, setAutoPlaybackEnabled] = useState(false);
   const [assistantLoadingLabel, setAssistantLoadingLabel] = useState(LOADING_MESSAGES[0]);
-  const isWidgetLauncherPage = currentPath === '/widget';
+  const isWidgetLauncherPage = currentPath === '/' || currentPath === '/widget';
   const isWidgetPanelPage = currentPath === '/widget/panel';
+  const isClassicPage = currentPath === '/classic';
+  const isContactPage = currentPath === '/contact';
   const isWidgetRoute = isWidgetLauncherPage || isWidgetPanelPage;
 
   const hasSearched = assistantTranscript.some((turn) => turn.role === 'user');
@@ -458,11 +587,19 @@ export default function App(): JSX.Element {
   }, [autoPlaybackEnabled, audioSummary, hasSearched]);
 
   if (isWidgetLauncherPage) {
-    return <WidgetLauncherPage />;
+    return <WidgetLauncherPage currentPath={currentPath} />;
   }
 
   if (isWidgetPanelPage) {
     return <VoiceWidgetPanel />;
+  }
+
+  if (isContactPage) {
+    return <AdvertisingContactPage currentPath={currentPath} />;
+  }
+
+  if (!isClassicPage) {
+    return <WidgetLauncherPage currentPath="/" />;
   }
 
   return (
@@ -479,12 +616,7 @@ export default function App(): JSX.Element {
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             {renderPageTitle()}
             <div className="flex flex-wrap gap-2">
-              <a
-                href="/widget"
-                className="rounded-full border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 transition hover:border-emerald-300 hover:bg-emerald-50"
-              >
-                Widget
-              </a>
+              <SiteNav currentPath={currentPath} />
             </div>
           </div>
         </header>

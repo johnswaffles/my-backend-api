@@ -10,7 +10,45 @@ function isMobileViewport(): boolean {
   return window.innerWidth <= 600;
 }
 
-export function WidgetLauncherPage(): JSX.Element {
+function navigateTo(path: string): void {
+  if (typeof window === 'undefined') return;
+  window.history.pushState({}, '', path);
+  window.dispatchEvent(new PopStateEvent('popstate'));
+}
+
+function WidgetSiteNav({ currentPath }: { currentPath: string }): JSX.Element {
+  const navItems = [
+    { href: '/classic', label: 'Classic Search' },
+    { href: '/contact', label: 'Advertise' }
+  ];
+
+  return (
+    <nav className="flex flex-wrap items-center justify-center gap-2" aria-label="618FOOD pages">
+      {navItems.map((item) => {
+        const active = currentPath === item.href;
+        return (
+          <a
+            key={item.href}
+            href={item.href}
+            onClick={(event) => {
+              event.preventDefault();
+              navigateTo(item.href);
+            }}
+            className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+              active
+                ? 'border-emerald-200 bg-emerald-700 text-white shadow-[0_12px_24px_rgba(22,83,44,0.18)]'
+                : 'border-emerald-200 bg-white/90 text-emerald-900 hover:border-emerald-300 hover:bg-emerald-50'
+            }`}
+          >
+            {item.label}
+          </a>
+        );
+      })}
+    </nav>
+  );
+}
+
+export function WidgetLauncherPage({ currentPath = '/' }: { currentPath?: string }): JSX.Element {
   const [isOpen, setIsOpen] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
   const [useMobileLayout, setUseMobileLayout] = useState(isMobileViewport());
@@ -130,11 +168,11 @@ export function WidgetLauncherPage(): JSX.Element {
   const panelStyle: CSSProperties = useMobileLayout
     ? {
         left: '8px',
-        top: '8px',
+        top: '112px',
         right: '8px',
         bottom: '8px',
         width: 'calc(100vw - 16px)',
-        height: 'calc(100vh - 16px)'
+        height: 'calc(100vh - 120px)'
       }
       : {
           left: '28px',
@@ -149,6 +187,27 @@ export function WidgetLauncherPage(): JSX.Element {
     <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.98),_rgba(250,246,236,0.92)_34%,_rgba(236,244,227,0.98)_66%,_rgba(247,241,228,1)_100%)] text-stone-900">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(111,162,98,0.18),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(206,179,95,0.14),_transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.48),rgba(255,255,255,0))]" />
       <div className="pointer-events-none absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg viewBox=%270 0 200 200%27 xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cfilter id=%27n%27%3E%3CfeTurbulence type=%27fractalNoise%27 baseFrequency=%270.9%27 numOctaves=%274%27 stitchTiles=%27stitch%27/%3E%3C/filter%3E%3Crect width=%27100%25%27 height=%27100%25%27 filter=%27url(%23n)%27 opacity=%270.1%27/%3E%3C/svg%3E')] opacity-25" />
+
+      <header className="fixed left-3 right-3 top-3 z-[10000002] rounded-[1.4rem] border border-white/70 bg-white/88 px-3 py-3 shadow-[0_14px_38px_rgba(61,79,42,0.12)] backdrop-blur-2xl sm:left-5 sm:right-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <a
+            href="/"
+            onClick={(event) => {
+              event.preventDefault();
+              navigateTo('/');
+            }}
+            className="flex items-center justify-center gap-2 sm:justify-start"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-700 text-sm font-black text-white">
+              618
+            </span>
+            <span className="font-display text-xl font-semibold tracking-tight text-[#173528]">
+              618FOOD.COM
+            </span>
+          </a>
+          <WidgetSiteNav currentPath={currentPath} />
+        </div>
+      </header>
 
       <button
         type="button"
