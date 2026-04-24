@@ -14,12 +14,46 @@ const LOADING_MESSAGES = ['Thinking...', 'Researching reviews...', 'Searching th
 const MAX_AUDIO_CHARS = 900;
 const VOICE_CUBE_CELLS = Array.from({ length: 100 }, (_, index) => index);
 
-function getVoiceCubeCellClass(index: number, isSpeaking: boolean, isListening: boolean): string {
-  if (isSpeaking) {
-    return 'voice-cube-cell-speaking border-white/20 shadow-[0_0_10px_rgba(255,255,255,0.18)]';
+type VoiceCubeMode = 'idle' | 'thinking' | 'listening' | 'speaking';
+
+function getVoiceCubeCellClass(index: number, mode: VoiceCubeMode): string {
+  const row = Math.floor(index / 10);
+  const col = index % 10;
+  const eyeCell =
+    (row === 2 && [2, 3, 6, 7].includes(col)) ||
+    (row === 3 && [2, 7].includes(col));
+  const mouthCell =
+    (row === 6 && col >= 2 && col <= 7) ||
+    (row === 7 && col >= 3 && col <= 6) ||
+    (row === 8 && col >= 4 && col <= 5);
+  const cheekCell = row === 4 && [1, 8].includes(col);
+  const signalCell = Math.abs(col - 4.5) + Math.abs(row - 5.5) <= 3;
+
+  if (mode === 'speaking') {
+    if (eyeCell) {
+      return 'voice-cube-eye border-cyan-100/30 bg-cyan-200 shadow-[0_0_12px_rgba(125,249,255,0.75)]';
+    }
+
+    if (mouthCell) {
+      return 'voice-cube-mouth border-rose-100/25 bg-rose-400 shadow-[0_0_14px_rgba(251,113,133,0.75)]';
+    }
+
+    if (cheekCell) {
+      return 'voice-cube-cheek border-fuchsia-100/20 bg-fuchsia-300/85 shadow-[0_0_12px_rgba(232,121,249,0.55)]';
+    }
+
+    if (signalCell) {
+      return 'voice-cube-signal border-emerald-100/25 bg-emerald-300/90 shadow-[0_0_12px_rgba(52,211,153,0.62)]';
+    }
+
+    return 'voice-cube-cell-speaking border-white/15 bg-cyan-800/80 shadow-[0_0_9px_rgba(34,211,238,0.22)]';
   }
 
-  if (isListening) {
+  if (mode === 'thinking') {
+    return 'voice-cube-cell-thinking border-white/12 bg-cyan-900/75 shadow-[0_0_8px_rgba(34,211,238,0.2)]';
+  }
+
+  if (mode === 'listening') {
     return 'border-cyan-100/20 bg-cyan-300/80 shadow-[0_0_10px_rgba(34,211,238,0.55)]';
   }
 
@@ -38,6 +72,12 @@ type RealtimeBridgeState = {
 };
 
 type SearchInputMode = 'typed' | 'voice';
+
+function estimateSpeechDurationMs(text: string): number {
+  const words = text.trim().split(/\s+/).filter(Boolean).length;
+  const estimatedSeconds = words / 2.35;
+  return Math.min(60000, Math.max(5200, Math.round(estimatedSeconds * 1000) + 2200));
+}
 
 function normalizeSpeechSummary(text: string): string {
   const compact = text
@@ -261,6 +301,7 @@ export function VoiceWidgetPanel(): JSX.Element {
   const [assistantLoading, setAssistantLoading] = useState(false);
   const [assistantLoadingLabel, setAssistantLoadingLabel] = useState(LOADING_MESSAGES[0]);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [speechVisualActive, setSpeechVisualActive] = useState(false);
   const [audioLoading, setAudioLoading] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [isListening, setIsListening] = useState(false);
@@ -284,8 +325,15 @@ export function VoiceWidgetPanel(): JSX.Element {
   const browserNarrationActiveRef = useRef(false);
   const browserNarrationPausedRef = useRef(false);
   const lastInputModeRef = useRef<SearchInputMode>('typed');
-  const voiceActive = assistantLoading || isListening || isPlaying;
-  const voiceCubeSpeaking = isPlaying || audioLoading;
+  const speechVisualTimerRef = useRef<number | null>(null);
+  const voiceCubeMode: VoiceCubeMode = speechVisualActive || isPlaying
+    ? 'speaking'
+    : assistantLoading || audioLoading
+    ? 'thinking'
+    : isListening
+    ? 'listening'
+    : 'idle';
+  const voiceActive = voiceCubeMode !== 'idle';
   const latestAudioSummary = getAudioSummary(conversation);
   const hasAudioSummary = Boolean(latestAudioSummary);
 
@@ -319,6 +367,7 @@ export function VoiceWidgetPanel(): JSX.Element {
   useEffect(() => {
     return () => {
       stopRealtimeBridge();
+      stopSpeechVisual();
       stopBrowserNarration();
       if (legacyRecognitionRef.current) {
         try {
@@ -367,6 +416,7 @@ export function VoiceWidgetPanel(): JSX.Element {
       readyPromise: null,
       pendingSpeakText: null
     };
+    stopSpeechVisual();
     setIsPlaying(false);
     setAudioLoading(false);
   }
@@ -378,6 +428,30 @@ export function VoiceWidgetPanel(): JSX.Element {
         track.enabled = enabled;
       });
     }
+  }
+
+  function clearSpeechVisualTimer(): void {
+    if (speechVisualTimerRef.current !== null) {
+      window.clearTimeout(speechVisualTimerRef.current);
+      speechVisualTimerRef.current = null;
+    }
+  }
+
+  function stopSpeechVisual(): void {
+    clearSpeechVisualTimer();
+    setSpeechVisualActive(false);
+  }
+
+  function startSpeechVisual(text: string): void {
+    clearSpeechVisualTimer();
+    setSpeechVisualActive(true);
+    speechVisualTimerRef.current = window.setTimeout(() => {
+      setSpeechVisualActive(false);
+      setIsPlaying(false);
+      if (!assistantLoading && !isListening) {
+        setStatusLabel('VOICE CHAT');
+      }
+    }, estimateSpeechDurationMs(text));
   }
 
   function pauseCurrentPlayback(): boolean {
@@ -400,6 +474,7 @@ export function VoiceWidgetPanel(): JSX.Element {
     }
 
     if (paused) {
+      stopSpeechVisual();
       setIsPlaying(false);
       if (!assistantLoading && !isListening) {
         setStatusLabel('VOICE CHAT');
@@ -415,6 +490,9 @@ export function VoiceWidgetPanel(): JSX.Element {
       currentAudio.play().catch(() => {
         setIsPlaying(false);
       });
+      if (latestAudioSummary) {
+        startSpeechVisual(latestAudioSummary);
+      }
       setIsPlaying(true);
       setStatusLabel('SPEAKING...');
       return true;
@@ -428,6 +506,9 @@ export function VoiceWidgetPanel(): JSX.Element {
     ) {
       window.speechSynthesis.resume();
       browserNarrationPausedRef.current = false;
+      if (latestAudioSummary) {
+        startSpeechVisual(latestAudioSummary);
+      }
       setIsPlaying(true);
       setStatusLabel('SPEAKING...');
       return true;
@@ -485,16 +566,15 @@ export function VoiceWidgetPanel(): JSX.Element {
       audioEl.style.display = 'none';
       document.body.appendChild(audioEl);
 
-      audioEl.onplay = () => {
-        setIsPlaying(true);
-      };
       audioEl.onended = () => {
+        stopSpeechVisual();
         setIsPlaying(false);
         if (!assistantLoading && !isListening) {
           setStatusLabel('VOICE CHAT');
         }
       };
       audioEl.onerror = () => {
+        stopSpeechVisual();
         setIsPlaying(false);
         if (!assistantLoading && !isListening) {
           setStatusLabel('VOICE CHAT');
@@ -543,10 +623,6 @@ export function VoiceWidgetPanel(): JSX.Element {
           }
           if (message?.type === 'response.done') {
             setAudioLoading(false);
-            setIsPlaying(false);
-            if (!assistantLoading && !isListening) {
-              setStatusLabel('VOICE CHAT');
-            }
           }
         } catch {
           // ignore malformed realtime events
@@ -651,9 +727,12 @@ export function VoiceWidgetPanel(): JSX.Element {
     setStatusLabel('SPEAKING...');
     try {
       await sendRealtimeSpeech(normalizedText);
+      setIsPlaying(true);
+      startSpeechVisual(normalizedText);
     } catch {
       try {
         setIsPlaying(true);
+        startSpeechVisual(normalizedText);
         await playBrowserNarration(normalizedText);
       } catch {
         setIsPlaying(false);
@@ -661,6 +740,7 @@ export function VoiceWidgetPanel(): JSX.Element {
           setStatusLabel('VOICE CHAT');
         }
       } finally {
+        stopSpeechVisual();
         setIsPlaying(false);
       }
     } finally {
@@ -681,12 +761,14 @@ export function VoiceWidgetPanel(): JSX.Element {
     setAudioLoading(true);
     setIsPlaying(true);
     setStatusLabel('SPEAKING...');
+    startSpeechVisual(normalizedText);
 
     try {
       await playBrowserNarration(normalizedText);
     } catch {
       // Browser narration is best effort; the text remains visible if playback fails.
     } finally {
+      stopSpeechVisual();
       browserNarrationActiveRef.current = false;
       browserNarrationPausedRef.current = false;
       setIsPlaying(false);
@@ -1057,16 +1139,62 @@ export function VoiceWidgetPanel(): JSX.Element {
             <style>
               {`
                 @keyframes voiceCubeColorCycle {
-                  0% { background: #22d3ee; box-shadow: 0 0 10px rgba(34, 211, 238, 0.65); }
-                  20% { background: #34d399; box-shadow: 0 0 10px rgba(52, 211, 153, 0.65); }
-                  40% { background: #facc15; box-shadow: 0 0 10px rgba(250, 204, 21, 0.62); }
-                  60% { background: #fb7185; box-shadow: 0 0 10px rgba(251, 113, 133, 0.62); }
-                  80% { background: #c084fc; box-shadow: 0 0 10px rgba(192, 132, 252, 0.62); }
-                  100% { background: #22d3ee; box-shadow: 0 0 10px rgba(34, 211, 238, 0.65); }
+                  0% { background: #0e7490; opacity: 0.55; transform: scale(0.82); box-shadow: 0 0 4px rgba(34, 211, 238, 0.22); }
+                  28% { background: #22d3ee; opacity: 1; transform: scale(1.18); box-shadow: 0 0 14px rgba(34, 211, 238, 0.72); }
+                  52% { background: #34d399; opacity: 0.9; transform: scale(0.98); box-shadow: 0 0 12px rgba(52, 211, 153, 0.62); }
+                  76% { background: #c084fc; opacity: 0.95; transform: scale(1.1); box-shadow: 0 0 12px rgba(192, 132, 252, 0.56); }
+                  100% { background: #0e7490; opacity: 0.55; transform: scale(0.82); box-shadow: 0 0 4px rgba(34, 211, 238, 0.22); }
+                }
+
+                @keyframes voiceCubeThinkWave {
+                  0%, 100% { background: #164e63; opacity: 0.45; transform: scale(0.88); }
+                  50% { background: #22d3ee; opacity: 0.95; transform: scale(1.12); box-shadow: 0 0 12px rgba(34, 211, 238, 0.5); }
+                }
+
+                @keyframes voiceCubeMouthPulse {
+                  0%, 100% { transform: scaleY(0.45) scaleX(0.86); background: #fb7185; opacity: 0.7; }
+                  35% { transform: scaleY(1.28) scaleX(1.08); background: #facc15; opacity: 1; box-shadow: 0 0 16px rgba(250, 204, 21, 0.75); }
+                  68% { transform: scaleY(0.72) scaleX(1.18); background: #c084fc; opacity: 0.9; }
+                }
+
+                @keyframes voiceCubeEyeBlink {
+                  0%, 82%, 100% { transform: scaleY(1); opacity: 1; }
+                  88%, 92% { transform: scaleY(0.28); opacity: 0.55; }
+                }
+
+                @keyframes voiceCubeSignalBounce {
+                  0%, 100% { transform: translateY(0) scale(0.82); opacity: 0.58; }
+                  44% { transform: translateY(-2px) scale(1.16); opacity: 1; }
+                  72% { transform: translateY(1px) scale(0.94); opacity: 0.78; }
+                }
+
+                @keyframes voiceCubeCheekGlow {
+                  0%, 100% { opacity: 0.4; transform: scale(0.85); }
+                  50% { opacity: 1; transform: scale(1.18); }
                 }
 
                 .voice-cube-cell-speaking {
-                  animation: voiceCubeColorCycle 1.35s linear infinite;
+                  animation: voiceCubeColorCycle 1.1s ease-in-out infinite;
+                }
+
+                .voice-cube-cell-thinking {
+                  animation: voiceCubeThinkWave 1.7s ease-in-out infinite;
+                }
+
+                .voice-cube-mouth {
+                  animation: voiceCubeMouthPulse 0.48s ease-in-out infinite;
+                }
+
+                .voice-cube-eye {
+                  animation: voiceCubeEyeBlink 3.2s ease-in-out infinite;
+                }
+
+                .voice-cube-signal {
+                  animation: voiceCubeSignalBounce 0.72s ease-in-out infinite;
+                }
+
+                .voice-cube-cheek {
+                  animation: voiceCubeCheekGlow 1.4s ease-in-out infinite;
                 }
               `}
             </style>
@@ -1096,11 +1224,13 @@ export function VoiceWidgetPanel(): JSX.Element {
                       key={cellIndex}
                       className={`aspect-square rounded-[2px] border transition-colors duration-300 ${getVoiceCubeCellClass(
                         cellIndex,
-                        voiceCubeSpeaking,
-                        isListening
+                        voiceCubeMode
                       )}`}
                       style={{
-                        animationDelay: `${(cellIndex % 10) * 65 + Math.floor(cellIndex / 10) * 35}ms`
+                        animationDelay:
+                          voiceCubeMode === 'speaking'
+                            ? `${(cellIndex % 5) * 42 + Math.floor(cellIndex / 10) * 24}ms`
+                            : `${(cellIndex % 10) * 65 + Math.floor(cellIndex / 10) * 35}ms`
                       }}
                     />
                   ))}
