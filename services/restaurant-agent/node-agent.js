@@ -1493,7 +1493,7 @@ function buildFeaturedWriteup({ restaurant, locationText, cuisineText, websiteSi
     .join(' ');
 }
 
-function compactRestaurantWriteup(text, maxWords = 110) {
+function compactRestaurantWriteup(text, maxWords = 130) {
   const compact = String(text || '').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
   if (!compact) return '';
 
@@ -1516,8 +1516,7 @@ function compactRestaurantWriteup(text, maxWords = 110) {
     return selected.join(' ').trim();
   }
 
-  const trimmed = words.slice(0, maxWords).join(' ').replace(/[,:;]\s*$/, '');
-  return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
+  return sentences[0]?.trim() || compact;
 }
 
 function buildTopSpotWriteupPrompt({ restaurant, locationText, cuisineText, websiteSignals }) {
@@ -1562,7 +1561,7 @@ function buildTopSpotWriteupPrompt({ restaurant, locationText, cuisineText, webs
     'Ground the copy in the review snippets and website clues when they exist.',
     'If the evidence is thin, stay tasteful and concise rather than inventing details.',
     'Never mention ordering, online ordering, delivery, reservations, partners, coupons, payment, or checkout.',
-    'Write 1 compact paragraph, about 75-105 words total.',
+    'Write exactly 1 complete paragraph, about 65-90 words total. Keep it vivid, but finish cleanly with a complete sentence.',
     'Return only the review text itself, with no heading or bullet list.',
     '',
     ...facts
@@ -1589,11 +1588,11 @@ async function generateTopSpotWriteup({ apiKey, model, restaurant, locationText,
       ],
       tools: [],
       requestId,
-      maxOutputTokens: 180,
+      maxOutputTokens: 260,
       reasoningEffort: 'low'
     });
 
-    const text = compactRestaurantWriteup(extractResponseText(response), 110);
+    const text = compactRestaurantWriteup(extractResponseText(response), 130);
     if (text) {
       return text;
     }
@@ -1601,7 +1600,7 @@ async function generateTopSpotWriteup({ apiKey, model, restaurant, locationText,
     log(requestId, `top-spot writeup generation failed: ${String(error.message || error)}`);
   }
 
-  return compactRestaurantWriteup(buildFeaturedWriteup({ restaurant, locationText, cuisineText, websiteSignals }), 110);
+  return compactRestaurantWriteup(buildFeaturedWriteup({ restaurant, locationText, cuisineText, websiteSignals }), 130);
 }
 
 function mergeUniqueRestaurants(existing, next) {

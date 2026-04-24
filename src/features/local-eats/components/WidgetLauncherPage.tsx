@@ -11,7 +11,7 @@ function isMobileViewport(): boolean {
 }
 
 export function WidgetLauncherPage(): JSX.Element {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
   const [useMobileLayout, setUseMobileLayout] = useState(isMobileViewport());
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -118,8 +118,8 @@ export function WidgetLauncherPage(): JSX.Element {
   const launcherClassName = [
     'fixed z-[10000001] flex items-center gap-2 overflow-hidden rounded-full border px-5 py-3 font-semibold uppercase tracking-[0.08em] text-emerald-950 shadow-[0_8px_32px_rgba(0,0,0,0.18)] transition-all duration-300 backdrop-blur-xl',
     isOpen
-      ? 'right-4 bottom-4 h-14 w-14 justify-center border-emerald-700/20 bg-white/90 p-0 text-transparent shadow-[0_8px_24px_rgba(0,0,0,0.12)]'
-      : 'right-7 bottom-7 border-emerald-700/15 bg-white/92'
+      ? 'left-4 bottom-4 h-14 w-14 justify-center border-emerald-700/20 bg-white/90 p-0 text-transparent shadow-[0_8px_24px_rgba(0,0,0,0.12)]'
+      : 'left-7 bottom-7 border-emerald-700/15 bg-white/92'
   ].join(' ');
 
   const panelClassName = [
@@ -137,9 +137,9 @@ export function WidgetLauncherPage(): JSX.Element {
         height: 'calc(100vh - 16px)'
       }
       : {
-          left: 'auto',
+          left: '28px',
           top: 'auto',
-          right: '28px',
+          right: 'auto',
           bottom: '28px',
           width: 'min(390px, calc(100vw - 24px))',
           height: 'min(680px, calc(100vh - 24px))'

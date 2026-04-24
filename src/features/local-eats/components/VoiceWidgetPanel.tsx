@@ -215,9 +215,9 @@ export function VoiceWidgetPanel(): JSX.Element {
   const [assistantLoadingLabel, setAssistantLoadingLabel] = useState(LOADING_MESSAGES[0]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioLoading, setAudioLoading] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
   const [isListening, setIsListening] = useState(false);
-  const [statusLabel, setStatusLabel] = useState('PRESS TO CHAT');
+  const [statusLabel, setStatusLabel] = useState('VOICE CHAT');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [searchLocked, setSearchLocked] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -381,13 +381,13 @@ export function VoiceWidgetPanel(): JSX.Element {
       audioEl.onended = () => {
         setIsPlaying(false);
         if (!assistantLoading && !isListening) {
-          setStatusLabel('READY');
+          setStatusLabel('VOICE CHAT');
         }
       };
       audioEl.onerror = () => {
         setIsPlaying(false);
         if (!assistantLoading && !isListening) {
-          setStatusLabel('READY');
+          setStatusLabel('VOICE CHAT');
         }
       };
 
@@ -402,7 +402,7 @@ export function VoiceWidgetPanel(): JSX.Element {
       pc.onconnectionstatechange = () => {
         if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) {
           if (!assistantLoading && !isListening) {
-            setStatusLabel('READY');
+            setStatusLabel('VOICE CHAT');
           }
         }
       };
@@ -432,7 +432,7 @@ export function VoiceWidgetPanel(): JSX.Element {
             setAudioLoading(false);
             setIsPlaying(false);
             if (!assistantLoading && !isListening) {
-              setStatusLabel('READY');
+              setStatusLabel('VOICE CHAT');
             }
           }
         } catch {
@@ -539,7 +539,7 @@ export function VoiceWidgetPanel(): JSX.Element {
       } catch {
         setIsPlaying(false);
         if (!assistantLoading && !isListening) {
-          setStatusLabel('READY');
+          setStatusLabel('VOICE CHAT');
         }
       } finally {
         setIsPlaying(false);
@@ -570,7 +570,7 @@ export function VoiceWidgetPanel(): JSX.Element {
     } catch {
       stopRealtimeBridge();
       setIsListening(false);
-      setStatusLabel('READY');
+      setStatusLabel('VOICE CHAT');
       throw new Error('Unable to start realtime voice session.');
     }
   }
@@ -578,7 +578,7 @@ export function VoiceWidgetPanel(): JSX.Element {
   function stopVoiceSession(): void {
     stopListening();
     stopRealtimeBridge();
-    setStatusLabel('READY');
+    setStatusLabel('VOICE CHAT');
   }
 
   async function sendAssistantMessage(text: string): Promise<void> {
@@ -647,7 +647,7 @@ export function VoiceWidgetPanel(): JSX.Element {
     } finally {
       setAssistantLoading(false);
       if (!isListening && !isPlaying) {
-        setStatusLabel('READY');
+        setStatusLabel('VOICE CHAT');
       }
     }
   }
@@ -667,7 +667,7 @@ export function VoiceWidgetPanel(): JSX.Element {
           }
         ]);
         setIsListening(false);
-        setStatusLabel('READY');
+        setStatusLabel('VOICE CHAT');
         return;
       }
 
@@ -706,7 +706,7 @@ export function VoiceWidgetPanel(): JSX.Element {
 
       recognition.onerror = () => {
         setIsListening(false);
-        setStatusLabel('READY');
+        setStatusLabel('VOICE CHAT');
         legacyRecognitionRef.current = null;
         transcriptRef.current = '';
       };
@@ -714,7 +714,7 @@ export function VoiceWidgetPanel(): JSX.Element {
       recognition.onend = () => {
         legacyRecognitionRef.current = null;
         setIsListening(false);
-        setStatusLabel('READY');
+        setStatusLabel('VOICE CHAT');
         const transcript = transcriptRef.current.trim();
         transcriptRef.current = '';
         if (transcript) {
@@ -737,7 +737,7 @@ export function VoiceWidgetPanel(): JSX.Element {
     legacyRecognitionRef.current = null;
     transcriptRef.current = '';
     setIsListening(false);
-    setStatusLabel('READY');
+    setStatusLabel('VOICE CHAT');
   }
 
   function toggleVoice(): void {
@@ -793,7 +793,7 @@ export function VoiceWidgetPanel(): JSX.Element {
     setAudioLoading(false);
     setAssistantLoading(false);
     setAssistantLoadingLabel(LOADING_MESSAGES[0]);
-    setIsMuted(false);
+    setIsMuted(true);
     setSearchLocked(false);
     setDraftText('');
     setConversation([
@@ -802,7 +802,7 @@ export function VoiceWidgetPanel(): JSX.Element {
         content: INITIAL_GREETING
       }
     ]);
-    setStatusLabel('PRESS TO CHAT');
+    setStatusLabel('VOICE CHAT');
     hadUserGestureRef.current = false;
   }
 
