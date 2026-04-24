@@ -3546,8 +3546,8 @@ func _populate_village_house_variant(root: Node3D, lot_root: Node3D, structure_r
 	_add_house_wall_window_local(Vector3(-0.68, 0.56, front_window_z), Vector3(0.28, 0.34, 0.05), structure_root)
 	_add_house_wall_window_local(Vector3(0.68, 0.56, front_window_z), Vector3(0.28, 0.34, 0.05), structure_root)
 	var side_window_x := width * 0.52
-	_add_house_wall_window_local(Vector3(-side_window_x, 0.56, house_z + 0.18), Vector3(0.05, 0.34, 0.24), structure_root)
-	_add_house_wall_window_local(Vector3(side_window_x, 0.56, house_z + 0.18), Vector3(0.05, 0.34, 0.24), structure_root)
+	_add_house_side_window_local(Vector3(-side_window_x, 0.56, house_z + 0.18), Vector3(0.26, 0.34, 0.05), structure_root, -1.0)
+	_add_house_side_window_local(Vector3(side_window_x, 0.56, house_z + 0.18), Vector3(0.26, 0.34, 0.05), structure_root, 1.0)
 	if has_wing:
 		_add_window_band_local(Vector3(-1.18, 0.54, house_z + 0.52), Vector3(0.2, 0.28, 0.05), structure_root)
 		_add_window_band_local(Vector3(-1.18, 0.84, house_z + 0.52), Vector3(0.16, 0.2, 0.05), structure_root)
@@ -3909,8 +3909,17 @@ func _apply_house_tier_visuals(root: Node3D, tier: int, variant: int, profile: D
 	var upper_height := 0.98
 	var upper_y := 1.86
 	var upper_z := -0.02
+	var entry_wall := _make_material_from_color(palette.wall.lightened(0.03), 0.94)
 
 	if tier >= 2:
+		if bool(profile.get("front_bumpout", false)):
+			_add_soft_block(Vector3(0.0, 0.48, 0.12), Vector3(1.08, 0.78, 0.72), entry_wall, structure_root, 0.12)
+			_add_gabled_roof(Vector3(0.0, 1.04, 0.12), Vector3(1.26, 0.16, 0.9), roof_detail, structure_root, 15.0)
+			_add_house_front_door_local(Vector3(0.0, 0.0, 0.52), structure_root, false)
+			_add_window_band_local(Vector3(-0.36, 0.58, 0.52), Vector3(0.2, 0.28, 0.05), structure_root)
+			_add_window_band_local(Vector3(0.36, 0.58, 0.52), Vector3(0.2, 0.28, 0.05), structure_root)
+			_add_house_side_window_local(Vector3(-0.56, 0.58, 0.12), Vector3(0.18, 0.26, 0.05), structure_root, -1.0)
+			_add_house_side_window_local(Vector3(0.56, 0.58, 0.12), Vector3(0.18, 0.26, 0.05), structure_root, 1.0)
 		if bool(profile.get("roof_trim", false)):
 			_add_box(Vector3(0.0, 0.26, 1.72), Vector3(1.52, 0.05, 0.05), roof_trim, structure_root)
 			_add_box(Vector3(-0.76, 0.26, 0.2), Vector3(0.05, 0.05, 1.2), roof_trim, structure_root)
@@ -3928,12 +3937,13 @@ func _apply_house_tier_visuals(root: Node3D, tier: int, variant: int, profile: D
 	if tier >= 3:
 		if bool(profile.get("side_annex", false)):
 			var side := -1.0 if posmod(variant, 2) == 0 else 1.0
-			_add_soft_block(Vector3(side * 1.42, 0.5, 0.18), Vector3(1.02, 0.84, 1.14), _make_material_from_color(palette.wall.darkened(0.02), 0.94), structure_root, 0.14)
-			_add_gabled_roof(Vector3(side * 1.42, 1.1, 0.18), Vector3(1.18, 0.14, 1.26), roof_detail, structure_root, 13.0)
+			_add_soft_block(Vector3(side * 1.42, 0.55, 0.12), Vector3(1.12, 0.94, 1.34), _make_material_from_color(palette.wall.darkened(0.02), 0.94), structure_root, 0.14)
+			_add_gabled_roof(Vector3(side * 1.42, 1.18, 0.12), Vector3(1.32, 0.16, 1.48), roof_detail, structure_root, 13.0)
 			if bool(profile.get("wall_windows", false)):
 				_add_window_band_local(Vector3(side * 1.46, 0.6, 0.76), Vector3(0.24, 0.3, 0.05), structure_root)
 				_add_window_band_local(Vector3(side * 1.46, 0.94, 0.76), Vector3(0.22, 0.22, 0.05), structure_root)
-				_add_window_band_local(Vector3(side * 1.1, 0.52, -0.2), Vector3(0.18, 0.24, 0.05), structure_root)
+				_add_house_side_window_local(Vector3(side * 1.98, 0.62, 0.04), Vector3(0.28, 0.34, 0.05), structure_root, side)
+				_add_house_side_window_local(Vector3(side * 1.98, 0.94, -0.34), Vector3(0.22, 0.24, 0.05), structure_root, side)
 		if bool(profile.get("upper_windows", false)):
 			_add_window_band_local(Vector3(-0.36, 0.92, -0.5), Vector3(0.22, 0.24, 0.05), structure_root)
 			_add_window_band_local(Vector3(0.36, 0.92, -0.5), Vector3(0.22, 0.24, 0.05), structure_root)
@@ -3954,13 +3964,20 @@ func _apply_house_tier_visuals(root: Node3D, tier: int, variant: int, profile: D
 			_add_window_band_local(Vector3(0.72, upper_y + 0.16, upper_z + 0.42), Vector3(0.24, 0.24, 0.05), structure_root)
 			_add_window_band_local(Vector3(-0.66, upper_y + 0.16, upper_z - 0.54), Vector3(0.2, 0.2, 0.05), structure_root)
 			_add_window_band_local(Vector3(0.66, upper_y + 0.16, upper_z - 0.54), Vector3(0.2, 0.2, 0.05), structure_root)
-			_add_house_wall_window_local(Vector3(-upper_width * 0.56, upper_y + 0.12, upper_z + 0.02), Vector3(0.05, 0.3, 0.24), structure_root)
-			_add_house_wall_window_local(Vector3(upper_width * 0.56, upper_y + 0.12, upper_z + 0.02), Vector3(0.05, 0.3, 0.24), structure_root)
+			_add_house_side_window_local(Vector3(-upper_width * 0.56, upper_y + 0.12, upper_z + 0.02), Vector3(0.26, 0.32, 0.05), structure_root, -1.0)
+			_add_house_side_window_local(Vector3(upper_width * 0.56, upper_y + 0.12, upper_z + 0.02), Vector3(0.26, 0.32, 0.05), structure_root, 1.0)
 		_add_box(Vector3(0.0, upper_y - 0.22, upper_z - 0.02), Vector3(1.72, 0.08, 1.18), _make_material("d8c7ab", 0.9), structure_root)
 		_add_box(Vector3(-0.74, 1.54, -0.46), Vector3(0.18, 0.46, 0.18), _stone_material, structure_root)
 		_add_box(Vector3(0.74, 1.54, -0.46), Vector3(0.18, 0.46, 0.18), _stone_material, structure_root)
 
 	if tier >= 5:
+		if bool(profile.get("upper_side_wing", false)):
+			var upper_side := 1.0 if posmod(variant, 2) == 0 else -1.0
+			_add_soft_block(Vector3(upper_side * 1.18, upper_y + 0.26, upper_z + 0.1), Vector3(0.86, 0.72, 1.0), second_story_wall, structure_root, 0.1)
+			_add_gabled_roof(Vector3(upper_side * 1.18, upper_y + 0.84, upper_z + 0.1), Vector3(1.02, 0.13, 1.12), second_story_roof, structure_root, 14.0)
+			_add_window_band_local(Vector3(upper_side * 1.18, upper_y + 0.3, upper_z + 0.56), Vector3(0.24, 0.26, 0.05), structure_root)
+			_add_window_band_local(Vector3(upper_side * 1.18, upper_y + 0.34, upper_z - 0.42), Vector3(0.22, 0.24, 0.05), structure_root)
+			_add_house_side_window_local(Vector3(upper_side * 1.64, upper_y + 0.28, upper_z + 0.06), Vector3(0.24, 0.28, 0.05), structure_root, upper_side)
 		if bool(profile.get("roof_cap", false)):
 			_add_box(Vector3(0.0, upper_y + upper_height + 0.14, upper_z), Vector3(upper_width + 0.34, 0.06, 0.22), roof_trim, structure_root)
 			_add_gabled_roof(Vector3(0.0, upper_y + upper_height + 0.44, upper_z), Vector3(upper_width + 0.38, 0.12, upper_depth + 0.12), second_story_roof, structure_root, 15.0)
@@ -5116,6 +5133,14 @@ func _add_house_wall_window_local(position_3d: Vector3, size: Vector3, parent: N
 	if size.x >= 0.2:
 		_add_box(Vector3(-size.x * 0.18, 0.0, size.z * 0.08), Vector3(0.03, size.y * 0.84, maxf(size.z * 0.22, 0.02)), mullion_material, window_root)
 		_add_box(Vector3(size.x * 0.18, 0.0, size.z * 0.08), Vector3(0.03, size.y * 0.84, maxf(size.z * 0.22, 0.02)), mullion_material, window_root)
+
+
+func _add_house_side_window_local(position_3d: Vector3, size: Vector3, parent: Node, side_sign: float, preview: bool = false) -> void:
+	var side_root := Node3D.new()
+	side_root.position = position_3d
+	side_root.rotation_degrees.y = 90.0 if side_sign >= 0.0 else -90.0
+	parent.add_child(side_root)
+	_add_house_wall_window_local(Vector3.ZERO, size, side_root, preview)
 
 
 func _ensure_lamp_glow_texture(glow_color: Color, alpha: float) -> Texture2D:

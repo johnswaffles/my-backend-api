@@ -124,6 +124,7 @@ const VISUAL_PROFILES := {
 		2: {
 			"frontage_path": false,
 			"frontage_steps": true,
+			"front_bumpout": true,
 			"roof_trim": true,
 			"wall_windows": true,
 			"front_lamp": true,
@@ -135,6 +136,7 @@ const VISUAL_PROFILES := {
 		3: {
 			"frontage_path": false,
 			"frontage_steps": true,
+			"front_bumpout": true,
 			"roof_trim": true,
 			"wall_windows": true,
 			"front_lamp": true,
@@ -146,6 +148,7 @@ const VISUAL_PROFILES := {
 		4: {
 			"frontage_path": false,
 			"frontage_steps": true,
+			"front_bumpout": true,
 			"roof_trim": true,
 			"wall_windows": true,
 			"front_lamp": true,
@@ -157,12 +160,14 @@ const VISUAL_PROFILES := {
 		5: {
 			"frontage_path": false,
 			"frontage_steps": true,
+			"front_bumpout": true,
 			"roof_trim": true,
 			"wall_windows": true,
 			"front_lamp": true,
 			"second_story": true,
 			"side_annex": true,
 			"upper_windows": true,
+			"upper_side_wing": true,
 			"roof_cap": true,
 		},
 	},
