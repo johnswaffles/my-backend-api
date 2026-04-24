@@ -532,7 +532,7 @@ app.post('/api/realtime-token', async (_req, res) => {
     }
 
     const model = process.env.OPENAI_REALTIME_MODEL || process.env.OPENAI_LIVE_MODEL || 'gpt-realtime-1.5';
-    const voice = process.env.OPENAI_REALTIME_VOICE || 'echo';
+    const voice = process.env.OPENAI_REALTIME_VOICE || process.env.OPENAI_VOICE || 'echo';
     const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
       method: 'POST',
       headers: {

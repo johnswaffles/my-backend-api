@@ -69,6 +69,7 @@ type RealtimeBridgeState = {
   audioEl: HTMLAudioElement | null;
   readyPromise: Promise<void> | null;
   pendingSpeakText: string | null;
+  hasMicrophone: boolean;
 };
 
 type SearchInputMode = 'typed' | 'voice';
@@ -301,6 +302,7 @@ export function VoiceWidgetPanel(): JSX.Element {
   const [assistantLoading, setAssistantLoading] = useState(false);
   const [assistantLoadingLabel, setAssistantLoadingLabel] = useState(LOADING_MESSAGES[0]);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [audioPaused, setAudioPaused] = useState(false);
   const [speechVisualActive, setSpeechVisualActive] = useState(false);
   const [audioLoading, setAudioLoading] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
@@ -317,7 +319,8 @@ export function VoiceWidgetPanel(): JSX.Element {
     stream: null,
     audioEl: null,
     readyPromise: null,
-    pendingSpeakText: null
+    pendingSpeakText: null,
+    hasMicrophone: false
   });
   const messageListRef = useRef<HTMLDivElement | null>(null);
   const hadUserGestureRef = useRef(false);
@@ -414,10 +417,12 @@ export function VoiceWidgetPanel(): JSX.Element {
       stream: null,
       audioEl: null,
       readyPromise: null,
-      pendingSpeakText: null
+      pendingSpeakText: null,
+      hasMicrophone: false
     };
     stopSpeechVisual();
     setIsPlaying(false);
+    setAudioPaused(false);
     setAudioLoading(false);
   }
 
@@ -448,6 +453,7 @@ export function VoiceWidgetPanel(): JSX.Element {
     speechVisualTimerRef.current = window.setTimeout(() => {
       setSpeechVisualActive(false);
       setIsPlaying(false);
+      setAudioPaused(false);
       if (!assistantLoading && !isListening) {
         setStatusLabel('VOICE CHAT');
       }
@@ -476,6 +482,7 @@ export function VoiceWidgetPanel(): JSX.Element {
     if (paused) {
       stopSpeechVisual();
       setIsPlaying(false);
+      setAudioPaused(true);
       if (!assistantLoading && !isListening) {
         setStatusLabel('VOICE CHAT');
       }
@@ -494,6 +501,7 @@ export function VoiceWidgetPanel(): JSX.Element {
         startSpeechVisual(latestAudioSummary);
       }
       setIsPlaying(true);
+      setAudioPaused(false);
       setStatusLabel('SPEAKING...');
       return true;
     }
@@ -510,6 +518,7 @@ export function VoiceWidgetPanel(): JSX.Element {
         startSpeechVisual(latestAudioSummary);
       }
       setIsPlaying(true);
+      setAudioPaused(false);
       setStatusLabel('SPEAKING...');
       return true;
     }
@@ -517,13 +526,20 @@ export function VoiceWidgetPanel(): JSX.Element {
     return false;
   }
 
-  async function ensureRealtimeBridge(): Promise<void> {
-    const bridge = realtimeBridgeRef.current;
+  async function ensureRealtimeBridge(options: { microphone?: boolean } = {}): Promise<void> {
+    const needsMicrophone = Boolean(options.microphone);
+    let bridge = realtimeBridgeRef.current;
+    if (needsMicrophone && bridge.pc && !bridge.hasMicrophone) {
+      stopRealtimeBridge();
+      bridge = realtimeBridgeRef.current;
+    }
+
     if (
       bridge.pc &&
       bridge.dc &&
       bridge.pc.connectionState !== 'closed' &&
-      bridge.pc.connectionState !== 'failed'
+      bridge.pc.connectionState !== 'failed' &&
+      (!needsMicrophone || bridge.hasMicrophone)
     ) {
       if (bridge.readyPromise) {
         await bridge.readyPromise;
@@ -533,6 +549,10 @@ export function VoiceWidgetPanel(): JSX.Element {
 
     if (bridge.readyPromise) {
       await bridge.readyPromise;
+      if (needsMicrophone && !realtimeBridgeRef.current.hasMicrophone) {
+        stopRealtimeBridge();
+        await ensureRealtimeBridge({ microphone: true });
+      }
       return;
     }
 
@@ -552,10 +572,6 @@ export function VoiceWidgetPanel(): JSX.Element {
         googAutoGainControl: true
       };
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: audioConstraints
-      });
-
       const pc = new RTCPeerConnection();
       const audioEl = document.createElement('audio');
       audioEl.autoplay = true;
@@ -569,6 +585,7 @@ export function VoiceWidgetPanel(): JSX.Element {
       audioEl.onended = () => {
         stopSpeechVisual();
         setIsPlaying(false);
+        setAudioPaused(false);
         if (!assistantLoading && !isListening) {
           setStatusLabel('VOICE CHAT');
         }
@@ -576,6 +593,7 @@ export function VoiceWidgetPanel(): JSX.Element {
       audioEl.onerror = () => {
         stopSpeechVisual();
         setIsPlaying(false);
+        setAudioPaused(false);
         if (!assistantLoading && !isListening) {
           setStatusLabel('VOICE CHAT');
         }
@@ -597,7 +615,15 @@ export function VoiceWidgetPanel(): JSX.Element {
         }
       };
 
-      pc.addTrack(stream.getAudioTracks()[0], stream);
+      let stream: MediaStream | null = null;
+      if (needsMicrophone) {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: audioConstraints
+        });
+        pc.addTrack(stream.getAudioTracks()[0], stream);
+      } else {
+        pc.addTransceiver('audio', { direction: 'recvonly' });
+      }
 
       const dc = pc.createDataChannel('oai-events');
       dc.onopen = () => {
@@ -655,7 +681,8 @@ export function VoiceWidgetPanel(): JSX.Element {
         stream,
         audioEl,
         readyPromise: null,
-        pendingSpeakText: null
+        pendingSpeakText: null,
+        hasMicrophone: needsMicrophone
       };
       audioRef.current = audioEl;
     })()
@@ -677,7 +704,7 @@ export function VoiceWidgetPanel(): JSX.Element {
     const normalizedText = normalizeSpeechText(text.trim());
     if (!normalizedText) return;
 
-    await ensureRealtimeBridge();
+    await ensureRealtimeBridge({ microphone: false });
     setRealtimeMicEnabled(false);
     const bridge = realtimeBridgeRef.current;
     if (!bridge.dc || bridge.dc.readyState !== 'open') {
@@ -724,6 +751,7 @@ export function VoiceWidgetPanel(): JSX.Element {
     }
 
     setAudioLoading(true);
+    setAudioPaused(false);
     setStatusLabel('SPEAKING...');
     try {
       await sendRealtimeSpeech(normalizedText);
@@ -732,6 +760,7 @@ export function VoiceWidgetPanel(): JSX.Element {
     } catch {
       try {
         setIsPlaying(true);
+        setAudioPaused(false);
         startSpeechVisual(normalizedText);
         await playBrowserNarration(normalizedText);
       } catch {
@@ -748,45 +777,8 @@ export function VoiceWidgetPanel(): JSX.Element {
     }
   }
 
-  async function playBrowserSummaryText(text: string): Promise<void> {
-    if (!text.trim()) return;
-    if (audioLoading) return;
-
-    const normalizedText = normalizeSpeechText(text);
-    setIsMuted(true);
-    setRealtimeMicEnabled(false);
-    stopBrowserNarration();
-    browserNarrationActiveRef.current = true;
-    browserNarrationPausedRef.current = false;
-    setAudioLoading(true);
-    setIsPlaying(true);
-    setStatusLabel('SPEAKING...');
-    startSpeechVisual(normalizedText);
-
-    try {
-      await playBrowserNarration(normalizedText);
-    } catch {
-      // Browser narration is best effort; the text remains visible if playback fails.
-    } finally {
-      stopSpeechVisual();
-      browserNarrationActiveRef.current = false;
-      browserNarrationPausedRef.current = false;
-      setIsPlaying(false);
-      setAudioLoading(false);
-      if (!assistantLoading && !isListening) {
-        setStatusLabel('VOICE CHAT');
-      }
-    }
-  }
-
   function playLatestSummaryText(text: string): void {
-    const hasLiveVoiceBridge = Boolean(realtimeBridgeRef.current.pc);
-    if (lastInputModeRef.current === 'voice' && hasLiveVoiceBridge) {
-      void playSummaryText(text);
-      return;
-    }
-
-    void playBrowserSummaryText(text);
+    void playSummaryText(text);
   }
 
   async function startVoiceSession(): Promise<void> {
@@ -797,7 +789,7 @@ export function VoiceWidgetPanel(): JSX.Element {
     setStatusLabel('LISTENING...');
 
     try {
-      await ensureRealtimeBridge();
+      await ensureRealtimeBridge({ microphone: true });
       setRealtimeMicEnabled(true);
       const bridge = realtimeBridgeRef.current;
       if (bridge.audioEl) {
@@ -1054,6 +1046,7 @@ export function VoiceWidgetPanel(): JSX.Element {
       audioRef.current = null;
     }
     setIsPlaying(false);
+    setAudioPaused(false);
     setAudioLoading(false);
     setAssistantLoading(false);
     setAssistantLoadingLabel(LOADING_MESSAGES[0]);
@@ -1376,21 +1369,21 @@ export function VoiceWidgetPanel(): JSX.Element {
         </div>
       )}
 
-      {!isCollapsed && (hasAudioSummary || isPlaying || audioLoading) ? (
+      {!isCollapsed && (hasAudioSummary || isPlaying || audioLoading || audioPaused) ? (
         <button
           type="button"
           onClick={handleAudioControl}
-          disabled={audioLoading && !isPlaying}
+          disabled={audioLoading && !isPlaying && !audioPaused}
           className={`absolute right-4 z-30 rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] shadow-[0_12px_30px_rgba(0,0,0,0.28)] transition ${
             searchLocked ? 'bottom-[10.75rem]' : 'bottom-[8.75rem]'
           } ${
-            audioLoading && !isPlaying
+            audioLoading && !isPlaying && !audioPaused
               ? 'cursor-wait border-white/10 bg-white/10 text-white/45'
               : 'border-cyan-200/20 bg-cyan-300/12 text-cyan-50 hover:bg-cyan-300/18'
           }`}
-          aria-label={isPlaying ? 'Pause audio' : 'Play latest audio'}
+          aria-label={isPlaying ? 'Pause audio' : audioPaused ? 'Resume audio' : 'Play latest audio'}
         >
-          {isPlaying ? 'Pause audio' : audioLoading ? 'Audio...' : 'Play audio'}
+          {isPlaying ? 'Pause audio' : audioPaused ? 'Resume audio' : audioLoading ? 'Audio...' : 'Play audio'}
         </button>
       ) : null}
     </div>
