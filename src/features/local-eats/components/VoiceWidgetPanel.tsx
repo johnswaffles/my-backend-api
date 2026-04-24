@@ -825,7 +825,7 @@ export function VoiceWidgetPanel(): JSX.Element {
   }
 
   return (
-    <div className="flex h-full min-h-[680px] flex-col overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(16,18,19,0.96),_rgba(4,6,7,0.98)_58%,_rgba(0,0,0,1)_100%)] text-white">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(16,18,19,0.96),_rgba(4,6,7,0.98)_58%,_rgba(0,0,0,1)_100%)] text-white">
       <div className="flex h-12 items-center justify-between border-b border-white/10 bg-[linear-gradient(180deg,rgba(26,31,34,0.98),rgba(11,14,16,0.98))] px-3.5 text-sm text-white">
         <button
           type="button"
@@ -875,8 +875,8 @@ export function VoiceWidgetPanel(): JSX.Element {
           </button>
         </div>
       ) : (
-        <div className="flex flex-1 flex-col">
-          <div className="relative mx-auto mt-6 flex h-[184px] w-[184px] items-center justify-center">
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="relative mx-auto mt-4 flex h-[176px] w-[176px] shrink-0 items-center justify-center sm:mt-6 sm:h-[184px] sm:w-[184px]">
             <div className="absolute inset-[-28px] rounded-full bg-[conic-gradient(from_120deg,_rgba(34,211,238,0.08),_rgba(168,85,247,0.14),_rgba(236,72,153,0.12),_rgba(34,211,238,0.08))] blur-3xl" />
             <button
               type="button"
@@ -947,10 +947,10 @@ export function VoiceWidgetPanel(): JSX.Element {
             </button>
           </div>
 
-          <div className="mt-4 flex-1 overflow-hidden px-4 pb-3">
+          <div className="mt-3 min-h-0 flex-1 overflow-hidden px-4 pb-3">
             <div
               ref={messageListRef}
-              className="h-[calc(100%-68px)] overflow-y-auto rounded-[1.4rem] border border-white/10 bg-black/60 p-3"
+              className="h-full overflow-y-auto rounded-[1.4rem] border border-white/10 bg-black/60 p-3"
             >
               {conversation.length ? (
                 <div className="space-y-3">
@@ -1038,7 +1038,7 @@ export function VoiceWidgetPanel(): JSX.Element {
               </div>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="border-t border-white/10 bg-[linear-gradient(180deg,rgba(10,12,13,0.96),rgba(6,8,9,0.98))] px-4 pb-8 pt-4">
+            <form onSubmit={handleSubmit} className="shrink-0 border-t border-white/10 bg-[linear-gradient(180deg,rgba(10,12,13,0.96),rgba(6,8,9,0.98))] px-4 pb-6 pt-3">
               <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/40">
                 Chat with 618FOOD.COM
               </div>
