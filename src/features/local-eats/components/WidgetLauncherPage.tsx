@@ -118,7 +118,7 @@ export function WidgetLauncherPage(): JSX.Element {
   const launcherClassName = [
     'fixed z-[10000001] flex items-center gap-2 overflow-hidden rounded-full border px-5 py-3 font-semibold uppercase tracking-[0.08em] text-emerald-950 shadow-[0_8px_32px_rgba(0,0,0,0.18)] transition-all duration-300 backdrop-blur-xl',
     isOpen
-      ? 'left-4 bottom-4 h-14 w-14 justify-center border-emerald-700/20 bg-white/90 p-0 text-transparent shadow-[0_8px_24px_rgba(0,0,0,0.12)]'
+      ? 'right-4 bottom-4 h-14 w-14 justify-center border-emerald-700/20 bg-white/90 p-0 text-stone-800 shadow-[0_8px_24px_rgba(0,0,0,0.12)] hover:bg-white'
       : 'left-7 bottom-7 border-emerald-700/15 bg-white/92'
   ].join(' ');
 
@@ -157,7 +157,9 @@ export function WidgetLauncherPage(): JSX.Element {
         aria-label={isOpen ? 'Close restaurant widget' : 'Open restaurant widget'}
       >
         <span className={`h-3 w-3 rounded-full bg-emerald-700 ${isOpen ? 'hidden' : 'animate-pulse'}`} />
-        <span className={isOpen ? 'sr-only' : 'text-sm font-bold tracking-wide'}>Find Food</span>
+        <span className={isOpen ? 'text-3xl font-semibold leading-none' : 'text-sm font-bold tracking-wide'}>
+          {isOpen ? '-' : 'Find Food'}
+        </span>
       </button>
 
       <div
