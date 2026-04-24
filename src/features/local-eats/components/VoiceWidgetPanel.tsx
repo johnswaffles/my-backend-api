@@ -12,6 +12,21 @@ const INITIAL_GREETING =
   "Hello! I’m 618FOOD.COM. Just tell me a town and what kind of food you want, and I’ll find the top restaurants.";
 const LOADING_MESSAGES = ['Thinking...', 'Researching reviews...', 'Searching the internet...'];
 const MAX_AUDIO_CHARS = 900;
+const VOICE_CUBE_CELLS = Array.from({ length: 100 }, (_, index) => index);
+
+function getVoiceCubeCellClass(index: number, isSpeaking: boolean, isListening: boolean): string {
+  if (isSpeaking) {
+    return 'voice-cube-cell-speaking border-white/20 shadow-[0_0_10px_rgba(255,255,255,0.18)]';
+  }
+
+  if (isListening) {
+    return 'border-cyan-100/20 bg-cyan-300/80 shadow-[0_0_10px_rgba(34,211,238,0.55)]';
+  }
+
+  return index % 11 === 0 || index % 17 === 0
+    ? 'border-emerald-100/10 bg-emerald-300/45 shadow-[0_0_8px_rgba(52,211,153,0.24)]'
+    : 'border-white/8 bg-cyan-950/70';
+}
 
 type RealtimeBridgeState = {
   pc: RTCPeerConnection | null;
@@ -265,6 +280,7 @@ export function VoiceWidgetPanel(): JSX.Element {
   const hadUserGestureRef = useRef(false);
   const legacyRecognitionRef = useRef<any | null>(null);
   const voiceActive = assistantLoading || isListening || isPlaying;
+  const voiceCubeSpeaking = isPlaying || audioLoading;
 
   useEffect(() => {
     let index = 0;
@@ -917,47 +933,55 @@ export function VoiceWidgetPanel(): JSX.Element {
             >
               <span className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_50%_38%,rgba(255,255,255,0.05),transparent_60%)]" />
               <div className="absolute inset-0 overflow-hidden rounded-full">
-                <span className="absolute inset-1 rounded-full bg-[radial-gradient(circle_at_50%_32%,rgba(125,249,255,0.16),transparent_34%),radial-gradient(circle_at_34%_68%,rgba(255,68,131,0.14),transparent_36%),radial-gradient(circle_at_72%_70%,rgba(36,214,154,0.14),transparent_34%)]" />
-                <span
-                  className={`absolute inset-[0.72rem] rounded-full border border-cyan-200/15 bg-[conic-gradient(from_20deg,transparent_0deg,rgba(34,211,238,0.22)_42deg,transparent_86deg,rgba(16,185,129,0.16)_164deg,transparent_224deg,rgba(244,114,182,0.16)_302deg,transparent_360deg)] ${
-                    voiceActive ? 'animate-[spin_18s_linear_infinite]' : ''
-                  }`}
-                />
-                <span className="absolute inset-[1.15rem] rounded-full border border-white/8 shadow-[inset_0_0_32px_rgba(125,249,255,0.07)]" />
-                <span className="absolute left-1/2 top-7 h-px w-24 -translate-x-1/2 bg-gradient-to-r from-transparent via-cyan-100/70 to-transparent" />
-                <span className="absolute left-1/2 top-[3.35rem] h-[4.7rem] w-[7.4rem] -translate-x-1/2 rounded-[2rem] border border-white/10 bg-black/35 shadow-[0_0_34px_rgba(34,211,238,0.12),inset_0_0_22px_rgba(255,255,255,0.04)]" />
-                <span className="absolute left-[1.65rem] top-[3.7rem] h-9 w-px rotate-[-18deg] bg-gradient-to-b from-transparent via-cyan-200/35 to-transparent" />
-                <span className="absolute right-[1.65rem] top-[3.7rem] h-9 w-px rotate-[18deg] bg-gradient-to-b from-transparent via-emerald-200/35 to-transparent" />
+                <style>
+                  {`
+                    @keyframes voiceCubeColorCycle {
+                      0% { background: #22d3ee; box-shadow: 0 0 10px rgba(34, 211, 238, 0.65); }
+                      20% { background: #34d399; box-shadow: 0 0 10px rgba(52, 211, 153, 0.65); }
+                      40% { background: #facc15; box-shadow: 0 0 10px rgba(250, 204, 21, 0.62); }
+                      60% { background: #fb7185; box-shadow: 0 0 10px rgba(251, 113, 133, 0.62); }
+                      80% { background: #c084fc; box-shadow: 0 0 10px rgba(192, 132, 252, 0.62); }
+                      100% { background: #22d3ee; box-shadow: 0 0 10px rgba(34, 211, 238, 0.65); }
+                    }
 
-                <div className="absolute left-1/2 top-[2.45rem] z-20 -translate-x-1/2 whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.34em] text-cyan-50/55">
+                    .voice-cube-cell-speaking {
+                      animation: voiceCubeColorCycle 1.35s linear infinite;
+                    }
+                  `}
+                </style>
+                <span className="absolute inset-1 rounded-full bg-[radial-gradient(circle_at_50%_32%,rgba(125,249,255,0.14),transparent_34%),radial-gradient(circle_at_34%_68%,rgba(255,68,131,0.11),transparent_36%),radial-gradient(circle_at_72%_70%,rgba(36,214,154,0.12),transparent_34%)]" />
+                <span className="absolute inset-[1rem] rounded-full border border-white/8 shadow-[inset_0_0_32px_rgba(125,249,255,0.07)]" />
+                <span className="absolute left-1/2 top-7 h-px w-24 -translate-x-1/2 bg-gradient-to-r from-transparent via-cyan-100/70 to-transparent" />
+
+                <div className="absolute left-1/2 top-[2.35rem] z-20 -translate-x-1/2 whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.34em] text-cyan-50/55">
                   {statusLabel}
                 </div>
                 <div
-                  className={`absolute left-1/2 top-[4.2rem] z-20 h-[4.3rem] w-[6.8rem] -translate-x-1/2 overflow-hidden rounded-[1.7rem] border bg-[linear-gradient(145deg,rgba(2,9,16,0.98),rgba(8,18,27,0.98)_55%,rgba(2,6,12,0.98))] shadow-[0_18px_36px_rgba(0,0,0,0.45),inset_0_0_24px_rgba(255,255,255,0.05)] transition ${
+                  className={`absolute left-1/2 top-[3.95rem] z-20 h-[5.45rem] w-[5.45rem] -translate-x-1/2 rotate-[-9deg] rounded-[1.1rem] border bg-[linear-gradient(145deg,rgba(4,10,18,0.98),rgba(8,18,27,0.98)_55%,rgba(2,6,12,0.98))] p-1.5 shadow-[0_18px_36px_rgba(0,0,0,0.45),inset_0_0_24px_rgba(255,255,255,0.05)] transition ${
                     voiceActive
                       ? 'border-cyan-200/45 shadow-[0_0_30px_rgba(34,211,238,0.24),0_18px_36px_rgba(0,0,0,0.45),inset_0_0_24px_rgba(255,255,255,0.05)]'
                       : 'border-white/10'
                   }`}
                   aria-hidden="true"
                 >
-                  <span className="absolute inset-x-3 top-2 h-7 rounded-full border border-cyan-100/10 bg-[linear-gradient(90deg,rgba(34,211,238,0.08),rgba(255,255,255,0.04),rgba(16,185,129,0.08))] shadow-[inset_0_0_16px_rgba(34,211,238,0.12)]" />
-                  <span className={`absolute left-6 top-[1.05rem] h-2 w-7 rounded-full bg-cyan-300 shadow-[0_0_18px_rgba(34,211,238,0.95)] ${voiceActive ? 'animate-pulse' : 'opacity-80'}`} />
-                  <span className={`absolute right-6 top-[1.05rem] h-2 w-7 rounded-full bg-emerald-300 shadow-[0_0_18px_rgba(52,211,153,0.85)] ${voiceActive ? 'animate-pulse' : 'opacity-80'}`} />
-                  <span className="absolute left-1/2 top-[1.15rem] h-2 w-2 -translate-x-1/2 rounded-full bg-white/70 shadow-[0_0_12px_rgba(255,255,255,0.45)]" />
-                  <span className="absolute left-4 right-4 top-[2.72rem] h-px bg-gradient-to-r from-transparent via-cyan-200/45 to-transparent" />
-                  <span className="absolute left-5 right-5 top-[2.95rem] h-px bg-gradient-to-r from-transparent via-fuchsia-300/45 to-transparent" />
-                  <span className="absolute bottom-3 left-5 h-1.5 w-2 rounded-full bg-white/22" />
-                  <span className={`absolute bottom-3 left-9 h-1.5 w-3 rounded-full bg-cyan-300/80 shadow-[0_0_10px_rgba(34,211,238,0.7)] ${voiceActive ? 'animate-pulse' : ''}`} />
-                  <span className="absolute bottom-3 left-[3.35rem] h-1.5 w-2 rounded-full bg-white/22" />
-                  <span className={`absolute bottom-3 right-9 h-1.5 w-3 rounded-full bg-fuchsia-300/75 shadow-[0_0_10px_rgba(244,114,182,0.65)] ${voiceActive ? 'animate-pulse' : ''}`} />
-                  <span className="absolute bottom-3 right-5 h-1.5 w-2 rounded-full bg-white/22" />
-                  <span className="absolute -bottom-6 left-1/2 h-12 w-16 -translate-x-1/2 rounded-full bg-cyan-300/10 blur-xl" />
+                  <div className="grid h-full w-full grid-cols-10 gap-[2px]">
+                    {VOICE_CUBE_CELLS.map((cellIndex) => (
+                      <span
+                        key={cellIndex}
+                        className={`aspect-square rounded-[2px] border transition-colors duration-300 ${getVoiceCubeCellClass(
+                          cellIndex,
+                          voiceCubeSpeaking,
+                          isListening
+                        )}`}
+                        style={{
+                          animationDelay: `${(cellIndex % 10) * 65 + Math.floor(cellIndex / 10) * 35}ms`
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <span className="pointer-events-none absolute inset-0 rounded-[1.1rem] bg-[linear-gradient(130deg,rgba(255,255,255,0.18),transparent_30%,transparent_68%,rgba(255,255,255,0.08))]" />
                 </div>
-                <div className="absolute bottom-7 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5" aria-hidden="true">
-                  <span className={`h-1.5 w-1.5 rounded-full bg-cyan-300/80 ${voiceActive ? 'animate-pulse' : 'opacity-45'}`} />
-                  <span className={`h-1.5 w-7 rounded-full bg-gradient-to-r from-cyan-300/70 via-white/50 to-emerald-300/70 ${voiceActive ? 'animate-pulse' : 'opacity-45'}`} />
-                  <span className={`h-1.5 w-1.5 rounded-full bg-emerald-300/80 ${voiceActive ? 'animate-pulse' : 'opacity-45'}`} />
-                </div>
+                <span className="absolute bottom-6 left-1/2 h-7 w-24 -translate-x-1/2 rounded-full bg-cyan-300/10 blur-xl" />
               </div>
             </button>
 
