@@ -203,6 +203,36 @@ function RestaurantPreview({ restaurant, rank }: { restaurant: RestaurantAgentRe
   );
 }
 
+function CasaRayaMiniAd(): JSX.Element {
+  return (
+    <a
+      href="https://casaraya.toast.site/"
+      target="_blank"
+      rel="noreferrer"
+      className="mt-3 flex items-center gap-3 rounded-[1rem] border border-emerald-300/15 bg-white/[0.06] p-2 text-left transition hover:border-emerald-300/35 hover:bg-white/[0.09]"
+    >
+      <span className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[0.8rem] bg-black">
+        <img
+          src="/sponsored/casa-raya.png"
+          alt="Casa Raya Mexican Restaurant & Taqueria"
+          className="h-full w-full object-contain"
+        />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-100/70">
+          Sponsored
+        </span>
+        <span className="mt-0.5 block truncate text-sm font-semibold text-white">
+          Casa Raya
+        </span>
+        <span className="block truncate text-xs text-white/55">
+          Authentic Mexican in Mt. Vernon
+        </span>
+      </span>
+    </a>
+  );
+}
+
 export function VoiceWidgetPanel(): JSX.Element {
   const [conversation, setConversation] = useState<ChatTurn[]>([
     {
@@ -926,7 +956,7 @@ export function VoiceWidgetPanel(): JSX.Element {
               type="button"
               onClick={handleMuteToggle}
               disabled={searchLocked}
-              className={`absolute bottom-4 left-[-14px] flex h-14 w-14 items-center justify-center rounded-full border text-xl shadow-[0_0_0_2px_rgba(32,185,96,0.2)] transition ${
+              className={`absolute bottom-3 left-[-48px] flex h-14 w-14 items-center justify-center rounded-full border text-xl shadow-[0_0_0_2px_rgba(32,185,96,0.2)] transition ${
                 searchLocked
                   ? 'cursor-not-allowed border-white/10 bg-white/15 text-white/35 shadow-[0_0_0_2px_rgba(255,255,255,0.08)]'
                   : isMuted
@@ -941,7 +971,7 @@ export function VoiceWidgetPanel(): JSX.Element {
             <button
               type="button"
               onClick={resetWidget}
-              className="absolute bottom-4 right-[-14px] rounded-[1.1rem] border border-white/15 bg-white/8 px-3.5 py-3 text-sm font-semibold text-white/90 shadow-[0_0_0_1px_rgba(255,255,255,0.04)] transition hover:bg-white/12"
+              className="absolute bottom-3 right-[-64px] rounded-[1.1rem] border border-white/15 bg-white/8 px-4 py-3 text-sm font-semibold text-white/90 shadow-[0_0_0_1px_rgba(255,255,255,0.04)] transition hover:bg-white/12"
             >
               NEW CHAT
             </button>
@@ -1036,6 +1066,7 @@ export function VoiceWidgetPanel(): JSX.Element {
               <div className="mt-2 rounded-full border border-white/10 bg-black/55 px-4 py-3 text-sm text-white/72">
                 Tap New Chat to start a new town and food search.
               </div>
+              <CasaRayaMiniAd />
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="shrink-0 border-t border-white/10 bg-[linear-gradient(180deg,rgba(10,12,13,0.96),rgba(6,8,9,0.98))] px-4 pb-6 pt-3">
@@ -1052,6 +1083,7 @@ export function VoiceWidgetPanel(): JSX.Element {
                 }}
                 className="mt-2 h-12 w-full rounded-full border border-white/10 bg-black/55 px-4 text-sm text-white outline-none transition placeholder:text-white/30 focus:border-emerald-400/30 focus:ring-4 focus:ring-emerald-400/10"
               />
+              <CasaRayaMiniAd />
             </form>
           )}
         </div>
