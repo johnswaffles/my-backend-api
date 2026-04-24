@@ -4691,9 +4691,6 @@ func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = [
 	elif intersection:
 		_add_box(Vector3(0.0, 0.074, 0.0), Vector3(4.18, 0.07, 4.18), road_material, root)
 		_add_box(Vector3(0.0, 0.094, 0.0), Vector3(3.82, 0.024, 3.82), road_top_material, root)
-		for offset in [-2.06, 2.06]:
-			_add_box(Vector3(offset, 0.128, 0.0), Vector3(0.08, 0.016, 4.0), _road_edge_highlight_material, root)
-			_add_box(Vector3(0.0, 0.128, offset), Vector3(4.0, 0.016, 0.08), _road_edge_highlight_material, root)
 		_add_intersection_center_mark_local(root, lane_material)
 	else:
 		if north or south:
@@ -4705,7 +4702,6 @@ func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = [
 
 	if not preview:
 		_add_road_finish_details(root, vertical_straight, horizontal_straight, intersection, north, east, south, west)
-		_add_road_surface_polish_local(root, vertical_straight, horizontal_straight, intersection, north, east, south, west)
 
 	return root
 
@@ -4721,10 +4717,10 @@ func _add_lane_dashes_local(root: Node3D, vertical: bool, material: Material) ->
 func _add_road_edge_lines_local(root: Node3D, vertical: bool) -> void:
 	if vertical:
 		for x in [-1.62, 1.62]:
-			_add_box(Vector3(x, 0.142, 0.0), Vector3(0.045, 0.016, 3.58), _road_edge_highlight_material, root)
+			_add_box(Vector3(x, 0.146, 0.0), Vector3(0.06, 0.018, 3.5), _road_edge_highlight_material, root)
 	else:
 		for z in [-1.62, 1.62]:
-			_add_box(Vector3(0.0, 0.142, z), Vector3(3.58, 0.016, 0.045), _road_edge_highlight_material, root)
+			_add_box(Vector3(0.0, 0.146, z), Vector3(3.5, 0.018, 0.06), _road_edge_highlight_material, root)
 
 
 func _add_intersection_center_mark_local(root: Node3D, material: Material) -> void:
@@ -4736,24 +4732,10 @@ func _add_intersection_center_mark_local(root: Node3D, material: Material) -> vo
 
 
 func _add_road_finish_details(root: Node3D, vertical_straight: bool, horizontal_straight: bool, intersection: bool, north: bool, east: bool, south: bool, west: bool) -> void:
-	if vertical_straight:
-		_add_box(Vector3(-1.86, 0.132, 0.0), Vector3(0.055, 0.016, 3.62), _sidewalk_material, root)
-		_add_box(Vector3(1.86, 0.132, 0.0), Vector3(0.055, 0.016, 3.62), _sidewalk_material, root)
-	elif horizontal_straight:
-		_add_box(Vector3(0.0, 0.132, -1.86), Vector3(3.62, 0.016, 0.055), _sidewalk_material, root)
-		_add_box(Vector3(0.0, 0.132, 1.86), Vector3(3.62, 0.016, 0.055), _sidewalk_material, root)
-	elif intersection:
-		for offset in [-1.76, 1.76]:
-			_add_box(Vector3(offset, 0.136, 0.0), Vector3(0.045, 0.016, 3.82), _road_edge_highlight_material, root)
-			_add_box(Vector3(0.0, 0.136, offset), Vector3(3.82, 0.016, 0.045), _road_edge_highlight_material, root)
-		if north:
-			_add_crosswalk_local(root, Vector3(0.0, 0.154, -1.34), true)
-		if south:
-			_add_crosswalk_local(root, Vector3(0.0, 0.154, 1.34), true)
-		if east:
-			_add_crosswalk_local(root, Vector3(1.34, 0.154, 0.0), false)
-		if west:
-			_add_crosswalk_local(root, Vector3(-1.34, 0.154, 0.0), false)
+	# Quiet roads read cozier from the gameplay camera. The previous finish pass
+	# layered sidewalk slivers and crosswalk bars over every tile, which made the
+	# road edges feel noisy and shimmer as the camera moved.
+	pass
 
 
 func _add_crosswalk_local(root: Node3D, center: Vector3, horizontal: bool) -> void:
