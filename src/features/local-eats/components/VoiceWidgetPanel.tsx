@@ -863,7 +863,7 @@ export function VoiceWidgetPanel(): JSX.Element {
           onClick={openIfClosed}
         >
           <span className="h-2.5 w-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.9)]" />
-          <span className="truncate font-semibold tracking-tight">618FOOD.COM Widget</span>
+          <span className="truncate font-semibold tracking-tight">618FOOD.COM</span>
           <span aria-hidden="true" className="text-sm text-white/80">💬</span>
         </button>
         <div className="flex items-center gap-2">
@@ -882,7 +882,6 @@ export function VoiceWidgetPanel(): JSX.Element {
           >
             {searchLocked ? 'Mic locked' : isMuted ? 'Muted' : 'Voice on'}
           </button>
-          <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/40">Drag</span>
           <button
             type="button"
             onClick={() => setIsCollapsed((current) => !current)}

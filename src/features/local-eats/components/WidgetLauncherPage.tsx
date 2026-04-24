@@ -177,12 +177,9 @@ export function WidgetLauncherPage(): JSX.Element {
         >
           <div className="flex min-w-0 items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-emerald-700 shadow-[0_0_8px_rgba(34,197,94,0.55)]" />
-            <span className="truncate font-semibold tracking-tight">618FOOD.COM Widget</span>
+            <span className="truncate font-semibold tracking-tight">618FOOD.COM</span>
           </div>
           <div className="flex items-center gap-2">
-            {!useMobileLayout ? (
-              <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-stone-400">Drag</span>
-            ) : null}
             <button
               type="button"
               onClick={() => setIsOpen(false)}
