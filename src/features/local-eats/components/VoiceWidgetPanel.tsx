@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ask618Chat, playBrowserNarration, request618RealtimeToken } from '../lib/client';
+import { ask618Chat, playBrowserNarration, request618RealtimeToken, stopBrowserNarration } from '../lib/client';
 import { FOOD_BRAND } from '../schemas';
 import type {
   ChatTurn,
@@ -36,6 +36,8 @@ type RealtimeBridgeState = {
   readyPromise: Promise<void> | null;
   pendingSpeakText: string | null;
 };
+
+type SearchInputMode = 'typed' | 'voice';
 
 function normalizeSpeechSummary(text: string): string {
   const compact = text
@@ -279,8 +281,13 @@ export function VoiceWidgetPanel(): JSX.Element {
   const messageListRef = useRef<HTMLDivElement | null>(null);
   const hadUserGestureRef = useRef(false);
   const legacyRecognitionRef = useRef<any | null>(null);
+  const browserNarrationActiveRef = useRef(false);
+  const browserNarrationPausedRef = useRef(false);
+  const lastInputModeRef = useRef<SearchInputMode>('typed');
   const voiceActive = assistantLoading || isListening || isPlaying;
   const voiceCubeSpeaking = isPlaying || audioLoading;
+  const latestAudioSummary = getAudioSummary(conversation);
+  const hasAudioSummary = Boolean(latestAudioSummary);
 
   useEffect(() => {
     let index = 0;
@@ -312,6 +319,7 @@ export function VoiceWidgetPanel(): JSX.Element {
   useEffect(() => {
     return () => {
       stopRealtimeBridge();
+      stopBrowserNarration();
       if (legacyRecognitionRef.current) {
         try {
           legacyRecognitionRef.current.abort?.();
@@ -370,6 +378,62 @@ export function VoiceWidgetPanel(): JSX.Element {
         track.enabled = enabled;
       });
     }
+  }
+
+  function pauseCurrentPlayback(): boolean {
+    let paused = false;
+    const currentAudio = audioRef.current;
+    if (currentAudio && !currentAudio.paused) {
+      currentAudio.pause();
+      paused = true;
+    }
+
+    if (
+      typeof window !== 'undefined' &&
+      'speechSynthesis' in window &&
+      browserNarrationActiveRef.current &&
+      !window.speechSynthesis.paused
+    ) {
+      window.speechSynthesis.pause();
+      browserNarrationPausedRef.current = true;
+      paused = true;
+    }
+
+    if (paused) {
+      setIsPlaying(false);
+      if (!assistantLoading && !isListening) {
+        setStatusLabel('VOICE CHAT');
+      }
+    }
+
+    return paused;
+  }
+
+  function resumeCurrentPlayback(): boolean {
+    const currentAudio = audioRef.current;
+    if (currentAudio && currentAudio.paused && currentAudio.srcObject) {
+      currentAudio.play().catch(() => {
+        setIsPlaying(false);
+      });
+      setIsPlaying(true);
+      setStatusLabel('SPEAKING...');
+      return true;
+    }
+
+    if (
+      typeof window !== 'undefined' &&
+      'speechSynthesis' in window &&
+      browserNarrationActiveRef.current &&
+      browserNarrationPausedRef.current
+    ) {
+      window.speechSynthesis.resume();
+      browserNarrationPausedRef.current = false;
+      setIsPlaying(true);
+      setStatusLabel('SPEAKING...');
+      return true;
+    }
+
+    return false;
   }
 
   async function ensureRealtimeBridge(): Promise<void> {
@@ -474,7 +538,7 @@ export function VoiceWidgetPanel(): JSX.Element {
               setIsMuted(true);
               setRealtimeMicEnabled(false);
               setIsListening(false);
-              void sendAssistantMessage(transcript);
+              void sendAssistantMessage(transcript, 'voice');
             }
           }
           if (message?.type === 'response.done') {
@@ -572,6 +636,9 @@ export function VoiceWidgetPanel(): JSX.Element {
     if (audioLoading) return;
 
     const normalizedText = normalizeSpeechText(text);
+    stopBrowserNarration();
+    browserNarrationActiveRef.current = false;
+    browserNarrationPausedRef.current = false;
     setIsMuted(true);
     setRealtimeMicEnabled(false);
     const currentAudio = audioRef.current;
@@ -599,6 +666,45 @@ export function VoiceWidgetPanel(): JSX.Element {
     } finally {
       setAudioLoading(false);
     }
+  }
+
+  async function playBrowserSummaryText(text: string): Promise<void> {
+    if (!text.trim()) return;
+    if (audioLoading) return;
+
+    const normalizedText = normalizeSpeechText(text);
+    setIsMuted(true);
+    setRealtimeMicEnabled(false);
+    stopBrowserNarration();
+    browserNarrationActiveRef.current = true;
+    browserNarrationPausedRef.current = false;
+    setAudioLoading(true);
+    setIsPlaying(true);
+    setStatusLabel('SPEAKING...');
+
+    try {
+      await playBrowserNarration(normalizedText);
+    } catch {
+      // Browser narration is best effort; the text remains visible if playback fails.
+    } finally {
+      browserNarrationActiveRef.current = false;
+      browserNarrationPausedRef.current = false;
+      setIsPlaying(false);
+      setAudioLoading(false);
+      if (!assistantLoading && !isListening) {
+        setStatusLabel('VOICE CHAT');
+      }
+    }
+  }
+
+  function playLatestSummaryText(text: string): void {
+    const hasLiveVoiceBridge = Boolean(realtimeBridgeRef.current.pc);
+    if (lastInputModeRef.current === 'voice' && hasLiveVoiceBridge) {
+      void playSummaryText(text);
+      return;
+    }
+
+    void playBrowserSummaryText(text);
   }
 
   async function startVoiceSession(): Promise<void> {
@@ -633,10 +739,11 @@ export function VoiceWidgetPanel(): JSX.Element {
     setStatusLabel('VOICE CHAT');
   }
 
-  async function sendAssistantMessage(text: string): Promise<void> {
+  async function sendAssistantMessage(text: string, inputMode: SearchInputMode = 'typed'): Promise<void> {
     const message = text.trim();
     if (!message) return;
 
+    lastInputModeRef.current = inputMode;
     hadUserGestureRef.current = true;
     setSearchLocked(true);
     setIsMuted(true);
@@ -660,7 +767,6 @@ export function VoiceWidgetPanel(): JSX.Element {
     const nextConversation: ChatTurn[] = [...historyBeforeMessage, { role: 'user', content: message }];
     const recentRestaurantContext = getRecentRestaurantContext(historyBeforeMessage);
     setConversation(nextConversation);
-    void ensureRealtimeBridge();
 
     try {
       const assistant: GeneralChatResponse = await ask618Chat({
@@ -686,7 +792,7 @@ export function VoiceWidgetPanel(): JSX.Element {
       setConversation((current) => [...current, assistantTurn]);
 
       if (hadUserGestureRef.current && assistantAudioText) {
-        void playSummaryText(assistantAudioText);
+        playLatestSummaryText(assistantAudioText);
       }
     } catch {
       setConversation((current) => [
@@ -777,7 +883,7 @@ export function VoiceWidgetPanel(): JSX.Element {
         if (transcript) {
           setIsMuted(true);
           setRealtimeMicEnabled(false);
-          void sendAssistantMessage(transcript);
+          void sendAssistantMessage(transcript, 'voice');
         }
       };
 
@@ -806,20 +912,42 @@ export function VoiceWidgetPanel(): JSX.Element {
     }
 
     if (searchLocked) {
-      if (isPlaying && audioRef.current) {
-        audioRef.current.pause();
-        setIsPlaying(false);
+      hadUserGestureRef.current = true;
+      if (isPlaying) {
+        pauseCurrentPlayback();
+        return;
+      }
+      if (resumeCurrentPlayback()) {
+        return;
+      }
+      if (latestAudioSummary) {
+        playLatestSummaryText(latestAudioSummary);
       }
       return;
     }
 
-    if (isPlaying && audioRef.current) {
-      audioRef.current.pause();
-      setIsPlaying(false);
+    if (isPlaying) {
+      pauseCurrentPlayback();
       return;
     }
 
     startListening();
+  }
+
+  function handleAudioControl(): void {
+    hadUserGestureRef.current = true;
+    if (isPlaying) {
+      pauseCurrentPlayback();
+      return;
+    }
+
+    if (resumeCurrentPlayback()) {
+      return;
+    }
+
+    if (latestAudioSummary) {
+      playLatestSummaryText(latestAudioSummary);
+    }
   }
 
   function handleMuteToggle(): void {
@@ -834,6 +962,9 @@ export function VoiceWidgetPanel(): JSX.Element {
   function resetWidget(): void {
     stopListening();
     stopRealtimeBridge();
+    stopBrowserNarration();
+    browserNarrationActiveRef.current = false;
+    browserNarrationPausedRef.current = false;
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
@@ -855,6 +986,7 @@ export function VoiceWidgetPanel(): JSX.Element {
     ]);
     setStatusLabel('VOICE CHAT');
     hadUserGestureRef.current = false;
+    lastInputModeRef.current = 'typed';
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
@@ -862,7 +994,7 @@ export function VoiceWidgetPanel(): JSX.Element {
     if (searchLocked) return;
     const next = draftText.trim();
     if (!next) return;
-    void sendAssistantMessage(next);
+    void sendAssistantMessage(next, 'typed');
   }
 
   function openIfClosed(): void {
@@ -871,7 +1003,7 @@ export function VoiceWidgetPanel(): JSX.Element {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(16,18,19,0.96),_rgba(4,6,7,0.98)_58%,_rgba(0,0,0,1)_100%)] text-white">
+    <div className="relative flex h-full min-h-0 flex-col overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(16,18,19,0.96),_rgba(4,6,7,0.98)_58%,_rgba(0,0,0,1)_100%)] text-white">
       <div className="flex h-12 items-center justify-between border-b border-white/10 bg-[linear-gradient(180deg,rgba(26,31,34,0.98),rgba(11,14,16,0.98))] px-3.5 text-sm text-white">
         <button
           type="button"
@@ -921,67 +1053,59 @@ export function VoiceWidgetPanel(): JSX.Element {
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="relative mx-auto mt-4 flex h-[176px] w-[176px] shrink-0 items-center justify-center sm:mt-6 sm:h-[184px] sm:w-[184px]">
-            <div className="absolute inset-[-28px] rounded-full bg-[conic-gradient(from_120deg,_rgba(34,211,238,0.08),_rgba(168,85,247,0.14),_rgba(236,72,153,0.12),_rgba(34,211,238,0.08))] blur-3xl" />
+          <div className="relative mx-auto mt-4 flex h-[176px] w-[300px] max-w-[92%] shrink-0 items-center justify-center sm:mt-5">
+            <style>
+              {`
+                @keyframes voiceCubeColorCycle {
+                  0% { background: #22d3ee; box-shadow: 0 0 10px rgba(34, 211, 238, 0.65); }
+                  20% { background: #34d399; box-shadow: 0 0 10px rgba(52, 211, 153, 0.65); }
+                  40% { background: #facc15; box-shadow: 0 0 10px rgba(250, 204, 21, 0.62); }
+                  60% { background: #fb7185; box-shadow: 0 0 10px rgba(251, 113, 133, 0.62); }
+                  80% { background: #c084fc; box-shadow: 0 0 10px rgba(192, 132, 252, 0.62); }
+                  100% { background: #22d3ee; box-shadow: 0 0 10px rgba(34, 211, 238, 0.65); }
+                }
+
+                .voice-cube-cell-speaking {
+                  animation: voiceCubeColorCycle 1.35s linear infinite;
+                }
+              `}
+            </style>
+            <div className="pointer-events-none absolute left-1/2 top-7 h-[8.5rem] w-[8.5rem] -translate-x-1/2 rounded-[1.8rem] bg-cyan-400/10 blur-3xl" />
             <button
               type="button"
               onClick={toggleVoice}
-              className={`absolute inset-[14px] rounded-full border border-white/10 bg-[radial-gradient(circle_at_35%_30%,rgba(255,255,255,0.08),rgba(0,0,0,1)_70%)] shadow-[0_0_40px_rgba(34,211,238,0.1),inset_0_0_24px_rgba(255,255,255,0.04)] transition hover:scale-[1.01] focus:outline-none focus:ring-4 focus:ring-emerald-400/10 ${
-                isListening || isPlaying ? 'scale-[1.01]' : ''
+              className={`absolute left-1/2 top-2 flex h-[138px] w-[138px] -translate-x-1/2 flex-col items-center rounded-[1.45rem] border border-cyan-200/10 bg-[linear-gradient(145deg,rgba(7,13,18,0.92),rgba(1,5,8,0.98))] px-3 py-4 shadow-[0_24px_52px_rgba(0,0,0,0.5),0_0_34px_rgba(34,211,238,0.08),inset_0_0_24px_rgba(255,255,255,0.04)] transition hover:scale-[1.01] focus:outline-none focus:ring-4 focus:ring-emerald-400/10 ${
+                isListening || isPlaying ? 'border-cyan-200/30 shadow-[0_24px_52px_rgba(0,0,0,0.5),0_0_36px_rgba(34,211,238,0.2),inset_0_0_24px_rgba(255,255,255,0.05)]' : ''
               }`}
               aria-label={isListening ? 'Stop listening' : isPlaying ? 'Pause playback' : 'Press to talk'}
             >
-              <span className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_50%_38%,rgba(255,255,255,0.05),transparent_60%)]" />
-              <div className="absolute inset-0 overflow-hidden rounded-full">
-                <style>
-                  {`
-                    @keyframes voiceCubeColorCycle {
-                      0% { background: #22d3ee; box-shadow: 0 0 10px rgba(34, 211, 238, 0.65); }
-                      20% { background: #34d399; box-shadow: 0 0 10px rgba(52, 211, 153, 0.65); }
-                      40% { background: #facc15; box-shadow: 0 0 10px rgba(250, 204, 21, 0.62); }
-                      60% { background: #fb7185; box-shadow: 0 0 10px rgba(251, 113, 133, 0.62); }
-                      80% { background: #c084fc; box-shadow: 0 0 10px rgba(192, 132, 252, 0.62); }
-                      100% { background: #22d3ee; box-shadow: 0 0 10px rgba(34, 211, 238, 0.65); }
-                    }
-
-                    .voice-cube-cell-speaking {
-                      animation: voiceCubeColorCycle 1.35s linear infinite;
-                    }
-                  `}
-                </style>
-                <span className="absolute inset-1 rounded-full bg-[radial-gradient(circle_at_50%_32%,rgba(125,249,255,0.14),transparent_34%),radial-gradient(circle_at_34%_68%,rgba(255,68,131,0.11),transparent_36%),radial-gradient(circle_at_72%_70%,rgba(36,214,154,0.12),transparent_34%)]" />
-                <span className="absolute inset-[1rem] rounded-full border border-white/8 shadow-[inset_0_0_32px_rgba(125,249,255,0.07)]" />
-                <span className="absolute left-1/2 top-7 h-px w-24 -translate-x-1/2 bg-gradient-to-r from-transparent via-cyan-100/70 to-transparent" />
-
-                <div className="absolute left-1/2 top-[2.35rem] z-20 -translate-x-1/2 whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.34em] text-cyan-50/55">
-                  {statusLabel}
+              <span className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.34em] text-cyan-50/55">
+                {statusLabel}
+              </span>
+              <div
+                className={`relative mt-3 h-[5.9rem] w-[5.9rem] rounded-[1rem] border bg-[linear-gradient(145deg,rgba(4,10,18,0.98),rgba(8,18,27,0.98)_55%,rgba(2,6,12,0.98))] p-1.5 shadow-[0_18px_36px_rgba(0,0,0,0.45),inset_0_0_24px_rgba(255,255,255,0.05)] transition ${
+                  voiceActive
+                    ? 'border-cyan-200/45 shadow-[0_0_30px_rgba(34,211,238,0.24),0_18px_36px_rgba(0,0,0,0.45),inset_0_0_24px_rgba(255,255,255,0.05)]'
+                    : 'border-white/10'
+                }`}
+                aria-hidden="true"
+              >
+                <div className="grid h-full w-full grid-cols-10 gap-[2px]">
+                  {VOICE_CUBE_CELLS.map((cellIndex) => (
+                    <span
+                      key={cellIndex}
+                      className={`aspect-square rounded-[2px] border transition-colors duration-300 ${getVoiceCubeCellClass(
+                        cellIndex,
+                        voiceCubeSpeaking,
+                        isListening
+                      )}`}
+                      style={{
+                        animationDelay: `${(cellIndex % 10) * 65 + Math.floor(cellIndex / 10) * 35}ms`
+                      }}
+                    />
+                  ))}
                 </div>
-                <div
-                  className={`absolute left-1/2 top-[3.95rem] z-20 h-[5.45rem] w-[5.45rem] -translate-x-1/2 rotate-[-9deg] rounded-[1.1rem] border bg-[linear-gradient(145deg,rgba(4,10,18,0.98),rgba(8,18,27,0.98)_55%,rgba(2,6,12,0.98))] p-1.5 shadow-[0_18px_36px_rgba(0,0,0,0.45),inset_0_0_24px_rgba(255,255,255,0.05)] transition ${
-                    voiceActive
-                      ? 'border-cyan-200/45 shadow-[0_0_30px_rgba(34,211,238,0.24),0_18px_36px_rgba(0,0,0,0.45),inset_0_0_24px_rgba(255,255,255,0.05)]'
-                      : 'border-white/10'
-                  }`}
-                  aria-hidden="true"
-                >
-                  <div className="grid h-full w-full grid-cols-10 gap-[2px]">
-                    {VOICE_CUBE_CELLS.map((cellIndex) => (
-                      <span
-                        key={cellIndex}
-                        className={`aspect-square rounded-[2px] border transition-colors duration-300 ${getVoiceCubeCellClass(
-                          cellIndex,
-                          voiceCubeSpeaking,
-                          isListening
-                        )}`}
-                        style={{
-                          animationDelay: `${(cellIndex % 10) * 65 + Math.floor(cellIndex / 10) * 35}ms`
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <span className="pointer-events-none absolute inset-0 rounded-[1.1rem] bg-[linear-gradient(130deg,rgba(255,255,255,0.18),transparent_30%,transparent_68%,rgba(255,255,255,0.08))]" />
-                </div>
-                <span className="absolute bottom-6 left-1/2 h-7 w-24 -translate-x-1/2 rounded-full bg-cyan-300/10 blur-xl" />
+                <span className="pointer-events-none absolute inset-0 rounded-[1rem] bg-[linear-gradient(130deg,rgba(255,255,255,0.18),transparent_30%,transparent_68%,rgba(255,255,255,0.08))]" />
               </div>
             </button>
 
@@ -989,7 +1113,7 @@ export function VoiceWidgetPanel(): JSX.Element {
               type="button"
               onClick={handleMuteToggle}
               disabled={searchLocked}
-              className={`absolute bottom-3 left-[-48px] flex h-14 w-14 items-center justify-center rounded-full border text-xl shadow-[0_0_0_2px_rgba(32,185,96,0.2)] transition ${
+              className={`absolute left-0 top-[72px] flex h-14 w-14 items-center justify-center rounded-full border text-xl shadow-[0_0_0_2px_rgba(32,185,96,0.2)] transition ${
                 searchLocked
                   ? 'cursor-not-allowed border-white/10 bg-white/15 text-white/35 shadow-[0_0_0_2px_rgba(255,255,255,0.08)]'
                   : isMuted
@@ -1004,7 +1128,7 @@ export function VoiceWidgetPanel(): JSX.Element {
             <button
               type="button"
               onClick={resetWidget}
-              className="absolute bottom-3 right-[-64px] rounded-[1.1rem] border border-white/15 bg-white/8 px-4 py-3 text-sm font-semibold text-white/90 shadow-[0_0_0_1px_rgba(255,255,255,0.04)] transition hover:bg-white/12"
+              className="absolute right-0 top-[76px] rounded-[1.1rem] border border-white/15 bg-white/8 px-4 py-3 text-sm font-semibold text-white/90 shadow-[0_0_0_1px_rgba(255,255,255,0.04)] transition hover:bg-white/12"
             >
               NEW CHAT
             </button>
@@ -1121,6 +1245,24 @@ export function VoiceWidgetPanel(): JSX.Element {
           )}
         </div>
       )}
+
+      {!isCollapsed && (hasAudioSummary || isPlaying || audioLoading) ? (
+        <button
+          type="button"
+          onClick={handleAudioControl}
+          disabled={audioLoading && !isPlaying}
+          className={`absolute right-4 z-30 rounded-full border px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] shadow-[0_12px_30px_rgba(0,0,0,0.28)] transition ${
+            searchLocked ? 'bottom-[10.75rem]' : 'bottom-[8.75rem]'
+          } ${
+            audioLoading && !isPlaying
+              ? 'cursor-wait border-white/10 bg-white/10 text-white/45'
+              : 'border-cyan-200/20 bg-cyan-300/12 text-cyan-50 hover:bg-cyan-300/18'
+          }`}
+          aria-label={isPlaying ? 'Pause audio' : 'Play latest audio'}
+        >
+          {isPlaying ? 'Pause audio' : audioLoading ? 'Audio...' : 'Play audio'}
+        </button>
+      ) : null}
     </div>
   );
 }
