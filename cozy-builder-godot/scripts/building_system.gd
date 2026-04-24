@@ -2901,11 +2901,27 @@ func _spawn_ambient_person(anchor_key: String, index: int) -> Node3D:
 	var coat_material := _make_material_from_color(coat_palette[index % coat_palette.size()], 0.74)
 	var pant_material := _make_material("4a4748", 0.96)
 	var skin_material := _make_material("e7c8a8", 0.86)
+	var hair_colors := ["6a4632", "2d2522", "b6814d", "8c5a3c"]
+	var hair_material := _make_material(str(hair_colors[index % hair_colors.size()]), 0.84)
+	var shoe_material := _make_material("2b2929", 0.98)
+	var bag_material := _make_material("b88955", 0.82)
 	_add_soft_block(Vector3(0.0, 0.2, 0.0), Vector3(0.12, 0.2, 0.1), coat_material, root, 0.04)
 	_add_local_sphere(Vector3(0.0, 0.34, 0.0), 0.06, 0.08, skin_material, root)
+	_add_local_sphere(Vector3(0.0, 0.385, -0.005), 0.062, 0.04, hair_material, root)
+	if index % 3 == 0:
+		_add_box(Vector3(0.0, 0.42, 0.0), Vector3(0.15, 0.025, 0.12), hair_material, root)
+		_add_box(Vector3(0.0, 0.44, 0.0), Vector3(0.09, 0.035, 0.08), hair_material, root)
+	var left_arm := _add_box(Vector3(-0.085, 0.2, 0.0), Vector3(0.025, 0.16, 0.025), skin_material, root)
+	left_arm.rotation_degrees.z = -10.0
+	var right_arm := _add_box(Vector3(0.085, 0.2, 0.0), Vector3(0.025, 0.16, 0.025), skin_material, root)
+	right_arm.rotation_degrees.z = 10.0
 	_add_box(Vector3(-0.03, 0.07, 0.0), Vector3(0.03, 0.14, 0.03), pant_material, root)
 	_add_box(Vector3(0.03, 0.07, 0.0), Vector3(0.03, 0.14, 0.03), pant_material, root)
+	_add_box(Vector3(-0.035, 0.01, 0.02), Vector3(0.055, 0.025, 0.04), shoe_material, root)
+	_add_box(Vector3(0.035, 0.01, 0.02), Vector3(0.055, 0.025, 0.04), shoe_material, root)
 	_add_box(Vector3(0.0, 0.23, -0.07), Vector3(0.12, 0.03, 0.03), _make_material("f5efe4", 0.86), root)
+	if index % 2 == 1:
+		_add_box(Vector3(-0.085, 0.2, -0.045), Vector3(0.04, 0.12, 0.035), bag_material, root)
 	return root
 
 
@@ -3354,6 +3370,7 @@ func _build_water_ring() -> void:
 		ripple.material_override = _make_transparent_material(Color("dff8ef"), 0.36, float(ring_data["alpha"]))
 		ripple.position = Vector3(0.0, float(ring_data["height"]), 0.0)
 		grid_root.add_child(ripple)
+	_add_shoreline_pebbles()
 
 
 func _build_island_base() -> void:
@@ -3380,6 +3397,42 @@ func _build_island_base() -> void:
 	turf.material_override = _make_material("8fa369", 0.98)
 	turf.position = Vector3(0.0, -0.01, 0.0)
 	grid_root.add_child(turf)
+	_add_island_edge_layers()
+
+
+func _add_shoreline_pebbles() -> void:
+	var pebble_materials := [
+		_make_material("d8ccb6", 0.9),
+		_make_material("b9ad99", 0.94),
+		_make_material("eee2cc", 0.88),
+	]
+	var radius := float(GRID_SIZE) * 0.505
+	for i in range(16):
+		var angle := TAU * float(i) / 16.0 + 0.12 * sin(float(i))
+		var cluster_center := Vector3(cos(angle) * radius, -0.36, sin(angle) * radius)
+		for j in range(2):
+			var side_offset := Vector3(cos(angle + 1.57), 0.0, sin(angle + 1.57)) * (float(j) - 0.5) * 0.42
+			var pebble := _add_box(cluster_center + side_offset, Vector3(0.24 + 0.04 * float(j), 0.08, 0.18), pebble_materials[(i + j) % pebble_materials.size()], grid_root)
+			pebble.rotation_degrees.y = rad_to_deg(angle) + float(j) * 18.0
+
+
+func _add_island_edge_layers() -> void:
+	var half := (float(GRID_SIZE) + 0.9) * 0.5
+	var grass_lip := _make_material("9fb777", 0.96)
+	var soil_mid := _make_material("7c6246", 0.97)
+	var soil_low := _make_material("5f472f", 0.98)
+	for layer in [
+		{"y": -0.13, "w": 0.14, "mat": grass_lip},
+		{"y": -0.34, "w": 0.18, "mat": soil_mid},
+		{"y": -0.58, "w": 0.22, "mat": soil_low},
+	]:
+		var y := float(layer["y"])
+		var w := float(layer["w"])
+		var material := layer["mat"] as Material
+		_add_box(Vector3(-half, y, 0.0), Vector3(w, 0.1, GRID_SIZE + 0.92), material, grid_root)
+		_add_box(Vector3(half, y, 0.0), Vector3(w, 0.1, GRID_SIZE + 0.92), material, grid_root)
+		_add_box(Vector3(0.0, y, -half), Vector3(GRID_SIZE + 0.92, 0.1, w), material, grid_root)
+		_add_box(Vector3(0.0, y, half), Vector3(GRID_SIZE + 0.92, 0.1, w), material, grid_root)
 
 
 func _build_ground_tiles() -> void:
@@ -3720,15 +3773,32 @@ func _add_deer_local(position_3d: Vector3, rotation_y: float, parent: Node) -> v
 	var head_material := _make_material("d3af82", 0.88)
 	var antler_material := _make_material("dbc8b4", 0.9)
 	var leg_material := _make_material("7b5e46", 0.95)
+	var spot_material := _make_material("f1dfbd", 0.86)
+	var eye_material := _make_material("2f251d", 0.72)
+	var ear_material := _make_material("e0bd8a", 0.86)
 	_add_soft_block(Vector3(0.0, 0.24, 0.0), Vector3(0.24, 0.16, 0.42), body_material, root, 0.05)
 	_add_soft_block(Vector3(0.0, 0.34, 0.16), Vector3(0.12, 0.11, 0.18), head_material, root, 0.04)
+	_add_box(Vector3(-0.075, 0.41, 0.2), Vector3(0.055, 0.08, 0.025), ear_material, root)
+	_add_box(Vector3(0.075, 0.41, 0.2), Vector3(0.055, 0.08, 0.025), ear_material, root)
+	_add_box(Vector3(-0.034, 0.355, 0.255), Vector3(0.018, 0.018, 0.012), eye_material, root)
+	_add_box(Vector3(0.034, 0.355, 0.255), Vector3(0.018, 0.018, 0.012), eye_material, root)
 	_add_box(Vector3(0.0, 0.46, 0.24), Vector3(0.08, 0.08, 0.08), antler_material, root)
 	_add_box(Vector3(-0.06, 0.42, 0.24), Vector3(0.02, 0.06, 0.04), antler_material, root)
 	_add_box(Vector3(0.06, 0.42, 0.24), Vector3(0.02, 0.06, 0.04), antler_material, root)
+	var left_antler_tip := _add_box(Vector3(-0.09, 0.48, 0.26), Vector3(0.018, 0.08, 0.025), antler_material, root)
+	left_antler_tip.rotation_degrees.z = -24.0
+	var right_antler_tip := _add_box(Vector3(0.09, 0.48, 0.26), Vector3(0.018, 0.08, 0.025), antler_material, root)
+	right_antler_tip.rotation_degrees.z = 24.0
+	for spot in [
+		Vector3(-0.07, 0.31, -0.04),
+		Vector3(0.06, 0.31, -0.02),
+		Vector3(-0.02, 0.3, -0.14),
+	]:
+		_add_local_sphere(spot, 0.024, 0.012, spot_material, root)
 	for leg_x in [-0.08, 0.08]:
 		for leg_z in [-0.12, 0.12]:
 			_add_box(Vector3(leg_x, 0.08, leg_z), Vector3(0.04, 0.16, 0.04), leg_material, root)
-	_add_box(Vector3(0.0, 0.18, -0.22), Vector3(0.06, 0.04, 0.08), antler_material, root)
+	_add_box(Vector3(0.0, 0.18, -0.24), Vector3(0.07, 0.045, 0.09), spot_material, root)
 
 
 func _populate_fire_station_variant(root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int) -> void:
@@ -4459,18 +4529,21 @@ func _build_clouds() -> void:
 		building_root.add_child(cloud)
 		_clouds.append(cloud)
 
-		for puff_index in range(3):
+		_add_shadow_disc_local(Vector3(0.58, -5.88, 0.08), Vector2(1.45, 0.42), 0.05, cloud)
+		for puff_index in range(5):
 			var puff := MeshInstance3D.new()
 			var puff_mesh := SphereMesh.new()
-			puff_mesh.radius = 0.55 + puff_index * 0.08
-			puff_mesh.height = 0.7 + puff_index * 0.06
+			puff_mesh.radius = 0.38 + float(puff_index % 3) * 0.1
+			puff_mesh.height = 0.48 + float(puff_index % 2) * 0.12
 			puff.mesh = puff_mesh
 			var puff_material := _make_material("ffffff", 0.08)
 			puff_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			puff_material.albedo_color.a = 0.86
+			puff_material.albedo_color.a = 0.78
 			puff.material_override = puff_material
-			puff.position = Vector3(puff_index * 0.55, 0.0 if puff_index != 1 else 0.18, randf_range(-0.15, 0.15))
+			puff.position = Vector3(float(puff_index) * 0.38, 0.0 if puff_index % 2 == 0 else 0.16, randf_range(-0.16, 0.16))
+			puff.scale = Vector3(1.2, 0.7, 0.82)
 			cloud.add_child(puff)
+		_add_box(Vector3(0.76, -0.18, 0.0), Vector3(1.42, 0.045, 0.2), _make_transparent_material(Color("d5e4ef"), 0.2, 0.24), cloud)
 
 
 func _add_meadow_patch(center: Vector3, size: Vector2, clump_count: int) -> void:
@@ -4987,6 +5060,7 @@ func _add_house_front_lamp_local(position_3d: Vector3, parent: Node, preview: bo
 	parent.add_child(lamp_root)
 	var pole_material := _ghost_base_material if preview else _make_material("f3eee5", 0.86)
 	_add_local_cylinder(Vector3(0.0, 0.72, 0.0), 0.035, 0.035, 1.42, pole_material, lamp_root)
+	_add_lamp_fixture_local(Vector3.ZERO, lamp_root, preview, true)
 	if not preview:
 		_add_lantern_glow_local(Vector3(0.0, 1.42, 0.0), lamp_root)
 
@@ -5149,8 +5223,23 @@ func _add_shore_detail(position_3d: Vector3) -> void:
 
 func _add_lamp(position_3d: Vector3) -> void:
 	_add_cylinder(position_3d + Vector3(0.0, 0.54, 0.0), 0.04, 0.04, 1.08, _road_material)
+	_add_lamp_fixture_local(position_3d, building_root)
 	_add_box(position_3d + Vector3(0.0, 1.12, 0.0), Vector3(0.18, 0.1, 0.18), _window_material, building_root)
 	_add_lantern_glow_local(position_3d + Vector3(0.0, 1.12, 0.0), building_root)
+
+
+func _add_lamp_fixture_local(base_position: Vector3, parent: Node, preview: bool = false, tall: bool = false) -> void:
+	var metal := _ghost_base_material if preview else _make_material("2f3335", 0.82)
+	var trim := _ghost_accent_material if preview else _make_material("f3e8c8", 0.58)
+	var top_y := 1.42 if tall else 1.12
+	_add_box(base_position + Vector3(0.0, 0.035, 0.0), Vector3(0.2, 0.045, 0.2), metal, parent)
+	_add_local_cylinder(base_position + Vector3(0.0, 0.16, 0.0), 0.06, 0.075, 0.1, metal, parent)
+	_add_box(base_position + Vector3(0.0, top_y - 0.12, 0.0), Vector3(0.1, 0.035, 0.1), trim, parent)
+	_add_box(base_position + Vector3(0.0, top_y + 0.085, 0.0), Vector3(0.26, 0.045, 0.26), metal, parent)
+	_add_box(base_position + Vector3(0.0, top_y + 0.13, 0.0), Vector3(0.17, 0.035, 0.17), trim, parent)
+	for side in [-1.0, 1.0]:
+		var bracket := _add_box(base_position + Vector3(0.075 * side, top_y - 0.02, 0.0), Vector3(0.1, 0.025, 0.035), metal, parent)
+		bracket.rotation_degrees.z = side * 18.0
 
 
 func _add_bench(position_3d: Vector3, rotation_y: float) -> void:
@@ -5233,6 +5322,7 @@ func _add_road_lamp_local(position_3d: Vector3, parent: Node) -> void:
 	lamp_root.position = position_3d
 	parent.add_child(lamp_root)
 	_add_local_cylinder(Vector3(0.0, 0.54, 0.0), 0.04, 0.04, 1.08, _road_material, lamp_root)
+	_add_lamp_fixture_local(Vector3.ZERO, lamp_root)
 	_add_lantern_glow_local(Vector3(0.0, 1.12, 0.0), lamp_root)
 
 
@@ -5329,6 +5419,7 @@ func _place_road_light(cell: Vector2i, local_offset: Vector3, key: String) -> vo
 	lamp_root.position = _cell_to_world(cell) + local_offset
 	_road_lights_root.add_child(lamp_root)
 	_add_local_cylinder(Vector3(0.0, 0.54, 0.0), 0.04, 0.04, 1.08, _road_material, lamp_root)
+	_add_lamp_fixture_local(Vector3.ZERO, lamp_root)
 	_add_lantern_glow_local(Vector3(0.0, 1.12, 0.0), lamp_root)
 	_road_light_nodes[key] = lamp_root
 
@@ -5513,6 +5604,14 @@ func _add_roof_ridge_details(center: Vector3, size: Vector3, material: Material,
 		for row in range(2):
 			var z: float = float(z_sign) * (size.z * (0.18 + float(row) * 0.16))
 			_add_box(center + Vector3(0.0, -size.y * 0.05 + float(row) * size.y * 0.08, z), Vector3(size.x * 0.72, 0.026, 0.035), material, parent)
+	if size.x > 0.9 and size.z > 0.8:
+		var vent_material := _make_material("efe6d6", 0.76)
+		for x_sign in [-1.0, 1.0]:
+			var vent_x: float = float(x_sign) * size.x * 0.24
+			_add_box(center + Vector3(vent_x, size.y * 0.58, -size.z * 0.1), Vector3(0.14, 0.05, 0.12), vent_material, parent)
+			_add_box(center + Vector3(vent_x, size.y * 0.64, -size.z * 0.1), Vector3(0.11, 0.04, 0.09), material, parent)
+	if size.x > 1.8:
+		_add_box(center + Vector3(-size.x * 0.32, size.y * 0.3, size.z * 0.18), Vector3(0.26, 0.035, 0.16), _window_material, parent)
 
 
 func _add_facade_trim_package(parent: Node, width: float, height: float, z: float, palette: Dictionary, accent_name: String = "") -> void:
