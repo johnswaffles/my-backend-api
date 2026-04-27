@@ -244,12 +244,13 @@ function buildEvidencePrompt(request, intent, locationContext) {
     'If a town is mentioned without a state, assume Illinois unless the user clearly says otherwise.',
     'Think like a Mount Vernon, Illinois local and look for exact matches before generic nearby restaurants.',
     'Start by anchoring on the town, ZIP, or destination, then search only that area for the requested food type.',
+    'If the query contains a specific restaurant name plus a location, search for that exact business first and return a profile-style result for it.',
     'Use the web_search tool to find verified businesses only.',
     'Do not invent restaurants, addresses, phone numbers, websites, ratings, or hours.',
     'Prefer local independents and hidden gems.',
     'If the user asks for a specific cuisine, exact matches must outrank generic restaurants.',
     'If the requested cuisine has no verified matches, return the closest verified alternative and say so clearly.',
-    'Exclude major chains unless the user explicitly asks for them or no independent option is available.',
+    'Exclude major chains unless the user explicitly asks for them, names the chain directly, or no independent option is available.',
     'Honor the requested radius and do not include places that clearly fall outside it.',
     'Do not return JSON yet. Return a short plain-text shortlist for another model to format.'
   ];
@@ -288,6 +289,8 @@ function buildFallbackEvidencePrompt(request, intent, locationContext) {
   const lines = [
     `Brand: ${FOOD_BRAND}.`,
     'Find the best few verified places to eat for the requested location and food type.',
+    'If the request names one restaurant and a location, search for that exact business first and return its verified profile details.',
+    'Major chains are allowed when the user names the chain directly.',
     'If the first pass was thin, do a second closer look with alternate spellings, nearby Illinois towns, menu pages, official sites, social pages, local news, tourism pages, and ordering pages.',
     'Return plain text only.',
     'Use this exact format for each candidate:',
@@ -323,6 +326,7 @@ function buildCloserLookEvidencePrompt(request, intent, locationContext, memo) {
     `Brand: ${FOOD_BRAND}.`,
     'This is a second, closer pass.',
     'Search again more carefully for exact cuisine matches, local favorites, and small-town places that may have been missed.',
+    'If the request names one restaurant and a location, focus on the exact business and gather profile details instead of broad substitutes.',
     'Look for official sites, menus, Facebook pages, local blogs, local news, tourism pages, ordering pages, and current community language.',
     'If the first pass found generic restaurants or chains, keep looking for better exact matches before settling.',
     'Try alternate spellings, tiny variants in town names, and nearby Illinois towns when relevant.',
@@ -367,6 +371,7 @@ function buildFormattingPrompt(request, intent, locationContext, memo) {
     `Brand: ${FOOD_BRAND}.`,
     'Convert the provided evidence memo into valid JSON that matches the food discovery schema exactly.',
     'Preserve only facts present in the memo. Do not invent restaurants, addresses, phone numbers, websites, ratings, hours, or evidence.',
+    'If the original request named one restaurant and a location, keep the response focused on that restaurant profile when the memo supports it.',
     'If a candidate is weak, stale, unsupported, or clearly repeated from a second pass, omit or merge it.',
     'Keep explanations short, concrete, and trustworthy.',
     'Return JSON only.'

@@ -16,7 +16,7 @@ import type { ChatTurn, GeneralChatRequest } from './features/local-eats/types';
 
 const LOADING_MESSAGES = ['Thinking...', 'Researching reviews...', 'Searching the internet...'];
 const INITIAL_GREETING =
-  "Hello! I’m 618FOOD.COM. Just tell me a town and what kind of food you want, and I’ll find the top restaurants.";
+  "Hello! I’m 618FOOD.COM. Just tell me a town and what kind of food you want, and I’ll find the top restaurants. You can also enter a restaurant name with a location, and I’ll pull together helpful details about it.";
 const MAX_AUDIO_CHARS = 900;
 const CONTACT_API_BASE_URL = 'https://johnny-chat.onrender.com';
 

@@ -15,7 +15,7 @@ import type {
 } from '../types';
 
 const INITIAL_GREETING =
-  "Hello! I’m 618FOOD.COM. Just tell me a town and what kind of food you want, and I’ll find the top restaurants.";
+  "Hello! I’m 618FOOD.COM. Just tell me a town and what kind of food you want, and I’ll find the top restaurants. You can also enter a restaurant name with a location, and I’ll pull together helpful details about it.";
 const LOADING_MESSAGES = ['Thinking...', 'Researching reviews...', 'Searching the internet...'];
 const MAX_AUDIO_CHARS = 900;
 const VOICE_CUBE_CELLS = Array.from({ length: 100 }, (_, index) => index);
@@ -1377,7 +1377,7 @@ export function VoiceWidgetPanel(): JSX.Element {
                 </div>
               ) : (
                 <div className="rounded-[1.1rem] border border-dashed border-white/10 bg-white/4 px-4 py-4 text-sm text-white/55">
-                  Ask for a town and food type, and 618FOOD.COM will find the top restaurants.
+                  Ask for a town and food type, or enter a restaurant name with a location for a focused profile.
                 </div>
               )}
 

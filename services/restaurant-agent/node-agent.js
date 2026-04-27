@@ -197,6 +197,68 @@ function cleanPlaceFollowupText(value) {
   return /^(it|this|that|there|here|them|they)$/i.test(cleaned) ? '' : cleaned;
 }
 
+function looksLikeGenericFoodCategory(value) {
+  const subject = normalizeWriteupText(value || '');
+  if (!subject) return true;
+
+  const categoryPhrases = new Set([
+    'food',
+    'restaurant',
+    'restaurants',
+    'place',
+    'places',
+    'spot',
+    'spots',
+    'pizza',
+    'pizzeria',
+    'burger',
+    'burgers',
+    'hamburger',
+    'hamburgers',
+    'bbq',
+    'barbecue',
+    'barbeque',
+    'steak',
+    'steakhouse',
+    'steak house',
+    'taco',
+    'tacos',
+    'burrito',
+    'burritos',
+    'sushi',
+    'ramen',
+    'coffee',
+    'cafe',
+    'breakfast',
+    'brunch',
+    'dessert',
+    'bakery',
+    'diner',
+    'grill',
+    'grille',
+    'sandwich',
+    'sandwiches',
+    'deli',
+    'sub',
+    'subs',
+    'seafood',
+    'fish fry',
+    'catfish',
+    'shrimp',
+    'chinese',
+    'italian',
+    'mexican',
+    'thai',
+    'japanese'
+  ]);
+
+  if (categoryPhrases.has(subject)) return true;
+  if (/^(best|top|good|great|local|nearby|recommended)\s+/.test(subject)) return true;
+  if (/\b(food|restaurants?|places?|spots?|options|recommendations?)\b/.test(subject)) return true;
+
+  return false;
+}
+
 function shouldTreatAsSpecificPlaceRequest(message, history, intent) {
   const rawCombined = [message, buildHistoryText(history)].filter(Boolean).join(' ');
   const combined = normalizeWriteupText(rawCombined);
@@ -216,18 +278,19 @@ function shouldTreatAsSpecificPlaceRequest(message, history, intent) {
     return true;
   }
 
-  if (/\b(best|top|recommend|recommendation|options|places|spots|find|show|list)\b/i.test(combined)) {
-    return false;
-  }
-
   const subject = normalizeWriteupText(intent?.querySubject || '');
   if (!subject) return false;
 
   const subjectWords = subject.split(/\s+/).filter(Boolean);
   const hasQueryLocation = Boolean(intent?.queryLocation || intent?.inferredLocation);
+  const genericFoodCategory = looksLikeGenericFoodCategory(subject);
   const hasNameLikeCue = /[&'’]/.test(rawCombined) || /(?:\b[A-Z][a-z]+\b){2,}/.test(rawCombined);
   const hasPlaceSuffix = /\b(steakhouse|steak house|restaurant|restaurants|tavern|bistro|kitchen|cafe|coffee|grill|grille|diner|bar|pub|pizzeria|seafood|house)\b/i.test(rawCombined);
 
+  if (hasQueryLocation && subjectWords.length >= 1 && subjectWords.length <= 8 && !genericFoodCategory) return true;
+  if (/\b(best|top|recommend|recommendation|options|places|spots|find|show|list)\b/i.test(combined)) {
+    return false;
+  }
   if (hasNameLikeCue && subjectWords.length >= 1) return true;
   if (!/\b(food|place|places|restaurant|restaurants|spot|spots|options|best|top|find|show|recommend|recommendation)\b/i.test(combined) && hasPlaceSuffix) {
     return true;
@@ -371,6 +434,8 @@ function buildSystemPrompt() {
     'Never invent restaurants, addresses, phone numbers, websites, ratings, or hours.',
     'If a town is mentioned without a state, assume Illinois unless the user clearly says otherwise.',
     'If the user provides only a location, ZIP, or town with no cuisine or food type, treat it as a request for the best overall restaurants in that place and do not ask them to repeat or add a food type.',
+    'If the user provides a specific restaurant name with a location, such as "McDonald’s in Salem," treat it as a specific restaurant profile request, not a broad ranking request.',
+    'For specific restaurant profile requests, fetch the exact place details, allow major chains when explicitly named, and include address, phone, website, rating, review count, business status, and a polished concise writeup when available.',
     'Do not suggest ordering food, delivery, takeout ordering, or reservations. This assistant only helps people find and learn about restaurants.',
     'Never claim 618FOOD.COM has restaurant partners, ordering partners, online ordering, checkout, delivery, reservations, coupons, or payment features.',
     'If a user asks to order, say 618FOOD.COM can only share restaurant details like website, map, and phone so they can contact the restaurant directly.',
@@ -1841,7 +1906,7 @@ export async function runRestaurantAgent({ message, history = [], pageContext = 
 
   if (!cleanMessage) {
     return {
-      reply: 'Please send a town or ZIP, and I’ll find the top restaurants there.',
+      reply: 'Please send a town or ZIP for top restaurants, or a restaurant name with a location for a focused profile.',
       restaurants: [],
       sources: [],
       requestId: requestLabel
@@ -1867,7 +1932,7 @@ export async function runRestaurantAgent({ message, history = [], pageContext = 
 
   if (!likelyRestaurantRequest) {
     return {
-      reply: `Hello! I’m ${FOOD_BRAND}. Just tell me a town and what kind of food you want, and I’ll find the top restaurants.`,
+      reply: `Hello! I’m ${FOOD_BRAND}. Just tell me a town and what kind of food you want, and I’ll find the top restaurants. You can also enter a restaurant name with a location, and I’ll pull together helpful details about it.`,
       restaurants: [],
       sources: [],
       requestId: requestLabel
