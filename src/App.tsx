@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { FormEvent } from 'react';
 import { AudioStrip } from './features/local-eats/components/AudioStrip';
 import { WidgetLauncherPage } from './features/local-eats/components/WidgetLauncherPage';
 import { VoiceWidgetPanel } from './features/local-eats/components/VoiceWidgetPanel';
@@ -17,7 +18,18 @@ const LOADING_MESSAGES = ['Thinking...', 'Researching reviews...', 'Searching th
 const INITIAL_GREETING =
   "Hello! I’m 618FOOD.COM. Just tell me a town and what kind of food you want, and I’ll find the top restaurants.";
 const MAX_AUDIO_CHARS = 900;
-const ADVERTISING_EMAIL = 'johnswaffles@gmail.com';
+const CONTACT_API_BASE_URL = 'https://johnny-chat.onrender.com';
+
+type ContactStatus = {
+  kind: 'idle' | 'sending' | 'success' | 'error';
+  message: string;
+};
+
+function getContactApiBase(): string {
+  if (typeof window === 'undefined') return CONTACT_API_BASE_URL;
+  const override = (window as Window & { JOHNNY_CONTACT_API_BASE_URL?: string }).JOHNNY_CONTACT_API_BASE_URL;
+  return String(override || CONTACT_API_BASE_URL).replace(/\/+$/, '');
+}
 
 function navigateTo(path: string): void {
   if (typeof window === 'undefined') return;
@@ -131,7 +143,7 @@ function SiteNav({ currentPath }: { currentPath: string }): JSX.Element {
   const navItems = [
     { href: '/', label: 'Voice Widget' },
     { href: '/classic', label: 'Classic Search' },
-    { href: '/contact', label: 'Advertise' }
+    { href: '/contact', label: 'Contact' }
   ];
 
   return (
@@ -161,11 +173,48 @@ function SiteNav({ currentPath }: { currentPath: string }): JSX.Element {
 }
 
 function AdvertisingContactPage({ currentPath }: { currentPath: string }): JSX.Element {
-  const mailSubject = encodeURIComponent('618FOOD.COM advertising inquiry');
-  const mailBody = encodeURIComponent(
-    'Hi, I am interested in advertising on 618FOOD.COM.\n\nBusiness name:\nRestaurant/city:\nWebsite or ordering link:\nWhat I would like to promote:\n'
-  );
-  const mailtoHref = `mailto:${ADVERTISING_EMAIL}?subject=${mailSubject}&body=${mailBody}`;
+  const [contactStatus, setContactStatus] = useState<ContactStatus>({ kind: 'idle', message: '' });
+  const [submittingContact, setSubmittingContact] = useState(false);
+
+  async function handleContactSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+
+    setSubmittingContact(true);
+    setContactStatus({ kind: 'sending', message: 'Sending your message...' });
+
+    try {
+      const response = await fetch(`${getContactApiBase()}/api/contact`, {
+        method: 'POST',
+        body: formData
+      });
+
+      let payload: { ok?: boolean; error?: string; detail?: string } = {};
+      try {
+        payload = (await response.json()) as typeof payload;
+      } catch {
+        payload = {};
+      }
+
+      if (!response.ok || payload.ok !== true) {
+        throw new Error(payload.error || payload.detail || 'The message could not be sent yet.');
+      }
+
+      form.reset();
+      setContactStatus({
+        kind: 'success',
+        message: 'Thanks. Your message was sent to Johnny.'
+      });
+    } catch (error) {
+      setContactStatus({
+        kind: 'error',
+        message: error instanceof Error ? error.message : 'Something went wrong.'
+      });
+    } finally {
+      setSubmittingContact(false);
+    }
+  }
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.98),_rgba(250,246,236,0.9)_34%,_rgba(236,244,227,0.98)_66%,_rgba(247,241,228,1)_100%)] text-stone-900">
@@ -182,7 +231,7 @@ function AdvertisingContactPage({ currentPath }: { currentPath: string }): JSX.E
                   {FOOD_BRAND}
                 </div>
                 <div className="mt-1 text-xs font-medium uppercase tracking-[0.24em] text-stone-500">
-                  Local restaurant advertising
+                  Restaurant contact
                 </div>
               </div>
             </div>
@@ -190,26 +239,19 @@ function AdvertisingContactPage({ currentPath }: { currentPath: string }): JSX.E
           </div>
         </header>
 
-        <section className="grid flex-1 items-center gap-5 lg:grid-cols-[1.05fr_0.95fr]">
+        <section className="grid flex-1 items-start gap-5 lg:grid-cols-[0.95fr_1.05fr]">
           <div className="rounded-[2rem] border border-white/75 bg-white/82 p-6 shadow-[0_24px_70px_rgba(49,67,38,0.14)] backdrop-blur-2xl sm:p-8">
             <div className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-emerald-800">
-              Advertise on 618FOOD.COM
+              Contact Johnny
             </div>
             <h1 className="mt-5 max-w-2xl font-display text-4xl font-semibold leading-tight tracking-tight text-[#173528] sm:text-5xl">
-              Put your restaurant in front of hungry Southern Illinois diners.
+              Tell us what you want to do on 618FOOD.COM.
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-8 text-stone-650 sm:text-lg">
-              618FOOD.COM helps people decide where to eat right when they are searching.
-              If you want a sponsored placement, ordering link, thumbnail ad, or custom restaurant writeup,
-              send the details and we can talk through the best fit.
+              Fill this out the same simple way as the mowing site. Your message goes straight to Johnny,
+              and you do not have to open your email app, copy an address, or figure out what to include.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
-              <a
-                href={mailtoHref}
-                className="rounded-full bg-emerald-700 px-5 py-3 text-sm font-bold text-white shadow-[0_16px_34px_rgba(22,83,44,0.22)] transition hover:bg-emerald-800"
-              >
-                Email about advertising
-              </a>
               <a
                 href="/"
                 onClick={(event) => {
@@ -221,26 +263,156 @@ function AdvertisingContactPage({ currentPath }: { currentPath: string }): JSX.E
                 Try the food widget
               </a>
             </div>
+            <div className="mt-7 grid gap-3 text-sm leading-6 text-stone-650 sm:grid-cols-3">
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
+                <strong className="block text-emerald-950">Advertising</strong>
+                Sponsored spots, thumbnails, links, and writeups.
+              </div>
+              <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4">
+                <strong className="block text-emerald-950">Restaurant info</strong>
+                Send updates, corrections, menus, or better links.
+              </div>
+              <div className="rounded-2xl border border-stone-200 bg-white/80 p-4">
+                <strong className="block text-emerald-950">Questions</strong>
+                Ask about the site or what would fit your business.
+              </div>
+            </div>
           </div>
 
-          <aside className="rounded-[2rem] border border-emerald-100 bg-[#10291f] p-6 text-white shadow-[0_24px_70px_rgba(16,41,31,0.2)] sm:p-7">
-            <div className="text-xs font-bold uppercase tracking-[0.22em] text-emerald-200/80">
-              Good ad fits
-            </div>
-            <div className="mt-5 space-y-4 text-sm leading-7 text-emerald-50/82">
-              <p>Restaurant thumbnails that link straight to ordering or your website.</p>
-              <p>Sponsored spots for a town, cuisine, or category when available.</p>
-              <p>Professional writeups that make your restaurant feel vivid, local, and worth visiting.</p>
-            </div>
-            <div className="mt-7 rounded-[1.25rem] border border-white/10 bg-white/8 p-4">
-              <div className="text-xs font-semibold uppercase tracking-[0.18em] text-white/50">
-                Contact
+          <form
+            onSubmit={handleContactSubmit}
+            className="rounded-[2rem] border border-white/75 bg-white/88 p-5 shadow-[0_24px_70px_rgba(49,67,38,0.14)] backdrop-blur-2xl sm:p-7"
+          >
+            <input type="hidden" name="profile" value="food" />
+            <input
+              type="hidden"
+              name="page_url"
+              value={typeof window === 'undefined' ? '618FOOD.COM contact page' : window.location.href}
+            />
+
+            <div className="flex flex-col gap-2">
+              <div className="text-xs font-bold uppercase tracking-[0.22em] text-emerald-700">
+                Simple message form
               </div>
-              <a href={mailtoHref} className="mt-2 block text-lg font-semibold text-white underline decoration-emerald-300/40 underline-offset-4">
-                {ADVERTISING_EMAIL}
-              </a>
+              <h2 className="font-display text-3xl font-semibold tracking-tight text-[#173528]">
+                Send Johnny the details.
+              </h2>
+              <p className="text-sm leading-6 text-stone-600">
+                Name, email, message. Add a phone number or file only if it helps.
+              </p>
             </div>
-          </aside>
+
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-[0.16em] text-stone-600">Name</span>
+                <input
+                  name="name"
+                  required
+                  autoComplete="name"
+                  className="mt-2 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-base outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                  placeholder="Your name"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-[0.16em] text-stone-600">Email</span>
+                <input
+                  name="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  className="mt-2 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-base outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                  placeholder="you@example.com"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-[0.16em] text-stone-600">Phone</span>
+                <input
+                  name="phone"
+                  autoComplete="tel"
+                  className="mt-2 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-base outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                  placeholder="Optional"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-xs font-bold uppercase tracking-[0.16em] text-stone-600">Topic</span>
+                <select
+                  name="topic"
+                  className="mt-2 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-base outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                  defaultValue="Advertising / sponsored placement"
+                >
+                  <option>Advertising / sponsored placement</option>
+                  <option>Restaurant writeup</option>
+                  <option>Restaurant info update</option>
+                  <option>Website or ordering link</option>
+                  <option>General question</option>
+                </select>
+              </label>
+
+              <label className="block sm:col-span-2">
+                <span className="text-xs font-bold uppercase tracking-[0.16em] text-stone-600">
+                  Business or restaurant name
+                </span>
+                <input
+                  name="company"
+                  autoComplete="organization"
+                  className="mt-2 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-base outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                  placeholder="Restaurant, business, or project name"
+                />
+              </label>
+
+              <label className="block sm:col-span-2">
+                <span className="text-xs font-bold uppercase tracking-[0.16em] text-stone-600">Message</span>
+                <textarea
+                  name="message"
+                  required
+                  rows={6}
+                  className="mt-2 w-full resize-y rounded-2xl border border-stone-200 bg-white px-4 py-3 text-base leading-7 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                  placeholder="Tell Johnny what you need. For example: sponsored placement, restaurant writeup, menu/link update, or a question about 618FOOD.COM."
+                />
+              </label>
+
+              <label className="block sm:col-span-2">
+                <span className="text-xs font-bold uppercase tracking-[0.16em] text-stone-600">
+                  Photos, menu, or screenshots
+                </span>
+                <input
+                  name="attachments"
+                  type="file"
+                  multiple
+                  accept="image/*,.pdf"
+                  className="mt-2 w-full rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/70 px-4 py-3 text-sm text-stone-700 file:mr-4 file:rounded-full file:border-0 file:bg-emerald-700 file:px-4 file:py-2 file:text-sm file:font-bold file:text-white"
+                />
+                <span className="mt-2 block text-xs leading-5 text-stone-500">
+                  Optional. Useful for menus, logos, restaurant photos, or screenshots of what needs changed.
+                </span>
+              </label>
+            </div>
+
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <button
+                type="submit"
+                disabled={submittingContact}
+                className="rounded-full bg-emerald-700 px-6 py-3 text-sm font-bold text-white shadow-[0_16px_34px_rgba(22,83,44,0.22)] transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {submittingContact ? 'Sending...' : 'Send message'}
+              </button>
+              <div
+                aria-live="polite"
+                className={`text-sm font-semibold ${
+                  contactStatus.kind === 'error'
+                    ? 'text-red-700'
+                    : contactStatus.kind === 'success'
+                      ? 'text-emerald-800'
+                      : 'text-stone-500'
+                }`}
+              >
+                {contactStatus.message || 'Your message will be sent directly to Johnny.'}
+              </div>
+            </div>
+          </form>
         </section>
       </main>
     </div>

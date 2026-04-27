@@ -19,7 +19,7 @@ function navigateTo(path: string): void {
 function WidgetSiteNav({ currentPath }: { currentPath: string }): JSX.Element {
   const navItems = [
     { href: '/classic', label: 'Classic Search' },
-    { href: '/contact', label: 'Advertise' }
+    { href: '/contact', label: 'Contact' }
   ];
 
   return (
