@@ -25,6 +25,39 @@ const FOOD_PREFERENCE_ALIASES = [
 ];
 
 const LOCATION_JOINERS = /\b(?:in|near|around|at|toward|to|by)\b/i;
+const KNOWN_RESTAURANT_ALIASES = [
+  'mcdonalds',
+  "mcdonald's",
+  'subway',
+  'pizza hut',
+  'burger king',
+  'wendys',
+  "wendy's",
+  'taco bell',
+  'kfc',
+  'sonic',
+  'dairy queen',
+  'dominos',
+  "domino's",
+  'little caesars',
+  'arbys',
+  "arby's",
+  'hardees',
+  "hardee's",
+  'culvers',
+  "culver's",
+  'jimmy johns',
+  "jimmy john's",
+  'starbucks',
+  'dunkin',
+  'panda express',
+  'chipotle',
+  'cracker barrel',
+  'olive garden',
+  'applebees',
+  "applebee's",
+  'red lobster'
+];
 
 function normalizeText(value) {
   return typeof value === 'string' ? value.trim() : '';
@@ -141,6 +174,31 @@ function splitImplicitLocationFromQuery(query) {
   return { subject: text, location: '' };
 }
 
+function splitKnownRestaurantLocationFromQuery(query) {
+  const text = normalizeText(query);
+  if (!text) return { subject: '', location: '' };
+
+  const aliases = [...KNOWN_RESTAURANT_ALIASES].sort((a, b) => b.length - a.length);
+  for (const alias of aliases) {
+    const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = text.match(new RegExp(`\\b${escaped}\\b`, 'i'));
+    if (!match || typeof match.index !== 'number') continue;
+
+    const subject = normalizeText(match[0]);
+    const before = normalizeText(text.slice(0, match.index)).replace(/\s+/g, ' ').trim();
+    const after = normalizeText(text.slice(match.index + match[0].length)).replace(/\s+/g, ' ').trim();
+    const beforeLooksLikeLocation = looksLikeLocationQuery(before);
+    const afterLooksLikeLocation = looksLikeLocationQuery(after);
+
+    if (beforeLooksLikeLocation && !after) return { subject, location: before };
+    if (afterLooksLikeLocation && !before) return { subject, location: after };
+    if (beforeLooksLikeLocation && !afterLooksLikeLocation) return { subject, location: before };
+    if (afterLooksLikeLocation && !beforeLooksLikeLocation) return { subject, location: after };
+  }
+
+  return { subject: '', location: '' };
+}
+
 function splitQueryLocation(value) {
   const text = normalizeText(value);
   if (!text) return { subject: '', location: '' };
@@ -162,14 +220,18 @@ export function inferFoodIntent(request) {
   const split = splitQueryLocation(query);
   const embeddedZip = query.match(/\b\d{5}(?:-\d{4})?\b/)?.[0] || '';
   const queryLooksLikeLocation = looksLikeLocationQuery(query) && !inferCuisineFromText(query);
+  const explicitSplitHasLocation = Boolean(split.location);
+  const knownRestaurantSplit = explicitSplitHasLocation ? { subject: '', location: '' } : splitKnownRestaurantLocationFromQuery(query);
   const implicitSplit = splitImplicitLocationFromQuery(query);
   const querySubject =
-    split.subject ||
+    (explicitSplitHasLocation ? split.subject : '') ||
+    (knownRestaurantSplit.location ? knownRestaurantSplit.subject : '') ||
     (implicitSplit.location ? implicitSplit.subject : '') ||
     (queryLooksLikeLocation ? '' : query.replace(/\b\d{5}(?:-\d{4})?\b/g, ' ').replace(/\s+/g, ' ').trim()) ||
     query;
   const queryLocation =
     split.location ||
+    knownRestaurantSplit.location ||
     implicitSplit.location ||
     embeddedZip ||
     (queryLooksLikeLocation ? query : '');
