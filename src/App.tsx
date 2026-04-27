@@ -247,22 +247,6 @@ function AdvertisingContactPage({ currentPath }: { currentPath: string }): JSX.E
             <h1 className="mt-5 max-w-2xl font-display text-4xl font-semibold leading-tight tracking-tight text-[#173528] sm:text-5xl">
               Tell us what you want to do on 618FOOD.COM.
             </h1>
-            <p className="mt-5 max-w-2xl text-base leading-8 text-stone-650 sm:text-lg">
-              Fill this out the same simple way as the mowing site. Your message goes straight to Johnny,
-              and you do not have to open your email app, copy an address, or figure out what to include.
-            </p>
-            <div className="mt-7 flex flex-wrap gap-3">
-              <a
-                href="/"
-                onClick={(event) => {
-                  event.preventDefault();
-                  navigateTo('/');
-                }}
-                className="rounded-full border border-emerald-200 bg-white px-5 py-3 text-sm font-bold text-emerald-900 transition hover:bg-emerald-50"
-              >
-                Try the food widget
-              </a>
-            </div>
             <div className="mt-7 grid gap-3 text-sm leading-6 text-stone-650 sm:grid-cols-3">
               <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
                 <strong className="block text-emerald-950">Advertising</strong>
