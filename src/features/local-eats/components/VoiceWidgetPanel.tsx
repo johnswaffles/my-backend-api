@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ask618Chat, playBrowserNarration, request618RealtimeToken, stopBrowserNarration } from '../lib/client';
+import {
+  ask618Chat,
+  playBrowserNarration,
+  request618FoodAudio,
+  request618RealtimeToken,
+  stopBrowserNarration
+} from '../lib/client';
 import { FOOD_BRAND } from '../schemas';
 import type {
   ChatTurn,
@@ -391,6 +397,13 @@ export function VoiceWidgetPanel(): JSX.Element {
 
   function stopRealtimeBridge(): void {
     const bridge = realtimeBridgeRef.current;
+    const currentAudio = audioRef.current;
+
+    if (currentAudio && currentAudio !== bridge.audioEl) {
+      currentAudio.pause();
+      currentAudio.srcObject = null;
+      currentAudio.src = '';
+    }
 
     if (bridge.audioEl) {
       bridge.audioEl.pause();
@@ -493,7 +506,7 @@ export function VoiceWidgetPanel(): JSX.Element {
 
   function resumeCurrentPlayback(): boolean {
     const currentAudio = audioRef.current;
-    if (currentAudio && currentAudio.paused && currentAudio.srcObject) {
+    if (currentAudio && currentAudio.paused && (currentAudio.srcObject || currentAudio.src)) {
       currentAudio.play().catch(() => {
         setIsPlaying(false);
       });
@@ -734,6 +747,47 @@ export function VoiceWidgetPanel(): JSX.Element {
     );
   }
 
+  async function playGeminiSpeech(text: string): Promise<void> {
+    const generated = await request618FoodAudio(text);
+    if (!generated.audioBase64) {
+      throw new Error('Gemini audio did not return playable speech.');
+    }
+
+    const currentAudio = audioRef.current;
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.srcObject = null;
+      currentAudio.src = '';
+    }
+
+    const player = new Audio(`data:${generated.mimeType || 'audio/wav'};base64,${generated.audioBase64}`);
+    player.preload = 'auto';
+    player.onplay = () => {
+      setIsPlaying(true);
+      setAudioPaused(false);
+      setStatusLabel('SPEAKING...');
+    };
+    player.onended = () => {
+      stopSpeechVisual();
+      setIsPlaying(false);
+      setAudioPaused(false);
+      if (!assistantLoading && !isListening) {
+        setStatusLabel('VOICE CHAT');
+      }
+    };
+    player.onerror = () => {
+      stopSpeechVisual();
+      setIsPlaying(false);
+      setAudioPaused(false);
+      if (!assistantLoading && !isListening) {
+        setStatusLabel('VOICE CHAT');
+      }
+    };
+
+    audioRef.current = player;
+    await player.play();
+  }
+
   async function playSummaryText(text: string): Promise<void> {
     if (!text.trim()) return;
     if (audioLoading) return;
@@ -754,8 +808,7 @@ export function VoiceWidgetPanel(): JSX.Element {
     setAudioPaused(false);
     setStatusLabel('SPEAKING...');
     try {
-      await sendRealtimeSpeech(normalizedText);
-      setIsPlaying(true);
+      await playGeminiSpeech(normalizedText);
       startSpeechVisual(normalizedText);
     } catch {
       try {

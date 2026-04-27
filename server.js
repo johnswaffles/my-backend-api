@@ -510,8 +510,12 @@ app.post('/api/food/audio', async (req, res) => {
 
     const audio = await generateFoodSpeech({
       apiKey: process.env.GEMINI_API_KEY,
-      model: process.env.GEMINI_TTS || 'gemini-3.1-flash-tts-preview',
-      voice: process.env.GEMINI_TTS_VOICE || 'Orus',
+      model:
+        process.env.GEMINI_AUDIO_MODEL ||
+        process.env.GEMINI_LIVE_MODEL ||
+        process.env.GEMINI_TTS ||
+        'gemini-3.1-flash-live-preview',
+      voice: process.env.GEMINI_AUDIO_VOICE || process.env.GEMINI_TTS_VOICE || 'Orus',
       text: text.trim()
     });
 
