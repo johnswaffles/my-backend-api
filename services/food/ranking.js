@@ -546,7 +546,7 @@ export function buildWhatWeFound(candidate, evidence) {
   return `We found ${pieces.join(', ')}.`;
 }
 
-export function rankCandidates({ request, intent = null, candidates, corroborated = [] }) {
+export function rankCandidates({ request, intent = null, candidates, corroborated = [], allowLargeChains = false }) {
   const corroborationMap = new Map(corroborated.map((entry) => [entry.placeId, entry]));
   const ratings = candidates
     .map((candidate) => candidate.rating)
@@ -554,7 +554,7 @@ export function rankCandidates({ request, intent = null, candidates, corroborate
   const averageRating = ratings.length ? ratings.reduce((sum, rating) => sum + rating, 0) / ratings.length : 0;
   const ranked = candidates
     .map((candidate) => {
-      if (isLargeChain(candidate)) {
+      if (!allowLargeChains && isLargeChain(candidate)) {
         return null;
       }
       const corroboration = corroborationMap.get(candidate.placeId);

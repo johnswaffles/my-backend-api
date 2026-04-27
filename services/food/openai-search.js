@@ -146,6 +146,80 @@ function normalizeText(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function looksLikeGenericFoodCategory(value) {
+  const subject = normalizeComparableText(value || '');
+  if (!subject) return true;
+
+  const categoryPhrases = new Set([
+    'food',
+    'restaurant',
+    'restaurants',
+    'place',
+    'places',
+    'spot',
+    'spots',
+    'pizza',
+    'pizzeria',
+    'burger',
+    'burgers',
+    'hamburger',
+    'hamburgers',
+    'bbq',
+    'barbecue',
+    'barbeque',
+    'steak',
+    'steakhouse',
+    'steak house',
+    'taco',
+    'tacos',
+    'burrito',
+    'burritos',
+    'sushi',
+    'ramen',
+    'coffee',
+    'cafe',
+    'breakfast',
+    'brunch',
+    'dessert',
+    'bakery',
+    'diner',
+    'grill',
+    'grille',
+    'sandwich',
+    'sandwiches',
+    'deli',
+    'sub',
+    'subs',
+    'seafood',
+    'fish fry',
+    'catfish',
+    'shrimp',
+    'chinese',
+    'italian',
+    'mexican',
+    'thai',
+    'japanese'
+  ]);
+
+  if (categoryPhrases.has(subject)) return true;
+  if (/^(best|top|good|great|local|nearby|recommended)\s+/.test(subject)) return true;
+  if (/\b(food|restaurants?|places?|spots?|options|recommendations?)\b/.test(subject)) return true;
+
+  return false;
+}
+
+function looksLikeSpecificRestaurantRequest(request, intent) {
+  const subject = normalizeComparableText(intent?.querySubject || request?.query || '');
+  if (!subject) return false;
+
+  const hasLocation = Boolean(intent?.queryLocation || intent?.inferredLocation || normalizeText(request?.destinationText));
+  const subjectWords = subject.split(/\s+/).filter(Boolean);
+  if (!hasLocation || subjectWords.length < 1 || subjectWords.length > 8) return false;
+  if (looksLikeGenericFoodCategory(subject)) return false;
+
+  return true;
+}
+
 function uniqueBy(items, getKey) {
   const seen = new Set();
   return items.filter((item) => {
@@ -697,16 +771,27 @@ export async function searchWithOpenAI({ apiKey, model, request }) {
     (candidate) => normalizeComparableText([candidate.name, candidate.formattedAddress, candidate.website].filter(Boolean).join(' '))
   );
 
-  const localFiltered = normalizedResults.filter((candidate) => !isLargeChain(candidate));
-  const distanceFiltered = (await enrichWithDistance(localFiltered, locationContext)).filter((candidate) => {
+  const specificRestaurantRequest = looksLikeSpecificRestaurantRequest(request, intent);
+  const rankingRequest = specificRestaurantRequest
+    ? {
+        ...request,
+        filters: {
+          ...request.filters,
+          localOnly: false
+        }
+      }
+    : request;
+  const chainFiltered = specificRestaurantRequest ? normalizedResults : normalizedResults.filter((candidate) => !isLargeChain(candidate));
+  const distanceFiltered = (await enrichWithDistance(chainFiltered, locationContext)).filter((candidate) => {
     if (!Number.isFinite(candidate.distanceMiles)) return true;
     return candidate.distanceMiles <= request.radiusMiles;
   });
 
   const rankedResults = rankCandidates({
-    request,
+    request: rankingRequest,
     intent,
     candidates: distanceFiltered,
+    allowLargeChains: specificRestaurantRequest,
     corroborated: distanceFiltered.map((candidate) => ({
       placeId: candidate.placeId,
       evidence: Array.isArray(candidate.evidence) ? candidate.evidence : [],
@@ -722,7 +807,9 @@ export async function searchWithOpenAI({ apiKey, model, request }) {
     tags: normalizeTags(candidate.tags)
   }));
 
-  const cuisineGated = applyCuisineGate(rankedResults, request, intent);
+  const cuisineGated = specificRestaurantRequest
+    ? { results: rankedResults, warnings: [] }
+    : applyCuisineGate(rankedResults, request, intent);
   const finalResults = cuisineGated.results.length ? cuisineGated.results : rankedResults;
 
   const warnings = addFallbackWarnings(
@@ -731,7 +818,7 @@ export async function searchWithOpenAI({ apiKey, model, request }) {
       ...(Array.isArray(locationResolution.warnings) ? locationResolution.warnings : []),
       ...(cuisineGated.warnings || [])
     ],
-    request,
+    rankingRequest,
     locationContext
   ).filter((warning) => !isTechnicalWarning(warning));
 
@@ -744,8 +831,8 @@ export async function searchWithOpenAI({ apiKey, model, request }) {
     summary: typeof discovery.summary === 'string' ? discovery.summary : '',
     warnings,
     results: finalResults.slice(0, 8),
-    buckets: buildResultBuckets(finalResults.slice(0, 8), request, intent),
-    audioSummary: buildAudioSummary(request, finalResults.slice(0, 1)),
+    buckets: buildResultBuckets(finalResults.slice(0, 8), rankingRequest, intent),
+    audioSummary: buildAudioSummary(rankingRequest, finalResults.slice(0, 1)),
     hasLiveData: true,
     sourceMode: 'live'
   };
