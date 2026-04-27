@@ -313,6 +313,7 @@ export function VoiceWidgetPanel(): JSX.Element {
   const [audioLoading, setAudioLoading] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [isListening, setIsListening] = useState(false);
+  const [isVoiceStarting, setIsVoiceStarting] = useState(false);
   const [statusLabel, setStatusLabel] = useState('VOICE CHAT');
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [searchLocked, setSearchLocked] = useState(false);
@@ -337,7 +338,7 @@ export function VoiceWidgetPanel(): JSX.Element {
   const speechVisualTimerRef = useRef<number | null>(null);
   const voiceCubeMode: VoiceCubeMode = speechVisualActive || isPlaying
     ? 'speaking'
-    : assistantLoading || audioLoading
+    : assistantLoading || audioLoading || isVoiceStarting
     ? 'thinking'
     : isListening
     ? 'listening'
@@ -437,6 +438,7 @@ export function VoiceWidgetPanel(): JSX.Element {
     setIsPlaying(false);
     setAudioPaused(false);
     setAudioLoading(false);
+    setIsVoiceStarting(false);
   }
 
   function setRealtimeMicEnabled(enabled: boolean): void {
@@ -632,6 +634,9 @@ export function VoiceWidgetPanel(): JSX.Element {
       if (needsMicrophone) {
         stream = await navigator.mediaDevices.getUserMedia({
           audio: audioConstraints
+        });
+        stream.getAudioTracks().forEach((track) => {
+          track.enabled = false;
         });
         pc.addTrack(stream.getAudioTracks()[0], stream);
       } else {
@@ -837,13 +842,17 @@ export function VoiceWidgetPanel(): JSX.Element {
   async function startVoiceSession(): Promise<void> {
     if (searchLocked) return;
     hadUserGestureRef.current = true;
-    setIsMuted(false);
-    setIsListening(true);
-    setStatusLabel('LISTENING...');
+    setIsVoiceStarting(true);
+    setIsMuted(true);
+    setIsListening(false);
+    setStatusLabel('CONNECTING...');
 
     try {
       await ensureRealtimeBridge({ microphone: true });
       setRealtimeMicEnabled(true);
+      setIsMuted(false);
+      setIsListening(true);
+      setStatusLabel('LISTENING...');
       const bridge = realtimeBridgeRef.current;
       if (bridge.audioEl) {
         try {
@@ -854,9 +863,12 @@ export function VoiceWidgetPanel(): JSX.Element {
       }
     } catch {
       stopRealtimeBridge();
+      setIsVoiceStarting(false);
       setIsListening(false);
       setStatusLabel('VOICE CHAT');
       throw new Error('Unable to start realtime voice session.');
+    } finally {
+      setIsVoiceStarting(false);
     }
   }
 
@@ -874,6 +886,7 @@ export function VoiceWidgetPanel(): JSX.Element {
     hadUserGestureRef.current = true;
     setSearchLocked(true);
     setIsMuted(true);
+    setIsVoiceStarting(false);
     setRealtimeMicEnabled(false);
     if (legacyRecognitionRef.current) {
       try {
@@ -940,7 +953,7 @@ export function VoiceWidgetPanel(): JSX.Element {
   }
 
   function startListening(): void {
-    if (assistantLoading || searchLocked) return;
+    if (assistantLoading || searchLocked || isVoiceStarting) return;
     void startVoiceSession().catch(() => {
       const recognition = createSpeechRecognition();
       if (!recognition) {
@@ -1033,6 +1046,8 @@ export function VoiceWidgetPanel(): JSX.Element {
   }
 
   function toggleVoice(): void {
+    if (isVoiceStarting) return;
+
     if (isListening) {
       stopVoiceSession();
       return;
@@ -1078,7 +1093,7 @@ export function VoiceWidgetPanel(): JSX.Element {
   }
 
   function handleMuteToggle(): void {
-    if (searchLocked) return;
+    if (searchLocked || isVoiceStarting) return;
     setIsMuted((current) => {
       const next = !current;
       setRealtimeMicEnabled(!next);
@@ -1101,6 +1116,7 @@ export function VoiceWidgetPanel(): JSX.Element {
     setIsPlaying(false);
     setAudioPaused(false);
     setAudioLoading(false);
+    setIsVoiceStarting(false);
     setAssistantLoading(false);
     setAssistantLoadingLabel(LOADING_MESSAGES[0]);
     setIsMuted(true);
@@ -1248,10 +1264,11 @@ export function VoiceWidgetPanel(): JSX.Element {
             <button
               type="button"
               onClick={toggleVoice}
+              disabled={isVoiceStarting}
               className={`absolute left-1/2 top-2 flex h-[138px] w-[138px] -translate-x-1/2 flex-col items-center rounded-[1.45rem] border border-cyan-200/10 bg-[linear-gradient(145deg,rgba(7,13,18,0.92),rgba(1,5,8,0.98))] px-3 py-4 shadow-[0_24px_52px_rgba(0,0,0,0.5),0_0_34px_rgba(34,211,238,0.08),inset_0_0_24px_rgba(255,255,255,0.04)] transition hover:scale-[1.01] focus:outline-none focus:ring-4 focus:ring-emerald-400/10 ${
-                isListening || isPlaying ? 'border-cyan-200/30 shadow-[0_24px_52px_rgba(0,0,0,0.5),0_0_36px_rgba(34,211,238,0.2),inset_0_0_24px_rgba(255,255,255,0.05)]' : ''
+                isListening || isPlaying || isVoiceStarting ? 'border-cyan-200/30 shadow-[0_24px_52px_rgba(0,0,0,0.5),0_0_36px_rgba(34,211,238,0.2),inset_0_0_24px_rgba(255,255,255,0.05)]' : ''
               }`}
-              aria-label={isListening ? 'Stop listening' : isPlaying ? 'Pause playback' : 'Press to talk'}
+              aria-label={isVoiceStarting ? 'Voice chat is connecting' : isListening ? 'Stop listening' : isPlaying ? 'Pause playback' : 'Press to talk'}
             >
               <span className="whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.34em] text-cyan-50/55">
                 {statusLabel}
@@ -1288,9 +1305,9 @@ export function VoiceWidgetPanel(): JSX.Element {
             <button
               type="button"
               onClick={handleMuteToggle}
-              disabled={searchLocked}
+              disabled={searchLocked || isVoiceStarting}
               className={`absolute left-0 top-[72px] flex h-14 w-14 items-center justify-center rounded-full border text-xl shadow-[0_0_0_2px_rgba(32,185,96,0.2)] transition ${
-                searchLocked
+                searchLocked || isVoiceStarting
                   ? 'cursor-not-allowed border-white/10 bg-white/15 text-white/35 shadow-[0_0_0_2px_rgba(255,255,255,0.08)]'
                   : isMuted
                   ? 'border-rose-300 bg-rose-500 text-white shadow-[0_0_0_3px_rgba(244,63,94,0.18),0_0_16px_rgba(244,63,94,0.3)]'

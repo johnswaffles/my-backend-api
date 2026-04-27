@@ -552,7 +552,7 @@ app.post('/api/realtime-token', async (_req, res) => {
         turn_detection: {
           type: 'server_vad',
           threshold: 0.72,
-          prefix_padding_ms: 350,
+          prefix_padding_ms: 800,
           silence_duration_ms: 1800,
           create_response: false,
           interrupt_response: false

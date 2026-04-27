@@ -253,8 +253,96 @@ function looksLikeGenericFoodCategory(value) {
   ]);
 
   if (categoryPhrases.has(subject)) return true;
+
+  const categoryWords = new Set([
+    'best',
+    'top',
+    'good',
+    'great',
+    'local',
+    'nearby',
+    'recommended',
+    'food',
+    'restaurant',
+    'restaurants',
+    'place',
+    'places',
+    'spot',
+    'spots',
+    'option',
+    'options',
+    'pizza',
+    'pizzeria',
+    'burger',
+    'burgers',
+    'hamburger',
+    'hamburgers',
+    'bbq',
+    'barbecue',
+    'barbeque',
+    'steak',
+    'steakhouse',
+    'taco',
+    'tacos',
+    'burrito',
+    'burritos',
+    'sushi',
+    'ramen',
+    'coffee',
+    'cafe',
+    'breakfast',
+    'brunch',
+    'dessert',
+    'bakery',
+    'diner',
+    'grill',
+    'grille',
+    'sandwich',
+    'sandwiches',
+    'deli',
+    'sub',
+    'subs',
+    'seafood',
+    'fish',
+    'fry',
+    'catfish',
+    'shrimp',
+    'chinese',
+    'italian',
+    'mexican',
+    'thai',
+    'japanese',
+    'fast',
+    'quick',
+    'bite',
+    'casual',
+    'takeout',
+    'take',
+    'out',
+    'drive',
+    'thru',
+    'through',
+    'fried',
+    'chicken',
+    'wing',
+    'wings',
+    'shop',
+    'shops',
+    'menu',
+    'for',
+    'about',
+    'info',
+    'information',
+    'details',
+    'review',
+    'reviews',
+    'hours'
+  ]);
+  const subjectWords = subject.split(/\s+/).filter(Boolean);
+  if (subjectWords.length && subjectWords.every((word) => categoryWords.has(word))) return true;
+
   if (/^(best|top|good|great|local|nearby|recommended)\s+/.test(subject)) return true;
-  if (/\b(food|restaurants?|places?|spots?|options|recommendations?)\b/.test(subject)) return true;
+  if (/\b(food|restaurants?|places?|spots?|options|recommendations?|fast food|quick bite|drive thru|drive through|takeout|take out)\b/.test(subject)) return true;
 
   return false;
 }
@@ -264,20 +352,6 @@ function shouldTreatAsSpecificPlaceRequest(message, history, intent) {
   const combined = normalizeWriteupText(rawCombined);
   if (!combined) return false;
 
-  if (/\b(address|phone|hours|menu|about|details|info|information|review|reviews|where is|what is|what's|tell me about|tell me more|how is|how's|directions)\b/i.test(combined)) {
-    return true;
-  }
-
-  const followupCandidate = cleanPlaceFollowupText(rawCombined);
-  if (
-    /^(what about|how about|tell me about|tell us about|show me|what is|what's|whats|give me|find me|do you know|any info on|information on|details on)/i.test(rawCombined) &&
-    followupCandidate &&
-    followupCandidate.split(/\s+/).filter(Boolean).length >= 1 &&
-    followupCandidate.split(/\s+/).filter(Boolean).length <= 8
-  ) {
-    return true;
-  }
-
   const subject = normalizeWriteupText(intent?.querySubject || '');
   if (!subject) return false;
 
@@ -286,7 +360,10 @@ function shouldTreatAsSpecificPlaceRequest(message, history, intent) {
   const genericFoodCategory = looksLikeGenericFoodCategory(subject);
   const hasNameLikeCue = /[&'’]/.test(rawCombined) || /(?:\b[A-Z][a-z]+\b){2,}/.test(rawCombined);
   const hasPlaceSuffix = /\b(steakhouse|steak house|restaurant|restaurants|tavern|bistro|kitchen|cafe|coffee|grill|grille|diner|bar|pub|pizzeria|seafood|house)\b/i.test(rawCombined);
+  const hasDetailCue = /\b(address|phone|hours|menu|about|details|info|information|review|reviews|where is|what is|what's|tell me about|tell me more|how is|how's|directions)\b/i.test(combined);
+  const hasFollowupCue = /^(what about|how about|tell me about|tell us about|show me|what is|what's|whats|give me|find me|do you know|any info on|information on|details on)/i.test(rawCombined);
 
+  if ((hasDetailCue || hasFollowupCue) && subjectWords.length >= 1 && subjectWords.length <= 8 && !genericFoodCategory) return true;
   if (hasQueryLocation && subjectWords.length >= 1 && subjectWords.length <= 8 && !genericFoodCategory) return true;
   if (/\b(best|top|recommend|recommendation|options|places|spots|find|show|list)\b/i.test(combined)) {
     return false;
@@ -436,6 +513,7 @@ function buildSystemPrompt() {
     'If the user provides only a location, ZIP, or town with no cuisine or food type, treat it as a request for the best overall restaurants in that place and do not ask them to repeat or add a food type.',
     'If the user provides a specific restaurant name with a location, such as "McDonald’s in Salem," treat it as a specific restaurant profile request, not a broad ranking request.',
     'For specific restaurant profile requests, fetch the exact place details, allow major chains when explicitly named, and include address, phone, website, rating, review count, business status, and a polished concise writeup when available.',
+    'For broad recommendation searches, do not default to Subway or other major chains; prefer verified local restaurants and only show chains when the user names the chain directly.',
     'Do not suggest ordering food, delivery, takeout ordering, or reservations. This assistant only helps people find and learn about restaurants.',
     'Never claim 618FOOD.COM has restaurant partners, ordering partners, online ordering, checkout, delivery, reservations, coupons, or payment features.',
     'If a user asks to order, say 618FOOD.COM can only share restaurant details like website, map, and phone so they can contact the restaurant directly.',
@@ -569,12 +647,14 @@ function normalizeRestaurantRecord(candidate) {
   };
 }
 
-function rankRestaurantsDeterministically(restaurants) {
+function rankRestaurantsDeterministically(restaurants, options = {}) {
+  const allowChains = Boolean(options.allowChains);
   const ranked = restaurants
     .map((restaurant) => {
       const normalized = normalizeRestaurantRecord(restaurant);
       if (!normalized || !normalized.name) return null;
       if (isClosedRestaurant(normalized)) return null;
+      if (!allowChains && classifyRestaurantOwnership(normalized) === 'chain') return null;
 
       const rating = Number.isFinite(normalized.rating) ? normalized.rating : 0;
       const reviewCount = Number.isFinite(normalized.review_count) ? normalized.review_count : 0;
@@ -720,13 +800,15 @@ function scoreRelevanceConfidence(restaurant) {
   return Number(Math.max(0.15, Math.min(1, (reviewConfidence * 0.6) + (ratingConfidence * 0.4))).toFixed(2));
 }
 
-function rankRestaurantsForIntent(restaurants, cuisineText) {
+function rankRestaurantsForIntent(restaurants, cuisineText, options = {}) {
+  const allowChains = Boolean(options.allowChains);
   const cuisine = normalizeWriteupText(cuisineText || '');
   const ranked = (Array.isArray(restaurants) ? restaurants : [])
     .map((restaurant) => {
       const normalized = normalizeRestaurantRecord(restaurant);
       if (!normalized || !normalized.name) return null;
       if (isClosedRestaurant(normalized)) return null;
+      if (!allowChains && classifyRestaurantOwnership(normalized) === 'chain') return null;
 
       const baseScore = Number.isFinite(normalized.score)
         ? Number(normalized.score)
