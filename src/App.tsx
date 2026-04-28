@@ -1,23 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
-import { AudioStrip } from './features/local-eats/components/AudioStrip';
-import { WidgetLauncherPage } from './features/local-eats/components/WidgetLauncherPage';
-import { VoiceWidgetPanel } from './features/local-eats/components/VoiceWidgetPanel';
 import { FOOD_BRAND } from './features/local-eats/schemas';
-import { findSponsoredPlacement } from './features/local-eats/data/sponsoredPlacements';
-import {
-  ask618Chat,
-  playBrowserNarration,
-  request618FoodAudio,
-  stopBrowserNarration
-} from './features/local-eats/lib/client';
-import type { FoodAudioResponse } from './features/local-eats/lib/client';
-import type { ChatTurn, GeneralChatRequest } from './features/local-eats/types';
 
-const LOADING_MESSAGES = ['Thinking...', 'Researching reviews...', 'Searching the internet...'];
-const INITIAL_GREETING =
-  "Hello! I’m 618FOOD.COM. Just tell me a town and what kind of food you want, and I’ll find the top restaurants. You can also enter a restaurant name with a location, and I’ll pull together helpful details about it.";
-const MAX_AUDIO_CHARS = 900;
 const CONTACT_API_BASE_URL = 'https://johnny-chat.onrender.com';
 
 type ContactStatus = {
@@ -31,148 +15,177 @@ function getContactApiBase(): string {
   return String(override || CONTACT_API_BASE_URL).replace(/\/+$/, '');
 }
 
-function navigateTo(path: string): void {
-  if (typeof window === 'undefined') return;
-  window.history.pushState({}, '', path);
-  window.dispatchEvent(new PopStateEvent('popstate'));
-}
-
 function getNormalizedPathname(): string {
   if (typeof window === 'undefined') return '/';
   const normalized = window.location.pathname.replace(/\/+$/, '');
   return normalized || '/';
 }
 
-function normalizeSpeechSummary(text: string): string {
-  const compact = text
-    .replace(/\s+/g, ' ')
-    .replace(/\s+([.,!?;:])/g, '$1')
-    .trim();
-
-  if (compact.length <= MAX_AUDIO_CHARS) {
-    return compact;
-  }
-
-  const sentenceEnd = compact.lastIndexOf('. ', MAX_AUDIO_CHARS);
-  if (sentenceEnd > 280) {
-    return compact.slice(0, sentenceEnd + 1).trim();
-  }
-
-  const softCut = compact.lastIndexOf(', ', MAX_AUDIO_CHARS);
-  if (softCut > 280) {
-    return compact.slice(0, softCut).trim();
-  }
-
-  return compact.slice(0, MAX_AUDIO_CHARS).trim();
+function navigateTo(path: string): void {
+  if (typeof window === 'undefined') return;
+  window.history.pushState({}, '', path);
+  window.dispatchEvent(new PopStateEvent('popstate'));
 }
 
-function getAudioSummary(conversation: ChatTurn[]): string {
-  const latestWithResults = [...conversation]
-    .reverse()
-    .find((turn) => turn.role === 'assistant' && (turn.featuredWriteup || turn.restaurants?.length));
-
-  if (!latestWithResults) {
-    return '';
-  }
-
-  return normalizeSpeechSummary(
-    latestWithResults.featuredWriteup || latestWithResults.restaurants?.[0]?.summary || ''
+function BrandHeader({ compact = false }: { compact?: boolean }): JSX.Element {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-700 text-lg font-black text-white shadow-[0_16px_30px_rgba(22,83,44,0.18)]">
+        618
+      </div>
+      <div>
+        <div className="font-display text-2xl font-semibold tracking-tight text-[#173528] sm:text-3xl">
+          {FOOD_BRAND}
+        </div>
+        <div className="mt-1 text-xs font-medium uppercase tracking-[0.24em] text-stone-500">
+          {compact ? 'Project archive' : 'Voice restaurant finder archive'}
+        </div>
+      </div>
+    </div>
   );
 }
 
-function summarizeAssistantTurn(turn: ChatTurn): string {
-  if (turn.restaurants?.length) {
-    const names = turn.restaurants
-      .slice(0, 7)
-      .map((restaurant) => restaurant.name)
-      .filter(Boolean);
-    if (names.length) {
-      return `Previous restaurant results: ${names.join(', ')}.`;
-    }
-  }
-
-  if (turn.featuredWriteup) {
-    return turn.featuredWriteup.slice(0, 260);
-  }
-
-  return turn.content;
+function ArchiveNav(): JSX.Element {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-amber-900">
+        Live tools offline
+      </span>
+      <a
+        href="/contact"
+        onClick={(event) => {
+          event.preventDefault();
+          navigateTo('/contact');
+        }}
+        className="rounded-full border border-emerald-200 bg-white/90 px-4 py-2 text-sm font-bold text-emerald-900 shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50"
+      >
+        Contact Johnny
+      </a>
+    </div>
+  );
 }
 
-function buildChatHistoryForApi(conversation: ChatTurn[]): ChatTurn[] {
-  return conversation
-    .filter((turn, index) => !(index === 0 && turn.role === 'assistant'))
-    .slice(-8)
-    .map((turn) => {
-      if (turn.role === 'assistant') {
-        return {
-          role: 'assistant' as const,
-          content: summarizeAssistantTurn(turn)
-        };
-      }
+function ProjectStoryPage(): JSX.Element {
+  const builtItems = [
+    'A local restaurant finder that could understand a town, food type, or a specific restaurant request.',
+    'A voice-to-voice interface paired with text chat, so the user could speak naturally and still read the answer.',
+    'A polished writeup for the #1 choice, written like a useful local recommendation instead of a plain search result.',
+    'Audio playback that could read the writeup aloud, turning the result into a hands-free guide.'
+  ];
 
-      return {
-        role: 'user' as const,
-        content: turn.content
-      };
-    });
-}
-
-function getRecentRestaurantContext(conversation: ChatTurn[]): NonNullable<GeneralChatRequest['pageContext']> {
-  const latestRestaurantTurn = [...conversation].reverse().find((turn) => turn.role === 'assistant' && turn.restaurants?.length);
-  const recentRestaurants = latestRestaurantTurn?.restaurants?.slice(0, 7).map((restaurant) => ({
-    place_id: restaurant.place_id,
-    name: restaurant.name,
-    formatted_address: restaurant.formatted_address ?? null,
-    city: restaurant.city ?? null,
-    phone: restaurant.phone ?? null,
-    website: restaurant.website ?? null
-  }));
-
-  const recentLocation =
-    latestRestaurantTurn?.restaurants?.find((restaurant) => restaurant.city)?.city ||
-    latestRestaurantTurn?.restaurants?.[0]?.formatted_address ||
-    undefined;
-
-  return {
-    recentLocation,
-    recentRestaurants
-  };
-}
-
-function SiteNav({ currentPath }: { currentPath: string }): JSX.Element {
-  const navItems = [
-    { href: '/', label: 'Voice Widget' },
-    { href: '/classic', label: 'Classic Search' },
-    { href: '/contact', label: 'Contact' }
+  const proofItems = [
+    'Real-time voice UX can feel friendly and surprisingly natural in a local search product.',
+    'Restaurant discovery is better when the answer explains why a place is a good fit, not just where it is.',
+    'The technical build worked; the limiting factor was operating cost, not whether the app could be made.'
   ];
 
   return (
-    <nav className="flex flex-wrap justify-center gap-2" aria-label="618FOOD pages">
-      {navItems.map((item) => {
-        const active = currentPath === item.href || (item.href === '/' && currentPath === '/widget');
-        return (
-          <a
-            key={item.href}
-            href={item.href}
-            onClick={(event) => {
-              event.preventDefault();
-              navigateTo(item.href);
-            }}
-            className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
-              active
-                ? 'border-emerald-200 bg-emerald-700 text-white shadow-[0_12px_24px_rgba(22,83,44,0.18)]'
-                : 'border-emerald-200 bg-white/88 text-emerald-900 hover:border-emerald-300 hover:bg-emerald-50'
-            }`}
-          >
-            {item.label}
-          </a>
-        );
-      })}
-    </nav>
+    <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.98),_rgba(255,248,233,0.92)_30%,_rgba(236,246,232,0.96)_66%,_rgba(248,241,229,1)_100%)] text-stone-950">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,_rgba(14,122,85,0.18),_transparent_28%),radial-gradient(circle_at_78%_12%,_rgba(240,151,55,0.24),_transparent_24%),radial-gradient(circle_at_48%_88%,_rgba(117,74,35,0.12),_transparent_30%)]" />
+      <div className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:linear-gradient(90deg,#173528_1px,transparent_1px),linear-gradient(#173528_1px,transparent_1px)] [background-size:46px_46px]" />
+
+      <main className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+        <header className="rounded-[2rem] border border-white/75 bg-white/78 px-4 py-4 shadow-[0_22px_70px_rgba(65,53,36,0.13)] backdrop-blur-2xl">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <BrandHeader />
+            <ArchiveNav />
+          </div>
+        </header>
+
+        <section className="grid items-stretch gap-5 lg:grid-cols-[1.05fr_0.95fr]">
+          <div className="rounded-[2.4rem] border border-white/78 bg-white/84 p-7 shadow-[0_28px_80px_rgba(65,53,36,0.16)] backdrop-blur-2xl sm:p-10">
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-emerald-900">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-600" />
+              Project laid to rest
+            </div>
+            <h1 className="mt-6 max-w-4xl font-display text-5xl font-semibold leading-[0.94] tracking-tight text-[#123321] sm:text-6xl lg:text-7xl">
+              A very capable local restaurant finder was built here.
+            </h1>
+            <p className="mt-6 max-w-3xl text-lg leading-8 text-stone-600 sm:text-xl">
+              618FOOD.COM became a voice-first local discovery experiment: users could ask for a town and a craving,
+              get a strong #1 recommendation, read a thoughtful writeup, and hear that writeup spoken back to them.
+            </p>
+            <p className="mt-4 max-w-3xl text-base leading-7 text-stone-600">
+              The technology worked. The experience was real. The reason it is offline now is practical: the APIs and
+              live services needed to run it well are still expensive enough that keeping it active is not sensible for a
+              hobbyist project.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <a
+                href="/contact"
+                onClick={(event) => {
+                  event.preventDefault();
+                  navigateTo('/contact');
+                }}
+                className="inline-flex justify-center rounded-full bg-emerald-700 px-6 py-3 text-sm font-black text-white shadow-[0_18px_36px_rgba(22,83,44,0.24)] transition hover:bg-emerald-800"
+              >
+                Contact Johnny about this project
+              </a>
+              <span className="text-sm font-semibold text-stone-500">
+                The contact form remains live; the food search tools do not.
+              </span>
+            </div>
+          </div>
+
+          <aside className="grid gap-4 rounded-[2.4rem] border border-stone-200/70 bg-[#173528] p-5 text-white shadow-[0_28px_80px_rgba(23,53,40,0.22)] sm:p-6">
+            <div className="rounded-[1.8rem] border border-white/15 bg-white/10 p-5 backdrop-blur">
+              <div className="text-xs font-black uppercase tracking-[0.22em] text-emerald-100">What made it special</div>
+              <div className="mt-4 grid gap-3">
+                {builtItems.map((item) => (
+                  <div key={item} className="rounded-2xl border border-white/12 bg-black/14 p-4 text-sm leading-6 text-emerald-50">
+                    {item}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-[1.8rem] border border-amber-200/25 bg-[linear-gradient(135deg,rgba(255,255,255,0.16),rgba(255,195,107,0.12))] p-5">
+              <div className="text-xs font-black uppercase tracking-[0.22em] text-amber-100">Why it is offline</div>
+              <p className="mt-3 text-sm leading-6 text-stone-100">
+                With enough leg work, sponsorships, ads, and meetings could probably fund the operating costs. That is a
+                real business-development path, but it is not the part Johnny wants to spend his energy on right now.
+              </p>
+            </div>
+          </aside>
+        </section>
+
+        <section className="grid gap-5 lg:grid-cols-3">
+          <div className="rounded-[2rem] border border-white/75 bg-white/82 p-6 shadow-[0_20px_55px_rgba(65,53,36,0.11)] backdrop-blur-2xl">
+            <div className="text-xs font-black uppercase tracking-[0.22em] text-emerald-700">What was built</div>
+            <h2 className="mt-3 font-display text-3xl font-semibold text-[#173528]">A working prototype, not just an idea.</h2>
+            <p className="mt-4 text-sm leading-7 text-stone-600">
+              The app combined local search, ranking, conversational explanation, voice input, text output, and spoken
+              playback into one restaurant-finder flow.
+            </p>
+          </div>
+
+          <div className="rounded-[2rem] border border-white/75 bg-white/82 p-6 shadow-[0_20px_55px_rgba(65,53,36,0.11)] backdrop-blur-2xl">
+            <div className="text-xs font-black uppercase tracking-[0.22em] text-amber-700">What this proved</div>
+            <h2 className="mt-3 font-display text-3xl font-semibold text-[#173528]">The user experience had a pulse.</h2>
+            <ul className="mt-4 grid gap-3 text-sm leading-6 text-stone-600">
+              {proofItems.map((item) => (
+                <li key={item} className="flex gap-3">
+                  <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-emerald-600" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="rounded-[2rem] border border-white/75 bg-white/82 p-6 shadow-[0_20px_55px_rgba(65,53,36,0.11)] backdrop-blur-2xl">
+            <div className="text-xs font-black uppercase tracking-[0.22em] text-stone-500">Current status</div>
+            <h2 className="mt-3 font-display text-3xl font-semibold text-[#173528]">Archived with respect.</h2>
+            <p className="mt-4 text-sm leading-7 text-stone-600">
+              The public search, voice widget, and restaurant tools are intentionally disabled. This page now serves as
+              a record of what was achieved and why it was set down instead of kept live.
+            </p>
+          </div>
+        </section>
+      </main>
+    </div>
   );
 }
 
-function AdvertisingContactPage({ currentPath }: { currentPath: string }): JSX.Element {
+function ContactPage(): JSX.Element {
   const [contactStatus, setContactStatus] = useState<ContactStatus>({ kind: 'idle', message: '' });
   const [submittingContact, setSubmittingContact] = useState(false);
 
@@ -222,20 +235,17 @@ function AdvertisingContactPage({ currentPath }: { currentPath: string }): JSX.E
       <main className="relative mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 px-4 py-4 sm:px-5 sm:py-5 lg:px-6">
         <header className="rounded-[2rem] border border-white/70 bg-white/78 px-4 py-4 shadow-[0_18px_55px_rgba(61,79,42,0.12)] backdrop-blur-2xl">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-700 text-lg font-black text-white shadow-[0_16px_30px_rgba(22,83,44,0.18)]">
-                618
-              </div>
-              <div>
-                <div className="font-display text-2xl font-semibold tracking-tight text-[#173528] sm:text-3xl">
-                  {FOOD_BRAND}
-                </div>
-                <div className="mt-1 text-xs font-medium uppercase tracking-[0.24em] text-stone-500">
-                  Restaurant contact
-                </div>
-              </div>
-            </div>
-            <SiteNav currentPath={currentPath} />
+            <BrandHeader compact />
+            <a
+              href="/"
+              onClick={(event) => {
+                event.preventDefault();
+                navigateTo('/');
+              }}
+              className="w-fit rounded-full border border-emerald-200 bg-white/88 px-4 py-2 text-sm font-bold text-emerald-900 transition hover:border-emerald-300 hover:bg-emerald-50"
+            >
+              Back to project story
+            </a>
           </div>
         </header>
 
@@ -245,20 +255,24 @@ function AdvertisingContactPage({ currentPath }: { currentPath: string }): JSX.E
               Contact Johnny
             </div>
             <h1 className="mt-5 max-w-2xl font-display text-4xl font-semibold leading-tight tracking-tight text-[#173528] sm:text-5xl">
-              Tell us what you want to do on 618FOOD.COM.
+              Want to ask about the 618FOOD experiment?
             </h1>
-            <div className="mt-7 grid gap-3 text-sm leading-6 text-stone-650 sm:grid-cols-3">
+            <p className="mt-5 max-w-xl text-base leading-7 text-stone-600">
+              The live restaurant finder is retired, but you can still reach Johnny about the project, the voice
+              interface, the writeup workflow, or a related idea.
+            </p>
+            <div className="mt-7 grid gap-3 text-sm leading-6 text-stone-600 sm:grid-cols-3">
               <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-4">
-                <strong className="block text-emerald-950">Advertising</strong>
-                Sponsored spots, thumbnails, links, and writeups.
+                <strong className="block text-emerald-950">Project questions</strong>
+                Ask what was built and how it worked.
               </div>
               <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4">
-                <strong className="block text-emerald-950">Restaurant info</strong>
-                Send updates, corrections, menus, or better links.
+                <strong className="block text-emerald-950">Technical notes</strong>
+                Talk voice, text, search, or cost tradeoffs.
               </div>
               <div className="rounded-2xl border border-stone-200 bg-white/80 p-4">
-                <strong className="block text-emerald-950">Questions</strong>
-                Ask about the site or what would fit your business.
+                <strong className="block text-emerald-950">Future ideas</strong>
+                Share a practical reason to revisit it.
               </div>
             </div>
           </div>
@@ -325,25 +339,24 @@ function AdvertisingContactPage({ currentPath }: { currentPath: string }): JSX.E
                 <select
                   name="topic"
                   className="mt-2 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-base outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
-                  defaultValue="Advertising / sponsored placement"
+                  defaultValue="Project question"
                 >
-                  <option>Advertising / sponsored placement</option>
-                  <option>Restaurant writeup</option>
-                  <option>Restaurant info update</option>
-                  <option>Website or ordering link</option>
-                  <option>General question</option>
+                  <option>Project question</option>
+                  <option>Technical discussion</option>
+                  <option>Collaboration idea</option>
+                  <option>Other</option>
                 </select>
               </label>
 
               <label className="block sm:col-span-2">
                 <span className="text-xs font-bold uppercase tracking-[0.16em] text-stone-600">
-                  Business or restaurant name
+                  Project or organization name
                 </span>
                 <input
                   name="company"
                   autoComplete="organization"
                   className="mt-2 w-full rounded-2xl border border-stone-200 bg-white px-4 py-3 text-base outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
-                  placeholder="Restaurant, business, or project name"
+                  placeholder="Optional"
                 />
               </label>
 
@@ -354,13 +367,13 @@ function AdvertisingContactPage({ currentPath }: { currentPath: string }): JSX.E
                   required
                   rows={6}
                   className="mt-2 w-full resize-y rounded-2xl border border-stone-200 bg-white px-4 py-3 text-base leading-7 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
-                  placeholder="Tell Johnny what you need. For example: sponsored placement, restaurant writeup, menu/link update, or a question about 618FOOD.COM."
+                  placeholder="Tell Johnny what you would like to know about 618FOOD.COM, the voice interface, the restaurant writeup workflow, or the retired build."
                 />
               </label>
 
               <label className="block sm:col-span-2">
                 <span className="text-xs font-bold uppercase tracking-[0.16em] text-stone-600">
-                  Photos, menu, or screenshots
+                  Optional files or screenshots
                 </span>
                 <input
                   name="attachments"
@@ -370,7 +383,7 @@ function AdvertisingContactPage({ currentPath }: { currentPath: string }): JSX.E
                   className="mt-2 w-full rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/70 px-4 py-3 text-sm text-stone-700 file:mr-4 file:rounded-full file:border-0 file:bg-emerald-700 file:px-4 file:py-2 file:text-sm file:font-bold file:text-white"
                 />
                 <span className="mt-2 block text-xs leading-5 text-stone-500">
-                  Optional. Useful for menus, logos, restaurant photos, or screenshots of what needs changed.
+                  Optional. Useful if you are referencing a screenshot, idea, or technical note.
                 </span>
               </label>
             </div>
@@ -405,82 +418,6 @@ function AdvertisingContactPage({ currentPath }: { currentPath: string }): JSX.E
 
 export default function App(): JSX.Element {
   const [currentPath, setCurrentPath] = useState(getNormalizedPathname);
-  const [assistantLoading, setAssistantLoading] = useState(false);
-  const [assistantTranscript, setAssistantTranscript] = useState<ChatTurn[]>([
-    {
-      role: 'assistant',
-      content: INITIAL_GREETING
-    }
-  ]);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [audioLoading, setAudioLoading] = useState(false);
-  const [playedResponseContent, setPlayedResponseContent] = useState<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const browserSpeechRef = useRef<SpeechSynthesisUtterance | null>(null);
-  const audioCacheRef = useRef<{
-    text: string;
-    audio: FoodAudioResponse | null;
-    promise: Promise<FoodAudioResponse> | null;
-  }>({
-    text: '',
-    audio: null,
-    promise: null
-  });
-  const autoPlayedSummaryRef = useRef('');
-  const [autoPlaybackEnabled, setAutoPlaybackEnabled] = useState(false);
-  const [assistantLoadingLabel, setAssistantLoadingLabel] = useState(LOADING_MESSAGES[0]);
-  const isWidgetLauncherPage = currentPath === '/' || currentPath === '/widget';
-  const isWidgetPanelPage = currentPath === '/widget/panel';
-  const isClassicPage = currentPath === '/classic';
-  const isContactPage = currentPath === '/contact';
-  const isWidgetRoute = isWidgetLauncherPage || isWidgetPanelPage;
-
-  const hasSearched = assistantTranscript.some((turn) => turn.role === 'user');
-
-  useEffect(() => {
-    return () => {
-      stopBrowserNarration();
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = '';
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!assistantLoading) {
-      setAssistantLoadingLabel(LOADING_MESSAGES[0]);
-      return;
-    }
-
-    let index = 0;
-    setAssistantLoadingLabel(LOADING_MESSAGES[index]);
-    const interval = window.setInterval(() => {
-      index = (index + 1) % LOADING_MESSAGES.length;
-      setAssistantLoadingLabel(LOADING_MESSAGES[index]);
-    }, 10000);
-
-    return () => {
-      window.clearInterval(interval);
-    };
-  }, [assistantLoading]);
-
-  useEffect(() => {
-    if (isWidgetRoute) return;
-    const enableAutoPlayback = () => {
-      setAutoPlaybackEnabled(true);
-    };
-
-    window.addEventListener('pointerdown', enableAutoPlayback, { once: true, passive: true });
-    window.addEventListener('touchstart', enableAutoPlayback, { once: true, passive: true });
-    window.addEventListener('keydown', enableAutoPlayback, { once: true });
-
-    return () => {
-      window.removeEventListener('pointerdown', enableAutoPlayback);
-      window.removeEventListener('touchstart', enableAutoPlayback);
-      window.removeEventListener('keydown', enableAutoPlayback);
-    };
-  }, []);
 
   useEffect(() => {
     const handlePopState = () => setCurrentPath(getNormalizedPathname());
@@ -488,312 +425,9 @@ export default function App(): JSX.Element {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  async function prefetchAudio(text: string): Promise<FoodAudioResponse> {
-    const normalizedText = text.trim();
-    if (!normalizedText) {
-      return { fallback: true, text: normalizedText };
-    }
-
-    const cached = audioCacheRef.current;
-    if (cached.text === normalizedText && cached.audio) {
-      return cached.audio;
-    }
-    if (cached.text === normalizedText && cached.promise) {
-      return cached.promise;
-    }
-
-    const request = request618FoodAudio(normalizedText)
-      .then((audio) => {
-        audioCacheRef.current = {
-          text: normalizedText,
-          audio,
-          promise: null
-        };
-        return audio;
-      })
-      .catch(() => {
-        const fallbackAudio: FoodAudioResponse = {
-          fallback: true,
-          text: normalizedText
-        };
-        audioCacheRef.current = {
-          text: normalizedText,
-          audio: fallbackAudio,
-          promise: null
-        };
-        return fallbackAudio;
-      });
-
-    audioCacheRef.current = {
-      text: normalizedText,
-      audio: null,
-      promise: request
-    };
-
-    return request;
+  if (currentPath === '/contact') {
+    return <ContactPage />;
   }
 
-  async function playSummaryText(text: string): Promise<void> {
-    if (!text.trim()) return;
-
-    if (audioLoading) return;
-
-    const currentAudio = audioRef.current;
-    if (currentAudio) {
-      if (!isPlaying) {
-        if (currentAudio.ended) {
-          currentAudio.currentTime = 0;
-        }
-        try {
-          await currentAudio.play();
-          setIsPlaying(true);
-          return;
-        } catch {
-          // Fall through and regenerate audio if resuming fails.
-        }
-      } else {
-        currentAudio.pause();
-        stopBrowserNarration();
-        setIsPlaying(false);
-        return;
-      }
-    }
-
-    setAudioLoading(true);
-    try {
-      setPlayedResponseContent(text);
-      const audio = await prefetchAudio(text);
-      if (audio.audioBase64) {
-        if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current = null;
-        }
-        const mimeType = audio.mimeType || 'audio/mpeg';
-        const player = new Audio(`data:${mimeType};base64,${audio.audioBase64}`);
-        player.onplay = () => setIsPlaying(true);
-        player.onended = () => setIsPlaying(false);
-        player.onerror = () => {
-          setIsPlaying(false);
-        };
-        audioRef.current = player;
-        await player.play();
-        return;
-      }
-      await playBrowserNarration(text);
-      setIsPlaying(false);
-    } catch {
-      try {
-        await playBrowserNarration(text);
-      } catch {
-        setIsPlaying(false);
-      } finally {
-        setIsPlaying(false);
-      }
-    } finally {
-      setAudioLoading(false);
-    }
-  }
-
-  async function handlePlaySummary(): Promise<void> {
-    const text = getAudioSummary(assistantTranscript);
-    await playSummaryText(text);
-  }
-
-  async function handleAssistantChat(value: string): Promise<void> {
-    const followUp = value.trim();
-    if (!followUp) return;
-
-    setAssistantLoading(true);
-    try {
-      const historyBeforeMessage = assistantTranscript;
-      const historyForApi = buildChatHistoryForApi(historyBeforeMessage);
-      const nextTranscript: ChatTurn[] = [...historyBeforeMessage, { role: 'user', content: followUp }];
-      const recentRestaurantContext = getRecentRestaurantContext(historyBeforeMessage);
-      setAssistantTranscript(nextTranscript);
-
-        const assistant = await ask618Chat({
-          message: followUp,
-          history: historyForApi,
-          pageContext: {
-            brand: FOOD_BRAND,
-            pageTitle: '618FOOD.COM',
-            pageSummary:
-              'A restaurant finder focused on real places and customer experience. It does not provide ordering, reservations, delivery, checkout, or partner services.',
-            ...recentRestaurantContext
-          }
-        });
-
-        const assistantTurn: ChatTurn = {
-          role: 'assistant',
-          content: assistant.reply,
-          sources: assistant.sources || [],
-          restaurants: assistant.restaurants || [],
-          featuredWriteup: assistant.featuredWriteup || ''
-        };
-        const assistantAudioText = getAudioSummary([...historyBeforeMessage, assistantTurn]);
-        void prefetchAudio(assistantAudioText);
-        if (autoPlaybackEnabled && assistantAudioText && autoPlayedSummaryRef.current !== assistantAudioText) {
-          autoPlayedSummaryRef.current = assistantAudioText;
-          void playSummaryText(assistantAudioText);
-        }
-
-        setAssistantTranscript((current) => [...current, assistantTurn]);
-    } catch {
-      setAssistantTranscript((current) => [
-        ...current,
-        {
-          role: 'assistant',
-          content: 'I could not reach 618FOOD.COM right now. Please try again in a moment.',
-          sources: [],
-          restaurants: []
-        }
-      ]);
-    } finally {
-      setAssistantLoading(false);
-    }
-  }
-
-  function handleResetSearch(): void {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      audioRef.current.src = '';
-      audioRef.current = null;
-    }
-    audioCacheRef.current = {
-      text: '',
-      audio: null,
-      promise: null
-    };
-    autoPlayedSummaryRef.current = '';
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-    }
-    browserSpeechRef.current = null;
-    stopBrowserNarration();
-    setIsPlaying(false);
-    setAudioLoading(false);
-    setAssistantLoading(false);
-    setAssistantLoadingLabel(LOADING_MESSAGES[0]);
-    setPlayedResponseContent(null);
-    setAssistantTranscript([
-      {
-        role: 'assistant',
-        content: INITIAL_GREETING
-      }
-    ]);
-  }
-
-  const audioSummary = getAudioSummary(assistantTranscript);
-  const latestAssistantResponse = [...assistantTranscript].reverse().find((turn) => turn.role === 'assistant');
-  const sponsoredMatch = findSponsoredPlacement(latestAssistantResponse?.restaurants || []);
-
-  function renderPageTitle(): JSX.Element {
-    return (
-      <div className="flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-700 text-lg font-black text-white shadow-[0_16px_30px_rgba(22,83,44,0.18)]">
-          618
-        </div>
-        <div>
-          <div className="font-display text-2xl font-semibold tracking-tight text-[#173528] sm:text-3xl">
-            {FOOD_BRAND}
-          </div>
-          <div className="mt-1 text-xs font-medium uppercase tracking-[0.24em] text-stone-500">
-            Restaurant finder
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  useEffect(() => {
-    if (isWidgetRoute) return;
-    const latestAssistant = [...assistantTranscript].reverse().find((turn) => turn.role === 'assistant');
-    if (latestAssistant?.content && latestAssistant.content !== playedResponseContent) {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-        audioRef.current.src = '';
-        audioRef.current = null;
-      }
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
-      browserSpeechRef.current = null;
-      stopBrowserNarration();
-      setIsPlaying(false);
-      setPlayedResponseContent(null);
-    }
-  }, [assistantTranscript, playedResponseContent]);
-
-  useEffect(() => {
-    if (isWidgetRoute) return;
-    const text = audioSummary.trim();
-    if (!text || !hasSearched) return;
-    void prefetchAudio(text);
-  }, [audioSummary, hasSearched]);
-
-  useEffect(() => {
-    if (isWidgetRoute) return;
-    const text = audioSummary.trim();
-    if (!autoPlaybackEnabled || !hasSearched || !text) return;
-    if (autoPlayedSummaryRef.current === text) return;
-    autoPlayedSummaryRef.current = text;
-    void handlePlaySummary();
-  }, [autoPlaybackEnabled, audioSummary, hasSearched]);
-
-  if (isWidgetLauncherPage) {
-    return <WidgetLauncherPage currentPath={currentPath} />;
-  }
-
-  if (isWidgetPanelPage) {
-    return <VoiceWidgetPanel />;
-  }
-
-  if (isContactPage) {
-    return <AdvertisingContactPage currentPath={currentPath} />;
-  }
-
-  if (!isClassicPage) {
-    return <WidgetLauncherPage currentPath="/" />;
-  }
-
-  return (
-    <div className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.96),_rgba(250,246,236,0.82)_34%,_rgba(236,244,227,0.96)_66%,_rgba(247,241,228,1)_100%)] text-stone-900">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(111,162,98,0.24),_transparent_28%),radial-gradient(circle_at_top_right,_rgba(206,179,95,0.18),_transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.42),rgba(255,255,255,0))]" />
-      <div className="pointer-events-none absolute inset-0 bg-[url('data:image/svg+xml,%3Csvg viewBox=%270 0 200 200%27 xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cfilter id=%27n%27%3E%3CfeTurbulence type=%27fractalNoise%27 baseFrequency=%270.9%27 numOctaves=%274%27 stitchTiles=%27stitch%27/%3E%3C/filter%3E%3Crect width=%27100%25%27 height=%27100%25%27 filter=%27url(%23n)%27 opacity=%270.14%27/%3E%3C/svg%3E')] opacity-25" />
-
-      <main
-        className={`relative mx-auto flex min-h-screen w-full flex-col gap-5 px-4 py-4 sm:px-5 sm:py-5 lg:px-6 ${
-          isWidgetRoute ? 'max-w-5xl' : 'max-w-[1080px]'
-        }`}
-      >
-        <header className="rounded-[2rem] border border-white/70 bg-white/72 px-4 py-4 shadow-[0_18px_55px_rgba(61,79,42,0.12)] backdrop-blur-2xl">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-            {renderPageTitle()}
-            <div className="flex flex-wrap gap-2">
-              <SiteNav currentPath={currentPath} />
-            </div>
-          </div>
-        </header>
-
-        <section className="mx-auto w-full max-w-3xl">
-          <AudioStrip
-            summary={audioSummary}
-            isPlaying={isPlaying}
-            isLoading={audioLoading}
-            assistantLoading={assistantLoading}
-            assistantLoadingLabel={assistantLoadingLabel}
-            conversation={assistantTranscript}
-            showSearchInput={!hasSearched}
-            sponsoredPlacement={sponsoredMatch?.placement || null}
-            sponsoredRestaurant={sponsoredMatch?.restaurant || null}
-            onPlay={handlePlaySummary}
-            onResetSearch={handleResetSearch}
-            onAskAssistant={handleAssistantChat}
-          />
-        </section>
-      </main>
-    </div>
-  );
+  return <ProjectStoryPage />;
 }

@@ -2,11 +2,7 @@ import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { createEmptySearchResponse, normalizeSearchRequest, FOOD_BRAND } from './services/food/schemas.js';
-import { describeFoodIntent, inferFoodIntent } from './services/food/intent.js';
-import { searchWithOpenAI } from './services/food/openai-search.js';
-import { generateFoodSpeech } from './services/food/audio.js';
-import { runRestaurantAgent } from './services/restaurant-agent/node-agent.js';
+import { FOOD_BRAND } from './services/food/schemas.js';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -146,10 +142,6 @@ function extractFirstJsonObject(text) {
   } catch {
     return null;
   }
-}
-
-function normalizeChatMessage(value) {
-  return typeof value === 'string' ? value.trim() : '';
 }
 
 function readSalesLeads() {
@@ -405,182 +397,33 @@ app.post('/api/sales-lead', (req, res) => {
   }
 });
 
-function buildAssistantResultSummary(results) {
-  if (!Array.isArray(results) || !results.length) {
-    return 'No verified spots yet.';
-  }
-
-  const top = results[0];
-  return `I found a current local food match: ${top.name}.`;
-}
-
-function enrichFoodRequest(request) {
-  const intent = inferFoodIntent(request);
-  const filters = {
-    ...request.filters,
-    cuisine: request.filters.cuisine || intent.inferredCuisine || ''
-  };
-
+function createRetiredFoodResponse(feature = 'live restaurant tools') {
   return {
-    request: {
-      ...request,
-      query: intent.querySubject || request.query,
-      destinationText: intent.inferredLocation || request.destinationText,
-      filters
-    },
-    intent
+    ok: false,
+    retired: true,
+    service: FOOD_BRAND,
+    feature,
+    message:
+      '618FOOD.COM is retired as a live restaurant finder. The project remains online as an archive, but live restaurant search, assistant, audio, and realtime features are disabled to avoid API costs.'
   };
 }
 
-app.post('/api/food/search', async (req, res) => {
-  try {
-    const request = normalizeSearchRequest(req.body || {});
-    const { request: searchRequest, intent } = enrichFoodRequest(request);
-    const openaiKey = process.env.OPENAI_API_KEY;
-    const searchModel = process.env.OPENAI_MODEL || 'gpt-5.4';
+function sendRetiredFoodResponse(res, feature) {
+  return res.status(410).json(createRetiredFoodResponse(feature));
+}
 
-    if (!openaiKey) {
-      return res.json({
-        ...createEmptySearchResponse(
-          `${FOOD_BRAND} is waiting for OpenAI credentials so it can return verified restaurant results.`
-        ),
-        warnings: ['OPENAI_API_KEY is not configured on the server yet.']
-      });
-    }
+app.post('/api/food/search', (_req, res) => sendRetiredFoodResponse(res, 'live restaurant search'));
 
-    const searchResult = await searchWithOpenAI({
-      apiKey: openaiKey,
-      model: searchModel,
-      request: searchRequest
-    });
-
-    return res.json({
-      intentSummary: searchResult.intentSummary || describeFoodIntent(searchRequest),
-      summary: typeof searchResult.summary === 'string' ? searchResult.summary : '',
-      results: Array.isArray(searchResult.results) ? searchResult.results.slice(0, 8) : [],
-      warnings: Array.isArray(searchResult.warnings) ? searchResult.warnings : [],
-      audioSummary: typeof searchResult.audioSummary === 'string' ? searchResult.audioSummary : '',
-      buckets: Array.isArray(searchResult.buckets) ? searchResult.buckets : [],
-      hasLiveData: true,
-      sourceMode: 'live'
-    });
-  } catch (error) {
-    return res.status(500).json({
-      error: 'Unable to search 618FOOD.COM right now.',
-      details: String(error.message || error)
-    });
-  }
-});
-
-async function handleRestaurantAgentRequest(req, res) {
-  try {
-    const { message, history, pageContext } = req.body || {};
-    const cleanMessage = normalizeChatMessage(message);
-    if (!cleanMessage) {
-      return res.status(400).json({ error: 'Message is required.' });
-    }
-
-    const requestId = `chat_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
-    const agentResult = await runRestaurantAgent({
-      message: cleanMessage,
-      history: Array.isArray(history) ? history : [],
-      pageContext: pageContext && typeof pageContext === 'object' ? pageContext : null,
-      requestId
-    });
-
-    return res.json(agentResult);
-  } catch (error) {
-    console.error(`[restaurant-agent] chat failed`, error);
-    return res.status(500).json({
-      error: 'Unable to answer 618FOOD.COM right now.',
-      details: String(error.message || error)
-    });
-  }
+async function handleRestaurantAgentRequest(_req, res) {
+  return sendRetiredFoodResponse(res, 'restaurant assistant');
 }
 
 app.post('/api/chat', handleRestaurantAgentRequest);
 app.post('/api/food/assistant', handleRestaurantAgentRequest);
 
-app.post('/api/food/audio', async (req, res) => {
-  try {
-    const { text } = req.body || {};
-    if (!text || typeof text !== 'string' || !text.trim()) {
-      return res.status(400).json({ error: 'Text is required.' });
-    }
+app.post('/api/food/audio', (_req, res) => sendRetiredFoodResponse(res, 'food audio narration'));
 
-    const audio = await generateFoodSpeech({
-      apiKey: process.env.GEMINI_API_KEY,
-      model:
-        process.env.GEMINI_AUDIO_MODEL ||
-        process.env.GEMINI_LIVE_MODEL ||
-        process.env.GEMINI_TTS ||
-        'gemini-3.1-flash-live-preview',
-      voice: process.env.GEMINI_AUDIO_VOICE || process.env.GEMINI_TTS_VOICE || 'Orus',
-      text: text.trim()
-    });
-
-    return res.json(audio);
-  } catch (error) {
-    return res.status(500).json({
-      error: 'Unable to generate audio for 618FOOD.COM.',
-      details: String(error.message || error)
-    });
-  }
-});
-
-app.post('/api/realtime-token', async (_req, res) => {
-  try {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return res.status(500).json({ error: 'OPENAI_API_KEY is not configured on server.' });
-    }
-
-    const model = process.env.OPENAI_REALTIME_MODEL || process.env.OPENAI_LIVE_MODEL || 'gpt-realtime-1.5';
-    const voice = process.env.OPENAI_REALTIME_VOICE || process.env.OPENAI_VOICE || 'echo';
-    const response = await fetch('https://api.openai.com/v1/realtime/sessions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model,
-        voice,
-        instructions:
-          'You are the realtime voice layer for 618FOOD.COM. Speak clearly and naturally. When asked to read text, read it exactly as written without adding extra commentary. Never add claims about ordering, delivery, reservations, checkout, coupons, or restaurant partners.',
-        input_audio_transcription: { model: 'whisper-1' },
-        turn_detection: {
-          type: 'server_vad',
-          threshold: 0.72,
-          prefix_padding_ms: 800,
-          silence_duration_ms: 1800,
-          create_response: false,
-          interrupt_response: false
-        },
-        tools: []
-      })
-    });
-
-    const data = await response.json();
-    if (!response.ok) {
-      return res.status(response.status).json({
-        error: 'OpenAI realtime token request failed',
-        details: data
-      });
-    }
-
-    return res.json({
-      ...data,
-      model,
-      voice
-    });
-  } catch (error) {
-    return res.status(500).json({
-      error: 'Unable to generate OpenAI Realtime token.',
-      details: String(error.message || error)
-    });
-  }
-});
+app.post('/api/realtime-token', (_req, res) => sendRetiredFoodResponse(res, 'realtime voice chat'));
 
 app.get('/health', (_req, res) => {
   res.json({ ok: true });
