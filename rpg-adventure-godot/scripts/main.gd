@@ -19,8 +19,9 @@ const CAMERA_MIN_PITCH := -1.18
 const CAMERA_MAX_PITCH := -0.025
 const SWORD_SWING_DURATION := 0.28
 const SWORD_SWING_COOLDOWN := 0.55
-const SWORD_LIGHT_BASE_ENERGY := 3.8
-const SWORD_LIGHT_SWING_ENERGY := 10.5
+const SWORD_LIGHT_BASE_ENERGY := 76.0
+const SWORD_LIGHT_SWING_ENERGY := 210.0
+const FIRE_BOLT_RANGE := 7.5
 const SHIELD_BLOCK_DURATION := 1.1
 const SHIELD_BLOCK_COOLDOWN := 1.8
 const DUNGEON_LAYOUT := [
@@ -55,6 +56,13 @@ var sword_light: OmniLight3D
 var view_sword: MeshInstance3D
 var view_sword_guard: MeshInstance3D
 var view_sword_slash: MeshInstance3D
+var staff_orb: MeshInstance3D
+var view_staff_orb: MeshInstance3D
+var fire_bolt_beam: MeshInstance3D
+var fire_bolt_tip: MeshInstance3D
+var fire_bolt_light: OmniLight3D
+var fire_bolt_start := Vector3.ZERO
+var fire_bolt_end := Vector3.ZERO
 var hero_velocity := Vector3.ZERO
 var camera_yaw := 0.0
 var camera_pitch_offset := 0.0
@@ -100,13 +108,18 @@ var hud_toggle_button: Button
 var hud_stats: Label
 var hud_quest: Label
 var hud_hint: Label
-var hud_inventory: Label
+var hud_inventory: VBoxContainer
+var equipment_slot_buttons: Dictionary = {}
+var inventory_grid: GridContainer
+var inventory_detail: Label
 var sword_button: Button
 var shield_button: Button
 var click_to_move_checkbox: CheckBox
 var health_bar: ProgressBar
 var xp_bar: ProgressBar
 var hud_minimized := false
+var selected_inventory_item := "Orb Staff"
+var inventory_signature := ""
 
 
 func _ready() -> void:
@@ -325,14 +338,17 @@ func _dungeon_cell_key(cell: Vector2i) -> String:
 
 
 func _build_camera_sword() -> void:
-	view_sword = _add_box(Vector3(0.42, -0.34, -0.92), Vector3(0.07, 0.07, 0.92), _mat("f7fdff", 0.28, "aee9ff", 1.4), camera)
-	view_sword.name = "Close Camera Sword"
+	view_sword = _add_cylinder(Vector3(0.42, -0.35, -0.88), 0.032, 0.96, _mat("6a3f22", 0.72, "ff8f3b", 0.18), camera)
+	view_sword.name = "Close Camera Staff"
 	view_sword.visible = false
-	view_sword_guard = _add_box(Vector3(0.42, -0.47, -0.54), Vector3(0.36, 0.055, 0.075), _mat("f0bd55", 0.56, "ffd278", 0.18), camera)
-	view_sword_guard.name = "Close Camera Sword Guard"
+	view_sword_guard = _add_box(Vector3(0.42, -0.47, -0.54), Vector3(0.28, 0.05, 0.07), _mat("d59a42", 0.56, "ffc35a", 0.24), camera)
+	view_sword_guard.name = "Close Camera Staff Binding"
 	view_sword_guard.visible = false
-	view_sword_slash = _add_box(Vector3(0.08, -0.1, -1.2), Vector3(0.78, 0.025, 0.08), _mat("9de9ff", 0.22, "baf5ff", 1.8), camera)
-	view_sword_slash.name = "Close Camera Sword Slash"
+	view_staff_orb = _add_sphere(Vector3(0.42, -0.06, -1.2), 0.16, 0.16, _mat("ff7a2b", 0.18, "ffb13d", 5.0), camera)
+	view_staff_orb.name = "Close Camera Staff Orb"
+	view_staff_orb.visible = false
+	view_sword_slash = _add_box(Vector3(0.08, -0.1, -1.2), Vector3(0.7, 0.07, 0.07), _mat("ff6a18", 0.18, "ffc15a", 3.4), camera)
+	view_sword_slash.name = "Close Camera Fire Bolt"
 	view_sword_slash.transparency = 0.28
 	view_sword_slash.visible = false
 
@@ -471,10 +487,13 @@ func _spawn_hero() -> void:
 	hero_ring.transparency = 0.42
 	hero_body = _add_cylinder(Vector3(0.0, 0.62, 0.0), 0.28, 0.78, _mat("344d75", 0.72), hero)
 	_add_sphere(Vector3(0.0, 1.18, 0.0), 0.24, 0.25, _mat("f2c49b", 0.78), hero)
-	_add_box(Vector3(0.0, 0.78, 0.22), Vector3(0.5, 0.68, 0.08), _mat("7a3140", 0.8), hero)
-	_add_box(Vector3(0.0, 1.42, 0.0), Vector3(0.52, 0.12, 0.42), _mat("5a3d2e", 0.82), hero)
-	hero_sword = _add_box(Vector3(0.42, 0.66, -0.12), Vector3(0.09, 0.08, 0.8), _mat("e8f7ff", 0.36, "89cfff", 0.34), hero)
-	_add_box(Vector3(0.42, 0.5, 0.28), Vector3(0.2, 0.09, 0.09), _mat("d4a94d", 0.68), hero)
+	_add_box(Vector3(0.0, 0.78, 0.22), Vector3(0.5, 0.68, 0.08), _mat("49306f", 0.76, "8057ff", 0.14), hero)
+	_add_box(Vector3(0.0, 1.42, 0.0), Vector3(0.56, 0.12, 0.46), _mat("2d203b", 0.78, "7c5cff", 0.12), hero)
+	_add_cylinder(Vector3(0.0, 1.48, 0.0), 0.26, 0.18, _mat("1f172b", 0.78, "7e5dff", 0.12), hero)
+	hero_sword = _add_cylinder(Vector3(0.42, 0.83, -0.12), 0.045, 1.04, _mat("6a3f22", 0.72, "ff8f3b", 0.18), hero)
+	hero_sword.rotation_degrees.z = -8.0
+	_add_box(Vector3(0.42, 0.38, -0.12), Vector3(0.22, 0.07, 0.08), _mat("d4a94d", 0.68, "ffc45d", 0.18), hero)
+	staff_orb = _add_sphere(Vector3(0.42, 1.42, -0.12), 0.2, 0.2, _mat("ff7a2b", 0.18, "ffb13d", 5.4), hero)
 	hero_shield = _add_box(Vector3(-0.34, 0.68, -0.28), Vector3(0.14, 0.58, 0.42), _mat("7f91ac", 0.56, "9ec5ff", 0.16), hero)
 	hero_shield.visible = false
 
@@ -489,12 +508,31 @@ func _spawn_hero() -> void:
 
 	sword_light = OmniLight3D.new()
 	sword_light.name = "Sword Glow"
-	sword_light.light_color = Color("a8e1ff")
+	sword_light.light_color = Color("ffb13d")
 	sword_light.light_energy = SWORD_LIGHT_BASE_ENERGY
-	sword_light.omni_range = 3.6
+	sword_light.omni_range = 7.5
 	sword_light.shadow_enabled = false
-	sword_light.position = Vector3(0.42, 0.74, -0.24)
+	sword_light.position = Vector3(0.42, 1.42, -0.12)
 	hero.add_child(sword_light)
+
+	_create_fire_bolt_visuals()
+
+
+func _create_fire_bolt_visuals() -> void:
+	fire_bolt_beam = _add_box(Vector3.ZERO, Vector3(0.14, 0.14, 1.0), _mat("ff5a12", 0.18, "ffb34d", 4.5), self)
+	fire_bolt_beam.name = "Fire Bolt Beam"
+	fire_bolt_beam.visible = false
+	fire_bolt_tip = _add_sphere(Vector3.ZERO, 0.22, 0.22, _mat("ff822e", 0.12, "ffd15a", 5.5), self)
+	fire_bolt_tip.name = "Fire Bolt Tip"
+	fire_bolt_tip.visible = false
+	fire_bolt_light = OmniLight3D.new()
+	fire_bolt_light.name = "Fire Bolt Light"
+	fire_bolt_light.light_color = Color("ff9d42")
+	fire_bolt_light.light_energy = 16.0
+	fire_bolt_light.omni_range = 4.6
+	fire_bolt_light.shadow_enabled = false
+	fire_bolt_light.visible = false
+	add_child(fire_bolt_light)
 
 
 func _spawn_creatures() -> void:
@@ -645,8 +683,8 @@ func _build_hud() -> void:
 	hud_details.add_child(action_row)
 
 	sword_button = Button.new()
-	sword_button.text = "1  Sword"
-	sword_button.custom_minimum_size = Vector2(116, 32)
+	sword_button.text = "1  Firebolt"
+	sword_button.custom_minimum_size = Vector2(126, 32)
 	sword_button.pressed.connect(_use_sword_swing)
 	action_row.add_child(sword_button)
 
@@ -668,11 +706,10 @@ func _build_hud() -> void:
 	hud_quest.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hud_details.add_child(hud_quest)
 
-	hud_inventory = Label.new()
-	hud_inventory.add_theme_color_override("font_color", Color("ffeab8"))
-	hud_inventory.add_theme_font_size_override("font_size", 14)
-	hud_inventory.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hud_inventory = VBoxContainer.new()
+	hud_inventory.add_theme_constant_override("separation", 6)
 	hud_details.add_child(hud_inventory)
+	_build_inventory_panel()
 
 	hud_hint = Label.new()
 	hud_hint.add_theme_color_override("font_color", Color("c9d5cf"))
@@ -692,9 +729,147 @@ func _apply_hud_mode() -> void:
 	if hud_details:
 		hud_details.visible = not hud_minimized
 	if hud_panel:
-		hud_panel.custom_minimum_size = Vector2(430, 54) if hud_minimized else Vector2(560, 190)
+		hud_panel.custom_minimum_size = Vector2(430, 54) if hud_minimized else Vector2(610, 300)
 	if hud_toggle_button:
 		hud_toggle_button.text = "More" if hud_minimized else "Min"
+
+
+func _build_inventory_panel() -> void:
+	var title := Label.new()
+	title.text = "Wizard kit"
+	title.add_theme_color_override("font_color", Color("ffdca8"))
+	title.add_theme_font_size_override("font_size", 14)
+	hud_inventory.add_child(title)
+
+	var equipment_grid := GridContainer.new()
+	equipment_grid.columns = 3
+	equipment_grid.add_theme_constant_override("h_separation", 6)
+	equipment_grid.add_theme_constant_override("v_separation", 6)
+	hud_inventory.add_child(equipment_grid)
+	for slot_name in ["Weapon", "Ward", "Boots", "Charm", "Light", "Pack"]:
+		var button := Button.new()
+		button.custom_minimum_size = Vector2(180, 42)
+		button.pressed.connect(_select_equipment_slot.bind(slot_name))
+		equipment_grid.add_child(button)
+		equipment_slot_buttons[slot_name] = button
+
+	var pack_label := Label.new()
+	pack_label.text = "Collected items"
+	pack_label.add_theme_color_override("font_color", Color("d9f6ff"))
+	pack_label.add_theme_font_size_override("font_size", 13)
+	hud_inventory.add_child(pack_label)
+
+	inventory_grid = GridContainer.new()
+	inventory_grid.columns = 4
+	inventory_grid.add_theme_constant_override("h_separation", 6)
+	inventory_grid.add_theme_constant_override("v_separation", 6)
+	hud_inventory.add_child(inventory_grid)
+
+	inventory_detail = Label.new()
+	inventory_detail.add_theme_color_override("font_color", Color("f7e3c2"))
+	inventory_detail.add_theme_font_size_override("font_size", 13)
+	inventory_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hud_inventory.add_child(inventory_detail)
+
+
+func _select_inventory_item(item_name: String) -> void:
+	selected_inventory_item = item_name
+	inventory_signature = ""
+	_refresh_inventory_panel()
+
+
+func _select_equipment_slot(slot_name: String) -> void:
+	selected_inventory_item = _equipped_item_for_slot(slot_name)
+	inventory_signature = ""
+	_refresh_inventory_panel()
+
+
+func _refresh_inventory_panel() -> void:
+	if inventory_grid == null:
+		return
+	var signature := _inventory_state_signature()
+	if signature == inventory_signature:
+		return
+	inventory_signature = signature
+	_update_equipment_buttons()
+	for child in inventory_grid.get_children():
+		child.queue_free()
+	for item_name in _inventory_entries():
+		var button := Button.new()
+		button.text = "%s\n%s" % [_item_icon(item_name), _short_item_name(item_name)]
+		button.custom_minimum_size = Vector2(128, 44)
+		button.tooltip_text = _item_detail(item_name)
+		_style_inventory_button(button, item_name == selected_inventory_item)
+		button.pressed.connect(_select_inventory_item.bind(item_name))
+		inventory_grid.add_child(button)
+	if inventory_detail:
+		inventory_detail.text = "%s: %s" % [_display_item_name(selected_inventory_item), _item_detail(selected_inventory_item)]
+
+
+func _update_equipment_buttons() -> void:
+	for slot_name in ["Weapon", "Ward", "Boots", "Charm", "Light", "Pack"]:
+		var button: Button = equipment_slot_buttons.get(slot_name)
+		if button == null:
+			continue
+		var item_name := _equipped_item_for_slot(slot_name)
+		button.text = "%s  %s\n%s" % [_item_icon(item_name), slot_name, _short_item_name(item_name)]
+		button.tooltip_text = _item_detail(item_name)
+		_style_inventory_button(button, item_name == selected_inventory_item)
+
+
+func _equipped_item_for_slot(slot_name: String) -> String:
+	match slot_name:
+		"Weapon":
+			return "Orb Staff"
+		"Ward":
+			return "Arcane Ward"
+		"Boots":
+			return "Silent Boots" if _has_inventory_item("Silent Boots") else "Empty Boots"
+		"Charm":
+			return "Bloodstone Charm" if _has_inventory_item("Bloodstone Charm") else "Empty Charm"
+		"Light":
+			return "Crypt Lantern" if _has_inventory_item("Crypt Lantern") else "Empty Light"
+		"Pack":
+			return "Loot Satchel" if _has_inventory_item("Loot Satchel") else "Small Pouch"
+	return slot_name
+
+
+func _inventory_state_signature() -> String:
+	return "%s|%d|%d|%d|%s" % [_inventory_summary(), potion_count, hero_gold, discovery_count, selected_inventory_item]
+
+
+func _inventory_entries() -> Array[String]:
+	var entries: Array[String] = ["Orb Staff", "Arcane Ward"]
+	if potion_count > 0:
+		entries.append("Dungeon Herb x%d" % potion_count)
+	if hero_gold > 0:
+		entries.append("Old Gold x%d" % hero_gold)
+	if discovery_count > 0:
+		entries.append("Ancient Rune x%d" % discovery_count)
+	var seen: Dictionary = {}
+	for item_name in inventory:
+		if not seen.has(item_name):
+			entries.append(item_name)
+			seen[item_name] = true
+	return entries
+
+
+func _style_inventory_button(button: Button, selected: bool) -> void:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.24, 0.12, 0.08, 0.76) if selected else Color(0.07, 0.09, 0.12, 0.58)
+	style.border_color = Color("ffd15a") if selected else Color(0.75, 0.86, 1.0, 0.22)
+	style.border_width_left = 1
+	style.border_width_top = 1
+	style.border_width_right = 1
+	style.border_width_bottom = 1
+	style.corner_radius_top_left = 8
+	style.corner_radius_top_right = 8
+	style.corner_radius_bottom_left = 8
+	style.corner_radius_bottom_right = 8
+	button.add_theme_stylebox_override("normal", style)
+	button.add_theme_stylebox_override("hover", style)
+	button.add_theme_color_override("font_color", Color("fff3d0") if selected else Color("d7e8ff"))
+	button.add_theme_font_size_override("font_size", 12)
 
 
 func _set_click_to_move_enabled(enabled: bool) -> void:
@@ -825,25 +1000,33 @@ func _use_sword_swing() -> void:
 	sword_swing_timer = SWORD_SWING_DURATION
 	sword_swing_cooldown = SWORD_SWING_COOLDOWN
 	var hero_forward := _hero_forward()
-	var hit_count := 0
+	fire_bolt_start = hero.position + Vector3(0.0, 1.1, 0.0) + hero_forward * 0.48
+	fire_bolt_end = fire_bolt_start + hero_forward * FIRE_BOLT_RANGE
+	var best_creature: Dictionary = {}
+	var best_distance := FIRE_BOLT_RANGE + 1.0
 	for creature in creatures.duplicate():
 		var node: Node3D = creature.node
 		if not is_instance_valid(node):
 			creatures.erase(creature)
 			continue
-		var to_creature := node.position - hero.position
-		to_creature.y = 0.0
-		if to_creature.length() > 1.72:
+		var to_creature := (node.position + Vector3(0.0, 0.42, 0.0)) - fire_bolt_start
+		var distance_forward := to_creature.dot(hero_forward)
+		if distance_forward < 0.2 or distance_forward > FIRE_BOLT_RANGE:
 			continue
-		if hero_forward.dot(to_creature.normalized()) < 0.08:
+		var miss_distance := (to_creature - hero_forward * distance_forward).length()
+		if miss_distance > 0.7:
 			continue
-		hit_count += 1
-		creatures.erase(creature)
+		if distance_forward < best_distance:
+			best_distance = distance_forward
+			best_creature = creature
+	if not best_creature.is_empty():
+		var node: Node3D = best_creature.node
+		fire_bolt_end = node.position + Vector3(0.0, 0.42, 0.0)
+		creatures.erase(best_creature)
 		node.queue_free()
-	if hit_count > 0:
-		_grant_xp(8 * hit_count, "Sword swing cleared %d dungeon shade%s." % [hit_count, "" if hit_count == 1 else "s"])
+		_grant_xp(12, "Firebolt burned through a dungeon shade.")
 	else:
-		hud_hint.text = "Sword swing ready. Turn toward a shade and strike with 1."
+		hud_hint.text = "Firebolt launched. Aim the staff at a shade and press 1."
 
 
 func _use_shield_block() -> void:
@@ -862,18 +1045,25 @@ func _update_hero_combat_visuals(delta: float) -> void:
 	if hero_sword:
 		if swing_active:
 			var arc := sin(swing_t * PI)
-			hero_sword.position = Vector3(lerpf(0.54, -0.32, swing_t), lerpf(0.9, 0.58, swing_t) + arc * 0.22, lerpf(-0.56, -0.18, swing_t))
-			hero_sword.rotation_degrees.x = lerpf(-92.0, 54.0, swing_t)
-			hero_sword.rotation_degrees.y = lerpf(-46.0, 58.0, swing_t)
-			hero_sword.rotation_degrees.z = lerpf(22.0, -34.0, swing_t)
-			hero_sword.scale = Vector3.ONE * (1.35 + arc * 0.16)
+			hero_sword.position = Vector3(0.42, 0.9 + arc * 0.08, lerpf(-0.18, -0.34, arc))
+			hero_sword.rotation_degrees.x = lerpf(-8.0, -22.0, arc)
+			hero_sword.rotation_degrees.y = lerpf(0.0, -10.0, arc)
+			hero_sword.rotation_degrees.z = lerpf(-8.0, -28.0, arc)
+			hero_sword.scale = Vector3.ONE * (1.0 + arc * 0.18)
 		else:
-			hero_sword.position = hero_sword.position.lerp(Vector3(0.42, 0.66, -0.12), delta * 12.0)
+			hero_sword.position = hero_sword.position.lerp(Vector3(0.42, 0.83, -0.12), delta * 12.0)
 			hero_sword.rotation_degrees.x = lerpf(hero_sword.rotation_degrees.x, 0.0, delta * 11.0)
 			hero_sword.rotation_degrees.y = lerpf(hero_sword.rotation_degrees.y, 0.0, delta * 11.0)
-			hero_sword.rotation_degrees.z = lerpf(hero_sword.rotation_degrees.z, 0.0, delta * 11.0)
+			hero_sword.rotation_degrees.z = lerpf(hero_sword.rotation_degrees.z, -8.0, delta * 11.0)
 			hero_sword.scale = hero_sword.scale.lerp(Vector3.ONE, delta * 10.0)
+	if staff_orb:
+		var orb_pulse := 1.0 + sin(Time.get_ticks_msec() * 0.01) * 0.08
+		if swing_active:
+			orb_pulse += sin(swing_t * PI) * 0.55
+		staff_orb.position = hero_sword.position + Vector3(0.0, 0.59, 0.0) if hero_sword else Vector3(0.42, 1.42, -0.12)
+		staff_orb.scale = Vector3.ONE * orb_pulse
 	_update_view_sword_visuals(delta, swing_t, swing_active)
+	_update_fire_bolt_visuals(swing_t, swing_active)
 	if hero_shield:
 		hero_shield.visible = shield_block_timer > 0.0
 		if hero_shield.visible:
@@ -886,38 +1076,65 @@ func _update_hero_combat_visuals(delta: float) -> void:
 		hero_light.omni_range = 5.7 if shield_block_timer > 0.0 else 5.25
 	if sword_light:
 		sword_light.light_energy = SWORD_LIGHT_SWING_ENERGY if swing_active else SWORD_LIGHT_BASE_ENERGY
-		sword_light.omni_range = 5.0 if swing_active else 3.6
+		sword_light.omni_range = 9.2 if swing_active else 7.5
+		sword_light.position = staff_orb.position if staff_orb else Vector3(0.42, 1.42, -0.12)
 
 
 func _update_view_sword_visuals(delta: float, swing_t: float, swing_active: bool) -> void:
-	if view_sword == null or view_sword_guard == null or view_sword_slash == null:
+	if view_sword == null or view_sword_guard == null or view_sword_slash == null or view_staff_orb == null:
 		return
 	var close_alpha := clampf((camera_zoom - 0.48) / 0.34, 0.0, 1.0)
 	var show_close_sword := close_alpha > 0.02
 	view_sword.visible = show_close_sword
 	view_sword_guard.visible = show_close_sword
+	view_staff_orb.visible = show_close_sword
 	view_sword_slash.visible = show_close_sword and swing_active
 	if not show_close_sword:
 		return
 	if swing_active:
 		var arc := sin(swing_t * PI)
-		view_sword.position = Vector3(lerpf(0.58, -0.18, swing_t), lerpf(-0.22, -0.48, swing_t) + arc * 0.12, lerpf(-0.88, -0.64, swing_t))
-		view_sword.rotation_degrees = Vector3(lerpf(-118.0, -38.0, swing_t), lerpf(-34.0, 34.0, swing_t), lerpf(44.0, -52.0, swing_t))
-		view_sword.scale = Vector3.ONE * (lerpf(0.9, 1.28, arc) * close_alpha)
-		view_sword_guard.position = view_sword.position + Vector3(0.0, -0.13, 0.28)
+		view_sword.position = Vector3(0.5, lerpf(-0.52, -0.42, arc), lerpf(-0.74, -0.98, arc))
+		view_sword.rotation_degrees = Vector3(lerpf(-78.0, -62.0, arc), -18.0, lerpf(18.0, -14.0, arc))
+		view_sword.scale = Vector3.ONE * ((0.9 + arc * 0.24) * close_alpha)
+		view_sword_guard.position = view_sword.position + Vector3(0.0, -0.12, 0.28)
 		view_sword_guard.rotation_degrees = view_sword.rotation_degrees + Vector3(0.0, 0.0, 90.0)
 		view_sword_guard.scale = Vector3.ONE * close_alpha
-		view_sword_slash.position = Vector3(lerpf(0.34, -0.26, swing_t), lerpf(-0.14, -0.3, swing_t), -1.05)
-		view_sword_slash.rotation_degrees = Vector3(0.0, 0.0, lerpf(34.0, -42.0, swing_t))
-		view_sword_slash.scale = Vector3(1.0 + arc * 0.65, close_alpha, close_alpha)
-		view_sword_slash.transparency = lerpf(0.45, 0.12, arc)
+		view_staff_orb.position = view_sword.position + Vector3(0.0, 0.38, -0.34)
+		view_staff_orb.scale = Vector3.ONE * ((0.82 + arc * 0.9) * close_alpha)
+		view_sword_slash.position = Vector3(0.08, lerpf(-0.12, -0.2, swing_t), lerpf(-1.05, -1.75, swing_t))
+		view_sword_slash.rotation_degrees = Vector3(0.0, 0.0, lerpf(8.0, -8.0, swing_t))
+		view_sword_slash.scale = Vector3(1.0 + swing_t * 1.35, close_alpha * (0.5 + arc), close_alpha * (0.5 + arc))
+		view_sword_slash.transparency = lerpf(0.38, 0.08, arc)
 	else:
 		view_sword.position = view_sword.position.lerp(Vector3(0.46, -0.42, -0.82), delta * 9.0)
-		view_sword.rotation_degrees = view_sword.rotation_degrees.lerp(Vector3(-88.0, -12.0, 18.0), delta * 9.0)
+		view_sword.rotation_degrees = view_sword.rotation_degrees.lerp(Vector3(-72.0, -14.0, 16.0), delta * 9.0)
 		view_sword.scale = view_sword.scale.lerp(Vector3.ONE * (0.74 * close_alpha), delta * 9.0)
 		view_sword_guard.position = view_sword.position + Vector3(0.0, -0.12, 0.28)
 		view_sword_guard.rotation_degrees = view_sword.rotation_degrees + Vector3(0.0, 0.0, 90.0)
 		view_sword_guard.scale = Vector3.ONE * close_alpha
+		view_staff_orb.position = view_sword.position + Vector3(0.0, 0.38, -0.34)
+		view_staff_orb.scale = view_staff_orb.scale.lerp(Vector3.ONE * (0.72 * close_alpha), delta * 9.0)
+
+
+func _update_fire_bolt_visuals(swing_t: float, swing_active: bool) -> void:
+	if fire_bolt_beam == null or fire_bolt_tip == null or fire_bolt_light == null:
+		return
+	fire_bolt_beam.visible = swing_active
+	fire_bolt_tip.visible = swing_active
+	fire_bolt_light.visible = swing_active
+	if not swing_active:
+		return
+	var bolt_progress := clampf(swing_t * 1.25, 0.0, 1.0)
+	var bolt_head := fire_bolt_start.lerp(fire_bolt_end, bolt_progress)
+	var beam_mid := fire_bolt_start.lerp(bolt_head, 0.5)
+	var beam_length := maxf(fire_bolt_start.distance_to(bolt_head), 0.12)
+	fire_bolt_beam.position = beam_mid
+	fire_bolt_beam.scale = Vector3(1.0 + sin(swing_t * PI) * 0.45, 1.0 + sin(swing_t * PI) * 0.45, beam_length)
+	if beam_mid.distance_to(bolt_head) > 0.01:
+		fire_bolt_beam.look_at(bolt_head, Vector3.UP)
+	fire_bolt_tip.position = bolt_head
+	fire_bolt_tip.scale = Vector3.ONE * (1.0 + sin(swing_t * PI) * 0.72)
+	fire_bolt_light.position = bolt_head
 
 
 func _inspect_area() -> void:
@@ -1098,6 +1315,11 @@ func _grant_xp(amount: int, message: String = "") -> void:
 
 func _add_inventory_item(item_name: String) -> void:
 	inventory.append(item_name)
+	inventory_signature = ""
+
+
+func _has_inventory_item(item_name: String) -> bool:
+	return inventory.has(item_name)
 
 
 func _pickup_label(kind: String) -> String:
@@ -1148,17 +1370,17 @@ func _update_hud() -> void:
 		hud_quest.text = "Exit seal broken: %d/%d runes. Keep looting or restart for another run." % [discovery_count, DISCOVERIES_NEEDED]
 	else:
 		hud_quest.text = "Level 1: collect %d ancient runes to break the exit seal. Claimed: %d/%d" % [DISCOVERIES_NEEDED, discovery_count, DISCOVERIES_NEEDED]
-	hud_inventory.text = "Inventory: %s  |  Herbs: %d" % [_inventory_summary(), potion_count]
+	_refresh_inventory_panel()
 	if sword_button:
 		sword_button.disabled = sword_swing_cooldown > 0.0
-		sword_button.text = "1  Sword" if sword_swing_cooldown <= 0.0 else "1  %.1fs" % sword_swing_cooldown
+		sword_button.text = "1  Firebolt" if sword_swing_cooldown <= 0.0 else "1  %.1fs" % sword_swing_cooldown
 	if shield_button:
 		shield_button.disabled = shield_block_cooldown > 0.0
 		shield_button.text = "2  Block" if shield_block_cooldown <= 0.0 else ("2  Holding" if shield_block_timer > 0.0 else "2  %.1fs" % shield_block_cooldown)
 	if click_to_move_checkbox:
 		click_to_move_checkbox.set_pressed_no_signal(click_to_move_enabled)
 	if hud_hint.text == "":
-		hud_hint.text = "WASD moves. Right-drag looks around, mouse wheel zooms close, both buttons run. 1 swings, 2 blocks."
+		hud_hint.text = "WASD moves. Right-drag looks around, mouse wheel zooms close. 1 casts Firebolt, 2 blocks."
 
 
 func _inventory_summary() -> String:
@@ -1171,6 +1393,80 @@ func _inventory_summary() -> String:
 			summary += ", "
 		summary += inventory[i]
 	return summary
+
+
+func _item_icon(item_name: String) -> String:
+	if item_name.begins_with("Dungeon Herb"):
+		return "[HERB]"
+	if item_name.begins_with("Old Gold"):
+		return "[GOLD]"
+	if item_name.begins_with("Ancient Rune") or item_name == "Ancient Rune":
+		return "[RUNE]"
+	match item_name:
+		"Orb Staff":
+			return "[STAFF]"
+		"Arcane Ward":
+			return "[WARD]"
+		"Silent Boots":
+			return "[BOOTS]"
+		"Bone Compass":
+			return "[COMP]"
+		"Bloodstone Charm":
+			return "[CHARM]"
+		"Crypt Lantern":
+			return "[LAMP]"
+		"Loot Satchel", "Small Pouch":
+			return "[BAG]"
+		"Empty Boots", "Empty Charm", "Empty Light":
+			return "[EMPTY]"
+	return "[ITEM]"
+
+
+func _short_item_name(item_name: String) -> String:
+	return item_name.replace("Dungeon ", "").replace("Bloodstone ", "").replace("Crypt ", "").replace("Loot ", "")
+
+
+func _display_item_name(item_name: String) -> String:
+	if item_name.begins_with("Dungeon Herb"):
+		return "Dungeon Herb"
+	if item_name.begins_with("Old Gold"):
+		return "Old Gold"
+	if item_name.begins_with("Ancient Rune"):
+		return "Ancient Rune"
+	return item_name
+
+
+func _item_detail(item_name: String) -> String:
+	if item_name.begins_with("Dungeon Herb"):
+		return "Quick healing supplies carried in the pack. Press Q when wounded."
+	if item_name.begins_with("Old Gold"):
+		return "Dungeon coinage. Useful later for shops, upgrades, and spellcraft."
+	if item_name.begins_with("Ancient Rune"):
+		return "Rune fragments weaken the exit seal. They sit in the wizard's pack until the gate opens."
+	match item_name:
+		"Orb Staff":
+			return "Equipped weapon. A blazing orb staff channels Firebolt from hot amber light."
+		"Arcane Ward":
+			return "Equipped defense. Press 2 to raise a ward and reduce incoming shade damage."
+		"Silent Boots":
+			return "Equipped feet. These boots increase movement speed and make exploration smoother."
+		"Bone Compass":
+			return "Pack relic. The compass points deeper into the dungeon and hints at future floors."
+		"Bloodstone Charm":
+			return "Equipped charm. It increased maximum health when collected."
+		"Crypt Lantern":
+			return "Equipped light. A small dungeon lantern that helps the wizard read the dark."
+		"Loot Satchel":
+			return "Equipped pack. More room for coins, herbs, relics, and future equipment."
+		"Small Pouch":
+			return "Starter pack slot. Find a satchel to upgrade this equipment slot."
+		"Empty Boots":
+			return "Empty equipment slot. Find boots to improve movement."
+		"Empty Charm":
+			return "Empty equipment slot. Find a charm to improve survivability."
+		"Empty Light":
+			return "Empty equipment slot. Find a lantern or magical light source."
+	return "A discovered item waiting for a future use."
 
 
 func _xp_to_next() -> int:
