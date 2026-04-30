@@ -2,8 +2,8 @@ extends Node3D
 
 const HERO_SPEED := 6.2
 const HERO_ACCEL := 11.0
-const CREATURE_COUNT := 7
-const DISCOVERIES_NEEDED := 5
+const CREATURE_COUNT := 5
+const DISCOVERIES_NEEDED := 6
 const DUNGEON_TILE_SIZE := 1.55
 const HERO_COLLISION_RADIUS := 0.34
 const CAMERA_ROTATE_SPEED := 0.006
@@ -30,26 +30,28 @@ const DUNGEON_AMBIENT_BASE := 0.24
 const DUNGEON_FILL_BASE := 0.42
 const LANTERN_LIGHT_BASE_ENERGY := 3.2
 const LANTERN_LIGHT_BURST_ENERGY := 9.5
-const DUNGEON_BRIGHTNESS_LABELS := ["Dark 100%", "Clear 140%", "Bright 180%", "Radiant 230%"]
+const DUNGEON_BRIGHTNESS_LABELS := ["Mansion 100%", "Mansion 140%", "Mansion 180%", "Mansion 230%"]
 const DUNGEON_BRIGHTNESS_SCALES := [1.0, 1.4, 1.8, 2.3]
 const DUNGEON_LAYOUT := [
-	"#####################",
-	"#S..#.......#.......#",
-	"#.#.#.#####.#.#####.#",
-	"#.#...#...#...#...#.#",
-	"#.#####.#.#####.#.#.#",
-	"#.....#.#.......#...#",
-	"###.#.#.###########.#",
-	"#...#...#.....#.....#",
-	"#.#######.###.#.###.#",
-	"#.........#...#...#.#",
-	"#.#########.#####.#.#",
-	"#...#.......#.....#.#",
-	"###.#.#######.#####.#",
-	"#...#.....#...#.....#",
-	"#.#######.#.###.###.#",
-	"#.....#...#.....#E..#",
-	"#####################",
+	"#############################",
+	"#S....#.........#...........#",
+	"#.....#.........#...........#",
+	"#.....#....#....#.....#.....#",
+	"#.....#....#..........#.....#",
+	"###.####.###########.###.####",
+	"#........#.........#........#",
+	"#........#.........#........#",
+	"#....#.............#....#...#",
+	"#....#....#####....#....#...#",
+	"#...........#...............#",
+	"####.###....#....###.########",
+	"#......#.........#..........#",
+	"#......#.........#..........#",
+	"#..#.......###.......#......#",
+	"#..#.......#E#.......#......#",
+	"#......#...###...#..........#",
+	"#......#.........#..........#",
+	"#############################",
 ]
 
 var rng := RandomNumberGenerator.new()
@@ -78,6 +80,15 @@ var lantern_burst_ring: MeshInstance3D
 var lantern_burst_ring_outer: MeshInstance3D
 var lantern_burst_ray_root: Node3D
 var lantern_burst_light: OmniLight3D
+var fairy: Node3D
+var fairy_body: MeshInstance3D
+var fairy_left_wing: MeshInstance3D
+var fairy_right_wing: MeshInstance3D
+var fairy_light: OmniLight3D
+var fairy_request: HTTPRequest
+var fairy_request_pending := false
+var fairy_last_request_ms := -20000
+var fairy_context_event := ""
 var dungeon_environment: Environment
 var dungeon_fill_light: DirectionalLight3D
 var hero_velocity := Vector3.ZERO
@@ -104,6 +115,7 @@ var victory := false
 
 var creatures: Array[Dictionary] = []
 var pickups: Array[Dictionary] = []
+var inspectables: Array[Dictionary] = []
 var decor_bobs: Array[Node3D] = []
 var material_cache: Dictionary = {}
 var walkable_cells: Array[Vector2i] = []
@@ -125,6 +137,8 @@ var hud_toggle_button: Button
 var hud_stats: Label
 var hud_quest: Label
 var hud_hint: Label
+var fairy_panel: PanelContainer
+var fairy_label: Label
 var hud_inventory: VBoxContainer
 var equipment_slot_buttons: Dictionary = {}
 var inventory_grid: GridContainer
@@ -146,9 +160,12 @@ func _ready() -> void:
 	_ensure_input_map()
 	_build_world()
 	_spawn_hero()
+	_spawn_fairy()
 	_spawn_creatures()
 	_spawn_pickups()
+	_spawn_inspectables()
 	_build_hud()
+	_fairy_comment("entered mansion", "A mansion this quiet is either abandoned or dramatically waiting for applause.", {"room": "foyer"})
 	_update_hud()
 
 
@@ -174,6 +191,7 @@ func _process(delta: float) -> void:
 		_use_shield_block()
 
 	_update_hero(delta)
+	_update_fairy(delta)
 	_update_camera(delta)
 	_update_creatures(delta)
 	_update_pickups(delta)
@@ -290,13 +308,14 @@ func _build_dungeon_level_one() -> void:
 	walkable_cells.clear()
 	walkable_lookup.clear()
 
-	var floor_material := _mat("2b2f3a", 0.96)
-	var floor_alt_material := _mat("353848", 0.96)
-	var wall_material := _mat("20242f", 0.94)
-	var wall_top_material := _mat("3a4050", 0.92)
-	var edge_material := _mat("151821", 0.98)
+	var floor_material := _mat("4a3324", 0.88)
+	var floor_alt_material := _mat("563b28", 0.88)
+	var wall_material := _mat("2c1e22", 0.9)
+	var wall_top_material := _mat("5f4736", 0.84)
+	var trim_material := _mat("b18a5a", 0.72)
+	var runner_material := _mat("4d1830", 0.84, "7e2748", 0.04)
 	var rune_material := _mat("3d3752", 0.62, "8f72ff", 0.08)
-	var exit_material := _mat("2b1c34", 0.82, "b27cff", 0.18)
+	var exit_material := _mat("1d2533", 0.82, "8eb8ff", 0.14)
 
 	for z in range(DUNGEON_LAYOUT.size()):
 		var row := str(DUNGEON_LAYOUT[z])
@@ -305,11 +324,11 @@ func _build_dungeon_level_one() -> void:
 			var marker := row.substr(x, 1)
 			var world_pos := _dungeon_cell_to_world(cell)
 			if marker == "#":
-				var height := 1.28 + 0.18 * float((x + z) % 3)
+				var height := 1.52 + 0.08 * float((x + z) % 3)
 				_add_box(world_pos + Vector3(0.0, height * 0.5, 0.0), Vector3(DUNGEON_TILE_SIZE, height, DUNGEON_TILE_SIZE), wall_material, self)
 				_add_box(world_pos + Vector3(0.0, height + 0.035, 0.0), Vector3(DUNGEON_TILE_SIZE * 0.96, 0.07, DUNGEON_TILE_SIZE * 0.96), wall_top_material, self)
 				if (x + z) % 5 == 0:
-					_add_box(world_pos + Vector3(0.0, 0.16, 0.0), Vector3(DUNGEON_TILE_SIZE * 0.12, 0.26, DUNGEON_TILE_SIZE * 0.92), edge_material, self)
+					_add_box(world_pos + Vector3(0.0, 0.2, 0.0), Vector3(DUNGEON_TILE_SIZE * 0.12, 0.16, DUNGEON_TILE_SIZE * 0.92), trim_material, self)
 			else:
 				walkable_cells.append(cell)
 				walkable_lookup[_dungeon_cell_key(cell)] = true
@@ -319,7 +338,9 @@ func _build_dungeon_level_one() -> void:
 					exit_cell = cell
 				var tile_material := floor_material if (x + z) % 2 == 0 else floor_alt_material
 				_add_box(world_pos + Vector3(0.0, -0.035, 0.0), Vector3(DUNGEON_TILE_SIZE * 0.96, 0.07, DUNGEON_TILE_SIZE * 0.96), tile_material, self)
-				if (x * 7 + z * 3) % 11 == 0:
+				if (z == 10 and x > 3 and x < 25) or (x == 14 and z > 5 and z < 17):
+					_add_box(world_pos + Vector3(0.0, 0.012, 0.0), Vector3(DUNGEON_TILE_SIZE * 0.78, 0.03, DUNGEON_TILE_SIZE * 0.78), runner_material, self)
+				if (x * 7 + z * 3) % 17 == 0:
 					_add_floor_crack(world_pos)
 
 	_add_dungeon_torches()
@@ -430,13 +451,15 @@ func _add_floor_crack(world_pos: Vector3) -> void:
 func _add_dungeon_torches() -> void:
 	for cell in [
 		Vector2i(1, 1),
-		Vector2i(7, 1),
-		Vector2i(17, 1),
-		Vector2i(3, 7),
-		Vector2i(11, 7),
-		Vector2i(9, 11),
-		Vector2i(17, 13),
-		Vector2i(19, 15),
+		Vector2i(10, 1),
+		Vector2i(23, 1),
+		Vector2i(3, 6),
+		Vector2i(14, 6),
+		Vector2i(24, 7),
+		Vector2i(6, 12),
+		Vector2i(15, 13),
+		Vector2i(25, 14),
+		Vector2i(8, 17),
 	]:
 		_add_torch(_dungeon_cell_to_world(cell))
 
@@ -480,20 +503,22 @@ func _add_dungeon_exit(exit_material: Material, rune_material: Material) -> void
 
 
 func _add_dungeon_debris() -> void:
-	for i in range(34):
+	for i in range(30):
 		var pos := _random_open_position()
 		if pos.distance_to(_dungeon_cell_to_world(start_cell)) < 2.8:
 			continue
 		if i % 4 == 0:
-			_add_sphere(pos + Vector3(0.0, 0.1, 0.0), rng.randf_range(0.12, 0.24), rng.randf_range(0.08, 0.18), _mat("4a4d57", 0.94), self)
+			_add_box(pos + Vector3(0.0, 0.06, 0.0), Vector3(0.42, 0.055, 0.3), _mat("7d2d43", 0.76), self).rotation_degrees.y = rng.randf_range(0.0, 180.0)
 		elif i % 4 == 1:
-			var bone := _add_box(pos + Vector3(0.0, 0.07, 0.0), Vector3(0.48, 0.05, 0.08), _mat("d8c7a6", 0.82), self)
-			bone.rotation_degrees.y = rng.randf_range(0.0, 180.0)
+			var book := _add_box(pos + Vector3(0.0, 0.08, 0.0), Vector3(0.36, 0.08, 0.24), _mat(["4e2f6d", "1f5c63", "774626"][i % 3], 0.72), self)
+			book.rotation_degrees.y = rng.randf_range(0.0, 180.0)
 		elif i % 4 == 2:
-			var chain := _add_box(pos + Vector3(0.0, 0.04, 0.0), Vector3(0.58, 0.035, 0.055), _mat("1a1c22", 0.74), self)
-			chain.rotation_degrees.y = rng.randf_range(-70.0, 70.0)
+			var chair := _add_box(pos + Vector3(0.0, 0.22, 0.0), Vector3(0.36, 0.14, 0.36), _mat("5b3c27", 0.78), self)
+			chair.rotation_degrees.y = rng.randf_range(-70.0, 70.0)
+			_add_box(pos + Vector3(0.0, 0.48, 0.17), Vector3(0.38, 0.48, 0.08), _mat("4a301f", 0.82), self).rotation_degrees.y = chair.rotation_degrees.y
 		else:
-			_add_cylinder(pos + Vector3(0.0, 0.16, 0.0), 0.08, 0.28, _mat("3f3027", 0.9), self)
+			_add_cylinder(pos + Vector3(0.0, 0.22, 0.0), 0.08, 0.34, _mat("8a6a42", 0.72), self)
+			_add_sphere(pos + Vector3(0.0, 0.43, 0.0), 0.07, 0.1, _mat("ffb45b", 0.32, "ffd29a", 0.28), self)
 
 
 func _spawn_hero() -> void:
@@ -561,6 +586,33 @@ func _build_hero_lantern() -> void:
 	hero_lantern.add_child(hero_lantern_light)
 
 
+func _spawn_fairy() -> void:
+	fairy = Node3D.new()
+	fairy.name = "Pip the Fairy"
+	fairy.position = hero.position + Vector3(-0.86, 1.42, 0.46)
+	add_child(fairy)
+	fairy_body = _add_sphere(Vector3.ZERO, 0.12, 0.15, _mat("b8f6ff", 0.32, "d9fbff", 0.9), fairy)
+	fairy_left_wing = _add_box(Vector3(-0.16, 0.02, 0.02), Vector3(0.22, 0.035, 0.32), _mat("dffbff", 0.22, "efffff", 0.35), fairy)
+	fairy_left_wing.rotation_degrees = Vector3(0.0, -24.0, 26.0)
+	fairy_right_wing = _add_box(Vector3(0.16, 0.02, 0.02), Vector3(0.22, 0.035, 0.32), _mat("dffbff", 0.22, "efffff", 0.35), fairy)
+	fairy_right_wing.rotation_degrees = Vector3(0.0, 24.0, -26.0)
+	_add_sphere(Vector3(-0.04, 0.04, -0.1), 0.025, 0.025, _mat("ffffff", 0.22, "ffffff", 0.65), fairy)
+	_add_sphere(Vector3(0.04, 0.04, -0.1), 0.025, 0.025, _mat("ffffff", 0.22, "ffffff", 0.65), fairy)
+	fairy_light = OmniLight3D.new()
+	fairy_light.name = "Fairy Glow"
+	fairy_light.light_color = Color("d9fbff")
+	fairy_light.light_energy = 0.42
+	fairy_light.omni_range = 2.2
+	fairy_light.shadow_enabled = false
+	fairy.add_child(fairy_light)
+
+	fairy_request = HTTPRequest.new()
+	fairy_request.name = "Fairy LLM Request"
+	fairy_request.timeout = 6.0
+	fairy_request.request_completed.connect(_on_fairy_request_completed)
+	add_child(fairy_request)
+
+
 func _create_fire_bolt_visuals() -> void:
 	fire_bolt_beam = _add_box(Vector3.ZERO, Vector3(0.14, 0.14, 1.0), _mat("ff5a12", 0.18, "ffb34d", 4.5), self)
 	fire_bolt_beam.name = "Fire Bolt Beam"
@@ -616,7 +668,7 @@ func _spawn_creatures() -> void:
 
 func _spawn_creature(pos: Vector3, index: int) -> void:
 	var root := Node3D.new()
-	root.name = "Dungeon Shade"
+	root.name = "Mansion Echo"
 	root.position = pos
 	add_child(root)
 	var body_color := "2c3b54" if index % 3 != 0 else "3a2e55"
@@ -633,17 +685,91 @@ func _spawn_creature(pos: Vector3, index: int) -> void:
 
 
 func _spawn_pickups() -> void:
-	for i in range(12):
+	for i in range(10):
 		_spawn_pickup("coin", _random_open_position())
-	for i in range(5):
+	for i in range(4):
 		_spawn_pickup("herb", _random_open_position())
-	for cell in [Vector2i(9, 1), Vector2i(15, 3), Vector2i(3, 9), Vector2i(11, 13), Vector2i(18, 15)]:
+	for cell in [Vector2i(12, 1), Vector2i(23, 3), Vector2i(3, 9), Vector2i(14, 13), Vector2i(24, 16), Vector2i(8, 17)]:
 		_spawn_pickup("artifact", _dungeon_cell_to_world(cell))
 	_spawn_pickup("boots", _dungeon_cell_to_world(Vector2i(5, 5)))
 	_spawn_pickup("compass", _dungeon_cell_to_world(Vector2i(1, 13)))
-	_spawn_pickup("heart", _dungeon_cell_to_world(Vector2i(17, 7)))
-	_spawn_pickup("lantern", _dungeon_cell_to_world(Vector2i(11, 1)))
-	_spawn_pickup("satchel", _dungeon_cell_to_world(Vector2i(5, 15)))
+	_spawn_pickup("heart", _dungeon_cell_to_world(Vector2i(22, 7)))
+	_spawn_pickup("lantern", _dungeon_cell_to_world(Vector2i(10, 1)))
+	_spawn_pickup("satchel", _dungeon_cell_to_world(Vector2i(5, 16)))
+
+
+func _spawn_inspectables() -> void:
+	inspectables.clear()
+	var mansion_objects := [
+		{"kind": "chest", "cell": Vector2i(3, 2), "title": "silver-banded chest", "reward": "Moonlit Locket", "xp": 16},
+		{"kind": "bookcase", "cell": Vector2i(12, 2), "title": "whispering bookcase", "reward": "Guest Wing Notes", "xp": 14},
+		{"kind": "painting", "cell": Vector2i(23, 3), "title": "portrait with watchful eyes", "reward": "Portrait Clue", "xp": 14},
+		{"kind": "desk", "cell": Vector2i(3, 8), "title": "dusty writing desk", "reward": "Sealed Letter", "xp": 16},
+		{"kind": "mirror", "cell": Vector2i(13, 7), "title": "moon-glass mirror", "reward": "Reflected Sigil", "xp": 18},
+		{"kind": "wardrobe", "cell": Vector2i(23, 8), "title": "tall cedar wardrobe", "reward": "Velvet Pouch", "xp": 15},
+		{"kind": "cabinet", "cell": Vector2i(5, 13), "title": "locked curiosity cabinet", "reward": "Tiny Brass Key", "xp": 17},
+		{"kind": "music_box", "cell": Vector2i(14, 13), "title": "silent music box", "reward": "Clockwork Melody", "xp": 18},
+		{"kind": "fireplace", "cell": Vector2i(24, 13), "title": "cold marble fireplace", "reward": "Ashen Crest", "xp": 16},
+		{"kind": "globe", "cell": Vector2i(6, 17), "title": "star-map globe", "reward": "Astral Route", "xp": 20},
+	]
+	for item in mansion_objects:
+		_spawn_inspectable(String(item.kind), item.cell, String(item.title), String(item.reward), int(item.xp))
+
+
+func _spawn_inspectable(kind: String, cell: Vector2i, title: String, reward: String, xp_reward: int) -> void:
+	var root := Node3D.new()
+	root.name = title.capitalize()
+	root.position = _dungeon_cell_to_world(cell)
+	add_child(root)
+	match kind:
+		"chest":
+			_add_box(Vector3(0.0, 0.28, 0.0), Vector3(0.82, 0.42, 0.48), _mat("5c3824", 0.76), root)
+			_add_box(Vector3(0.0, 0.54, -0.04), Vector3(0.9, 0.12, 0.54), _mat("7c4d2e", 0.72), root)
+			_add_box(Vector3(0.0, 0.58, -0.32), Vector3(0.18, 0.16, 0.08), _mat("d4a94d", 0.62, "ffd06a", 0.08), root)
+		"bookcase":
+			_add_box(Vector3(0.0, 0.72, 0.0), Vector3(0.88, 1.25, 0.28), _mat("473020", 0.74), root)
+			for shelf_y in [0.32, 0.62, 0.92]:
+				_add_box(Vector3(0.0, shelf_y, -0.16), Vector3(0.76, 0.045, 0.08), _mat("b08355", 0.68), root)
+				for i in range(4):
+					_add_box(Vector3(-0.28 + i * 0.18, shelf_y + 0.1, -0.2), Vector3(0.08, 0.18, 0.06), _mat(["74405d", "2f5e76", "7c5b2f", "3c6b49"][i], 0.7), root)
+		"painting":
+			_add_box(Vector3(0.0, 0.86, -0.34), Vector3(0.82, 0.62, 0.06), _mat("c39a59", 0.7), root)
+			_add_box(Vector3(0.0, 0.86, -0.38), Vector3(0.62, 0.42, 0.035), _mat("27354d", 0.76, "516a99", 0.05), root)
+		"desk":
+			_add_box(Vector3(0.0, 0.46, 0.0), Vector3(0.95, 0.14, 0.52), _mat("68442a", 0.76), root)
+			_add_box(Vector3(-0.34, 0.23, -0.18), Vector3(0.1, 0.45, 0.1), _mat("4a301f", 0.82), root)
+			_add_box(Vector3(0.34, 0.23, -0.18), Vector3(0.1, 0.45, 0.1), _mat("4a301f", 0.82), root)
+			_add_box(Vector3(0.08, 0.57, -0.02), Vector3(0.38, 0.025, 0.28), _mat("e4d3aa", 0.64), root)
+		"mirror":
+			_add_box(Vector3(0.0, 0.85, -0.32), Vector3(0.58, 0.9, 0.08), _mat("a98352", 0.66), root)
+			_add_box(Vector3(0.0, 0.85, -0.37), Vector3(0.42, 0.68, 0.035), _mat("86b9d4", 0.28, "bfefff", 0.18), root)
+		"wardrobe":
+			_add_box(Vector3(0.0, 0.76, 0.0), Vector3(0.82, 1.34, 0.48), _mat("583622", 0.76), root)
+			_add_box(Vector3(-0.22, 0.76, -0.27), Vector3(0.035, 1.12, 0.08), _mat("d4a94d", 0.7), root)
+			_add_box(Vector3(0.22, 0.76, -0.27), Vector3(0.035, 1.12, 0.08), _mat("d4a94d", 0.7), root)
+		"cabinet":
+			_add_box(Vector3(0.0, 0.5, 0.0), Vector3(0.72, 0.84, 0.42), _mat("51392a", 0.78), root)
+			_add_box(Vector3(0.0, 0.76, -0.24), Vector3(0.56, 0.08, 0.08), _mat("bb8957", 0.7), root)
+			_add_box(Vector3(0.0, 0.36, -0.24), Vector3(0.56, 0.08, 0.08), _mat("bb8957", 0.7), root)
+		"music_box":
+			_add_box(Vector3(0.0, 0.32, 0.0), Vector3(0.68, 0.28, 0.46), _mat("693b3f", 0.7, "c977a8", 0.04), root)
+			_add_cylinder(Vector3(0.0, 0.52, -0.02), 0.18, 0.08, _mat("d7ad61", 0.5, "ffd57a", 0.12), root).rotation_degrees.x = 90.0
+		"fireplace":
+			_add_box(Vector3(0.0, 0.54, 0.0), Vector3(0.98, 0.92, 0.32), _mat("4d4a49", 0.86), root)
+			_add_box(Vector3(0.0, 0.38, -0.22), Vector3(0.52, 0.38, 0.1), _mat("201818", 0.92), root)
+			_add_sphere(Vector3(0.0, 0.38, -0.28), 0.12, 0.2, _mat("ff8c3a", 0.34, "ffb25b", 0.45), root)
+		"globe":
+			_add_cylinder(Vector3(0.0, 0.24, 0.0), 0.08, 0.48, _mat("8b663e", 0.74), root)
+			_add_sphere(Vector3(0.0, 0.68, 0.0), 0.32, 0.32, _mat("436f8d", 0.68, "83caff", 0.08), root)
+			_add_box(Vector3(0.0, 0.68, -0.02), Vector3(0.56, 0.035, 0.035), _mat("d8af66", 0.6), root).rotation_degrees.z = 22.0
+	inspectables.append({
+		"node": root,
+		"kind": kind,
+		"title": title,
+		"reward": reward,
+		"xp": xp_reward,
+		"opened": false,
+	})
 
 
 func _spawn_pickup(kind: String, pos: Vector3) -> void:
@@ -785,6 +911,27 @@ func _build_hud() -> void:
 	hud_quest.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hud_details.add_child(hud_quest)
 
+	fairy_panel = PanelContainer.new()
+	var fairy_style := StyleBoxFlat.new()
+	fairy_style.bg_color = Color(0.08, 0.11, 0.16, 0.58)
+	fairy_style.border_color = Color(0.72, 0.95, 1.0, 0.32)
+	fairy_style.border_width_left = 1
+	fairy_style.border_width_top = 1
+	fairy_style.border_width_right = 1
+	fairy_style.border_width_bottom = 1
+	fairy_style.corner_radius_top_left = 10
+	fairy_style.corner_radius_top_right = 10
+	fairy_style.corner_radius_bottom_left = 10
+	fairy_style.corner_radius_bottom_right = 10
+	fairy_panel.add_theme_stylebox_override("panel", fairy_style)
+	hud_details.add_child(fairy_panel)
+	fairy_label = Label.new()
+	fairy_label.text = "Pip: I have opinions and wings. Both are dangerous indoors."
+	fairy_label.add_theme_color_override("font_color", Color("dffbff"))
+	fairy_label.add_theme_font_size_override("font_size", 13)
+	fairy_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	fairy_panel.add_child(fairy_label)
+
 	hud_inventory = VBoxContainer.new()
 	hud_inventory.add_theme_constant_override("separation", 6)
 	hud_details.add_child(hud_inventory)
@@ -907,7 +1054,7 @@ func _equipped_item_for_slot(slot_name: String) -> String:
 		"Charm":
 			return "Bloodstone Charm" if _has_inventory_item("Bloodstone Charm") else "Empty Charm"
 		"Light":
-			return "Crypt Lantern" if _has_inventory_item("Crypt Lantern") else "Held Lantern"
+			return "Mansion Lantern" if _has_inventory_item("Mansion Lantern") else "Held Lantern"
 		"Pack":
 			return "Loot Satchel" if _has_inventory_item("Loot Satchel") else "Small Pouch"
 	return slot_name
@@ -920,11 +1067,11 @@ func _inventory_state_signature() -> String:
 func _inventory_entries() -> Array[String]:
 	var entries: Array[String] = ["Orb Staff", "Held Lantern", "Arcane Burst"]
 	if potion_count > 0:
-		entries.append("Dungeon Herb x%d" % potion_count)
+		entries.append("Mansion Herb x%d" % potion_count)
 	if hero_gold > 0:
 		entries.append("Old Gold x%d" % hero_gold)
 	if discovery_count > 0:
-		entries.append("Ancient Rune x%d" % discovery_count)
+		entries.append("House Sigil x%d" % discovery_count)
 	var seen: Dictionary = {}
 	for item_name in inventory:
 		if not seen.has(item_name):
@@ -956,7 +1103,7 @@ func _set_click_to_move_enabled(enabled: bool) -> void:
 	if not enabled:
 		_clear_click_move_target()
 	if hud_hint:
-		hud_hint.text = "Click-to-move enabled. Left-click a clear floor tile, or steer with WASD, mouse wheel, and right-drag." if enabled else "Click-to-move disabled. Use WASD, right-drag camera, wheel zoom, or both mouse buttons to move."
+		hud_hint.text = "Click-to-move enabled. Left-click a clear mansion floor tile, or steer with WASD, mouse wheel, and right-drag." if enabled else "Click-to-move disabled. Use WASD, right-drag camera, wheel zoom, or both mouse buttons to move."
 
 
 func _on_brightness_selected(index: int) -> void:
@@ -965,7 +1112,7 @@ func _on_brightness_selected(index: int) -> void:
 	dungeon_brightness_scale = float(DUNGEON_BRIGHTNESS_SCALES[index])
 	_apply_dungeon_brightness()
 	if hud_hint:
-		hud_hint.text = "Dungeon brightness set to %s." % String(DUNGEON_BRIGHTNESS_LABELS[index])
+		hud_hint.text = "Mansion brightness set to %s." % String(DUNGEON_BRIGHTNESS_LABELS[index])
 
 
 func _apply_dungeon_brightness() -> void:
@@ -995,7 +1142,7 @@ func _set_click_move_target_from_screen(screen_position: Vector2) -> void:
 	var target: Vector3 = hit
 	var target_cell := _dungeon_world_to_cell(target)
 	if not _is_walkable_cell(target_cell):
-		hud_hint.text = "That floor is blocked. Pick a clear dungeon path."
+		hud_hint.text = "That floor is blocked. Pick a clear mansion path."
 		return
 	click_move_target = _dungeon_cell_to_world(target_cell)
 	click_move_target.y = 0.0
@@ -1120,9 +1267,10 @@ func _use_sword_swing() -> void:
 		fire_bolt_end = node.position + Vector3(0.0, 0.42, 0.0)
 		creatures.erase(best_creature)
 		node.queue_free()
-		_grant_xp(12, "Firebolt burned through a dungeon shade.")
+		_grant_xp(12, "Firebolt burned through a mansion echo.")
+		_fairy_comment("cast firebolt", "A clean hit. The echo has bravely returned to being interior design.", {"spell": "firebolt"})
 	else:
-		hud_hint.text = "Firebolt launched. Aim the staff at a shade and press 1."
+		hud_hint.text = "Firebolt launched. Aim the staff at a mansion echo and press 1."
 
 
 func _use_shield_block() -> void:
@@ -1141,7 +1289,8 @@ func _use_shield_block() -> void:
 			creatures.erase(creature)
 			node.queue_free()
 	if cleared > 0:
-		_grant_xp(10 * cleared, "Lantern burst scattered %d shade%s." % [cleared, "" if cleared == 1 else "s"])
+		_grant_xp(10 * cleared, "Lantern burst scattered %d mansion echo%s." % [cleared, "" if cleared == 1 else "es"])
+		_fairy_comment("lantern burst", "That was subtle in the way thunder is subtle. I approve.", {"spell": "lantern burst", "cleared": cleared})
 	else:
 		hud_hint.text = "The wizard lifts the lantern. Arcane light bursts outward."
 
@@ -1295,6 +1444,21 @@ func _inspect_area() -> void:
 		return
 	inspect_cooldown = 0.3
 	sword_swing_timer = maxf(sword_swing_timer, 0.12)
+
+	var closest_inspectable: Dictionary = {}
+	var closest_object_distance := 999.0
+	for inspectable in inspectables:
+		var object_node: Node3D = inspectable.node
+		if not is_instance_valid(object_node):
+			continue
+		var object_distance := object_node.position.distance_to(hero.position)
+		if object_distance < closest_object_distance:
+			closest_object_distance = object_distance
+			closest_inspectable = inspectable
+	if not closest_inspectable.is_empty() and closest_object_distance <= 2.35:
+		_inspect_mansion_object(closest_inspectable)
+		return
+
 	var closest_kind := ""
 	var closest_distance := 999.0
 	for pickup in pickups:
@@ -1307,8 +1471,58 @@ func _inspect_area() -> void:
 			closest_kind = String(pickup.kind)
 	if closest_distance <= 3.2:
 		hud_hint.text = "You notice %s glowing in the dark. Move onto it to collect it." % _pickup_label(closest_kind).to_lower()
+		_fairy_comment("noticed %s" % _pickup_label(closest_kind), "Glowing loot on the floor. Either treasure or a very committed moth trap.", {"object": _pickup_label(closest_kind)})
 	else:
-		hud_hint.text = "Listen for torchlight and search the side chambers. Runes, relics, and supplies improve your hero."
+		hud_hint.text = "Search mansion rooms, open suspicious furniture, and inspect anything that looks too dramatic to be innocent."
+		_fairy_comment("searched empty air", "I admire the confidence. Very few wizards interrogate empty carpet with such authority.", {"object": "empty room"})
+
+
+func _inspect_mansion_object(inspectable: Dictionary) -> void:
+	var title := String(inspectable.get("title", "odd mansion object"))
+	var reward := String(inspectable.get("reward", "Mansion Curio"))
+	if bool(inspectable.get("opened", false)):
+		hud_hint.text = "You already inspected the %s. It is now only pretending to be mysterious." % title
+		_fairy_comment("rechecked %s" % title, "We have already solved that one. The furniture is trying to look busy.", {"object": title, "result": "already opened"})
+		return
+
+	inspectable["opened"] = true
+	discovery_count += 1
+	_add_inventory_item(reward)
+	_mark_inspectable_opened(inspectable)
+	_grant_xp(int(inspectable.get("xp", 14)), "Inspected the %s and found %s." % [title, reward])
+	_fairy_comment("opened %s" % title, "Excellent. Nothing says heroic destiny like rummaging through expensive furniture.", {"object": title, "reward": reward})
+	if discovery_count >= DISCOVERIES_NEEDED and not victory:
+		victory = true
+		hud_hint.text = "The mansion's central seal clicks open. The grand hall is ready."
+
+
+func _mark_inspectable_opened(inspectable: Dictionary) -> void:
+	var object_node: Node3D = inspectable.node
+	if not is_instance_valid(object_node):
+		return
+	var kind := String(inspectable.get("kind", ""))
+	match kind:
+		"chest", "music_box":
+			_add_box(Vector3(0.0, 0.74, -0.24), Vector3(0.78, 0.07, 0.5), _mat("9d6540", 0.68), object_node).rotation_degrees.x = -28.0
+		"wardrobe", "cabinet":
+			var door := _add_box(Vector3(0.42, 0.62, -0.25), Vector3(0.08, 0.84, 0.38), _mat("6d472e", 0.72), object_node)
+			door.rotation_degrees.y = -42.0
+		"bookcase":
+			_add_box(Vector3(0.28, 1.08, -0.28), Vector3(0.26, 0.04, 0.34), _mat("e4d3aa", 0.62, "ffe5ac", 0.08), object_node).rotation_degrees.z = -12.0
+		"painting", "mirror":
+			_add_box(Vector3(0.34, 0.86, -0.44), Vector3(0.08, 0.5, 0.04), _mat("9d7cff", 0.34, "c6b2ff", 0.25), object_node)
+		"fireplace":
+			var ember := OmniLight3D.new()
+			ember.light_color = Color("ff9d42")
+			ember.light_energy = 0.55
+			ember.omni_range = 3.2
+			ember.shadow_enabled = false
+			ember.position = Vector3(0.0, 0.5, -0.28)
+			object_node.add_child(ember)
+		"globe":
+			object_node.rotation_degrees.y += 35.0
+	var sparkle := _add_sphere(Vector3(0.0, 1.18, 0.0), 0.08, 0.08, _mat("dffbff", 0.26, "ffffff", 0.5), object_node)
+	decor_bobs.append(sparkle)
 
 
 func _drink_potion() -> void:
@@ -1316,7 +1530,7 @@ func _drink_potion() -> void:
 		return
 	potion_count -= 1
 	hero_health = minf(hero_max_health, hero_health + 42.0)
-	hud_hint.text = "Used a dungeon herb."
+	hud_hint.text = "Used a mansion herb."
 
 
 func _update_camera(delta: float) -> void:
@@ -1403,6 +1617,90 @@ func _update_decor(delta: float) -> void:
 		node.rotation_degrees.y += delta * 8.0
 
 
+func _update_fairy(delta: float) -> void:
+	if fairy == null or not is_instance_valid(hero):
+		return
+	var bob := sin(Time.get_ticks_msec() * 0.006) * 0.16
+	var side := _camera_right() * -0.86
+	var back := _camera_forward() * -0.32
+	var target := hero.position + side + back + Vector3(0.0, 1.48 + bob, 0.0)
+	fairy.position = fairy.position.lerp(target, clampf(delta * 5.8, 0.0, 1.0))
+	fairy.rotation.y = lerp_angle(fairy.rotation.y, hero.rotation.y, clampf(delta * 6.0, 0.0, 1.0))
+	var wing_flap := sin(Time.get_ticks_msec() * 0.028) * 18.0
+	if fairy_left_wing:
+		fairy_left_wing.rotation_degrees.z = 26.0 + wing_flap
+	if fairy_right_wing:
+		fairy_right_wing.rotation_degrees.z = -26.0 - wing_flap
+	if fairy_body:
+		fairy_body.scale = Vector3.ONE * (1.0 + sin(Time.get_ticks_msec() * 0.01) * 0.04)
+	if fairy_light:
+		fairy_light.light_energy = 0.42 + sin(Time.get_ticks_msec() * 0.008) * 0.08
+
+
+func _fairy_comment(event_name: String, fallback: String, extra: Dictionary = {}) -> void:
+	var clean_fallback := String(fallback).strip_edges()
+	if clean_fallback == "":
+		clean_fallback = "I am forming an opinion. It will be magnificent."
+	if fairy_label:
+		fairy_label.text = "Pip: %s" % clean_fallback
+	fairy_context_event = event_name
+	if fairy_request == null or fairy_request_pending or not OS.has_feature("web"):
+		return
+	var now := Time.get_ticks_msec()
+	if now - fairy_last_request_ms < 9000:
+		return
+	fairy_last_request_ms = now
+	fairy_request_pending = true
+	var payload := {
+		"event": event_name,
+		"fallback": clean_fallback,
+		"extra": extra,
+		"hero": {
+			"level": hero_level,
+			"health": int(hero_health),
+			"maxHealth": int(hero_max_health),
+			"xp": hero_xp,
+			"discoveries": discovery_count,
+			"needed": DISCOVERIES_NEEDED,
+			"gold": hero_gold,
+		},
+		"inventory": _inventory_entries().slice(0, 12),
+	}
+	var request_error := fairy_request.request(
+		_fairy_endpoint_url(),
+		["Content-Type: application/json"],
+		HTTPClient.METHOD_POST,
+		JSON.stringify(payload)
+	)
+	if request_error != OK:
+		fairy_request_pending = false
+
+
+func _fairy_endpoint_url() -> String:
+	if OS.has_feature("web"):
+		var origin := String(JavaScriptBridge.eval("window.location.origin", true)).strip_edges()
+		if origin != "":
+			return "%s/api/tiny-hero/fairy" % origin
+	return "https://justaskjohnny.com/api/tiny-hero/fairy"
+
+
+func _on_fairy_request_completed(_result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	fairy_request_pending = false
+	if response_code < 200 or response_code >= 300:
+		return
+	var parsed := JSON.new()
+	if parsed.parse(body.get_string_from_utf8()) != OK or typeof(parsed.data) != TYPE_DICTIONARY:
+		return
+	var reply := String(parsed.data.get("reply", "")).strip_edges()
+	if reply == "":
+		return
+	reply = reply.replace("\n", " ").strip_edges()
+	if reply.length() > 160:
+		reply = "%s..." % reply.substr(0, 157)
+	if fairy_label:
+		fairy_label.text = "Pip: %s" % reply
+
+
 func _collect_pickups() -> void:
 	for pickup in pickups.duplicate():
 		var node: Node3D = pickup.node
@@ -1414,33 +1712,35 @@ func _collect_pickups() -> void:
 		match String(pickup.kind):
 			"coin":
 				hero_gold += 1
-				_grant_xp(4, "Found old dungeon gold.")
+				_grant_xp(4, "Found old mansion gold.")
+				_fairy_comment("collected gold", "Money left on the floor: the traditional language of haunted architecture.", {"item": "gold"})
 			"herb":
 				potion_count += 1
-				_add_inventory_item("Dungeon Herb")
-				_grant_xp(6, "Gathered a healing herb from a cracked stone planter.")
+				_add_inventory_item("Mansion Herb")
+				_grant_xp(6, "Gathered a healing herb from a dusty conservatory planter.")
 			"artifact":
 				discovery_count += 1
-				_add_inventory_item("Ancient Rune")
-				_grant_xp(18, "Ancient rune claimed. The exit seal weakens.")
+				_add_inventory_item("House Sigil")
+				_grant_xp(18, "House sigil claimed. The grand hall seal weakens.")
+				_fairy_comment("claimed house sigil", "A glowing sigil. Subtle, if your definition of subtle includes humming at the wallpaper.", {"item": "house sigil"})
 				if discovery_count >= DISCOVERIES_NEEDED and not victory:
 					victory = true
-					hud_hint.text = "The exit seal is broken. You survived Dungeon Level 1."
+					hud_hint.text = "The grand hall seal is broken. The mansion yields."
 			"boots":
 				hero_speed_bonus += 1.05
 				_add_inventory_item("Silent Boots")
 				_grant_xp(25, "Silent Boots found. Movement speed improved.")
 			"compass":
 				_add_inventory_item("Bone Compass")
-				_grant_xp(24, "The compass points deeper into the dungeon.")
+				_grant_xp(24, "The compass points toward the mansion's sealed rooms.")
 			"heart":
 				hero_max_health += 28.0
 				hero_health = hero_max_health
 				_add_inventory_item("Bloodstone Charm")
 				_grant_xp(20, "Bloodstone Charm found. Maximum health increased.")
 			"lantern":
-				_add_inventory_item("Crypt Lantern")
-				_grant_xp(22, "Crypt Lantern found. The dark feels less certain.")
+				_add_inventory_item("Mansion Lantern")
+				_grant_xp(22, "Mansion Lantern found. The shadows become slightly less smug.")
 			"satchel":
 				_add_inventory_item("Loot Satchel")
 				hero_gold += 3
@@ -1457,7 +1757,7 @@ func _grant_xp(amount: int, message: String = "") -> void:
 		hero_max_health += 12.0
 		hero_health = hero_max_health
 		hero_speed_bonus += 0.12
-		message = "Level up! Your torch hand steadies and your step quickens."
+		message = "Level up! Your lantern hand steadies and your step quickens."
 	if message != "":
 		hud_hint.text = message
 
@@ -1476,9 +1776,9 @@ func _pickup_label(kind: String) -> String:
 		"coin":
 			return "old gold"
 		"herb":
-			return "dungeon herb"
+			return "mansion herb"
 		"artifact":
-			return "ancient rune"
+			return "house sigil"
 		"boots":
 			return "silent boots"
 		"compass":
@@ -1486,7 +1786,7 @@ func _pickup_label(kind: String) -> String:
 		"heart":
 			return "bloodstone charm"
 		"lantern":
-			return "crypt lantern"
+			return "mansion lantern"
 		"satchel":
 			return "loot satchel"
 	return "curiosity"
@@ -1495,7 +1795,7 @@ func _pickup_label(kind: String) -> String:
 func _end_game(won: bool) -> void:
 	game_over = true
 	victory = won
-	hud_hint.text = "Dungeon Level 1 cleared. Press R to enter again." if won else "The dungeon claimed you. Press R to try again."
+	hud_hint.text = "Mansion Level 1 cleared. Press R to enter again." if won else "The mansion claimed you. Press R to try again."
 
 
 func _update_hud() -> void:
@@ -1503,7 +1803,7 @@ func _update_hud() -> void:
 	health_bar.value = hero_health
 	xp_bar.max_value = _xp_to_next()
 	xp_bar.value = hero_xp
-	hud_stats.text = "Tiny Hero Quest  |  Dungeon 1  |  Lvl %d  HP %d/%d  XP %d/%d  Runes %d/%d  Gold %d" % [
+	hud_stats.text = "Tiny Hero Quest  |  Mansion 1  |  Lvl %d  HP %d/%d  XP %d/%d  Secrets %d/%d  Gold %d" % [
 		hero_level,
 		int(hero_health),
 		int(hero_max_health),
@@ -1514,11 +1814,11 @@ func _update_hud() -> void:
 		hero_gold
 	]
 	if game_over:
-		hud_quest.text = "Dungeon Level 1 cleared!" if victory else "You fell in the dungeon. Press R to try again."
+		hud_quest.text = "Mansion Level 1 cleared!" if victory else "You fell in the mansion. Press R to try again."
 	elif victory:
-		hud_quest.text = "Exit seal broken: %d/%d runes. Keep looting or restart for another run." % [discovery_count, DISCOVERIES_NEEDED]
+		hud_quest.text = "Grand hall seal opened: %d/%d secrets. Keep looting or restart for another run." % [discovery_count, DISCOVERIES_NEEDED]
 	else:
-		hud_quest.text = "Level 1: collect %d ancient runes to break the exit seal. Claimed: %d/%d" % [DISCOVERIES_NEEDED, discovery_count, DISCOVERIES_NEEDED]
+		hud_quest.text = "Level 1: explore rooms, open furniture, and uncover %d mansion secrets. Found: %d/%d" % [DISCOVERIES_NEEDED, discovery_count, DISCOVERIES_NEEDED]
 	_refresh_inventory_panel()
 	if sword_button:
 		sword_button.disabled = sword_swing_cooldown > 0.0
@@ -1549,12 +1849,12 @@ func _inventory_summary() -> String:
 
 
 func _item_icon(item_name: String) -> String:
-	if item_name.begins_with("Dungeon Herb"):
+	if item_name.begins_with("Mansion Herb") or item_name.begins_with("Dungeon Herb"):
 		return "[HERB]"
 	if item_name.begins_with("Old Gold"):
 		return "[GOLD]"
-	if item_name.begins_with("Ancient Rune") or item_name == "Ancient Rune":
-		return "[RUNE]"
+	if item_name.begins_with("House Sigil") or item_name == "House Sigil":
+		return "[SIGIL]"
 	match item_name:
 		"Orb Staff":
 			return "[STAFF]"
@@ -1566,7 +1866,7 @@ func _item_icon(item_name: String) -> String:
 			return "[COMP]"
 		"Bloodstone Charm":
 			return "[CHARM]"
-		"Crypt Lantern", "Held Lantern":
+		"Crypt Lantern", "Mansion Lantern", "Held Lantern":
 			return "[LAMP]"
 		"Loot Satchel", "Small Pouch":
 			return "[BAG]"
@@ -1576,26 +1876,26 @@ func _item_icon(item_name: String) -> String:
 
 
 func _short_item_name(item_name: String) -> String:
-	return item_name.replace("Dungeon ", "").replace("Bloodstone ", "").replace("Crypt ", "").replace("Loot ", "")
+	return item_name.replace("Dungeon ", "").replace("Mansion ", "").replace("Bloodstone ", "").replace("Crypt ", "").replace("Loot ", "").replace("House ", "")
 
 
 func _display_item_name(item_name: String) -> String:
-	if item_name.begins_with("Dungeon Herb"):
-		return "Dungeon Herb"
+	if item_name.begins_with("Mansion Herb") or item_name.begins_with("Dungeon Herb"):
+		return "Mansion Herb"
 	if item_name.begins_with("Old Gold"):
 		return "Old Gold"
-	if item_name.begins_with("Ancient Rune"):
-		return "Ancient Rune"
+	if item_name.begins_with("House Sigil"):
+		return "House Sigil"
 	return item_name
 
 
 func _item_detail(item_name: String) -> String:
-	if item_name.begins_with("Dungeon Herb"):
+	if item_name.begins_with("Mansion Herb") or item_name.begins_with("Dungeon Herb"):
 		return "Quick healing supplies carried in the pack. Press Q when wounded."
 	if item_name.begins_with("Old Gold"):
-		return "Dungeon coinage. Useful later for shops, upgrades, and spellcraft."
-	if item_name.begins_with("Ancient Rune"):
-		return "Rune fragments weaken the exit seal. They sit in the wizard's pack until the gate opens."
+		return "Old mansion coinage. Useful later for shops, upgrades, and spellcraft."
+	if item_name.begins_with("House Sigil"):
+		return "Mansion sigils weaken the grand hall seal. They hum like they know more than you."
 	match item_name:
 		"Orb Staff":
 			return "Equipped weapon. A blazing orb staff channels Firebolt from hot amber light."
@@ -1604,13 +1904,13 @@ func _item_detail(item_name: String) -> String:
 		"Silent Boots":
 			return "Equipped feet. These boots increase movement speed and make exploration smoother."
 		"Bone Compass":
-			return "Pack relic. The compass points deeper into the dungeon and hints at future floors."
+			return "Pack relic. The compass points toward sealed rooms and hints at future mansion floors."
 		"Bloodstone Charm":
 			return "Equipped charm. It increased maximum health when collected."
 		"Held Lantern":
 			return "Equipped light. The wizard carries this in the left hand for steady white illumination."
-		"Crypt Lantern":
-			return "Equipped light. A stronger dungeon lantern that helps the wizard read the dark."
+		"Crypt Lantern", "Mansion Lantern":
+			return "Equipped light. A stronger mansion lantern that helps the wizard read the dark."
 		"Loot Satchel":
 			return "Equipped pack. More room for coins, herbs, relics, and future equipment."
 		"Small Pouch":
