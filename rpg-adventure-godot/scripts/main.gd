@@ -6,6 +6,13 @@ const CREATURE_COUNT := 7
 const DISCOVERIES_NEEDED := 5
 const DUNGEON_TILE_SIZE := 1.55
 const HERO_COLLISION_RADIUS := 0.34
+const CAMERA_DISTANCE := 15.0
+const CAMERA_HEIGHT := 18.5
+const CAMERA_ROTATE_SPEED := 0.006
+const SWORD_SWING_DURATION := 0.28
+const SWORD_SWING_COOLDOWN := 0.55
+const SHIELD_BLOCK_DURATION := 1.1
+const SHIELD_BLOCK_COOLDOWN := 1.8
 const DUNGEON_LAYOUT := [
 	"#####################",
 	"#S..#.......#.......#",
@@ -31,8 +38,12 @@ var camera: Camera3D
 var hero: Node3D
 var hero_body: MeshInstance3D
 var hero_sword: MeshInstance3D
+var hero_shield: MeshInstance3D
 var hero_ring: MeshInstance3D
+var hero_light: OmniLight3D
+var sword_light: OmniLight3D
 var hero_velocity := Vector3.ZERO
+var camera_yaw := 0.0
 var hero_health := 110.0
 var hero_max_health := 110.0
 var hero_xp := 0
@@ -44,6 +55,10 @@ var discovery_count := 0
 var inventory: Array[String] = []
 var inspect_cooldown := 0.0
 var hurt_timer := 0.0
+var sword_swing_timer := 0.0
+var sword_swing_cooldown := 0.0
+var shield_block_timer := 0.0
+var shield_block_cooldown := 0.0
 var game_over := false
 var victory := false
 
@@ -55,6 +70,14 @@ var walkable_cells: Array[Vector2i] = []
 var walkable_lookup: Dictionary = {}
 var start_cell := Vector2i(1, 1)
 var exit_cell := Vector2i(19, 15)
+var left_mouse_down := false
+var right_mouse_down := false
+var mouse_dragged := false
+var left_mouse_press_position := Vector2.ZERO
+var click_to_move_enabled := false
+var click_move_active := false
+var click_move_target := Vector3.ZERO
+var click_move_marker: MeshInstance3D
 
 var hud_panel: PanelContainer
 var hud_details: VBoxContainer
@@ -63,6 +86,9 @@ var hud_stats: Label
 var hud_quest: Label
 var hud_hint: Label
 var hud_inventory: Label
+var sword_button: Button
+var shield_button: Button
+var click_to_move_checkbox: CheckBox
 var health_bar: ProgressBar
 var xp_bar: ProgressBar
 var hud_minimized := false
@@ -90,6 +116,15 @@ func _process(delta: float) -> void:
 
 	inspect_cooldown = maxf(inspect_cooldown - delta, 0.0)
 	hurt_timer = maxf(hurt_timer - delta, 0.0)
+	sword_swing_timer = maxf(sword_swing_timer - delta, 0.0)
+	sword_swing_cooldown = maxf(sword_swing_cooldown - delta, 0.0)
+	shield_block_timer = maxf(shield_block_timer - delta, 0.0)
+	shield_block_cooldown = maxf(shield_block_cooldown - delta, 0.0)
+
+	if Input.is_action_just_pressed("sword_swing"):
+		_use_sword_swing()
+	if Input.is_action_just_pressed("shield_block"):
+		_use_shield_block()
 
 	_update_hero(delta)
 	_update_camera(delta)
@@ -98,6 +133,27 @@ func _process(delta: float) -> void:
 	_update_decor(delta)
 	_collect_pickups()
 	_update_hud()
+
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			left_mouse_down = event.pressed
+			if event.pressed:
+				left_mouse_press_position = event.position
+				mouse_dragged = false
+			elif click_to_move_enabled and not mouse_dragged and not right_mouse_down and not _is_pointer_over_hud():
+				_set_click_move_target_from_screen(event.position)
+		elif event.button_index == MOUSE_BUTTON_RIGHT:
+			right_mouse_down = event.pressed
+			if event.pressed:
+				mouse_dragged = false
+	elif event is InputEventMouseMotion and (left_mouse_down or right_mouse_down):
+		if event.relative.length() > 0.6 or event.position.distance_to(left_mouse_press_position) > 4.0:
+			mouse_dragged = true
+		camera_yaw = wrapf(camera_yaw - event.relative.x * CAMERA_ROTATE_SPEED, -PI, PI)
+		if right_mouse_down and is_instance_valid(hero):
+			hero.rotation.y = lerp_angle(hero.rotation.y, _rotation_from_direction(_camera_forward()), 0.9)
 
 
 func _ensure_input_map() -> void:
@@ -109,6 +165,8 @@ func _ensure_input_map() -> void:
 	_add_key_action("toggle_hud", [KEY_TAB, KEY_H])
 	_add_key_action("drink_potion", [KEY_Q])
 	_add_key_action("restart", [KEY_R])
+	_add_key_action("sword_swing", [KEY_1])
+	_add_key_action("shield_block", [KEY_2])
 
 
 func _add_key_action(action: String, keys: Array[int]) -> void:
@@ -254,6 +312,20 @@ func _is_walkable_position(pos: Vector3, radius: float = HERO_COLLISION_RADIUS) 
 	return true
 
 
+func _camera_forward() -> Vector3:
+	return Vector3(sin(camera_yaw), 0.0, -cos(camera_yaw)).normalized()
+
+
+func _camera_right() -> Vector3:
+	return Vector3(cos(camera_yaw), 0.0, sin(camera_yaw)).normalized()
+
+
+func _rotation_from_direction(direction: Vector3) -> float:
+	if direction.length() <= 0.001:
+		return hero.rotation.y if is_instance_valid(hero) else 0.0
+	return atan2(-direction.x, -direction.z)
+
+
 func _add_floor_crack(world_pos: Vector3) -> void:
 	var crack_material := _mat("161820", 0.98)
 	var crack := _add_box(world_pos + Vector3(rng.randf_range(-0.18, 0.0), 0.025, rng.randf_range(-0.18, 0.18)), Vector3(0.64, 0.025, 0.045), crack_material, self)
@@ -339,13 +411,34 @@ func _spawn_hero() -> void:
 	hero.position = _dungeon_cell_to_world(start_cell)
 	add_child(hero)
 
-	hero_ring = _add_ellipse_disc_local(Vector3(0.0, 0.018, 0.0), Vector2(0.58, 0.58), 0.018, _mat("3d5f83", 0.72, "6fb7ff", 0.05), hero, 0.0)
+	hero_ring = _add_ellipse_disc_local(Vector3(0.0, 0.018, 0.0), Vector2(1.45, 1.45), 0.018, _mat("172941", 0.72, "5eb9ff", 0.1), hero, 0.0)
+	hero_ring.transparency = 0.42
 	hero_body = _add_cylinder(Vector3(0.0, 0.62, 0.0), 0.28, 0.78, _mat("344d75", 0.72), hero)
 	_add_sphere(Vector3(0.0, 1.18, 0.0), 0.24, 0.25, _mat("f2c49b", 0.78), hero)
 	_add_box(Vector3(0.0, 0.78, 0.22), Vector3(0.5, 0.68, 0.08), _mat("7a3140", 0.8), hero)
 	_add_box(Vector3(0.0, 1.42, 0.0), Vector3(0.52, 0.12, 0.42), _mat("5a3d2e", 0.82), hero)
-	hero_sword = _add_box(Vector3(0.42, 0.66, -0.12), Vector3(0.09, 0.08, 0.8), _mat("d7e9ff", 0.46, "93caff", 0.08), hero)
+	hero_sword = _add_box(Vector3(0.42, 0.66, -0.12), Vector3(0.09, 0.08, 0.8), _mat("e8f7ff", 0.36, "89cfff", 0.34), hero)
 	_add_box(Vector3(0.42, 0.5, 0.28), Vector3(0.2, 0.09, 0.09), _mat("d4a94d", 0.68), hero)
+	hero_shield = _add_box(Vector3(-0.34, 0.68, -0.28), Vector3(0.14, 0.58, 0.42), _mat("7f91ac", 0.56, "9ec5ff", 0.16), hero)
+	hero_shield.visible = false
+
+	hero_light = OmniLight3D.new()
+	hero_light.name = "Hero Perimeter Light"
+	hero_light.light_color = Color("79c8ff")
+	hero_light.light_energy = 0.85
+	hero_light.omni_range = 5.2
+	hero_light.shadow_enabled = false
+	hero_light.position = Vector3(0.0, 0.72, 0.0)
+	hero.add_child(hero_light)
+
+	sword_light = OmniLight3D.new()
+	sword_light.name = "Sword Glow"
+	sword_light.light_color = Color("a8e1ff")
+	sword_light.light_energy = 0.32
+	sword_light.omni_range = 2.4
+	sword_light.shadow_enabled = false
+	sword_light.position = Vector3(0.42, 0.74, -0.24)
+	hero.add_child(sword_light)
 
 
 func _spawn_creatures() -> void:
@@ -491,6 +584,28 @@ func _build_hud() -> void:
 	xp_bar.custom_minimum_size = Vector2(500, 14)
 	hud_details.add_child(xp_bar)
 
+	var action_row := HBoxContainer.new()
+	action_row.add_theme_constant_override("separation", 8)
+	hud_details.add_child(action_row)
+
+	sword_button = Button.new()
+	sword_button.text = "1  Sword"
+	sword_button.custom_minimum_size = Vector2(116, 32)
+	sword_button.pressed.connect(_use_sword_swing)
+	action_row.add_child(sword_button)
+
+	shield_button = Button.new()
+	shield_button.text = "2  Block"
+	shield_button.custom_minimum_size = Vector2(116, 32)
+	shield_button.pressed.connect(_use_shield_block)
+	action_row.add_child(shield_button)
+
+	click_to_move_checkbox = CheckBox.new()
+	click_to_move_checkbox.text = "Click to move"
+	click_to_move_checkbox.button_pressed = click_to_move_enabled
+	click_to_move_checkbox.toggled.connect(_set_click_to_move_enabled)
+	action_row.add_child(click_to_move_checkbox)
+
 	hud_quest = Label.new()
 	hud_quest.add_theme_color_override("font_color", Color("d5ffe7"))
 	hud_quest.add_theme_font_size_override("font_size", 15)
@@ -526,26 +641,87 @@ func _apply_hud_mode() -> void:
 		hud_toggle_button.text = "More" if hud_minimized else "Min"
 
 
+func _set_click_to_move_enabled(enabled: bool) -> void:
+	click_to_move_enabled = enabled
+	if not enabled:
+		_clear_click_move_target()
+	if hud_hint:
+		hud_hint.text = "Click-to-move enabled. Left-click a clear floor tile, or steer with WASD and mouse." if enabled else "Click-to-move disabled. Use WASD, right mouse steering, or both mouse buttons to move."
+
+
+func _is_pointer_over_hud() -> bool:
+	if hud_panel == null:
+		return false
+	var hovered := get_viewport().gui_get_hovered_control()
+	return hovered == hud_panel or (hovered != null and hud_panel.is_ancestor_of(hovered))
+
+
+func _set_click_move_target_from_screen(screen_position: Vector2) -> void:
+	if camera == null:
+		return
+	var ray_origin := camera.project_ray_origin(screen_position)
+	var ray_direction := camera.project_ray_normal(screen_position)
+	var floor_plane := Plane(Vector3.UP, 0.0)
+	var hit: Variant = floor_plane.intersects_ray(ray_origin, ray_direction)
+	if hit == null:
+		return
+	var target: Vector3 = hit
+	var target_cell := _dungeon_world_to_cell(target)
+	if not _is_walkable_cell(target_cell):
+		hud_hint.text = "That floor is blocked. Pick a clear dungeon path."
+		return
+	click_move_target = _dungeon_cell_to_world(target_cell)
+	click_move_target.y = 0.0
+	click_move_active = true
+	_show_click_move_marker(click_move_target)
+
+
+func _show_click_move_marker(pos: Vector3) -> void:
+	if click_move_marker == null:
+		click_move_marker = _add_ellipse_disc_local(Vector3.ZERO, Vector2(0.44, 0.44), 0.014, _mat("173047", 0.68, "79d2ff", 0.18), self, 0.0)
+		click_move_marker.name = "Click Move Target"
+		click_move_marker.transparency = 0.46
+	click_move_marker.position = pos + Vector3(0.0, 0.03, 0.0)
+	click_move_marker.visible = true
+
+
+func _clear_click_move_target() -> void:
+	click_move_active = false
+	if click_move_marker:
+		click_move_marker.visible = false
+
+
 func _update_hero(delta: float) -> void:
 	var input := Vector2.ZERO
 	if Input.is_action_pressed("move_left"):
 		input.x -= 1.0
 	if Input.is_action_pressed("move_right"):
 		input.x += 1.0
-	if Input.is_action_pressed("move_up"):
-		input.y -= 1.0
-	if Input.is_action_pressed("move_down"):
+	if Input.is_action_pressed("move_up") or (left_mouse_down and right_mouse_down):
 		input.y += 1.0
+	if Input.is_action_pressed("move_down"):
+		input.y -= 1.0
 
-	var desired := Vector3(input.x, 0.0, input.y)
+	var desired := _camera_right() * input.x + _camera_forward() * input.y
 	if desired.length() > 1.0:
 		desired = desired.normalized()
+	if desired.length() > 0.05:
+		_clear_click_move_target()
+	elif click_move_active:
+		var to_target := click_move_target - hero.position
+		to_target.y = 0.0
+		if to_target.length() < 0.18:
+			_clear_click_move_target()
+		else:
+			desired = to_target.normalized()
+
 	hero_velocity = hero_velocity.lerp(desired * (HERO_SPEED + hero_speed_bonus), clampf(delta * HERO_ACCEL, 0.0, 1.0))
 	_move_hero_with_dungeon_collision(hero_velocity * delta)
 	hero.position.y = sin(Time.get_ticks_msec() * 0.009) * 0.025 if hero_velocity.length() > 0.1 else 0.0
 
 	if hero_velocity.length() > 0.25:
-		hero.rotation.y = lerp_angle(hero.rotation.y, atan2(-hero_velocity.x, -hero_velocity.z), delta * 12.0)
+		var facing := _camera_forward() if right_mouse_down else hero_velocity.normalized()
+		hero.rotation.y = lerp_angle(hero.rotation.y, _rotation_from_direction(facing), delta * 12.0)
 
 	if Input.is_action_just_pressed("inspect"):
 		_inspect_area()
@@ -555,7 +731,7 @@ func _update_hero(delta: float) -> void:
 	var pulse := 1.0 + sin(Time.get_ticks_msec() * 0.008) * 0.04
 	hero_ring.scale = Vector3(pulse, 1.0, pulse)
 	hero_body.scale = Vector3.ONE if hurt_timer <= 0.0 else Vector3(1.12, 0.92, 1.12)
-	hero_sword.rotation_degrees.x = lerpf(hero_sword.rotation_degrees.x, 0.0, delta * 10.0)
+	_update_hero_combat_visuals(delta)
 
 
 func _move_hero_with_dungeon_collision(motion: Vector3) -> void:
@@ -574,11 +750,78 @@ func _move_hero_with_dungeon_collision(motion: Vector3) -> void:
 		hero.position = z_only
 
 
+func _hero_forward() -> Vector3:
+	if not is_instance_valid(hero):
+		return Vector3.FORWARD
+	return Vector3(-sin(hero.rotation.y), 0.0, -cos(hero.rotation.y)).normalized()
+
+
+func _use_sword_swing() -> void:
+	if sword_swing_cooldown > 0.0 or game_over:
+		return
+	sword_swing_timer = SWORD_SWING_DURATION
+	sword_swing_cooldown = SWORD_SWING_COOLDOWN
+	var hero_forward := _hero_forward()
+	var hit_count := 0
+	for creature in creatures.duplicate():
+		var node: Node3D = creature.node
+		if not is_instance_valid(node):
+			creatures.erase(creature)
+			continue
+		var to_creature := node.position - hero.position
+		to_creature.y = 0.0
+		if to_creature.length() > 1.72:
+			continue
+		if hero_forward.dot(to_creature.normalized()) < 0.08:
+			continue
+		hit_count += 1
+		creatures.erase(creature)
+		node.queue_free()
+	if hit_count > 0:
+		_grant_xp(8 * hit_count, "Sword swing cleared %d dungeon shade%s." % [hit_count, "" if hit_count == 1 else "s"])
+	else:
+		hud_hint.text = "Sword swing ready. Turn toward a shade and strike with 1."
+
+
+func _use_shield_block() -> void:
+	if shield_block_cooldown > 0.0 or game_over:
+		return
+	shield_block_timer = SHIELD_BLOCK_DURATION
+	shield_block_cooldown = SHIELD_BLOCK_COOLDOWN
+	hud_hint.text = "Shield raised. Incoming hits are heavily reduced."
+
+
+func _update_hero_combat_visuals(delta: float) -> void:
+	if hero_sword:
+		if sword_swing_timer > 0.0:
+			var swing_t := 1.0 - (sword_swing_timer / SWORD_SWING_DURATION)
+			hero_sword.rotation_degrees.x = lerpf(-58.0, 40.0, swing_t)
+			hero_sword.rotation_degrees.y = lerpf(-18.0, 24.0, swing_t)
+			hero_sword.scale = Vector3(1.18, 1.18, 1.18)
+		else:
+			hero_sword.rotation_degrees.x = lerpf(hero_sword.rotation_degrees.x, 0.0, delta * 11.0)
+			hero_sword.rotation_degrees.y = lerpf(hero_sword.rotation_degrees.y, 0.0, delta * 11.0)
+			hero_sword.scale = hero_sword.scale.lerp(Vector3.ONE, delta * 10.0)
+	if hero_shield:
+		hero_shield.visible = shield_block_timer > 0.0
+		if hero_shield.visible:
+			var block_pulse := 1.0 + sin(Time.get_ticks_msec() * 0.02) * 0.08
+			hero_shield.scale = Vector3(block_pulse, 1.0, block_pulse)
+		else:
+			hero_shield.scale = Vector3.ONE
+	if hero_light:
+		hero_light.light_energy = 1.18 if shield_block_timer > 0.0 else 0.92
+		hero_light.omni_range = 5.7 if shield_block_timer > 0.0 else 5.25
+	if sword_light:
+		sword_light.light_energy = 1.05 if sword_swing_timer > 0.0 else 0.38
+		sword_light.omni_range = 3.2 if sword_swing_timer > 0.0 else 2.45
+
+
 func _inspect_area() -> void:
 	if inspect_cooldown > 0.0:
 		return
 	inspect_cooldown = 0.3
-	hero_sword.rotation_degrees.x = -18.0
+	sword_swing_timer = maxf(sword_swing_timer, 0.12)
 	var closest_kind := ""
 	var closest_distance := 999.0
 	for pickup in pickups:
@@ -604,7 +847,7 @@ func _drink_potion() -> void:
 
 
 func _update_camera(delta: float) -> void:
-	var target := hero.position + Vector3(0.0, 17.5, 15.0)
+	var target := hero.position - _camera_forward() * CAMERA_DISTANCE + Vector3(0.0, CAMERA_HEIGHT, 0.0)
 	camera.position = camera.position.lerp(target, clampf(delta * 4.0, 0.0, 1.0))
 	camera.look_at(hero.position + Vector3(0.0, 0.25, 0.0), Vector3.UP)
 
@@ -641,6 +884,9 @@ func _update_creatures(delta: float) -> void:
 func _damage_hero(amount: float) -> void:
 	if hurt_timer > 0.0:
 		return
+	if shield_block_timer > 0.0:
+		amount *= 0.25
+		hud_hint.text = "Blocked the shade's hit."
 	hero_health -= amount
 	hurt_timer = 0.35
 	if hero_health <= 0.0:
@@ -778,8 +1024,16 @@ func _update_hud() -> void:
 	else:
 		hud_quest.text = "Level 1: collect %d ancient runes to break the exit seal. Claimed: %d/%d" % [DISCOVERIES_NEEDED, discovery_count, DISCOVERIES_NEEDED]
 	hud_inventory.text = "Inventory: %s  |  Herbs: %d" % [_inventory_summary(), potion_count]
+	if sword_button:
+		sword_button.disabled = sword_swing_cooldown > 0.0
+		sword_button.text = "1  Sword" if sword_swing_cooldown <= 0.0 else "1  %.1fs" % sword_swing_cooldown
+	if shield_button:
+		shield_button.disabled = shield_block_cooldown > 0.0
+		shield_button.text = "2  Block" if shield_block_cooldown <= 0.0 else ("2  Holding" if shield_block_timer > 0.0 else "2  %.1fs" % shield_block_cooldown)
+	if click_to_move_checkbox:
+		click_to_move_checkbox.set_pressed_no_signal(click_to_move_enabled)
 	if hud_hint.text == "":
-		hud_hint.text = "Move WASD / arrows. Space/E inspects. Q uses an herb. Tab toggles the journal."
+		hud_hint.text = "WASD moves. Hold right mouse to turn, both buttons to run. 1 swings, 2 blocks, Q uses an herb."
 
 
 func _inventory_summary() -> String:
