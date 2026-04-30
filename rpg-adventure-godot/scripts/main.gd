@@ -19,8 +19,10 @@ const CAMERA_MIN_PITCH := -1.18
 const CAMERA_MAX_PITCH := -0.025
 const SWORD_SWING_DURATION := 0.28
 const SWORD_SWING_COOLDOWN := 0.55
-const SWORD_LIGHT_BASE_ENERGY := 76.0
-const SWORD_LIGHT_SWING_ENERGY := 210.0
+const STAFF_ORB_RADIUS := 0.095
+const VIEW_STAFF_ORB_RADIUS := 0.07
+const SWORD_LIGHT_BASE_ENERGY := 0.0
+const SWORD_LIGHT_SWING_ENERGY := 0.0
 const FIRE_BOLT_RANGE := 7.5
 const SHIELD_BLOCK_DURATION := 1.1
 const SHIELD_BLOCK_COOLDOWN := 1.8
@@ -344,7 +346,7 @@ func _build_camera_sword() -> void:
 	view_sword_guard = _add_box(Vector3(0.42, -0.47, -0.54), Vector3(0.28, 0.05, 0.07), _mat("d59a42", 0.56, "ffc35a", 0.24), camera)
 	view_sword_guard.name = "Close Camera Staff Binding"
 	view_sword_guard.visible = false
-	view_staff_orb = _add_sphere(Vector3(0.42, -0.06, -1.2), 0.16, 0.16, _mat("ff7a2b", 0.18, "ffb13d", 5.0), camera)
+	view_staff_orb = _add_sphere(Vector3(0.42, -0.06, -1.2), VIEW_STAFF_ORB_RADIUS, VIEW_STAFF_ORB_RADIUS, _mat("f6c66e", 0.36, "ffd27a", 0.35), camera)
 	view_staff_orb.name = "Close Camera Staff Orb"
 	view_staff_orb.visible = false
 	view_sword_slash = _add_box(Vector3(0.08, -0.1, -1.2), Vector3(0.7, 0.07, 0.07), _mat("ff6a18", 0.18, "ffc15a", 3.4), camera)
@@ -493,7 +495,7 @@ func _spawn_hero() -> void:
 	hero_sword = _add_cylinder(Vector3(0.42, 0.83, -0.12), 0.045, 1.04, _mat("6a3f22", 0.72, "ff8f3b", 0.18), hero)
 	hero_sword.rotation_degrees.z = -8.0
 	_add_box(Vector3(0.42, 0.38, -0.12), Vector3(0.22, 0.07, 0.08), _mat("d4a94d", 0.68, "ffc45d", 0.18), hero)
-	staff_orb = _add_sphere(Vector3(0.42, 1.42, -0.12), 0.2, 0.2, _mat("ff7a2b", 0.18, "ffb13d", 5.4), hero)
+	staff_orb = _add_sphere(Vector3(0.42, 1.42, -0.12), STAFF_ORB_RADIUS, STAFF_ORB_RADIUS, _mat("f6c66e", 0.36, "ffd27a", 0.35), hero)
 	hero_shield = _add_box(Vector3(-0.34, 0.68, -0.28), Vector3(0.14, 0.58, 0.42), _mat("7f91ac", 0.56, "9ec5ff", 0.16), hero)
 	hero_shield.visible = false
 
@@ -510,8 +512,9 @@ func _spawn_hero() -> void:
 	sword_light.name = "Sword Glow"
 	sword_light.light_color = Color("ffb13d")
 	sword_light.light_energy = SWORD_LIGHT_BASE_ENERGY
-	sword_light.omni_range = 7.5
+	sword_light.omni_range = 0.1
 	sword_light.shadow_enabled = false
+	sword_light.visible = false
 	sword_light.position = Vector3(0.42, 1.42, -0.12)
 	hero.add_child(sword_light)
 
@@ -1057,11 +1060,11 @@ func _update_hero_combat_visuals(delta: float) -> void:
 			hero_sword.rotation_degrees.z = lerpf(hero_sword.rotation_degrees.z, -8.0, delta * 11.0)
 			hero_sword.scale = hero_sword.scale.lerp(Vector3.ONE, delta * 10.0)
 	if staff_orb:
-		var orb_pulse := 1.0 + sin(Time.get_ticks_msec() * 0.01) * 0.08
+		var orb_pulse := 1.0 + sin(Time.get_ticks_msec() * 0.01) * 0.025
 		if swing_active:
-			orb_pulse += sin(swing_t * PI) * 0.55
+			orb_pulse += sin(swing_t * PI) * 0.08
 		staff_orb.position = hero_sword.position + Vector3(0.0, 0.59, 0.0) if hero_sword else Vector3(0.42, 1.42, -0.12)
-		staff_orb.scale = Vector3.ONE * orb_pulse
+		staff_orb.scale = Vector3.ONE * (STAFF_ORB_RADIUS * orb_pulse)
 	_update_view_sword_visuals(delta, swing_t, swing_active)
 	_update_fire_bolt_visuals(swing_t, swing_active)
 	if hero_shield:
@@ -1075,8 +1078,9 @@ func _update_hero_combat_visuals(delta: float) -> void:
 		hero_light.light_energy = 1.18 if shield_block_timer > 0.0 else 0.92
 		hero_light.omni_range = 5.7 if shield_block_timer > 0.0 else 5.25
 	if sword_light:
+		sword_light.visible = false
 		sword_light.light_energy = SWORD_LIGHT_SWING_ENERGY if swing_active else SWORD_LIGHT_BASE_ENERGY
-		sword_light.omni_range = 9.2 if swing_active else 7.5
+		sword_light.omni_range = 0.1
 		sword_light.position = staff_orb.position if staff_orb else Vector3(0.42, 1.42, -0.12)
 
 
@@ -1100,7 +1104,7 @@ func _update_view_sword_visuals(delta: float, swing_t: float, swing_active: bool
 		view_sword_guard.rotation_degrees = view_sword.rotation_degrees + Vector3(0.0, 0.0, 90.0)
 		view_sword_guard.scale = Vector3.ONE * close_alpha
 		view_staff_orb.position = view_sword.position + Vector3(0.0, 0.38, -0.34)
-		view_staff_orb.scale = Vector3.ONE * ((0.82 + arc * 0.9) * close_alpha)
+		view_staff_orb.scale = Vector3.ONE * (VIEW_STAFF_ORB_RADIUS * (1.0 + arc * 0.25) * close_alpha)
 		view_sword_slash.position = Vector3(0.08, lerpf(-0.12, -0.2, swing_t), lerpf(-1.05, -1.75, swing_t))
 		view_sword_slash.rotation_degrees = Vector3(0.0, 0.0, lerpf(8.0, -8.0, swing_t))
 		view_sword_slash.scale = Vector3(1.0 + swing_t * 1.35, close_alpha * (0.5 + arc), close_alpha * (0.5 + arc))
@@ -1113,7 +1117,7 @@ func _update_view_sword_visuals(delta: float, swing_t: float, swing_active: bool
 		view_sword_guard.rotation_degrees = view_sword.rotation_degrees + Vector3(0.0, 0.0, 90.0)
 		view_sword_guard.scale = Vector3.ONE * close_alpha
 		view_staff_orb.position = view_sword.position + Vector3(0.0, 0.38, -0.34)
-		view_staff_orb.scale = view_staff_orb.scale.lerp(Vector3.ONE * (0.72 * close_alpha), delta * 9.0)
+		view_staff_orb.scale = view_staff_orb.scale.lerp(Vector3.ONE * (VIEW_STAFF_ORB_RADIUS * close_alpha), delta * 9.0)
 
 
 func _update_fire_bolt_visuals(swing_t: float, swing_active: bool) -> void:
@@ -1133,7 +1137,7 @@ func _update_fire_bolt_visuals(swing_t: float, swing_active: bool) -> void:
 	if beam_mid.distance_to(bolt_head) > 0.01:
 		fire_bolt_beam.look_at(bolt_head, Vector3.UP)
 	fire_bolt_tip.position = bolt_head
-	fire_bolt_tip.scale = Vector3.ONE * (1.0 + sin(swing_t * PI) * 0.72)
+	fire_bolt_tip.scale = Vector3.ONE * (0.22 * (1.0 + sin(swing_t * PI) * 0.32))
 	fire_bolt_light.position = bolt_head
 
 
