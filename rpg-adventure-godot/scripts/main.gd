@@ -26,6 +26,12 @@ const SWORD_LIGHT_SWING_ENERGY := 0.0
 const FIRE_BOLT_RANGE := 7.5
 const SHIELD_BLOCK_DURATION := 1.1
 const SHIELD_BLOCK_COOLDOWN := 1.8
+const DUNGEON_AMBIENT_BASE := 0.24
+const DUNGEON_FILL_BASE := 0.42
+const LANTERN_LIGHT_BASE_ENERGY := 3.2
+const LANTERN_LIGHT_BURST_ENERGY := 9.5
+const DUNGEON_BRIGHTNESS_LABELS := ["Dark 100%", "Clear 140%", "Bright 180%", "Radiant 230%"]
+const DUNGEON_BRIGHTNESS_SCALES := [1.0, 1.4, 1.8, 2.3]
 const DUNGEON_LAYOUT := [
 	"#####################",
 	"#S..#.......#.......#",
@@ -54,6 +60,9 @@ var hero_sword: MeshInstance3D
 var hero_shield: MeshInstance3D
 var hero_ring: MeshInstance3D
 var hero_light: OmniLight3D
+var hero_lantern: Node3D
+var hero_lantern_light: OmniLight3D
+var hero_lantern_glow: MeshInstance3D
 var sword_light: OmniLight3D
 var view_sword: MeshInstance3D
 var view_sword_guard: MeshInstance3D
@@ -65,6 +74,12 @@ var fire_bolt_tip: MeshInstance3D
 var fire_bolt_light: OmniLight3D
 var fire_bolt_start := Vector3.ZERO
 var fire_bolt_end := Vector3.ZERO
+var lantern_burst_ring: MeshInstance3D
+var lantern_burst_ring_outer: MeshInstance3D
+var lantern_burst_ray_root: Node3D
+var lantern_burst_light: OmniLight3D
+var dungeon_environment: Environment
+var dungeon_fill_light: DirectionalLight3D
 var hero_velocity := Vector3.ZERO
 var camera_yaw := 0.0
 var camera_pitch_offset := 0.0
@@ -116,12 +131,14 @@ var inventory_grid: GridContainer
 var inventory_detail: Label
 var sword_button: Button
 var shield_button: Button
+var brightness_dropdown: OptionButton
 var click_to_move_checkbox: CheckBox
 var health_bar: ProgressBar
 var xp_bar: ProgressBar
 var hud_minimized := false
 var selected_inventory_item := "Orb Staff"
 var inventory_signature := ""
+var dungeon_brightness_scale := 1.0
 
 
 func _ready() -> void:
@@ -241,6 +258,7 @@ func _build_world() -> void:
 	env.glow_intensity = 0.2
 	env.glow_strength = 0.28
 	env.fog_enabled = false
+	dungeon_environment = env
 	world.environment = env
 	add_child(world)
 
@@ -250,6 +268,7 @@ func _build_world() -> void:
 	sun.light_energy = 0.42
 	sun.shadow_enabled = true
 	sun.rotation_degrees = Vector3(-58.0, -24.0, 0.0)
+	dungeon_fill_light = sun
 	add_child(sun)
 
 	camera = Camera3D.new()
@@ -427,20 +446,18 @@ func _add_torch(pos: Vector3) -> void:
 	root.name = "Dungeon Torch"
 	root.position = pos + Vector3(0.0, 0.0, 0.0)
 	add_child(root)
-	_add_cylinder(Vector3(0.0, 0.34, 0.0), 0.055, 0.68, _mat("493222", 0.88), root)
-	_add_cylinder(Vector3(0.0, 0.72, 0.0), 0.11, 0.08, _mat("2b2020", 0.82), root)
-	var flame := _add_sphere(Vector3(0.0, 0.92, 0.0), 0.16, 0.24, _mat("ff9d42", 0.22, "ffc15a", 0.9), root)
+	_add_box(Vector3(0.0, 0.72, 0.34), Vector3(0.42, 0.12, 0.12), _mat("493222", 0.88), root)
+	_add_cylinder(Vector3(0.0, 0.72, 0.12), 0.06, 0.26, _mat("2b2020", 0.82), root).rotation_degrees.x = 90.0
+	var flame := _add_sphere(Vector3(0.0, 0.86, 0.02), 0.075, 0.14, _mat("ff9d42", 0.22, "ffc15a", 0.9), root)
 	decor_bobs.append(flame)
 	var light := OmniLight3D.new()
 	light.name = "Torch Glow"
 	light.light_color = Color("ffad62")
-	light.light_energy = 0.72
-	light.omni_range = 4.2
+	light.light_energy = 0.55
+	light.omni_range = 3.4
 	light.shadow_enabled = false
-	light.position = Vector3(0.0, 0.96, 0.0)
+	light.position = Vector3(0.0, 0.9, 0.02)
 	root.add_child(light)
-	var pool := _add_ellipse_disc_local(Vector3(0.0, 0.018, 0.0), Vector2(1.45, 1.45), 0.018, _mat("4a2b18", 0.5, "ff9f4a", 0.06), root, 0.0)
-	pool.transparency = 0.42
 
 
 func _add_dungeon_pillars() -> void:
@@ -498,6 +515,7 @@ func _spawn_hero() -> void:
 	staff_orb = _add_sphere(Vector3(0.42, 1.42, -0.12), STAFF_ORB_RADIUS, STAFF_ORB_RADIUS, _mat("f6c66e", 0.36, "ffd27a", 0.35), hero)
 	hero_shield = _add_box(Vector3(-0.34, 0.68, -0.28), Vector3(0.14, 0.58, 0.42), _mat("7f91ac", 0.56, "9ec5ff", 0.16), hero)
 	hero_shield.visible = false
+	_build_hero_lantern()
 
 	hero_light = OmniLight3D.new()
 	hero_light.name = "Hero Perimeter Light"
@@ -519,6 +537,28 @@ func _spawn_hero() -> void:
 	hero.add_child(sword_light)
 
 	_create_fire_bolt_visuals()
+	_create_lantern_burst_visuals()
+
+
+func _build_hero_lantern() -> void:
+	hero_lantern = Node3D.new()
+	hero_lantern.name = "Left Hand Lantern"
+	hero_lantern.position = Vector3(-0.43, 0.78, -0.16)
+	hero.add_child(hero_lantern)
+	_add_cylinder(Vector3(0.0, 0.2, 0.0), 0.055, 0.26, _mat("dad6c8", 0.6), hero_lantern)
+	_add_box(Vector3(0.0, 0.2, 0.0), Vector3(0.18, 0.28, 0.12), _mat("d9eaff", 0.42, "f6fbff", 0.35), hero_lantern)
+	_add_box(Vector3(0.0, 0.39, 0.0), Vector3(0.22, 0.04, 0.16), _mat("5c4a38", 0.78), hero_lantern)
+	_add_box(Vector3(0.0, 0.01, 0.0), Vector3(0.22, 0.04, 0.16), _mat("5c4a38", 0.78), hero_lantern)
+	_add_cylinder(Vector3(0.0, 0.48, 0.0), 0.075, 0.025, _mat("c3b28b", 0.64), hero_lantern)
+	hero_lantern_glow = _add_box(Vector3(0.0, 0.2, 0.0), Vector3(0.1, 0.18, 0.06), _mat("f7fbff", 0.3, "f7fbff", 0.55), hero_lantern)
+	hero_lantern_light = OmniLight3D.new()
+	hero_lantern_light.name = "Lantern White Light"
+	hero_lantern_light.light_color = Color("f4fbff")
+	hero_lantern_light.light_energy = LANTERN_LIGHT_BASE_ENERGY
+	hero_lantern_light.omni_range = 8.2
+	hero_lantern_light.shadow_enabled = false
+	hero_lantern_light.position = Vector3(0.0, 0.22, 0.0)
+	hero_lantern.add_child(hero_lantern_light)
 
 
 func _create_fire_bolt_visuals() -> void:
@@ -536,6 +576,34 @@ func _create_fire_bolt_visuals() -> void:
 	fire_bolt_light.shadow_enabled = false
 	fire_bolt_light.visible = false
 	add_child(fire_bolt_light)
+
+
+func _create_lantern_burst_visuals() -> void:
+	lantern_burst_ring = _add_ellipse_disc_local(Vector3.ZERO, Vector2(1.0, 1.0), 0.02, _mat("dff7ff", 0.26, "e8fbff", 1.2), self, 0.0)
+	lantern_burst_ring.name = "Lantern Burst Inner Ring"
+	lantern_burst_ring.transparency = 0.58
+	lantern_burst_ring.visible = false
+	lantern_burst_ring_outer = _add_ellipse_disc_local(Vector3.ZERO, Vector2(1.0, 1.0), 0.018, _mat("9edcff", 0.28, "c5efff", 0.85), self, 0.0)
+	lantern_burst_ring_outer.name = "Lantern Burst Outer Ring"
+	lantern_burst_ring_outer.transparency = 0.66
+	lantern_burst_ring_outer.visible = false
+	lantern_burst_ray_root = Node3D.new()
+	lantern_burst_ray_root.name = "Lantern Burst Rays"
+	add_child(lantern_burst_ray_root)
+	for i in range(10):
+		var angle := TAU * float(i) / 10.0
+		var direction := Vector3(sin(angle), 0.0, cos(angle))
+		var ray := _add_box(direction * 0.75 + Vector3(0.0, 0.12, 0.0), Vector3(0.045, 0.04, 1.5), _mat("dff7ff", 0.24, "f4fdff", 1.4), lantern_burst_ray_root)
+		ray.rotation_degrees.y = rad_to_deg(angle)
+		ray.transparency = 0.42
+	lantern_burst_ray_root.visible = false
+	lantern_burst_light = OmniLight3D.new()
+	lantern_burst_light.name = "Lantern Arcane Burst Light"
+	lantern_burst_light.light_color = Color("e8fbff")
+	lantern_burst_light.light_energy = 0.0
+	lantern_burst_light.omni_range = 0.1
+	lantern_burst_light.shadow_enabled = false
+	add_child(lantern_burst_light)
 
 
 func _spawn_creatures() -> void:
@@ -692,10 +760,18 @@ func _build_hud() -> void:
 	action_row.add_child(sword_button)
 
 	shield_button = Button.new()
-	shield_button.text = "2  Block"
-	shield_button.custom_minimum_size = Vector2(116, 32)
+	shield_button.text = "2  Lantern"
+	shield_button.custom_minimum_size = Vector2(126, 32)
 	shield_button.pressed.connect(_use_shield_block)
 	action_row.add_child(shield_button)
+
+	brightness_dropdown = OptionButton.new()
+	brightness_dropdown.custom_minimum_size = Vector2(140, 32)
+	for label in DUNGEON_BRIGHTNESS_LABELS:
+		brightness_dropdown.add_item(label)
+	brightness_dropdown.selected = 0
+	brightness_dropdown.item_selected.connect(_on_brightness_selected)
+	action_row.add_child(brightness_dropdown)
 
 	click_to_move_checkbox = CheckBox.new()
 	click_to_move_checkbox.text = "Click to move"
@@ -825,13 +901,13 @@ func _equipped_item_for_slot(slot_name: String) -> String:
 		"Weapon":
 			return "Orb Staff"
 		"Ward":
-			return "Arcane Ward"
+			return "Arcane Burst"
 		"Boots":
 			return "Silent Boots" if _has_inventory_item("Silent Boots") else "Empty Boots"
 		"Charm":
 			return "Bloodstone Charm" if _has_inventory_item("Bloodstone Charm") else "Empty Charm"
 		"Light":
-			return "Crypt Lantern" if _has_inventory_item("Crypt Lantern") else "Empty Light"
+			return "Crypt Lantern" if _has_inventory_item("Crypt Lantern") else "Held Lantern"
 		"Pack":
 			return "Loot Satchel" if _has_inventory_item("Loot Satchel") else "Small Pouch"
 	return slot_name
@@ -842,7 +918,7 @@ func _inventory_state_signature() -> String:
 
 
 func _inventory_entries() -> Array[String]:
-	var entries: Array[String] = ["Orb Staff", "Arcane Ward"]
+	var entries: Array[String] = ["Orb Staff", "Held Lantern", "Arcane Burst"]
 	if potion_count > 0:
 		entries.append("Dungeon Herb x%d" % potion_count)
 	if hero_gold > 0:
@@ -881,6 +957,23 @@ func _set_click_to_move_enabled(enabled: bool) -> void:
 		_clear_click_move_target()
 	if hud_hint:
 		hud_hint.text = "Click-to-move enabled. Left-click a clear floor tile, or steer with WASD, mouse wheel, and right-drag." if enabled else "Click-to-move disabled. Use WASD, right-drag camera, wheel zoom, or both mouse buttons to move."
+
+
+func _on_brightness_selected(index: int) -> void:
+	if index < 0 or index >= DUNGEON_BRIGHTNESS_SCALES.size():
+		return
+	dungeon_brightness_scale = float(DUNGEON_BRIGHTNESS_SCALES[index])
+	_apply_dungeon_brightness()
+	if hud_hint:
+		hud_hint.text = "Dungeon brightness set to %s." % String(DUNGEON_BRIGHTNESS_LABELS[index])
+
+
+func _apply_dungeon_brightness() -> void:
+	if dungeon_environment:
+		dungeon_environment.ambient_light_energy = DUNGEON_AMBIENT_BASE * dungeon_brightness_scale
+		dungeon_environment.adjustment_brightness = 0.68 + (dungeon_brightness_scale - 1.0) * 0.08
+	if dungeon_fill_light:
+		dungeon_fill_light.light_energy = DUNGEON_FILL_BASE * (0.85 + dungeon_brightness_scale * 0.3)
 
 
 func _is_pointer_over_hud() -> bool:
@@ -1037,7 +1130,20 @@ func _use_shield_block() -> void:
 		return
 	shield_block_timer = SHIELD_BLOCK_DURATION
 	shield_block_cooldown = SHIELD_BLOCK_COOLDOWN
-	hud_hint.text = "Shield raised. Incoming hits are heavily reduced."
+	var cleared := 0
+	for creature in creatures.duplicate():
+		var node: Node3D = creature.node
+		if not is_instance_valid(node):
+			creatures.erase(creature)
+			continue
+		if node.position.distance_to(hero.position) <= 3.8:
+			cleared += 1
+			creatures.erase(creature)
+			node.queue_free()
+	if cleared > 0:
+		_grant_xp(10 * cleared, "Lantern burst scattered %d shade%s." % [cleared, "" if cleared == 1 else "s"])
+	else:
+		hud_hint.text = "The wizard lifts the lantern. Arcane light bursts outward."
 
 
 func _update_hero_combat_visuals(delta: float) -> void:
@@ -1068,20 +1174,63 @@ func _update_hero_combat_visuals(delta: float) -> void:
 	_update_view_sword_visuals(delta, swing_t, swing_active)
 	_update_fire_bolt_visuals(swing_t, swing_active)
 	if hero_shield:
-		hero_shield.visible = shield_block_timer > 0.0
-		if hero_shield.visible:
-			var block_pulse := 1.0 + sin(Time.get_ticks_msec() * 0.02) * 0.08
-			hero_shield.scale = Vector3(block_pulse, 1.0, block_pulse)
-		else:
-			hero_shield.scale = Vector3.ONE
+		hero_shield.visible = false
+	_update_lantern_visuals(delta)
 	if hero_light:
-		hero_light.light_energy = 1.18 if shield_block_timer > 0.0 else 0.92
-		hero_light.omni_range = 5.7 if shield_block_timer > 0.0 else 5.25
+		hero_light.light_energy = 0.92
+		hero_light.omni_range = 5.25
 	if sword_light:
 		sword_light.visible = false
 		sword_light.light_energy = SWORD_LIGHT_SWING_ENERGY if swing_active else SWORD_LIGHT_BASE_ENERGY
 		sword_light.omni_range = 0.1
 		sword_light.position = staff_orb.position if staff_orb else Vector3(0.42, 1.42, -0.12)
+
+
+func _update_lantern_visuals(delta: float) -> void:
+	var burst_active := shield_block_timer > 0.0
+	var burst_t := 0.0
+	var burst_arc := 0.0
+	if burst_active:
+		burst_t = 1.0 - (shield_block_timer / SHIELD_BLOCK_DURATION)
+		burst_arc = sin(burst_t * PI)
+	if hero_lantern:
+		var target_pos := Vector3(-0.36, 1.28, -0.18) if burst_active else Vector3(-0.43, 0.78, -0.16)
+		var target_rot := Vector3(-18.0, 0.0, -12.0) if burst_active else Vector3.ZERO
+		hero_lantern.position = hero_lantern.position.lerp(target_pos, clampf(delta * 12.0, 0.0, 1.0))
+		hero_lantern.rotation_degrees = hero_lantern.rotation_degrees.lerp(target_rot, clampf(delta * 12.0, 0.0, 1.0))
+	if hero_lantern_glow:
+		hero_lantern_glow.scale = Vector3.ONE * (1.0 + burst_arc * 0.35)
+	if hero_lantern_light:
+		hero_lantern_light.light_energy = LANTERN_LIGHT_BASE_ENERGY + burst_arc * LANTERN_LIGHT_BURST_ENERGY
+		hero_lantern_light.omni_range = 8.2 + burst_arc * 3.8
+	_update_lantern_burst_visuals(burst_t, burst_arc, burst_active)
+
+
+func _update_lantern_burst_visuals(burst_t: float, burst_arc: float, burst_active: bool) -> void:
+	var burst_center := hero.position + Vector3(0.0, 0.08, 0.0)
+	if lantern_burst_ring:
+		lantern_burst_ring.visible = burst_active
+		lantern_burst_ring.position = burst_center
+		var inner_radius := lerpf(0.55, 4.4, burst_t)
+		lantern_burst_ring.scale = Vector3(inner_radius, 1.0, inner_radius)
+		lantern_burst_ring.transparency = lerpf(0.34, 0.82, burst_t)
+	if lantern_burst_ring_outer:
+		lantern_burst_ring_outer.visible = burst_active
+		lantern_burst_ring_outer.position = burst_center + Vector3(0.0, 0.025, 0.0)
+		var outer_radius := lerpf(1.1, 6.6, burst_t)
+		lantern_burst_ring_outer.scale = Vector3(outer_radius, 1.0, outer_radius)
+		lantern_burst_ring_outer.transparency = lerpf(0.48, 0.88, burst_t)
+	if lantern_burst_ray_root:
+		lantern_burst_ray_root.visible = burst_active
+		lantern_burst_ray_root.position = burst_center
+		lantern_burst_ray_root.rotation_degrees.y += 3.0
+		var ray_radius := lerpf(0.45, 2.85, burst_t)
+		lantern_burst_ray_root.scale = Vector3(ray_radius, 1.0, ray_radius)
+	if lantern_burst_light:
+		lantern_burst_light.visible = burst_active
+		lantern_burst_light.position = hero.position + Vector3(0.0, 1.1, 0.0)
+		lantern_burst_light.light_energy = LANTERN_LIGHT_BURST_ENERGY * 1.2 * burst_arc
+		lantern_burst_light.omni_range = 5.0 + burst_arc * 7.0
 
 
 func _update_view_sword_visuals(delta: float, swing_t: float, swing_active: bool) -> void:
@@ -1230,9 +1379,6 @@ func _update_creatures(delta: float) -> void:
 func _damage_hero(amount: float) -> void:
 	if hurt_timer > 0.0:
 		return
-	if shield_block_timer > 0.0:
-		amount *= 0.25
-		hud_hint.text = "Blocked the shade's hit."
 	hero_health -= amount
 	hurt_timer = 0.35
 	if hero_health <= 0.0:
@@ -1255,7 +1401,6 @@ func _update_decor(delta: float) -> void:
 		if not is_instance_valid(node):
 			continue
 		node.rotation_degrees.y += delta * 8.0
-		node.scale = Vector3.ONE * (1.0 + sin(Time.get_ticks_msec() * 0.002 + node.position.x) * 0.025)
 
 
 func _collect_pickups() -> void:
@@ -1380,11 +1525,15 @@ func _update_hud() -> void:
 		sword_button.text = "1  Firebolt" if sword_swing_cooldown <= 0.0 else "1  %.1fs" % sword_swing_cooldown
 	if shield_button:
 		shield_button.disabled = shield_block_cooldown > 0.0
-		shield_button.text = "2  Block" if shield_block_cooldown <= 0.0 else ("2  Holding" if shield_block_timer > 0.0 else "2  %.1fs" % shield_block_cooldown)
+		shield_button.text = "2  Lantern" if shield_block_cooldown <= 0.0 else ("2  Burst" if shield_block_timer > 0.0 else "2  %.1fs" % shield_block_cooldown)
+	if brightness_dropdown:
+		var brightness_index := DUNGEON_BRIGHTNESS_SCALES.find(dungeon_brightness_scale)
+		if brightness_index >= 0:
+			brightness_dropdown.selected = brightness_index
 	if click_to_move_checkbox:
 		click_to_move_checkbox.set_pressed_no_signal(click_to_move_enabled)
 	if hud_hint.text == "":
-		hud_hint.text = "WASD moves. Right-drag looks around, mouse wheel zooms close. 1 casts Firebolt, 2 blocks."
+		hud_hint.text = "WASD moves. Right-drag looks around, mouse wheel zooms close. 1 casts Firebolt, 2 raises the lantern."
 
 
 func _inventory_summary() -> String:
@@ -1409,15 +1558,15 @@ func _item_icon(item_name: String) -> String:
 	match item_name:
 		"Orb Staff":
 			return "[STAFF]"
-		"Arcane Ward":
-			return "[WARD]"
+		"Arcane Burst":
+			return "[BURST]"
 		"Silent Boots":
 			return "[BOOTS]"
 		"Bone Compass":
 			return "[COMP]"
 		"Bloodstone Charm":
 			return "[CHARM]"
-		"Crypt Lantern":
+		"Crypt Lantern", "Held Lantern":
 			return "[LAMP]"
 		"Loot Satchel", "Small Pouch":
 			return "[BAG]"
@@ -1450,16 +1599,18 @@ func _item_detail(item_name: String) -> String:
 	match item_name:
 		"Orb Staff":
 			return "Equipped weapon. A blazing orb staff channels Firebolt from hot amber light."
-		"Arcane Ward":
-			return "Equipped defense. Press 2 to raise a ward and reduce incoming shade damage."
+		"Arcane Burst":
+			return "Equipped spell. Press 2 to lift the lantern and release light in every direction."
 		"Silent Boots":
 			return "Equipped feet. These boots increase movement speed and make exploration smoother."
 		"Bone Compass":
 			return "Pack relic. The compass points deeper into the dungeon and hints at future floors."
 		"Bloodstone Charm":
 			return "Equipped charm. It increased maximum health when collected."
+		"Held Lantern":
+			return "Equipped light. The wizard carries this in the left hand for steady white illumination."
 		"Crypt Lantern":
-			return "Equipped light. A small dungeon lantern that helps the wizard read the dark."
+			return "Equipped light. A stronger dungeon lantern that helps the wizard read the dark."
 		"Loot Satchel":
 			return "Equipped pack. More room for coins, herbs, relics, and future equipment."
 		"Small Pouch":
