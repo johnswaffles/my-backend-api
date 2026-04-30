@@ -6,9 +6,17 @@ const CREATURE_COUNT := 7
 const DISCOVERIES_NEEDED := 5
 const DUNGEON_TILE_SIZE := 1.55
 const HERO_COLLISION_RADIUS := 0.34
-const CAMERA_DISTANCE := 15.0
-const CAMERA_HEIGHT := 18.5
 const CAMERA_ROTATE_SPEED := 0.006
+const CAMERA_PITCH_SPEED := 0.0045
+const CAMERA_ZOOM_STEP := 0.1
+const CAMERA_FAR_DISTANCE := 22.0
+const CAMERA_NEAR_DISTANCE := 0.48
+const CAMERA_FAR_FOV := 40.0
+const CAMERA_NEAR_FOV := 74.0
+const CAMERA_FAR_PITCH := -0.96
+const CAMERA_NEAR_PITCH := -0.08
+const CAMERA_MIN_PITCH := -1.18
+const CAMERA_MAX_PITCH := -0.025
 const SWORD_SWING_DURATION := 0.28
 const SWORD_SWING_COOLDOWN := 0.55
 const SHIELD_BLOCK_DURATION := 1.1
@@ -44,6 +52,8 @@ var hero_light: OmniLight3D
 var sword_light: OmniLight3D
 var hero_velocity := Vector3.ZERO
 var camera_yaw := 0.0
+var camera_pitch_offset := 0.0
+var camera_zoom := 0.0
 var hero_health := 110.0
 var hero_max_health := 110.0
 var hero_xp := 0
@@ -137,6 +147,12 @@ func _process(delta: float) -> void:
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed and not _is_pointer_over_hud():
+			_adjust_camera_zoom(CAMERA_ZOOM_STEP)
+			return
+		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed and not _is_pointer_over_hud():
+			_adjust_camera_zoom(-CAMERA_ZOOM_STEP)
+			return
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			left_mouse_down = event.pressed
 			if event.pressed:
@@ -146,12 +162,16 @@ func _input(event: InputEvent) -> void:
 				_set_click_move_target_from_screen(event.position)
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			right_mouse_down = event.pressed
+			Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED if event.pressed else Input.MOUSE_MODE_VISIBLE)
 			if event.pressed:
 				mouse_dragged = false
-	elif event is InputEventMouseMotion and (left_mouse_down or right_mouse_down):
-		if event.relative.length() > 0.6 or event.position.distance_to(left_mouse_press_position) > 4.0:
+	elif event is InputEventMouseMotion:
+		if left_mouse_down and (event.relative.length() > 0.6 or event.position.distance_to(left_mouse_press_position) > 4.0):
 			mouse_dragged = true
-		camera_yaw = wrapf(camera_yaw - event.relative.x * CAMERA_ROTATE_SPEED, -PI, PI)
+		if right_mouse_down:
+			mouse_dragged = true
+			camera_yaw = wrapf(camera_yaw - event.relative.x * CAMERA_ROTATE_SPEED, -PI, PI)
+			camera_pitch_offset = clampf(camera_pitch_offset - event.relative.y * CAMERA_PITCH_SPEED, -0.48, 0.48)
 		if right_mouse_down and is_instance_valid(hero):
 			hero.rotation.y = lerp_angle(hero.rotation.y, _rotation_from_direction(_camera_forward()), 0.9)
 
@@ -214,8 +234,11 @@ func _build_world() -> void:
 
 	camera = Camera3D.new()
 	camera.name = "DungeonCamera"
-	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = 22.0
+	camera.projection = Camera3D.PROJECTION_PERSPECTIVE
+	camera.fov = CAMERA_FAR_FOV
+	camera.near = 0.025
+	camera.far = 90.0
+	camera.current = true
 	camera.position = Vector3(0.0, 18.5, 15.0)
 	add_child(camera)
 	camera.look_at(Vector3.ZERO, Vector3.UP)
@@ -318,6 +341,20 @@ func _camera_forward() -> Vector3:
 
 func _camera_right() -> Vector3:
 	return Vector3(cos(camera_yaw), 0.0, sin(camera_yaw)).normalized()
+
+
+func _camera_zoom_curve() -> float:
+	return camera_zoom * camera_zoom * (3.0 - 2.0 * camera_zoom)
+
+
+func _current_camera_pitch() -> float:
+	return clampf(lerpf(CAMERA_FAR_PITCH, CAMERA_NEAR_PITCH, _camera_zoom_curve()) + camera_pitch_offset, CAMERA_MIN_PITCH, CAMERA_MAX_PITCH)
+
+
+func _camera_view_forward() -> Vector3:
+	var pitch := _current_camera_pitch()
+	var pitch_cos := cos(pitch)
+	return Vector3(sin(camera_yaw) * pitch_cos, sin(pitch), -cos(camera_yaw) * pitch_cos).normalized()
 
 
 func _rotation_from_direction(direction: Vector3) -> float:
@@ -646,7 +683,7 @@ func _set_click_to_move_enabled(enabled: bool) -> void:
 	if not enabled:
 		_clear_click_move_target()
 	if hud_hint:
-		hud_hint.text = "Click-to-move enabled. Left-click a clear floor tile, or steer with WASD and mouse." if enabled else "Click-to-move disabled. Use WASD, right mouse steering, or both mouse buttons to move."
+		hud_hint.text = "Click-to-move enabled. Left-click a clear floor tile, or steer with WASD, mouse wheel, and right-drag." if enabled else "Click-to-move disabled. Use WASD, right-drag camera, wheel zoom, or both mouse buttons to move."
 
 
 func _is_pointer_over_hud() -> bool:
@@ -689,6 +726,13 @@ func _clear_click_move_target() -> void:
 	click_move_active = false
 	if click_move_marker:
 		click_move_marker.visible = false
+
+
+func _adjust_camera_zoom(amount: float) -> void:
+	camera_zoom = clampf(camera_zoom + amount, 0.0, 1.0)
+	if hud_hint:
+		var zoom_label := "close" if camera_zoom > 0.72 else ("mid" if camera_zoom > 0.34 else "wide")
+		hud_hint.text = "Camera zoom: %s. Hold right mouse and drag to look around." % zoom_label
 
 
 func _update_hero(delta: float) -> void:
@@ -847,9 +891,31 @@ func _drink_potion() -> void:
 
 
 func _update_camera(delta: float) -> void:
-	var target := hero.position - _camera_forward() * CAMERA_DISTANCE + Vector3(0.0, CAMERA_HEIGHT, 0.0)
-	camera.position = camera.position.lerp(target, clampf(delta * 4.0, 0.0, 1.0))
-	camera.look_at(hero.position + Vector3(0.0, 0.25, 0.0), Vector3.UP)
+	var zoom_t := _camera_zoom_curve()
+	var look_height := lerpf(0.34, 1.08, zoom_t)
+	var look_ahead := lerpf(0.0, 4.2, zoom_t)
+	var focus := hero.position + Vector3(0.0, look_height, 0.0) + _camera_forward() * look_ahead
+	var distance := lerpf(CAMERA_FAR_DISTANCE, CAMERA_NEAR_DISTANCE, zoom_t)
+	var target := focus - _camera_view_forward() * distance
+	target.y = maxf(target.y, lerpf(1.0, 1.18, zoom_t))
+	if zoom_t > 0.48:
+		target = _resolve_close_camera_position(focus, target)
+	camera.position = camera.position.lerp(target, clampf(delta * lerpf(4.0, 9.0, zoom_t), 0.0, 1.0))
+	camera.fov = lerpf(camera.fov, lerpf(CAMERA_FAR_FOV, CAMERA_NEAR_FOV, zoom_t), clampf(delta * 6.0, 0.0, 1.0))
+	camera.look_at(focus, Vector3.UP)
+
+
+func _resolve_close_camera_position(focus: Vector3, desired: Vector3) -> Vector3:
+	var desired_cell := _dungeon_world_to_cell(Vector3(desired.x, 0.0, desired.z))
+	if _is_walkable_cell(desired_cell):
+		return desired
+	for i in range(8, 0, -1):
+		var test := focus.lerp(desired, float(i) / 8.0)
+		var test_cell := _dungeon_world_to_cell(Vector3(test.x, 0.0, test.z))
+		if _is_walkable_cell(test_cell):
+			test.y = desired.y
+			return test
+	return focus - _camera_view_forward() * 0.28
 
 
 func _update_creatures(delta: float) -> void:
@@ -1033,7 +1099,7 @@ func _update_hud() -> void:
 	if click_to_move_checkbox:
 		click_to_move_checkbox.set_pressed_no_signal(click_to_move_enabled)
 	if hud_hint.text == "":
-		hud_hint.text = "WASD moves. Hold right mouse to turn, both buttons to run. 1 swings, 2 blocks, Q uses an herb."
+		hud_hint.text = "WASD moves. Right-drag looks around, mouse wheel zooms close, both buttons run. 1 swings, 2 blocks."
 
 
 func _inventory_summary() -> String:
