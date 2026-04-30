@@ -1677,11 +1677,7 @@ func _fairy_comment(event_name: String, fallback: String, extra: Dictionary = {}
 
 
 func _fairy_endpoint_url() -> String:
-	if OS.has_feature("web"):
-		var origin := String(JavaScriptBridge.eval("window.location.origin", true)).strip_edges()
-		if origin != "":
-			return "%s/api/tiny-hero/fairy" % origin
-	return "https://justaskjohnny.com/api/tiny-hero/fairy"
+	return "https://johnny-chat.onrender.com/api/tiny-hero/fairy"
 
 
 func _on_fairy_request_completed(_result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
