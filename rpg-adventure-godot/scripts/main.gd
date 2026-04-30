@@ -19,6 +19,8 @@ const CAMERA_MIN_PITCH := -1.18
 const CAMERA_MAX_PITCH := -0.025
 const SWORD_SWING_DURATION := 0.28
 const SWORD_SWING_COOLDOWN := 0.55
+const SWORD_LIGHT_BASE_ENERGY := 3.8
+const SWORD_LIGHT_SWING_ENERGY := 10.5
 const SHIELD_BLOCK_DURATION := 1.1
 const SHIELD_BLOCK_COOLDOWN := 1.8
 const DUNGEON_LAYOUT := [
@@ -50,6 +52,9 @@ var hero_shield: MeshInstance3D
 var hero_ring: MeshInstance3D
 var hero_light: OmniLight3D
 var sword_light: OmniLight3D
+var view_sword: MeshInstance3D
+var view_sword_guard: MeshInstance3D
+var view_sword_slash: MeshInstance3D
 var hero_velocity := Vector3.ZERO
 var camera_yaw := 0.0
 var camera_pitch_offset := 0.0
@@ -170,7 +175,7 @@ func _input(event: InputEvent) -> void:
 			mouse_dragged = true
 		if right_mouse_down:
 			mouse_dragged = true
-			camera_yaw = wrapf(camera_yaw - event.relative.x * CAMERA_ROTATE_SPEED, -PI, PI)
+			camera_yaw = wrapf(camera_yaw + event.relative.x * CAMERA_ROTATE_SPEED, -PI, PI)
 			camera_pitch_offset = clampf(camera_pitch_offset - event.relative.y * CAMERA_PITCH_SPEED, -0.48, 0.48)
 		if right_mouse_down and is_instance_valid(hero):
 			hero.rotation.y = lerp_angle(hero.rotation.y, _rotation_from_direction(_camera_forward()), 0.9)
@@ -242,6 +247,7 @@ func _build_world() -> void:
 	camera.position = Vector3(0.0, 18.5, 15.0)
 	add_child(camera)
 	camera.look_at(Vector3.ZERO, Vector3.UP)
+	_build_camera_sword()
 
 	_build_dungeon_level_one()
 
@@ -316,6 +322,19 @@ func _dungeon_world_to_cell(pos: Vector3) -> Vector2i:
 
 func _dungeon_cell_key(cell: Vector2i) -> String:
 	return "%d:%d" % [cell.x, cell.y]
+
+
+func _build_camera_sword() -> void:
+	view_sword = _add_box(Vector3(0.42, -0.34, -0.92), Vector3(0.07, 0.07, 0.92), _mat("f7fdff", 0.28, "aee9ff", 1.4), camera)
+	view_sword.name = "Close Camera Sword"
+	view_sword.visible = false
+	view_sword_guard = _add_box(Vector3(0.42, -0.47, -0.54), Vector3(0.36, 0.055, 0.075), _mat("f0bd55", 0.56, "ffd278", 0.18), camera)
+	view_sword_guard.name = "Close Camera Sword Guard"
+	view_sword_guard.visible = false
+	view_sword_slash = _add_box(Vector3(0.08, -0.1, -1.2), Vector3(0.78, 0.025, 0.08), _mat("9de9ff", 0.22, "baf5ff", 1.8), camera)
+	view_sword_slash.name = "Close Camera Sword Slash"
+	view_sword_slash.transparency = 0.28
+	view_sword_slash.visible = false
 
 
 func _is_walkable_cell(cell: Vector2i) -> bool:
@@ -471,8 +490,8 @@ func _spawn_hero() -> void:
 	sword_light = OmniLight3D.new()
 	sword_light.name = "Sword Glow"
 	sword_light.light_color = Color("a8e1ff")
-	sword_light.light_energy = 0.32
-	sword_light.omni_range = 2.4
+	sword_light.light_energy = SWORD_LIGHT_BASE_ENERGY
+	sword_light.omni_range = 3.6
 	sword_light.shadow_enabled = false
 	sword_light.position = Vector3(0.42, 0.74, -0.24)
 	hero.add_child(sword_light)
@@ -836,16 +855,25 @@ func _use_shield_block() -> void:
 
 
 func _update_hero_combat_visuals(delta: float) -> void:
+	var swing_t := 0.0
+	var swing_active := sword_swing_timer > 0.0
+	if swing_active:
+		swing_t = 1.0 - (sword_swing_timer / SWORD_SWING_DURATION)
 	if hero_sword:
-		if sword_swing_timer > 0.0:
-			var swing_t := 1.0 - (sword_swing_timer / SWORD_SWING_DURATION)
-			hero_sword.rotation_degrees.x = lerpf(-58.0, 40.0, swing_t)
-			hero_sword.rotation_degrees.y = lerpf(-18.0, 24.0, swing_t)
-			hero_sword.scale = Vector3(1.18, 1.18, 1.18)
+		if swing_active:
+			var arc := sin(swing_t * PI)
+			hero_sword.position = Vector3(lerpf(0.54, -0.32, swing_t), lerpf(0.9, 0.58, swing_t) + arc * 0.22, lerpf(-0.56, -0.18, swing_t))
+			hero_sword.rotation_degrees.x = lerpf(-92.0, 54.0, swing_t)
+			hero_sword.rotation_degrees.y = lerpf(-46.0, 58.0, swing_t)
+			hero_sword.rotation_degrees.z = lerpf(22.0, -34.0, swing_t)
+			hero_sword.scale = Vector3.ONE * (1.35 + arc * 0.16)
 		else:
+			hero_sword.position = hero_sword.position.lerp(Vector3(0.42, 0.66, -0.12), delta * 12.0)
 			hero_sword.rotation_degrees.x = lerpf(hero_sword.rotation_degrees.x, 0.0, delta * 11.0)
 			hero_sword.rotation_degrees.y = lerpf(hero_sword.rotation_degrees.y, 0.0, delta * 11.0)
+			hero_sword.rotation_degrees.z = lerpf(hero_sword.rotation_degrees.z, 0.0, delta * 11.0)
 			hero_sword.scale = hero_sword.scale.lerp(Vector3.ONE, delta * 10.0)
+	_update_view_sword_visuals(delta, swing_t, swing_active)
 	if hero_shield:
 		hero_shield.visible = shield_block_timer > 0.0
 		if hero_shield.visible:
@@ -857,8 +885,39 @@ func _update_hero_combat_visuals(delta: float) -> void:
 		hero_light.light_energy = 1.18 if shield_block_timer > 0.0 else 0.92
 		hero_light.omni_range = 5.7 if shield_block_timer > 0.0 else 5.25
 	if sword_light:
-		sword_light.light_energy = 1.05 if sword_swing_timer > 0.0 else 0.38
-		sword_light.omni_range = 3.2 if sword_swing_timer > 0.0 else 2.45
+		sword_light.light_energy = SWORD_LIGHT_SWING_ENERGY if swing_active else SWORD_LIGHT_BASE_ENERGY
+		sword_light.omni_range = 5.0 if swing_active else 3.6
+
+
+func _update_view_sword_visuals(delta: float, swing_t: float, swing_active: bool) -> void:
+	if view_sword == null or view_sword_guard == null or view_sword_slash == null:
+		return
+	var close_alpha := clampf((camera_zoom - 0.48) / 0.34, 0.0, 1.0)
+	var show_close_sword := close_alpha > 0.02
+	view_sword.visible = show_close_sword
+	view_sword_guard.visible = show_close_sword
+	view_sword_slash.visible = show_close_sword and swing_active
+	if not show_close_sword:
+		return
+	if swing_active:
+		var arc := sin(swing_t * PI)
+		view_sword.position = Vector3(lerpf(0.58, -0.18, swing_t), lerpf(-0.22, -0.48, swing_t) + arc * 0.12, lerpf(-0.88, -0.64, swing_t))
+		view_sword.rotation_degrees = Vector3(lerpf(-118.0, -38.0, swing_t), lerpf(-34.0, 34.0, swing_t), lerpf(44.0, -52.0, swing_t))
+		view_sword.scale = Vector3.ONE * (lerpf(0.9, 1.28, arc) * close_alpha)
+		view_sword_guard.position = view_sword.position + Vector3(0.0, -0.13, 0.28)
+		view_sword_guard.rotation_degrees = view_sword.rotation_degrees + Vector3(0.0, 0.0, 90.0)
+		view_sword_guard.scale = Vector3.ONE * close_alpha
+		view_sword_slash.position = Vector3(lerpf(0.34, -0.26, swing_t), lerpf(-0.14, -0.3, swing_t), -1.05)
+		view_sword_slash.rotation_degrees = Vector3(0.0, 0.0, lerpf(34.0, -42.0, swing_t))
+		view_sword_slash.scale = Vector3(1.0 + arc * 0.65, close_alpha, close_alpha)
+		view_sword_slash.transparency = lerpf(0.45, 0.12, arc)
+	else:
+		view_sword.position = view_sword.position.lerp(Vector3(0.46, -0.42, -0.82), delta * 9.0)
+		view_sword.rotation_degrees = view_sword.rotation_degrees.lerp(Vector3(-88.0, -12.0, 18.0), delta * 9.0)
+		view_sword.scale = view_sword.scale.lerp(Vector3.ONE * (0.74 * close_alpha), delta * 9.0)
+		view_sword_guard.position = view_sword.position + Vector3(0.0, -0.12, 0.28)
+		view_sword_guard.rotation_degrees = view_sword.rotation_degrees + Vector3(0.0, 0.0, 90.0)
+		view_sword_guard.scale = Vector3.ONE * close_alpha
 
 
 func _inspect_area() -> void:
