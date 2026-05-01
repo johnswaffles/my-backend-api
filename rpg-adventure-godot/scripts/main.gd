@@ -84,6 +84,8 @@ var fairy: Node3D
 var fairy_body: MeshInstance3D
 var fairy_left_wing: MeshInstance3D
 var fairy_right_wing: MeshInstance3D
+var fairy_left_lower_wing: MeshInstance3D
+var fairy_right_lower_wing: MeshInstance3D
 var fairy_light: OmniLight3D
 var fairy_request: HTTPRequest
 var fairy_request_pending := false
@@ -530,10 +532,23 @@ func _spawn_hero() -> void:
 	hero_ring = _add_ellipse_disc_local(Vector3(0.0, 0.018, 0.0), Vector2(1.45, 1.45), 0.018, _mat("172941", 0.72, "5eb9ff", 0.1), hero, 0.0)
 	hero_ring.transparency = 0.42
 	hero_body = _add_cylinder(Vector3(0.0, 0.62, 0.0), 0.28, 0.78, _mat("344d75", 0.72), hero)
+	_add_cylinder(Vector3(0.0, 0.68, 0.0), 0.34, 0.12, _mat("223d65", 0.72, "517ad2", 0.12), hero)
 	_add_sphere(Vector3(0.0, 1.18, 0.0), 0.24, 0.25, _mat("f2c49b", 0.78), hero)
+	_add_sphere(Vector3(-0.08, 1.2, -0.21), 0.026, 0.026, _mat("162236", 0.62), hero)
+	_add_sphere(Vector3(0.08, 1.2, -0.21), 0.026, 0.026, _mat("162236", 0.62), hero)
+	_add_box(Vector3(0.0, 1.11, -0.24), Vector3(0.18, 0.06, 0.07), _mat("d69b71", 0.76), hero)
+	_add_sphere(Vector3(0.0, 1.02, -0.2), 0.16, 0.12, _mat("d8d6cf", 0.68, "f4f0df", 0.05), hero)
+	_add_box(Vector3(0.0, 0.78, -0.23), Vector3(0.08, 0.58, 0.07), _mat("16151f", 0.88), hero)
 	_add_box(Vector3(0.0, 0.78, 0.22), Vector3(0.5, 0.68, 0.08), _mat("49306f", 0.76, "8057ff", 0.14), hero)
-	_add_box(Vector3(0.0, 1.42, 0.0), Vector3(0.56, 0.12, 0.46), _mat("2d203b", 0.78, "7c5cff", 0.12), hero)
-	_add_cylinder(Vector3(0.0, 1.48, 0.0), 0.26, 0.18, _mat("1f172b", 0.78, "7e5dff", 0.12), hero)
+	_add_box(Vector3(0.0, 0.72, -0.3), Vector3(0.52, 0.07, 0.08), _mat("c69d4d", 0.66, "ffd16b", 0.12), hero)
+	var left_sleeve := _add_cylinder(Vector3(-0.31, 0.78, -0.07), 0.055, 0.46, _mat("2c4974", 0.72, "5b8de3", 0.1), hero)
+	left_sleeve.rotation_degrees = Vector3(0.0, 0.0, -18.0)
+	var right_sleeve := _add_cylinder(Vector3(0.31, 0.82, -0.08), 0.055, 0.5, _mat("2c4974", 0.72, "5b8de3", 0.1), hero)
+	right_sleeve.rotation_degrees = Vector3(0.0, 0.0, 20.0)
+	_add_sphere(Vector3(0.42, 0.56, -0.12), 0.075, 0.075, _mat("f2c49b", 0.78), hero)
+	_add_box(Vector3(0.0, 1.42, 0.0), Vector3(0.6, 0.12, 0.48), _mat("2d203b", 0.78, "7c5cff", 0.12), hero)
+	_add_cylinder(Vector3(0.0, 1.48, 0.0), 0.25, 0.2, _mat("1f172b", 0.78, "7e5dff", 0.12), hero)
+	_add_cylinder(Vector3(0.0, 1.66, 0.0), 0.18, 0.26, _mat("24203a", 0.76, "7e5dff", 0.1), hero)
 	hero_sword = _add_cylinder(Vector3(0.42, 0.83, -0.12), 0.045, 1.04, _mat("6a3f22", 0.72, "ff8f3b", 0.18), hero)
 	hero_sword.rotation_degrees.z = -8.0
 	_add_box(Vector3(0.42, 0.38, -0.12), Vector3(0.22, 0.07, 0.08), _mat("d4a94d", 0.68, "ffc45d", 0.18), hero)
@@ -575,6 +590,7 @@ func _build_hero_lantern() -> void:
 	_add_box(Vector3(0.0, 0.39, 0.0), Vector3(0.22, 0.04, 0.16), _mat("5c4a38", 0.78), hero_lantern)
 	_add_box(Vector3(0.0, 0.01, 0.0), Vector3(0.22, 0.04, 0.16), _mat("5c4a38", 0.78), hero_lantern)
 	_add_cylinder(Vector3(0.0, 0.48, 0.0), 0.075, 0.025, _mat("c3b28b", 0.64), hero_lantern)
+	_add_sphere(Vector3(0.0, 0.32, -0.1), 0.065, 0.065, _mat("f2c49b", 0.78), hero_lantern).name = "Lantern Hand"
 	hero_lantern_glow = _add_box(Vector3(0.0, 0.2, 0.0), Vector3(0.1, 0.18, 0.06), _mat("f7fbff", 0.3, "f7fbff", 0.55), hero_lantern)
 	hero_lantern_light = OmniLight3D.new()
 	hero_lantern_light.name = "Lantern White Light"
@@ -603,12 +619,37 @@ func _spawn_fairy() -> void:
 	_add_box(Vector3(0.105, -0.025, -0.02), Vector3(0.12, 0.024, 0.028), _mat("f3cfad", 0.74), fairy).rotation_degrees.z = 22.0
 	_add_box(Vector3(-0.035, -0.205, 0.0), Vector3(0.035, 0.12, 0.035), _mat("f3cfad", 0.74), fairy).rotation_degrees.z = 8.0
 	_add_box(Vector3(0.035, -0.205, 0.0), Vector3(0.035, 0.12, 0.035), _mat("f3cfad", 0.74), fairy).rotation_degrees.z = -8.0
-	fairy_left_wing = _add_sphere(Vector3(-0.115, 0.055, 0.075), 0.105, 0.205, _mat("dffbff", 0.18, "efffff", 0.42), fairy)
-	fairy_left_wing.name = "Pip Left Wing"
-	fairy_left_wing.rotation_degrees = Vector3(0.0, -32.0, 25.0)
-	fairy_right_wing = _add_sphere(Vector3(0.115, 0.055, 0.075), 0.105, 0.205, _mat("dffbff", 0.18, "efffff", 0.42), fairy)
-	fairy_right_wing.name = "Pip Right Wing"
-	fairy_right_wing.rotation_degrees = Vector3(0.0, 32.0, -25.0)
+	var wing_material := _mat("c6f6ff", 0.2, "efffff", 0.36)
+	fairy_left_wing = _add_fairy_wing_panel(
+		Vector3(-0.07, 0.08, 0.08),
+		PackedVector2Array([Vector2(0.0, 0.0), Vector2(-0.22, 0.24), Vector2(-0.36, 0.12), Vector2(-0.21, -0.04)]),
+		wing_material,
+		fairy
+	)
+	fairy_left_wing.name = "Pip Left Upper Wing"
+	fairy_right_wing = _add_fairy_wing_panel(
+		Vector3(0.07, 0.08, 0.08),
+		PackedVector2Array([Vector2(0.0, 0.0), Vector2(0.22, 0.24), Vector2(0.36, 0.12), Vector2(0.21, -0.04)]),
+		wing_material,
+		fairy
+	)
+	fairy_right_wing.name = "Pip Right Upper Wing"
+	fairy_left_lower_wing = _add_fairy_wing_panel(
+		Vector3(-0.06, 0.02, 0.08),
+		PackedVector2Array([Vector2(0.0, 0.0), Vector2(-0.18, -0.03), Vector2(-0.28, -0.2), Vector2(-0.09, -0.16)]),
+		wing_material,
+		fairy,
+		0.42
+	)
+	fairy_left_lower_wing.name = "Pip Left Lower Wing"
+	fairy_right_lower_wing = _add_fairy_wing_panel(
+		Vector3(0.06, 0.02, 0.08),
+		PackedVector2Array([Vector2(0.0, 0.0), Vector2(0.18, -0.03), Vector2(0.28, -0.2), Vector2(0.09, -0.16)]),
+		wing_material,
+		fairy,
+		0.42
+	)
+	fairy_right_lower_wing.name = "Pip Right Lower Wing"
 	var wand := _add_box(Vector3(0.17, 0.035, -0.08), Vector3(0.028, 0.24, 0.028), _mat("805c39", 0.7), fairy)
 	wand.name = "Pip Tiny Wand"
 	wand.rotation_degrees.z = -28.0
@@ -1643,9 +1684,13 @@ func _update_fairy(delta: float) -> void:
 	fairy.rotation.y = lerp_angle(fairy.rotation.y, hero.rotation.y, clampf(delta * 6.0, 0.0, 1.0))
 	var wing_flap := sin(Time.get_ticks_msec() * 0.028) * 18.0
 	if fairy_left_wing:
-		fairy_left_wing.rotation_degrees = Vector3(0.0, -32.0, 25.0 + wing_flap)
+		fairy_left_wing.rotation_degrees = Vector3(0.0, -38.0 + wing_flap * 0.35, 12.0 + wing_flap)
 	if fairy_right_wing:
-		fairy_right_wing.rotation_degrees = Vector3(0.0, 32.0, -25.0 - wing_flap)
+		fairy_right_wing.rotation_degrees = Vector3(0.0, 38.0 - wing_flap * 0.35, -12.0 - wing_flap)
+	if fairy_left_lower_wing:
+		fairy_left_lower_wing.rotation_degrees = Vector3(0.0, -30.0 + wing_flap * 0.22, -8.0 + wing_flap * 0.55)
+	if fairy_right_lower_wing:
+		fairy_right_lower_wing.rotation_degrees = Vector3(0.0, 30.0 - wing_flap * 0.22, 8.0 - wing_flap * 0.55)
 	if fairy_body:
 		var body_pulse := 1.0 + sin(Time.get_ticks_msec() * 0.01) * 0.04
 		fairy_body.scale = Vector3(0.075, 0.12, 0.075) * body_pulse
@@ -1952,6 +1997,39 @@ func _random_open_position() -> Vector3:
 			return pos
 	var fallback_cell: Vector2i = walkable_cells[0]
 	return _dungeon_cell_to_world(fallback_cell)
+
+
+func _add_fairy_wing_panel(pos: Vector3, points: PackedVector2Array, material: Material, parent: Node, transparency := 0.36) -> MeshInstance3D:
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	for point in points:
+		vertices.append(Vector3(point.x, point.y, 0.0))
+		normals.append(Vector3(0.0, 0.0, -1.0))
+
+	var indices := PackedInt32Array()
+	for i in range(1, points.size() - 1):
+		indices.append(0)
+		indices.append(i)
+		indices.append(i + 1)
+		indices.append(0)
+		indices.append(i + 1)
+		indices.append(i)
+
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = vertices
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+
+	var instance := MeshInstance3D.new()
+	instance.mesh = mesh
+	instance.material_override = material
+	instance.position = pos
+	instance.transparency = transparency
+	parent.add_child(instance)
+	return instance
 
 
 func _mat(hex: String, roughness: float = 0.86, emission_hex: String = "", emission_energy: float = 0.0) -> StandardMaterial3D:
