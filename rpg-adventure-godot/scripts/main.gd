@@ -591,18 +591,33 @@ func _spawn_fairy() -> void:
 	fairy.name = "Pip the Fairy"
 	fairy.position = hero.position + Vector3(-0.86, 1.42, 0.46)
 	add_child(fairy)
-	fairy_body = _add_sphere(Vector3.ZERO, 0.12, 0.15, _mat("b8f6ff", 0.32, "d9fbff", 0.9), fairy)
-	fairy_left_wing = _add_box(Vector3(-0.16, 0.02, 0.02), Vector3(0.22, 0.035, 0.32), _mat("dffbff", 0.22, "efffff", 0.35), fairy)
-	fairy_left_wing.rotation_degrees = Vector3(0.0, -24.0, 26.0)
-	fairy_right_wing = _add_box(Vector3(0.16, 0.02, 0.02), Vector3(0.22, 0.035, 0.32), _mat("dffbff", 0.22, "efffff", 0.35), fairy)
-	fairy_right_wing.rotation_degrees = Vector3(0.0, 24.0, -26.0)
-	_add_sphere(Vector3(-0.04, 0.04, -0.1), 0.025, 0.025, _mat("ffffff", 0.22, "ffffff", 0.65), fairy)
-	_add_sphere(Vector3(0.04, 0.04, -0.1), 0.025, 0.025, _mat("ffffff", 0.22, "ffffff", 0.65), fairy)
+	fairy_body = _add_sphere(Vector3(0.0, -0.03, 0.0), 0.075, 0.12, _mat("7ad9df", 0.38, "baf7ff", 0.35), fairy)
+	fairy_body.name = "Pip Body"
+	_add_sphere(Vector3(0.0, 0.16, -0.02), 0.07, 0.075, _mat("f3cfad", 0.72), fairy).name = "Pip Head"
+	_add_box(Vector3(0.0, -0.12, -0.01), Vector3(0.16, 0.045, 0.12), _mat("4b7dc0", 0.58, "80d8ff", 0.12), fairy).name = "Pip Tunic Hem"
+	_add_box(Vector3(-0.045, 0.215, -0.02), Vector3(0.055, 0.035, 0.05), _mat("f2d36e", 0.58, "fff0a6", 0.16), fairy).name = "Pip Hair Left"
+	_add_box(Vector3(0.045, 0.215, -0.02), Vector3(0.055, 0.035, 0.05), _mat("f2d36e", 0.58, "fff0a6", 0.16), fairy).name = "Pip Hair Right"
+	_add_sphere(Vector3(-0.025, 0.175, -0.086), 0.011, 0.011, _mat("18243a", 0.58), fairy).name = "Pip Eye Left"
+	_add_sphere(Vector3(0.025, 0.175, -0.086), 0.011, 0.011, _mat("18243a", 0.58), fairy).name = "Pip Eye Right"
+	_add_box(Vector3(-0.105, -0.025, -0.02), Vector3(0.12, 0.024, 0.028), _mat("f3cfad", 0.74), fairy).rotation_degrees.z = -22.0
+	_add_box(Vector3(0.105, -0.025, -0.02), Vector3(0.12, 0.024, 0.028), _mat("f3cfad", 0.74), fairy).rotation_degrees.z = 22.0
+	_add_box(Vector3(-0.035, -0.205, 0.0), Vector3(0.035, 0.12, 0.035), _mat("f3cfad", 0.74), fairy).rotation_degrees.z = 8.0
+	_add_box(Vector3(0.035, -0.205, 0.0), Vector3(0.035, 0.12, 0.035), _mat("f3cfad", 0.74), fairy).rotation_degrees.z = -8.0
+	fairy_left_wing = _add_sphere(Vector3(-0.115, 0.055, 0.075), 0.105, 0.205, _mat("dffbff", 0.18, "efffff", 0.42), fairy)
+	fairy_left_wing.name = "Pip Left Wing"
+	fairy_left_wing.rotation_degrees = Vector3(0.0, -32.0, 25.0)
+	fairy_right_wing = _add_sphere(Vector3(0.115, 0.055, 0.075), 0.105, 0.205, _mat("dffbff", 0.18, "efffff", 0.42), fairy)
+	fairy_right_wing.name = "Pip Right Wing"
+	fairy_right_wing.rotation_degrees = Vector3(0.0, 32.0, -25.0)
+	var wand := _add_box(Vector3(0.17, 0.035, -0.08), Vector3(0.028, 0.24, 0.028), _mat("805c39", 0.7), fairy)
+	wand.name = "Pip Tiny Wand"
+	wand.rotation_degrees.z = -28.0
+	_add_sphere(Vector3(0.23, 0.15, -0.1), 0.03, 0.03, _mat("fff7bc", 0.28, "fff7bc", 0.9), fairy).name = "Pip Wand Spark"
 	fairy_light = OmniLight3D.new()
 	fairy_light.name = "Fairy Glow"
 	fairy_light.light_color = Color("d9fbff")
-	fairy_light.light_energy = 0.42
-	fairy_light.omni_range = 2.2
+	fairy_light.light_energy = 0.32
+	fairy_light.omni_range = 1.75
 	fairy_light.shadow_enabled = false
 	fairy.add_child(fairy_light)
 
@@ -1628,13 +1643,14 @@ func _update_fairy(delta: float) -> void:
 	fairy.rotation.y = lerp_angle(fairy.rotation.y, hero.rotation.y, clampf(delta * 6.0, 0.0, 1.0))
 	var wing_flap := sin(Time.get_ticks_msec() * 0.028) * 18.0
 	if fairy_left_wing:
-		fairy_left_wing.rotation_degrees.z = 26.0 + wing_flap
+		fairy_left_wing.rotation_degrees = Vector3(0.0, -32.0, 25.0 + wing_flap)
 	if fairy_right_wing:
-		fairy_right_wing.rotation_degrees.z = -26.0 - wing_flap
+		fairy_right_wing.rotation_degrees = Vector3(0.0, 32.0, -25.0 - wing_flap)
 	if fairy_body:
-		fairy_body.scale = Vector3.ONE * (1.0 + sin(Time.get_ticks_msec() * 0.01) * 0.04)
+		var body_pulse := 1.0 + sin(Time.get_ticks_msec() * 0.01) * 0.04
+		fairy_body.scale = Vector3(0.075, 0.12, 0.075) * body_pulse
 	if fairy_light:
-		fairy_light.light_energy = 0.42 + sin(Time.get_ticks_msec() * 0.008) * 0.08
+		fairy_light.light_energy = 0.32 + sin(Time.get_ticks_msec() * 0.008) * 0.05
 
 
 func _fairy_comment(event_name: String, fallback: String, extra: Dictionary = {}) -> void:
