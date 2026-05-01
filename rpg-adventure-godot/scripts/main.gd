@@ -21,6 +21,8 @@ const SWORD_SWING_DURATION := 0.28
 const SWORD_SWING_COOLDOWN := 0.55
 const STAFF_ORB_RADIUS := 0.095
 const VIEW_STAFF_ORB_RADIUS := 0.07
+const STAFF_TIP_OFFSET := 0.56
+const VIEW_STAFF_TIP_OFFSET := 0.53
 const SWORD_LIGHT_BASE_ENERGY := 0.0
 const SWORD_LIGHT_SWING_ENERGY := 0.0
 const FIRE_BOLT_RANGE := 7.5
@@ -546,13 +548,15 @@ func _spawn_hero() -> void:
 	var right_sleeve := _add_cylinder(Vector3(0.31, 0.82, -0.08), 0.055, 0.5, _mat("2c4974", 0.72, "5b8de3", 0.1), hero)
 	right_sleeve.rotation_degrees = Vector3(0.0, 0.0, 20.0)
 	_add_sphere(Vector3(0.42, 0.56, -0.12), 0.075, 0.075, _mat("f2c49b", 0.78), hero)
-	_add_box(Vector3(0.0, 1.42, 0.0), Vector3(0.6, 0.12, 0.48), _mat("2d203b", 0.78, "7c5cff", 0.12), hero)
-	_add_cylinder(Vector3(0.0, 1.48, 0.0), 0.25, 0.2, _mat("1f172b", 0.78, "7e5dff", 0.12), hero)
-	_add_cylinder(Vector3(0.0, 1.66, 0.0), 0.18, 0.26, _mat("24203a", 0.76, "7e5dff", 0.1), hero)
+	_add_cylinder(Vector3(0.0, 1.42, 0.0), 0.34, 0.08, _mat("21172f", 0.78, "7c5cff", 0.14), hero)
+	_add_cylinder(Vector3(0.0, 1.48, 0.0), 0.23, 0.08, _mat("33214d", 0.76, "8d6cff", 0.14), hero)
+	var wizard_hat := _add_cone(Vector3(0.0, 1.75, 0.0), 0.24, 0.62, _mat("241836", 0.78, "8b68ff", 0.12), hero)
+	wizard_hat.rotation_degrees = Vector3(0.0, 0.0, -4.0)
+	_add_box(Vector3(0.0, 1.48, -0.01), Vector3(0.34, 0.035, 0.08), _mat("c69d4d", 0.66, "ffd16b", 0.12), hero)
 	hero_sword = _add_cylinder(Vector3(0.42, 0.83, -0.12), 0.045, 1.04, _mat("6a3f22", 0.72, "ff8f3b", 0.18), hero)
 	hero_sword.rotation_degrees.z = -8.0
 	_add_box(Vector3(0.42, 0.38, -0.12), Vector3(0.22, 0.07, 0.08), _mat("d4a94d", 0.68, "ffc45d", 0.18), hero)
-	staff_orb = _add_sphere(Vector3(0.42, 1.42, -0.12), STAFF_ORB_RADIUS, STAFF_ORB_RADIUS, _mat("f6c66e", 0.36, "ffd27a", 0.35), hero)
+	staff_orb = _add_sphere(_staff_tip_position(), STAFF_ORB_RADIUS, STAFF_ORB_RADIUS, _mat("f6c66e", 0.36, "ffd27a", 0.35), hero)
 	hero_shield = _add_box(Vector3(-0.34, 0.68, -0.28), Vector3(0.14, 0.58, 0.42), _mat("7f91ac", 0.56, "9ec5ff", 0.16), hero)
 	hero_shield.visible = false
 	_build_hero_lantern()
@@ -1374,7 +1378,7 @@ func _update_hero_combat_visuals(delta: float) -> void:
 		var orb_pulse := 1.0 + sin(Time.get_ticks_msec() * 0.01) * 0.025
 		if swing_active:
 			orb_pulse += sin(swing_t * PI) * 0.08
-		staff_orb.position = hero_sword.position + Vector3(0.0, 0.59, 0.0) if hero_sword else Vector3(0.42, 1.42, -0.12)
+		staff_orb.position = _staff_tip_position()
 		staff_orb.scale = Vector3.ONE * (STAFF_ORB_RADIUS * orb_pulse)
 	_update_view_sword_visuals(delta, swing_t, swing_active)
 	_update_fire_bolt_visuals(swing_t, swing_active)
@@ -1438,11 +1442,23 @@ func _update_lantern_burst_visuals(burst_t: float, burst_arc: float, burst_activ
 		lantern_burst_light.omni_range = 5.0 + burst_arc * 7.0
 
 
+func _staff_tip_position() -> Vector3:
+	if hero_sword == null:
+		return Vector3(0.42, 1.42, -0.12)
+	return hero_sword.position + hero_sword.transform.basis * Vector3(0.0, STAFF_TIP_OFFSET, 0.0)
+
+
+func _view_staff_tip_position() -> Vector3:
+	if view_sword == null:
+		return Vector3(0.42, -0.06, -1.2)
+	return view_sword.position + view_sword.transform.basis * Vector3(0.0, VIEW_STAFF_TIP_OFFSET, 0.0)
+
+
 func _update_view_sword_visuals(delta: float, swing_t: float, swing_active: bool) -> void:
 	if view_sword == null or view_sword_guard == null or view_sword_slash == null or view_staff_orb == null:
 		return
-	var close_alpha := clampf((camera_zoom - 0.48) / 0.34, 0.0, 1.0)
-	var show_close_sword := close_alpha > 0.02
+	var close_alpha := clampf((camera_zoom - 0.86) / 0.14, 0.0, 1.0)
+	var show_close_sword := close_alpha > 0.02 and swing_active
 	view_sword.visible = show_close_sword
 	view_sword_guard.visible = show_close_sword
 	view_staff_orb.visible = show_close_sword
@@ -1457,7 +1473,7 @@ func _update_view_sword_visuals(delta: float, swing_t: float, swing_active: bool
 		view_sword_guard.position = view_sword.position + Vector3(0.0, -0.12, 0.28)
 		view_sword_guard.rotation_degrees = view_sword.rotation_degrees + Vector3(0.0, 0.0, 90.0)
 		view_sword_guard.scale = Vector3.ONE * close_alpha
-		view_staff_orb.position = view_sword.position + Vector3(0.0, 0.38, -0.34)
+		view_staff_orb.position = _view_staff_tip_position()
 		view_staff_orb.scale = Vector3.ONE * (VIEW_STAFF_ORB_RADIUS * (1.0 + arc * 0.25) * close_alpha)
 		view_sword_slash.position = Vector3(0.08, lerpf(-0.12, -0.2, swing_t), lerpf(-1.05, -1.75, swing_t))
 		view_sword_slash.rotation_degrees = Vector3(0.0, 0.0, lerpf(8.0, -8.0, swing_t))
@@ -1470,7 +1486,7 @@ func _update_view_sword_visuals(delta: float, swing_t: float, swing_active: bool
 		view_sword_guard.position = view_sword.position + Vector3(0.0, -0.12, 0.28)
 		view_sword_guard.rotation_degrees = view_sword.rotation_degrees + Vector3(0.0, 0.0, 90.0)
 		view_sword_guard.scale = Vector3.ONE * close_alpha
-		view_staff_orb.position = view_sword.position + Vector3(0.0, 0.38, -0.34)
+		view_staff_orb.position = _view_staff_tip_position()
 		view_staff_orb.scale = view_staff_orb.scale.lerp(Vector3.ONE * (VIEW_STAFF_ORB_RADIUS * close_alpha), delta * 9.0)
 
 
@@ -2079,6 +2095,20 @@ func _add_cylinder(pos: Vector3, radius: float, height: float, material: Materia
 	mesh.bottom_radius = radius
 	mesh.height = height
 	mesh.radial_segments = 8
+	var instance := MeshInstance3D.new()
+	instance.mesh = mesh
+	instance.material_override = material
+	instance.position = pos
+	parent.add_child(instance)
+	return instance
+
+
+func _add_cone(pos: Vector3, bottom_radius: float, height: float, material: Material, parent: Node) -> MeshInstance3D:
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 0.0
+	mesh.bottom_radius = bottom_radius
+	mesh.height = height
+	mesh.radial_segments = 10
 	var instance := MeshInstance3D.new()
 	instance.mesh = mesh
 	instance.material_override = material
