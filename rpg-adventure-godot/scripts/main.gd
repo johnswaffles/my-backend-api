@@ -63,6 +63,9 @@ var hero_body: MeshInstance3D
 var hero_sword: MeshInstance3D
 var hero_shield: MeshInstance3D
 var hero_ring: MeshInstance3D
+var hero_left_sleeve: MeshInstance3D
+var hero_right_sleeve: MeshInstance3D
+var hero_right_hand: MeshInstance3D
 var hero_light: OmniLight3D
 var hero_lantern: Node3D
 var hero_lantern_light: OmniLight3D
@@ -543,11 +546,11 @@ func _spawn_hero() -> void:
 	_add_box(Vector3(0.0, 0.78, -0.23), Vector3(0.08, 0.58, 0.07), _mat("16151f", 0.88), hero)
 	_add_box(Vector3(0.0, 0.78, 0.22), Vector3(0.5, 0.68, 0.08), _mat("49306f", 0.76, "8057ff", 0.14), hero)
 	_add_box(Vector3(0.0, 0.72, -0.3), Vector3(0.52, 0.07, 0.08), _mat("c69d4d", 0.66, "ffd16b", 0.12), hero)
-	var left_sleeve := _add_cylinder(Vector3(-0.31, 0.78, -0.07), 0.055, 0.46, _mat("2c4974", 0.72, "5b8de3", 0.1), hero)
-	left_sleeve.rotation_degrees = Vector3(0.0, 0.0, -18.0)
-	var right_sleeve := _add_cylinder(Vector3(0.31, 0.82, -0.08), 0.055, 0.5, _mat("2c4974", 0.72, "5b8de3", 0.1), hero)
-	right_sleeve.rotation_degrees = Vector3(0.0, 0.0, 20.0)
-	_add_sphere(Vector3(0.42, 0.56, -0.12), 0.075, 0.075, _mat("f2c49b", 0.78), hero)
+	hero_left_sleeve = _add_cylinder(Vector3(-0.31, 0.78, -0.07), 0.055, 0.46, _mat("2c4974", 0.72, "5b8de3", 0.1), hero)
+	hero_left_sleeve.rotation_degrees = Vector3(0.0, 0.0, -18.0)
+	hero_right_sleeve = _add_cylinder(Vector3(0.31, 0.82, -0.08), 0.055, 0.5, _mat("2c4974", 0.72, "5b8de3", 0.1), hero)
+	hero_right_sleeve.rotation_degrees = Vector3(0.0, 0.0, 20.0)
+	hero_right_hand = _add_sphere(Vector3(0.42, 0.56, -0.12), 0.075, 0.075, _mat("f2c49b", 0.78), hero)
 	_add_cylinder(Vector3(0.0, 1.42, 0.0), 0.34, 0.08, _mat("21172f", 0.78, "7c5cff", 0.14), hero)
 	_add_cylinder(Vector3(0.0, 1.48, 0.0), 0.23, 0.08, _mat("33214d", 0.76, "8d6cff", 0.14), hero)
 	var wizard_hat := _add_cone(Vector3(0.0, 1.75, 0.0), 0.24, 0.62, _mat("241836", 0.78, "8b68ff", 0.12), hero)
@@ -1380,6 +1383,7 @@ func _update_hero_combat_visuals(delta: float) -> void:
 			orb_pulse += sin(swing_t * PI) * 0.08
 		staff_orb.position = _staff_tip_position()
 		staff_orb.scale = Vector3.ONE * (STAFF_ORB_RADIUS * orb_pulse)
+	_update_staff_arm_visuals(delta, swing_t, swing_active)
 	_update_view_sword_visuals(delta, swing_t, swing_active)
 	_update_fire_bolt_visuals(swing_t, swing_active)
 	if hero_shield:
@@ -1395,6 +1399,37 @@ func _update_hero_combat_visuals(delta: float) -> void:
 		sword_light.position = staff_orb.position if staff_orb else Vector3(0.42, 1.42, -0.12)
 
 
+func _update_staff_arm_visuals(delta: float, swing_t: float, swing_active: bool) -> void:
+	var cast_arc := sin(swing_t * PI) if swing_active else 0.0
+	var blend_speed := 16.0 if swing_active else 10.0
+	var blend := clampf(delta * blend_speed, 0.0, 1.0)
+	var target_hand := _staff_grip_position() + Vector3(0.02, 0.03, -0.04) * cast_arc
+	if hero_right_hand:
+		hero_right_hand.position = hero_right_hand.position.lerp(target_hand, blend)
+		hero_right_hand.scale = hero_right_hand.scale.lerp(Vector3.ONE * (0.075 + cast_arc * 0.006), blend)
+	if hero_right_sleeve:
+		var idle_pos := Vector3(0.31, 0.82, -0.08)
+		var cast_pos := Vector3(0.38, 0.92, -0.18)
+		var idle_rot := Vector3(0.0, 0.0, 20.0)
+		var cast_rot := Vector3(-30.0, -8.0, 46.0)
+		hero_right_sleeve.position = hero_right_sleeve.position.lerp(idle_pos.lerp(cast_pos, cast_arc), blend)
+		hero_right_sleeve.rotation_degrees = hero_right_sleeve.rotation_degrees.lerp(idle_rot.lerp(cast_rot, cast_arc), blend)
+
+
+func _update_lantern_arm_visuals(delta: float, burst_active: bool, burst_arc: float) -> void:
+	if hero_left_sleeve == null:
+		return
+	var lift := 1.0 if burst_active else 0.0
+	var blend_speed := 15.0 if burst_active else 9.0
+	var blend := clampf(delta * blend_speed, 0.0, 1.0)
+	var idle_pos := Vector3(-0.31, 0.78, -0.07)
+	var lift_pos := Vector3(-0.39, 1.04 + burst_arc * 0.05, -0.16)
+	var idle_rot := Vector3(0.0, 0.0, -18.0)
+	var lift_rot := Vector3(-32.0 - burst_arc * 8.0, 4.0, -48.0)
+	hero_left_sleeve.position = hero_left_sleeve.position.lerp(idle_pos.lerp(lift_pos, lift), blend)
+	hero_left_sleeve.rotation_degrees = hero_left_sleeve.rotation_degrees.lerp(idle_rot.lerp(lift_rot, lift), blend)
+
+
 func _update_lantern_visuals(delta: float) -> void:
 	var burst_active := shield_block_timer > 0.0
 	var burst_t := 0.0
@@ -1402,6 +1437,7 @@ func _update_lantern_visuals(delta: float) -> void:
 	if burst_active:
 		burst_t = 1.0 - (shield_block_timer / SHIELD_BLOCK_DURATION)
 		burst_arc = sin(burst_t * PI)
+	_update_lantern_arm_visuals(delta, burst_active, burst_arc)
 	if hero_lantern:
 		var target_pos := Vector3(-0.36, 1.28, -0.18) if burst_active else Vector3(-0.43, 0.78, -0.16)
 		var target_rot := Vector3(-18.0, 0.0, -12.0) if burst_active else Vector3.ZERO
@@ -1446,6 +1482,12 @@ func _staff_tip_position() -> Vector3:
 	if hero_sword == null:
 		return Vector3(0.42, 1.42, -0.12)
 	return hero_sword.position + hero_sword.transform.basis * Vector3(0.0, STAFF_TIP_OFFSET, 0.0)
+
+
+func _staff_grip_position() -> Vector3:
+	if hero_sword == null:
+		return Vector3(0.42, 0.56, -0.12)
+	return hero_sword.position + hero_sword.transform.basis * Vector3(0.0, -0.28, 0.0)
 
 
 func _view_staff_tip_position() -> Vector3:
