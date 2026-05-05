@@ -190,11 +190,11 @@ const VISUAL_PROFILES := {
 		5: {"front_hall": true, "side_wing": true, "plaza": true, "upper_story": true, "grand_hall": true, "landscaping": true},
 	},
 	"grocery": {
-		1: {"awning": false, "service_wing": false, "market_hall": false, "upper_story": false, "parking": false, "landscaping": false},
-		2: {"awning": true, "service_wing": false, "market_hall": false, "upper_story": false, "parking": true, "landscaping": true},
-		3: {"awning": true, "service_wing": true, "market_hall": false, "upper_story": false, "parking": true, "landscaping": true},
-		4: {"awning": true, "service_wing": true, "market_hall": true, "upper_story": false, "parking": true, "landscaping": true},
-		5: {"awning": true, "service_wing": true, "market_hall": true, "upper_story": true, "parking": true, "landscaping": true},
+		1: {"awning": false, "service_wing": false, "market_hall": false, "upper_story": false, "parking_lot": false},
+		2: {"awning": true, "service_wing": false, "market_hall": false, "upper_story": false, "parking_lot": false},
+		3: {"awning": true, "service_wing": true, "market_hall": false, "upper_story": false, "parking_lot": false},
+		4: {"awning": true, "service_wing": true, "market_hall": true, "upper_story": false, "parking_lot": false},
+		5: {"awning": true, "service_wing": true, "market_hall": true, "upper_story": true, "parking_lot": true},
 	},
 	"restaurant": {
 		1: {"front_expansion": false, "dining_wing": false, "kitchen_wing": false, "signature_front": false, "second_floor": false},
