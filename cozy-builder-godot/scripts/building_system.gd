@@ -4334,6 +4334,11 @@ func _apply_bank_tier_visuals(lot_root: Node3D, structure_root: Node3D, tier: in
 			_add_house_side_window_local(Vector3(1.18, 1.42, -0.12), Vector3(0.24, 0.3, 0.05), structure_root, 1.0)
 			for col_x in [-0.86, -0.42, 0.0, 0.42, 0.86]:
 				_add_local_cylinder(Vector3(col_x, 0.76, 0.98), 0.055, 0.055, 0.92, _make_material_from_color(trim, 0.84), structure_root)
+			_add_restaurant_front_door_local(Vector3(0.0, 0.0, 1.23), structure_root, accent)
+			for window_x in [-0.72, 0.72]:
+				_add_house_wall_window_local(Vector3(window_x, 0.54, 1.23), Vector3(0.32, 0.42, 0.055), structure_root)
+			for window_x in [-0.34, 0.34]:
+				_add_window_band_local(Vector3(window_x, 1.04, 1.2), Vector3(0.22, 0.24, 0.05), structure_root)
 			_add_box(Vector3(0.0, 2.3, 0.46), Vector3(1.36, 0.12, 0.08), _make_material_from_color(accent, 0.42), structure_root)
 		if bool(profile.get("plaza", false)):
 			_add_bank_forecourt(Vector3(0.0, 0.0, 1.36), Vector3(3.3, 1.0, 0.9), lot_root, accent, trim)
@@ -4460,11 +4465,13 @@ func _apply_corner_store_tier_visuals(lot_root: Node3D, structure_root: Node3D, 
 	var roof_material := _make_material_from_color(palette["roof"].darkened(0.01), 0.76)
 	if tier >= 2:
 		if bool(profile.get("corner_awning", false)):
+			var front_z := 1.02
 			_add_soft_block(Vector3(0.0, 0.42, -0.04), Vector3(width + 0.46, height + 0.28, depth + 0.28), wall_material, structure_root, 0.16)
 			_add_gabled_roof(Vector3(0.0, height + 0.34, -0.04), Vector3(width + 0.58, 0.16, depth + 0.34), roof_material, structure_root, 10.0)
-			_add_box(Vector3(-width * 0.2, 0.24, 0.54), Vector3(width * 0.22, 0.34, 0.05), _window_material, structure_root)
-			_add_box(Vector3(width * 0.2, 0.24, 0.54), Vector3(width * 0.22, 0.34, 0.05), _window_material, structure_root)
-			_add_box(Vector3(-0.18, 0.82, 0.58), Vector3(width * 0.48, 0.1, 0.05), _make_material_from_color(trim, 0.42), structure_root)
+			_add_restaurant_front_door_local(Vector3(0.0, 0.0, front_z), structure_root, accent)
+			_add_house_wall_window_local(Vector3(-width * 0.28, 0.48, front_z), Vector3(width * 0.18, 0.34, 0.055), structure_root)
+			_add_house_wall_window_local(Vector3(width * 0.28, 0.48, front_z), Vector3(width * 0.18, 0.34, 0.055), structure_root)
+			_add_box(Vector3(-0.18, 0.82, front_z + 0.02), Vector3(width * 0.48, 0.1, 0.05), _make_material_from_color(trim, 0.42), structure_root)
 
 	if tier >= 3:
 		if bool(profile.get("delivery_nook", false)):
@@ -4485,14 +4492,15 @@ func _apply_corner_store_tier_visuals(lot_root: Node3D, structure_root: Node3D, 
 
 	if tier >= 5:
 		if bool(profile.get("upper_story", false)):
+			var upper_front_z := -0.12 + (depth + 0.18) * 0.5 + 0.04
 			_add_soft_block(Vector3(0.18, 1.22, -0.12), Vector3(width + 0.28, 0.86, depth + 0.18), _make_material_from_color(palette["wall"].lightened(0.07), 0.94), structure_root, 0.12)
 			_add_gabled_roof(Vector3(0.18, 1.9, -0.12), Vector3(width + 0.42, 0.14, depth + 0.3), roof_material, structure_root, 10.0)
 			for window_x in [-0.52, 0.0, 0.52]:
-				_add_window_band_local(Vector3(window_x, 1.08, 0.5), Vector3(0.22, 0.28, 0.05), structure_root)
+				_add_window_band_local(Vector3(window_x, 1.08, upper_front_z), Vector3(0.22, 0.28, 0.05), structure_root)
 			_add_window_band_local(Vector3(0.18, 1.18, -0.54), Vector3(0.42, 0.24, 0.05), structure_root)
 			_add_house_side_window_local(Vector3(-width * 0.5, 1.12, -0.08), Vector3(0.24, 0.3, 0.05), structure_root, -1.0)
 			_add_house_side_window_local(Vector3(width * 0.58, 1.12, -0.08), Vector3(0.24, 0.3, 0.05), structure_root, 1.0)
-			_add_signboard_local(Vector3(-0.74, 1.72, 0.72), Vector2(0.52, 0.2), accent, "corner", structure_root)
+			_add_signboard_local(Vector3(-0.74, 1.72, upper_front_z + 0.14), Vector2(0.52, 0.2), accent, "corner", structure_root)
 		if bool(profile.get("parking_lot", false)):
 			_add_corner_store_parking_lot(Vector3(0.78, 0.0, 1.18), Vector3(1.64, 1.0, 0.96), lot_root, accent, trim)
 
