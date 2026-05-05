@@ -1,7 +1,7 @@
 extends Node3D
 
-@export var orbit_scale := Vector3(0.82, 1.16, 0.82)
-@export var look_height := 0.8
+@export var orbit_scale := Vector3(0.94, 0.94, 0.94)
+@export var look_height := 0.55
 @export var min_orthographic_size := 10.0
 @export var max_orthographic_size := 72.0
 
