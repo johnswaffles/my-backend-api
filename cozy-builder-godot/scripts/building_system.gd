@@ -146,11 +146,13 @@ const PROPERTY_BUFFER_BY_TOOL := {
 const ROAD_WIDTH := 2.18
 const CURB_WIDTH := 0.16
 const SIDEWALK_WIDTH := 0.86
-const PARKING_DEPTH := 1.34
-const BUILDING_SETBACK := 0.52
+const FRONT_BUFFER := 0.32
+const PARKING_DEPTH := 1.22
+const BUILDING_SETBACK := 0.72
+const BACK_BUFFER := 0.64
 const LOT_DEPTH := 4.6
 const LOT_FRONT_SIDEWALK_Z := 2.04
-const LOT_PARKING_Z := 0.74
+const LOT_PARKING_Z := 0.84
 const PROPERTY_VISUAL_PRESETS := {
 	BUILD_TOOL_HOUSE: {
 		"display_name": "House",
@@ -160,11 +162,11 @@ const PROPERTY_VISUAL_PRESETS := {
 		"accent_color": "e1b672",
 		"lot_type": "residential",
 		"lot_color": "8da56b",
-		"lot_size": Vector2(5.7, LOT_DEPTH + 1.12),
-		"building_z_offset": -BUILDING_SETBACK * 0.85,
+		"lot_size": Vector2(5.9, LOT_DEPTH + 1.34),
+		"building_z_offset": -BUILDING_SETBACK * 1.05,
 		"parking": "driveway",
-		"sidewalk": {"width": 0.84, "z": LOT_FRONT_SIDEWALK_Z + 0.22, "depth": SIDEWALK_WIDTH},
-		"hedges": {"width": 5.44, "depth": LOT_DEPTH + 0.68},
+		"sidewalk": {"width": 0.84, "z": LOT_FRONT_SIDEWALK_Z + 0.34, "depth": SIDEWALK_WIDTH},
+		"hedges": {"width": 5.6, "depth": LOT_DEPTH + 0.84},
 		"props": ["fence", "bushes", "porch_light", "mailbox"],
 	},
 	BUILD_TOOL_FIRE: {
@@ -176,10 +178,11 @@ const PROPERTY_VISUAL_PRESETS := {
 		"lot_type": "civic",
 		"lot_color": "c9c7b2",
 		"lot_size": Vector2(5.24, LOT_DEPTH + 0.2),
-		"building_z_offset": -BUILDING_SETBACK * 0.9,
+		"building_z_offset": -BUILDING_SETBACK * 0.82,
 		"parking": "front_apron",
 		"parking_position": Vector3(0.0, 0.0, LOT_PARKING_Z + 0.08),
-		"parking_size": Vector3(4.02, 1.0, PARKING_DEPTH + 0.08),
+		"parking_size": Vector3(4.08, 1.0, PARKING_DEPTH + 0.16),
+		"parking_spaces": 3,
 		"sidewalk": {"width": 1.18, "z": LOT_FRONT_SIDEWALK_Z, "depth": SIDEWALK_WIDTH},
 		"hedges": {"width": 4.96, "depth": LOT_DEPTH - 0.18},
 		"props": ["garage_door", "bollards", "flag", "fire_sign"],
@@ -192,13 +195,14 @@ const PROPERTY_VISUAL_PRESETS := {
 		"accent_color": "f1c85f",
 		"lot_type": "commercial",
 		"lot_color": "d9d2bf",
-		"lot_size": Vector2(4.62, LOT_DEPTH - 0.28),
-		"building_z_offset": -BUILDING_SETBACK * 1.12,
+		"lot_size": Vector2(4.8, LOT_DEPTH - 0.08),
+		"building_z_offset": -BUILDING_SETBACK * 1.34,
 		"parking": "small_lot",
-		"parking_position": Vector3(0.0, 0.0, LOT_PARKING_Z - 0.04),
-		"parking_size": Vector3(3.48, 1.0, PARKING_DEPTH - 0.1),
+		"parking_position": Vector3(0.0, 0.0, LOT_PARKING_Z),
+		"parking_size": Vector3(3.78, 1.0, PARKING_DEPTH),
+		"parking_spaces": 4,
 		"sidewalk": {"width": 1.0, "z": LOT_FRONT_SIDEWALK_Z - 0.04, "depth": SIDEWALK_WIDTH},
-		"hedges": {"width": 4.28, "depth": LOT_DEPTH - 0.62},
+		"hedges": {"width": 4.46, "depth": LOT_DEPTH - 0.44},
 		"props": ["columns", "atm", "security_light", "handicap_space"],
 	},
 	BUILD_TOOL_GROCERY: {
@@ -210,10 +214,11 @@ const PROPERTY_VISUAL_PRESETS := {
 		"lot_type": "commercial",
 		"lot_color": "d5d1bc",
 		"lot_size": Vector2(5.44, LOT_DEPTH + 0.18),
-		"building_z_offset": -BUILDING_SETBACK * 1.08,
+		"building_z_offset": -BUILDING_SETBACK * 1.18,
 		"parking": "medium_lot",
 		"parking_position": Vector3(0.0, 0.0, LOT_PARKING_Z + 0.08),
 		"parking_size": Vector3(4.58, 1.0, PARKING_DEPTH + 0.06),
+		"parking_spaces": 5,
 		"sidewalk": {"width": 1.28, "z": LOT_FRONT_SIDEWALK_Z + 0.02, "depth": SIDEWALK_WIDTH},
 		"hedges": {"width": 5.1, "depth": LOT_DEPTH - 0.1},
 		"props": ["cart_rack", "produce_crates", "large_sign", "handicap_space"],
@@ -227,10 +232,11 @@ const PROPERTY_VISUAL_PRESETS := {
 		"lot_type": "commercial",
 		"lot_color": "d9d0b9",
 		"lot_size": Vector2(4.58, LOT_DEPTH - 0.36),
-		"building_z_offset": -BUILDING_SETBACK,
+		"building_z_offset": -BUILDING_SETBACK * 1.12,
 		"parking": "small_lot",
 		"parking_position": Vector3(0.24, 0.0, LOT_PARKING_Z),
 		"parking_size": Vector3(3.36, 1.0, PARKING_DEPTH - 0.16),
+		"parking_spaces": 3,
 		"sidewalk": {"width": 1.02, "z": LOT_FRONT_SIDEWALK_Z - 0.08, "depth": SIDEWALK_WIDTH},
 		"hedges": {"width": 4.18, "depth": LOT_DEPTH - 0.72},
 		"props": ["awning", "outdoor_tables", "planters", "menu_board"],
@@ -243,13 +249,14 @@ const PROPERTY_VISUAL_PRESETS := {
 		"accent_color": "86b4f4",
 		"lot_type": "commercial",
 		"lot_color": "d5cfbc",
-		"lot_size": Vector2(4.48, LOT_DEPTH - 0.34),
-		"building_z_offset": -BUILDING_SETBACK * 1.22,
+		"lot_size": Vector2(4.64, LOT_DEPTH - 0.24),
+		"building_z_offset": -BUILDING_SETBACK * 1.42,
 		"parking": "compact_lot",
-		"parking_position": Vector3(0.56, 0.0, LOT_PARKING_Z - 0.02),
-		"parking_size": Vector3(2.92, 1.0, PARKING_DEPTH - 0.14),
+		"parking_position": Vector3(0.52, 0.0, LOT_PARKING_Z - 0.02),
+		"parking_size": Vector3(3.04, 1.0, PARKING_DEPTH - 0.08),
+		"parking_spaces": 3,
 		"sidewalk": {"width": 0.9, "z": LOT_FRONT_SIDEWALK_Z - 0.08, "depth": SIDEWALK_WIDTH},
-		"hedges": {"width": 4.1, "depth": LOT_DEPTH - 0.74},
+		"hedges": {"width": 4.24, "depth": LOT_DEPTH - 0.6},
 		"props": ["trash_can", "cooler_box", "neon_sign", "newspaper_box"],
 	},
 }
@@ -2416,6 +2423,16 @@ func _property_structure_root(root: Node3D) -> Node3D:
 	return structure_root if structure_root != null else root
 
 
+func _property_building_anchor(root: Node3D) -> Node3D:
+	var structure_root := _property_structure_root(root)
+	return _ensure_visual_section(structure_root, "BuildingAnchor")
+
+
+func _property_upgrade_visual_root(root: Node3D) -> Node3D:
+	var building_anchor := _property_building_anchor(root)
+	return _ensure_visual_section(building_anchor, "BuildingUpgradeVisual")
+
+
 func _property_visual_preset(tool: String) -> Dictionary:
 	return PROPERTY_VISUAL_PRESETS.get(tool, {})
 
@@ -2427,15 +2444,47 @@ func _apply_property_structure_setback(structure_root: Node3D, preset: Dictionar
 
 
 func _validate_property_visual_spacing(tool: String, preset: Dictionary) -> void:
-	if not preset.has("sidewalk") or not preset.has("parking_position") or not preset.has("parking_size"):
+	if not preset.has("sidewalk"):
+		push_warning("%s visual preset is missing a sidewalk section; lot frontage may drift into the road." % tool)
 		return
+	var lot_size: Vector2 = preset.get("lot_size", Vector2(4.0, LOT_DEPTH))
 	var sidewalk: Dictionary = preset["sidewalk"]
+	var sidewalk_center_z := float(sidewalk.get("z", LOT_FRONT_SIDEWALK_Z))
+	var sidewalk_depth := float(sidewalk.get("depth", SIDEWALK_WIDTH))
+	var sidewalk_width := float(sidewalk.get("width", SIDEWALK_WIDTH))
+	var sidewalk_front_edge := sidewalk_center_z + sidewalk_depth * 0.5
+	var sidewalk_back_edge := sidewalk_center_z - sidewalk_depth * 0.5
+	var lot_front_edge := lot_size.y * 0.5
+	if sidewalk_width <= 0.0 or sidewalk_depth <= 0.0:
+		push_warning("%s visual preset has an invalid sidewalk size; sidewalks must stay continuous." % tool)
+	if sidewalk_front_edge > lot_front_edge + CURB_WIDTH:
+		push_warning("%s visual preset pushes sidewalk beyond the lot frontage: sidewalk_front=%.2f lot_front=%.2f" % [tool, sidewalk_front_edge, lot_front_edge])
+	var setback_z := float(preset.get("building_z_offset", 0.0))
+	if -setback_z < BUILDING_SETBACK * 0.72:
+		push_warning("%s visual preset has a shallow building setback: %.2f" % [tool, -setback_z])
+	var estimated_building_front := setback_z + 1.05
+	if estimated_building_front > sidewalk_back_edge - FRONT_BUFFER:
+		push_warning("%s visual preset may let building visuals overlap the sidewalk buffer: building_front=%.2f sidewalk_back=%.2f" % [tool, estimated_building_front, sidewalk_back_edge])
+	var parking_kind := str(preset.get("parking", "none"))
+	if parking_kind == "none" or parking_kind == "driveway":
+		return
+	if not preset.has("parking_position") or not preset.has("parking_size"):
+		push_warning("%s visual preset needs parking bounds so parking cannot overlap the road." % tool)
+		return
 	var parking_position: Vector3 = preset["parking_position"]
 	var parking_size: Vector3 = preset["parking_size"]
-	var sidewalk_back_edge := float(sidewalk.get("z", LOT_FRONT_SIDEWALK_Z)) - float(sidewalk.get("depth", SIDEWALK_WIDTH)) * 0.5
 	var parking_front_edge := parking_position.z + parking_size.z * 0.5
+	var parking_back_edge := parking_position.z - parking_size.z * 0.5
+	if parking_size.x <= 0.0 or parking_size.z <= 0.0:
+		push_warning("%s visual preset has invalid parking dimensions." % tool)
+	if parking_size.x > lot_size.x - CURB_WIDTH * 2.0:
+		push_warning("%s visual preset parking is wider than its usable lot frontage." % tool)
+	if parking_front_edge > sidewalk_front_edge:
+		push_warning("%s visual preset pushes parking into road-side frontage: parking_front=%.2f sidewalk_front=%.2f" % [tool, parking_front_edge, sidewalk_front_edge])
 	if parking_front_edge > sidewalk_back_edge - CURB_WIDTH * 0.25:
 		push_warning("%s visual preset overlaps parking into sidewalk: parking_front=%.2f sidewalk_back=%.2f" % [tool, parking_front_edge, sidewalk_back_edge])
+	if parking_back_edge < -lot_size.y * 0.5 + BACK_BUFFER * 0.2:
+		push_warning("%s visual preset pushes parking too far into the rear lot buffer." % tool)
 
 
 func _property_preset_color(preset: Dictionary, key: String, fallback: String) -> Color:
@@ -2463,15 +2512,17 @@ func _ensure_visual_section(parent: Node, section_name: String) -> Node3D:
 
 
 func _property_visual_sections(root: Node3D, lot_root: Node3D, structure_root: Node3D) -> Dictionary:
+	var building_anchor := _ensure_visual_section(structure_root, "BuildingAnchor")
 	return {
 		"lot_base": _ensure_visual_section(lot_root, "LotBase"),
-		"sidewalk": _ensure_visual_section(lot_root, "SidewalkConnection"),
+		"sidewalk": _ensure_visual_section(lot_root, "Sidewalk"),
 		"parking": _ensure_visual_section(lot_root, "ParkingOrDriveway"),
 		"props": _ensure_visual_section(lot_root, "Props"),
 		"landscaping": _ensure_visual_section(lot_root, "Landscaping"),
-		"main_building": _ensure_visual_section(structure_root, "MainBuilding"),
-		"signage": _ensure_visual_section(structure_root, "Signage"),
-		"upgrade_visuals": _ensure_visual_section(structure_root, "UpgradeVisuals"),
+		"building_anchor": building_anchor,
+		"main_building": _ensure_visual_section(building_anchor, "MainBuilding"),
+		"signage": _ensure_visual_section(building_anchor, "Signage"),
+		"upgrade_visuals": _ensure_visual_section(building_anchor, "BuildingUpgradeVisual"),
 	}
 
 
@@ -2483,21 +2534,23 @@ func create_lot_base(parent: Node, preset: Dictionary, size_override: Vector2 = 
 		lot_size = preset["lot_size"]
 	var lot_type := str(preset.get("lot_type", "commercial"))
 	var lot_color := str(preset.get("lot_color", "d9d0b9"))
+	var sidewalk: Dictionary = preset.get("sidewalk", {})
+	var sidewalk_back_z := float(sidewalk.get("z", lot_size.y * 0.45)) - float(sidewalk.get("depth", SIDEWALK_WIDTH)) * 0.5
 	var curb_material := _make_material("eee8dc", 0.92)
 	var paver_material := _make_material("d8c7ab", 0.9)
 	_add_shadow_disc_local(Vector3(0.0, 0.002, 0.06), Vector2(lot_size.x * 1.04, lot_size.y * 1.02), 0.1, parent)
 	_add_box(Vector3(0.0, 0.02, 0.0), Vector3(lot_size.x + 0.16, 0.028, lot_size.y + 0.14), curb_material, parent)
 	if lot_type == "residential":
 		_add_box(Vector3(0.0, 0.046, 0.0), Vector3(lot_size.x, 0.04, lot_size.y), _make_material(lot_color, 0.98), parent)
-		_add_box(Vector3(0.0, 0.062, 1.72), Vector3(lot_size.x * 0.9, 0.032, 1.44), _make_material("d8c6a7", 0.9), parent)
-		_add_box(Vector3(0.0, 0.082, 1.12), Vector3(lot_size.x * 0.94, 0.025, 0.42), _make_material("c2b39b", 0.88), parent)
+		_add_box(Vector3(0.0, 0.062, sidewalk_back_z - 0.48), Vector3(lot_size.x * 0.9, 0.032, 0.92), _make_material("d8c6a7", 0.9), parent)
+		_add_box(Vector3(0.0, 0.082, sidewalk_back_z - 0.94), Vector3(lot_size.x * 0.94, 0.025, 0.42), _make_material("c2b39b", 0.88), parent)
 	elif lot_type == "civic":
 		_add_box(Vector3(0.0, 0.046, 0.0), Vector3(lot_size.x, 0.04, lot_size.y), _make_material(lot_color, 0.98), parent)
-		_add_box(Vector3(0.0, 0.082, lot_size.y * 0.36), Vector3(lot_size.x * 0.82, 0.024, 0.42), paver_material, parent)
+		_add_box(Vector3(0.0, 0.082, sidewalk_back_z - 0.24), Vector3(lot_size.x * 0.82, 0.024, 0.42), paver_material, parent)
 	else:
 		_add_box(Vector3(0.0, 0.046, 0.0), Vector3(lot_size.x, 0.04, lot_size.y), _make_material(lot_color, 0.98), parent)
-		_add_box(Vector3(0.0, 0.078, 0.86), Vector3(lot_size.x * 0.72, 0.025, 0.36), _make_material("ede3cf", 0.92), parent)
-		_add_box(Vector3(0.0, 0.084, lot_size.y * 0.43), Vector3(lot_size.x * 0.94, 0.018, 0.18), paver_material, parent)
+		_add_box(Vector3(0.0, 0.078, sidewalk_back_z - 0.54), Vector3(lot_size.x * 0.72, 0.025, 0.36), _make_material("ede3cf", 0.92), parent)
+		_add_box(Vector3(0.0, 0.084, sidewalk_back_z - 0.12), Vector3(lot_size.x * 0.94, 0.018, 0.18), paver_material, parent)
 	for side_x in [-1.0, 1.0]:
 		_add_box(Vector3(side_x * lot_size.x * 0.5, 0.084, 0.0), Vector3(0.06, 0.04, lot_size.y * 0.88), curb_material, parent)
 	_add_box(Vector3(0.0, 0.084, lot_size.y * 0.5), Vector3(lot_size.x * 0.92, 0.04, 0.06), curb_material, parent)
@@ -2526,12 +2579,20 @@ func create_crosswalk(parent: Node, center: Vector3, horizontal: bool) -> void:
 
 
 func create_driveway(parent: Node, preset: Dictionary, entry_offset: float = 0.0, garage_side: float = 1.0, has_garage: bool = false) -> void:
+	var sidewalk: Dictionary = preset.get("sidewalk", {})
+	var sidewalk_center_z := float(sidewalk.get("z", LOT_FRONT_SIDEWALK_Z))
+	var sidewalk_depth := float(sidewalk.get("depth", SIDEWALK_WIDTH))
+	var sidewalk_back_z := sidewalk_center_z - sidewalk_depth * 0.5
+	var yard_end_z := sidewalk_back_z - FRONT_BUFFER
+	var curb_cut_z := sidewalk_center_z
 	if has_garage:
 		var drive_x := 1.08 * garage_side
-		_add_box(Vector3(drive_x * 1.18, 0.021, 0.74), Vector3(1.34, 0.028, 3.28), _make_material("b8a58b", 0.9), parent)
-		_add_town_path(Vector3(drive_x * 1.18, 0.03, 1.2), Vector2(0.9, 2.42), parent)
+		_add_box(Vector3(drive_x * 1.18, 0.021, yard_end_z - 0.62), Vector3(1.34, 0.028, 1.7), _make_material("b8a58b", 0.9), parent)
+		_add_box(Vector3(drive_x * 1.18, 0.026, curb_cut_z), Vector3(1.06, 0.026, sidewalk_depth * 0.78), _make_material("b8a58b", 0.9), parent)
+		_add_town_path(Vector3(drive_x * 1.18, 0.03, yard_end_z - 0.42), Vector2(0.9, 1.36), parent)
 	else:
-		_add_town_path(Vector3(entry_offset, 0.03, 1.18), Vector2(0.74, 2.1), parent)
+		_add_town_path(Vector3(entry_offset, 0.03, yard_end_z - 0.52), Vector2(0.74, 1.48), parent)
+		_add_box(Vector3(entry_offset, 0.038, curb_cut_z), Vector3(0.58, 0.018, sidewalk_depth * 0.72), _make_material("d9cbb7", 0.9), parent)
 
 
 func create_parking_lot(parent: Node, preset: Dictionary, accent: Color = Color("f1d072"), trim: Color = Color("fff4df")) -> void:
@@ -2574,13 +2635,13 @@ func create_parking_lot(parent: Node, preset: Dictionary, accent: Color = Color(
 			_add_box(Vector3(island_x, 0.096, -size.z * 0.22), Vector3(0.22, 0.026, size.z * 0.44), curb_material, root)
 			create_bush_cluster(root, Vector3(island_x, 0.11, -size.z * 0.22), 3, Color("6fa85b"))
 
-	var spaces := 3
+	var spaces := int(preset.get("parking_spaces", 3))
 	if parking == "medium_lot":
-		spaces = 5
+		spaces = int(preset.get("parking_spaces", 5))
 	elif parking == "compact_lot":
-		spaces = 3
+		spaces = int(preset.get("parking_spaces", 3))
 	elif parking == "front_apron":
-		spaces = 3
+		spaces = int(preset.get("parking_spaces", 3))
 	for line_index in range(spaces + 1):
 		var t := 0.5 if spaces <= 0 else float(line_index) / float(spaces)
 		var x := lerpf(-size.x * 0.38, size.x * 0.38, t)
@@ -2900,13 +2961,14 @@ func _add_newspaper_box_local(parent: Node, position_3d: Vector3, accent: Color)
 	_add_box(position_3d + Vector3(0.0, 0.28, 0.13), Vector3(0.18, 0.12, 0.025), _make_material("fff4df", 0.86), parent)
 
 
-func create_property_visual_framework(root: Node3D, lot_root: Node3D, structure_root: Node3D, tool: String, variant: int, include_parking: bool = true) -> Dictionary:
+func create_property_visual_framework(root: Node3D, lot_root: Node3D, structure_root: Node3D, tool: String, variant: int, include_parking: bool = true, rebuild_lot_layout: bool = true) -> Dictionary:
+	structure_root.position = Vector3.ZERO
 	var preset := _property_visual_preset(tool)
 	var sections := _property_visual_sections(root, lot_root, structure_root)
 	if preset.is_empty():
 		return sections
 	var palette := _cozy_palette(tool, variant)
-	_apply_property_structure_setback(structure_root, preset)
+	_apply_property_structure_setback(sections["building_anchor"] as Node3D, preset)
 	_validate_property_visual_spacing(tool, preset)
 	root.set_meta("visual_preset", tool)
 	root.set_meta("visual_lot_type", str(preset.get("lot_type", "commercial")))
@@ -2914,14 +2976,16 @@ func create_property_visual_framework(root: Node3D, lot_root: Node3D, structure_
 	root.set_meta("visual_lot_depth", visual_lot_size.y)
 	root.set_meta("visual_building_setback", float(preset.get("building_z_offset", 0.0)))
 	root.set_meta("visual_props", preset.get("props", []))
-	create_lot_base(sections["lot_base"], preset)
-	create_sidewalk_connection(sections["sidewalk"], preset)
-	_add_property_ground_variation(sections["landscaping"], preset, variant)
-	create_bush_row(sections["landscaping"], preset, Color("6fa85b"))
-	if include_parking:
-		create_parking_lot(sections["parking"], preset, palette["accent"], palette["trim"])
-	_add_property_composed_lot_details(tool, sections, preset, palette, variant)
-	_add_property_identity_props(tool, sections, preset, palette)
+	if rebuild_lot_layout:
+		root.set_meta("visual_layout_version", 2)
+		create_lot_base(sections["lot_base"], preset)
+		create_sidewalk_connection(sections["sidewalk"], preset)
+		_add_property_ground_variation(sections["landscaping"], preset, variant)
+		create_bush_row(sections["landscaping"], preset, Color("6fa85b"))
+		if include_parking:
+			create_parking_lot(sections["parking"], preset, palette["accent"], palette["trim"])
+		_add_property_composed_lot_details(tool, sections, preset, palette, variant)
+		_add_property_identity_props(tool, sections, preset, palette)
 	return sections
 
 
@@ -2939,36 +3003,44 @@ func _clear_property_visuals(root: Node3D) -> void:
 			child.free()
 
 
+func _clear_property_building_visuals(root: Node3D) -> void:
+	var structure_root := _property_structure_root(root)
+	for child in structure_root.get_children():
+		structure_root.remove_child(child)
+		child.free()
+	structure_root.position = Vector3.ZERO
+
+
 func _rebuild_house_visuals_in_place(root: Node3D, tier: int, variant: int) -> void:
-	_clear_property_visuals(root)
+	_clear_property_building_visuals(root)
 	var lot_root := _property_lot_root(root)
 	var structure_root := _property_structure_root(root)
-	_populate_village_house_variant(root, lot_root, structure_root, variant)
+	_populate_village_house_variant(root, lot_root, structure_root, variant, false)
 	_apply_property_tier_visuals(root, BUILD_TOOL_HOUSE, tier, variant)
 	root.set_meta("tier", tier)
 	root.set_meta("variant", variant)
 
 
 func _rebuild_fire_visuals_in_place(root: Node3D, tier: int, variant: int) -> void:
-	_clear_property_visuals(root)
+	_clear_property_building_visuals(root)
 	var lot_root := _property_lot_root(root)
 	var structure_root := _property_structure_root(root)
-	_populate_fire_station_variant(root, lot_root, structure_root, variant)
+	_populate_fire_station_variant(root, lot_root, structure_root, variant, false)
 	_apply_property_tier_visuals(root, BUILD_TOOL_FIRE, tier, variant)
 	root.set_meta("tier", tier)
 	root.set_meta("variant", variant)
 
 
-func _populate_service_variant(tool: String, root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int) -> void:
+func _populate_service_variant(tool: String, root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int, rebuild_lot_layout: bool = true) -> void:
 	match tool:
 		BUILD_TOOL_BANK:
-			_populate_bank_variant(root, lot_root, structure_root, variant)
+			_populate_bank_variant(root, lot_root, structure_root, variant, rebuild_lot_layout)
 		BUILD_TOOL_GROCERY:
-			_populate_grocery_variant(root, lot_root, structure_root, variant)
+			_populate_grocery_variant(root, lot_root, structure_root, variant, rebuild_lot_layout)
 		BUILD_TOOL_RESTAURANT:
-			_populate_restaurant_variant(root, lot_root, structure_root, variant)
+			_populate_restaurant_variant(root, lot_root, structure_root, variant, rebuild_lot_layout)
 		BUILD_TOOL_CORNER_STORE:
-			_populate_corner_store_variant(root, lot_root, structure_root, variant)
+			_populate_corner_store_variant(root, lot_root, structure_root, variant, rebuild_lot_layout)
 		_:
 			pass
 
@@ -2976,10 +3048,10 @@ func _populate_service_variant(tool: String, root: Node3D, lot_root: Node3D, str
 func _rebuild_service_visuals_in_place(root: Node3D, tool: String, tier: int, variant: int) -> void:
 	var before_global := root.global_position
 	var before_rotation := root.global_rotation_degrees
-	_clear_property_visuals(root)
+	_clear_property_building_visuals(root)
 	var lot_root := _property_lot_root(root)
 	var structure_root := _property_structure_root(root)
-	_populate_service_variant(tool, root, lot_root, structure_root, variant)
+	_populate_service_variant(tool, root, lot_root, structure_root, variant, false)
 	_apply_property_tier_visuals(root, tool, tier, variant)
 	root.set_meta("tier", tier)
 	root.set_meta("variant", variant)
@@ -4256,7 +4328,7 @@ func _house_variant_profile(variant: int) -> Dictionary:
 	return profiles[posmod(variant, profiles.size())]
 
 
-func _populate_village_house_variant(root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int) -> void:
+func _populate_village_house_variant(root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int, rebuild_lot_layout: bool = true) -> void:
 	var palette := _cozy_palette("house", variant)
 	var profile := _house_variant_profile(variant)
 	var width: float = float(profile["width"])
@@ -4273,16 +4345,18 @@ func _populate_village_house_variant(root: Node3D, lot_root: Node3D, structure_r
 	var has_garage: bool = bool(profile["garage"])
 	var has_bay: bool = bool(profile["bay"])
 	var fence_width: float = max(4.8, float(profile["fence_width"]) + 0.9)
-	_add_parcel_shadow(root, Vector2(5.7, 5.7), 0.26)
-	var sections := create_property_visual_framework(root, lot_root, structure_root, BUILD_TOOL_HOUSE, variant, false)
+	if rebuild_lot_layout:
+		_add_parcel_shadow(root, Vector2(5.7, 5.7), 0.26)
+	var sections := create_property_visual_framework(root, lot_root, structure_root, BUILD_TOOL_HOUSE, variant, false, rebuild_lot_layout)
 	var parking_root := sections["parking"] as Node3D
 	var landscaping_root := sections["landscaping"] as Node3D
 	var props_root := sections["props"] as Node3D
 	structure_root = sections["main_building"] as Node3D
-	if has_garage:
-		create_driveway(parking_root, _property_visual_preset(BUILD_TOOL_HOUSE), entry_offset, garage_side, true)
-	else:
-		create_driveway(parking_root, _property_visual_preset(BUILD_TOOL_HOUSE), entry_offset, garage_side, false)
+	if rebuild_lot_layout:
+		if has_garage:
+			create_driveway(parking_root, _property_visual_preset(BUILD_TOOL_HOUSE), entry_offset, garage_side, true)
+		else:
+			create_driveway(parking_root, _property_visual_preset(BUILD_TOOL_HOUSE), entry_offset, garage_side, false)
 
 	var plaster := _make_material_from_color(palette.wall.lightened(0.02), 0.95)
 	var timber := _make_material("8d6848", 0.88)
@@ -4331,11 +4405,12 @@ func _populate_village_house_variant(root: Node3D, lot_root: Node3D, structure_r
 	if has_bay:
 		_add_window_band_local(Vector3(0.74, 0.54, house_z + 0.86), Vector3(0.34, 0.3, 0.05), structure_root)
 
-	if not has_garage:
-		_add_garden_path(lot_root, width * 0.24, 2.12)
-	create_fence(props_root, Vector3(0.0, 0.0, 1.86), fence_width)
-	create_streetlamp(props_root, Vector3(1.18, 0.0, 1.56))
-	create_tree(landscaping_root, Vector3(-2.0, 0.0, -1.64))
+	if rebuild_lot_layout and not has_garage:
+		_add_garden_path(lot_root, width * 0.24, 1.52)
+	if rebuild_lot_layout:
+		create_fence(props_root, Vector3(0.0, 0.0, 1.56), fence_width)
+		create_streetlamp(props_root, Vector3(1.18, 0.0, 1.5))
+		create_tree(landscaping_root, Vector3(-2.0, 0.0, -1.64))
 	if int(variant) % 2 == 0:
 		_add_box(Vector3(0.9, height + roof_lift + 0.2, house_z - 0.34), Vector3(0.16, 0.5, 0.16), _stone_material, structure_root)
 		_add_box(Vector3(0.9, height + roof_lift + 0.48, house_z - 0.34), Vector3(0.2, 0.08, 0.2), _make_material("efe3cf", 0.92), structure_root)
@@ -4512,8 +4587,9 @@ func _add_fire_department_signature_upgrade(structure_root: Node, props_root: No
 		_add_box(Vector3(bay_x, 0.64, 0.66), Vector3(width * 0.21, 0.035, 0.055), trim_material, structure_root)
 		_add_box(Vector3(bay_x, 0.46, 0.66), Vector3(width * 0.21, 0.035, 0.055), trim_material, structure_root)
 		_add_box(Vector3(bay_x, 0.28, 0.66), Vector3(width * 0.21, 0.035, 0.055), trim_material, structure_root)
-	_add_box(Vector3(0.0, 0.12, 1.08), Vector3(width * 0.86, 0.045, 0.5), _make_material("848d92", 0.92), props_root)
-	_add_box(Vector3(0.0, 0.15, 1.0), Vector3(width * 0.78, 0.035, 0.06), brass_material, props_root)
+	if props_root != null:
+		_add_box(Vector3(0.0, 0.12, 1.08), Vector3(width * 0.86, 0.045, 0.5), _make_material("848d92", 0.92), props_root)
+		_add_box(Vector3(0.0, 0.15, 1.0), Vector3(width * 0.78, 0.035, 0.06), brass_material, props_root)
 
 
 func _add_bank_signature_upgrade(structure_root: Node, props_root: Node, width: float, depth: float, height: float, palette: Dictionary) -> void:
@@ -4522,9 +4598,10 @@ func _add_bank_signature_upgrade(structure_root: Node, props_root: Node, width: 
 	var accent_material := _make_material_from_color(palette["accent"], 0.46)
 	var brass_material := _make_material("d0a64c", 0.56)
 	var plaza_material := _make_material("d8d2c8", 0.9)
-	_add_box(Vector3(0.0, 0.08, 0.98), Vector3(width * 0.82, 0.05, 0.5), plaza_material, props_root)
-	for step_index in range(3):
-		_add_box(Vector3(0.0, 0.05 + float(step_index) * 0.045, 0.82 + float(step_index) * 0.11), Vector3(width * (0.72 - float(step_index) * 0.08), 0.04, 0.16), plaza_material, props_root)
+	if props_root != null:
+		_add_box(Vector3(0.0, 0.08, 0.98), Vector3(width * 0.82, 0.05, 0.5), plaza_material, props_root)
+		for step_index in range(3):
+			_add_box(Vector3(0.0, 0.05 + float(step_index) * 0.045, 0.82 + float(step_index) * 0.11), Vector3(width * (0.72 - float(step_index) * 0.08), 0.04, 0.16), plaza_material, props_root)
 	_add_box(Vector3(0.0, 1.03, 0.8), Vector3(width * 0.74, 0.14, 0.16), stone_material, structure_root)
 	_add_box(Vector3(0.0, 1.18, 0.78), Vector3(width * 0.58, 0.1, 0.12), roof_material, structure_root)
 	for col_x in [-width * 0.34, -width * 0.17, 0.0, width * 0.17, width * 0.34]:
@@ -4536,7 +4613,8 @@ func _add_bank_signature_upgrade(structure_root: Node, props_root: Node, width: 
 	for side in [-1.0, 1.0]:
 		_add_box(Vector3(side * width * 0.48, 0.64, 0.42), Vector3(0.16, 0.42, 0.055), _window_material, structure_root)
 		_add_window_planter_local(structure_root, Vector3(side * width * 0.48, 0.34, 0.48), 0.28, palette["accent"])
-	_add_atm_local(props_root, Vector3(width * 0.48, 0.03, 0.72), palette["roof"])
+	if props_root != null:
+		_add_atm_local(props_root, Vector3(width * 0.48, 0.03, 0.72), palette["roof"])
 	_add_lantern_glow_local(Vector3(-width * 0.5, 0.92, 0.72), structure_root)
 	_add_lantern_glow_local(Vector3(width * 0.5, 0.92, 0.72), structure_root)
 
@@ -4556,16 +4634,17 @@ func _add_grocery_signature_upgrade(structure_root: Node, props_root: Node, widt
 		_add_box(Vector3(stripe_x * width, 0.7, 0.68), Vector3(width * 0.08, 0.04, 0.36), trim_material, structure_root)
 	_add_box(Vector3(-width * 0.55, 0.32, 0.56), Vector3(0.26, 0.42, 0.05), glass_material, structure_root)
 	_add_box(Vector3(width * 0.55, 0.32, 0.56), Vector3(0.26, 0.42, 0.05), glass_material, structure_root)
-	_add_box(Vector3(-width * 0.46, 0.18, 1.0), Vector3(0.92, 0.11, 0.28), _make_material("9f7b56", 0.82), props_root)
-	for produce_index in range(7):
-		var x := -width * 0.66 + float(produce_index) * 0.18
-		var produce_colors: Array[Color] = [Color("cb644c"), Color("7da85b"), Color("f0be63"), Color("6ca8c4")]
-		var produce_color: Color = produce_colors[produce_index % produce_colors.size()]
-		_add_local_sphere(Vector3(x, 0.28, 1.0 + sin(float(produce_index)) * 0.03), 0.055, 0.045, _make_material_from_color(produce_color, 0.82), props_root)
-	create_cart_rack(props_root, Vector3(width * 0.52, 0.08, 0.98), deg_to_rad(90.0))
-	_add_box(Vector3(width * 0.52, 0.48, 0.98), Vector3(0.62, 0.08, 0.36), roof_material, props_root)
-	for post_x in [width * 0.33, width * 0.71]:
-		_add_box(Vector3(post_x, 0.28, 0.98), Vector3(0.045, 0.48, 0.045), trim_material, props_root)
+	if props_root != null:
+		_add_box(Vector3(-width * 0.46, 0.18, 1.0), Vector3(0.92, 0.11, 0.28), _make_material("9f7b56", 0.82), props_root)
+		for produce_index in range(7):
+			var x := -width * 0.66 + float(produce_index) * 0.18
+			var produce_colors: Array[Color] = [Color("cb644c"), Color("7da85b"), Color("f0be63"), Color("6ca8c4")]
+			var produce_color: Color = produce_colors[produce_index % produce_colors.size()]
+			_add_local_sphere(Vector3(x, 0.28, 1.0 + sin(float(produce_index)) * 0.03), 0.055, 0.045, _make_material_from_color(produce_color, 0.82), props_root)
+		create_cart_rack(props_root, Vector3(width * 0.52, 0.08, 0.98), deg_to_rad(90.0))
+		_add_box(Vector3(width * 0.52, 0.48, 0.98), Vector3(0.62, 0.08, 0.36), roof_material, props_root)
+		for post_x in [width * 0.33, width * 0.71]:
+			_add_box(Vector3(post_x, 0.28, 0.98), Vector3(0.045, 0.48, 0.045), trim_material, props_root)
 
 
 func _add_restaurant_signature_upgrade(structure_root: Node, props_root: Node, width: float, depth: float, height: float, palette: Dictionary, canopy_style: String) -> void:
@@ -4573,21 +4652,22 @@ func _add_restaurant_signature_upgrade(structure_root: Node, props_root: Node, w
 	var accent_material := _make_material_from_color(palette["accent"], 0.52)
 	var trim_material := _make_material_from_color(palette["trim"], 0.78)
 	var light_material := _make_material("fff4d8", 0.12, 0.0, true, "ffe4a4", 0.28)
-	_add_box(Vector3(0.0, 0.11, 1.0), Vector3(width * 0.92, 0.05, 0.66), _make_material("d8c7ab", 0.88), props_root)
-	for post_x in [-width * 0.4, -width * 0.13, width * 0.13, width * 0.4]:
-		_add_box(Vector3(post_x, 0.62, 1.08), Vector3(0.045, 1.04, 0.045), wood_material, props_root)
-	_add_box(Vector3(0.0, 1.16, 1.08), Vector3(width * 0.94, 0.07, 0.62), wood_material, props_root)
-	for beam_x in [-width * 0.34, -width * 0.17, 0.0, width * 0.17, width * 0.34]:
-		_add_box(Vector3(beam_x, 1.22, 1.08), Vector3(0.045, 0.06, 0.68), accent_material, props_root)
-	_add_string_lights_local(props_root, 1.08, width * 0.86)
-	for table_data in [
-		Vector3(-width * 0.28, 0.06, 1.04),
-		Vector3(0.0, 0.06, 1.14),
-		Vector3(width * 0.28, 0.06, 1.04),
-	]:
-		_add_outdoor_table_local(props_root, table_data, palette["accent"])
-	_add_menu_board_local(props_root, Vector3(-width * 0.54, 0.0, 0.76), palette["accent"])
-	_add_planter_box_local(props_root, Vector3(width * 0.54, 0.12, 0.76), palette["accent"], 0.5)
+	if props_root != null:
+		_add_box(Vector3(0.0, 0.11, 1.0), Vector3(width * 0.92, 0.05, 0.66), _make_material("d8c7ab", 0.88), props_root)
+		for post_x in [-width * 0.4, -width * 0.13, width * 0.13, width * 0.4]:
+			_add_box(Vector3(post_x, 0.62, 1.08), Vector3(0.045, 1.04, 0.045), wood_material, props_root)
+		_add_box(Vector3(0.0, 1.16, 1.08), Vector3(width * 0.94, 0.07, 0.62), wood_material, props_root)
+		for beam_x in [-width * 0.34, -width * 0.17, 0.0, width * 0.17, width * 0.34]:
+			_add_box(Vector3(beam_x, 1.22, 1.08), Vector3(0.045, 0.06, 0.68), accent_material, props_root)
+		_add_string_lights_local(props_root, 1.08, width * 0.86)
+		for table_data in [
+			Vector3(-width * 0.28, 0.06, 1.04),
+			Vector3(0.0, 0.06, 1.14),
+			Vector3(width * 0.28, 0.06, 1.04),
+		]:
+			_add_outdoor_table_local(props_root, table_data, palette["accent"])
+		_add_menu_board_local(props_root, Vector3(-width * 0.54, 0.0, 0.76), palette["accent"])
+		_add_planter_box_local(props_root, Vector3(width * 0.54, 0.12, 0.76), palette["accent"], 0.5)
 	if canopy_style != "stripe":
 		create_awning(structure_root, Vector3(0.0, 0.58, 0.72), width * 0.88, accent_material, trim_material, "stripe")
 	_add_box(Vector3(-width * 0.58, 0.78, 0.54), Vector3(0.08, 0.16, 0.035), light_material, structure_root)
@@ -4610,23 +4690,25 @@ func _add_corner_store_signature_upgrade(structure_root: Node, props_root: Node,
 	for window_index in range(3):
 		var x := -width * 0.32 + float(window_index) * width * 0.22
 		_add_box(Vector3(x, 0.36, 0.7), Vector3(0.18, 0.22, 0.035), poster_materials[window_index % poster_materials.size()], structure_root)
-	_add_ice_box_local(props_root, Vector3(width * 0.5, 0.02, 0.82), palette["roof"])
-	_add_newspaper_box_local(props_root, Vector3(-width * 0.58, 0.02, 0.82), palette["accent"])
-	_add_trash_can_local(props_root, Vector3(width * 0.75, 0.02, 0.96), Color("4b6778"))
-	_add_box(Vector3(0.0, 0.1, 1.08), Vector3(width * 0.82, 0.04, 0.26), _make_material("d8c7ab", 0.88), props_root)
-	for mat_index in range(3):
-		var x := -width * 0.28 + float(mat_index) * width * 0.28
-		_add_box(Vector3(x, 0.13, 1.08), Vector3(0.22, 0.03, 0.18), poster_materials[mat_index % poster_materials.size()], props_root)
+	if props_root != null:
+		_add_ice_box_local(props_root, Vector3(width * 0.5, 0.02, 0.82), palette["roof"])
+		_add_newspaper_box_local(props_root, Vector3(-width * 0.58, 0.02, 0.82), palette["accent"])
+		_add_trash_can_local(props_root, Vector3(width * 0.75, 0.02, 0.96), Color("4b6778"))
+		_add_box(Vector3(0.0, 0.1, 1.08), Vector3(width * 0.82, 0.04, 0.26), _make_material("d8c7ab", 0.88), props_root)
+		for mat_index in range(3):
+			var x := -width * 0.28 + float(mat_index) * width * 0.28
+			_add_box(Vector3(x, 0.13, 1.08), Vector3(0.22, 0.03, 0.18), poster_materials[mat_index % poster_materials.size()], props_root)
 
 
-func _populate_fire_station_variant(root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int) -> void:
+func _populate_fire_station_variant(root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int, rebuild_lot_layout: bool = true) -> void:
 	var palette := _cozy_palette("fire", variant)
 	var width := 2.9 + float(variant % 2) * 0.24
 	var depth := 2.1 + float(int(variant / 3) % 2) * 0.16
 	var height := 1.06 + float(int(variant / 5)) * 0.12
-	_add_parcel_shadow(root, Vector2(5.0, 3.9), 0.24)
+	if rebuild_lot_layout:
+		_add_parcel_shadow(root, Vector2(5.0, 3.9), 0.24)
 
-	var sections := create_property_visual_framework(root, lot_root, structure_root, BUILD_TOOL_FIRE, variant)
+	var sections := create_property_visual_framework(root, lot_root, structure_root, BUILD_TOOL_FIRE, variant, true, rebuild_lot_layout)
 	var props_root := sections["props"] as Node3D
 	structure_root = sections["main_building"] as Node3D
 	_add_soft_block(Vector3(0.0, height * 0.5 + 0.05, -0.38), Vector3(width, height, depth), _make_material_from_color(palette.wall, 0.88), structure_root, 0.18)
@@ -4641,8 +4723,10 @@ func _populate_fire_station_variant(root: Node3D, lot_root: Node3D, structure_ro
 	create_storefront_windows(structure_root, width * 0.72, 0.72, 0.54, 3)
 	create_hvac_units(structure_root, width, depth, height + 0.34, -0.38, variant)
 	_add_local_cylinder(Vector3(width * 0.36, 2.08, -0.74), 0.1, 0.1, 0.28, _make_material_from_color(palette.accent, 0.46), structure_root)
-	create_bollards(props_root, 1.34, 2.4, 5, palette.accent)
-	_add_fire_department_signature_upgrade(structure_root, props_root, width, depth, height, palette)
+	if rebuild_lot_layout:
+		create_bollards(props_root, 1.28, 2.4, 5, palette.accent)
+	var signature_props: Node = props_root if rebuild_lot_layout else null
+	_add_fire_department_signature_upgrade(structure_root, signature_props, width, depth, height, palette)
 	match posmod(variant, 5):
 		1:
 			_add_soft_block(Vector3(-width * 0.38, 0.52, -0.96), Vector3(0.72, 0.76, 0.82), _make_material_from_color(palette.wall.darkened(0.03), 0.9), structure_root, 0.1)
@@ -4656,7 +4740,8 @@ func _populate_fire_station_variant(root: Node3D, lot_root: Node3D, structure_ro
 		4:
 			_add_box(Vector3(-width * 0.28, 0.9, 0.56), Vector3(0.18, 0.2, 0.06), _window_material, structure_root)
 			_add_box(Vector3(width * 0.28, 0.9, 0.56), Vector3(0.18, 0.2, 0.06), _window_material, structure_root)
-	_add_hydrant_local(Vector3(-1.82, 0.08, 1.34), lot_root)
+	if rebuild_lot_layout:
+		_add_hydrant_local(Vector3(-1.82, 0.08, 1.34), lot_root)
 
 
 func _add_fire_station_variant(position_3d: Vector3, variant: int) -> Node3D:
@@ -4668,15 +4753,17 @@ func _add_fire_station_variant(position_3d: Vector3, variant: int) -> Node3D:
 	return root
 
 
-func _populate_bank_variant(root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int) -> void:
+func _populate_bank_variant(root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int, rebuild_lot_layout: bool = true) -> void:
 	var palette := _cozy_palette("bank", variant)
 	var width := 2.62 + float(variant % 3) * 0.16
 	var depth := 1.82 + float(variant % 2) * 0.12
 	var height := 0.98 + float(int(variant / 4)) * 0.1
-	_add_parcel_shadow(root, Vector2(3.9, 2.9), 0.22)
+	if rebuild_lot_layout:
+		_add_parcel_shadow(root, Vector2(3.9, 2.9), 0.22)
 
-	var sections := create_property_visual_framework(root, lot_root, structure_root, BUILD_TOOL_BANK, variant)
+	var sections := create_property_visual_framework(root, lot_root, structure_root, BUILD_TOOL_BANK, variant, true, rebuild_lot_layout)
 	var signage_root := sections["signage"] as Node3D
+	var props_root := sections["props"] as Node3D
 	structure_root = sections["main_building"] as Node3D
 	_add_soft_block(Vector3(0.0, height * 0.5 + 0.05, -0.24), Vector3(width, height, depth), _make_material_from_color(palette.wall, 0.88), structure_root, 0.18)
 	create_roof(structure_root, Vector3(0.0, height + 0.18, -0.24), Vector3(width + 0.18, 0.2, depth + 0.18), _make_material_from_color(palette.roof, 0.76))
@@ -4692,7 +4779,8 @@ func _populate_bank_variant(root: Node3D, lot_root: Node3D, structure_root: Node
 	_add_round_canopy(Vector3(0.0, 0.28, 0.92), Vector3(width * 0.44, 0.14, 0.18), _make_material_from_color(palette.trim, 0.48), structure_root)
 	_add_local_sphere(Vector3(0.0, 1.18, -0.12), 0.18, 0.22, _make_material_from_color(palette.accent, 0.36), structure_root)
 	create_sign(signage_root, Vector3(0.0, height + 0.18, 0.78), Vector2(width * 0.42, 0.18), palette.accent, "vault")
-	_add_bank_signature_upgrade(structure_root, sections["props"] as Node3D, width, depth, height, palette)
+	var signature_props: Node = props_root if rebuild_lot_layout else null
+	_add_bank_signature_upgrade(structure_root, signature_props, width, depth, height, palette)
 	match posmod(variant, 5):
 		1:
 			_add_box(Vector3(0.0, height + 0.38, 0.22), Vector3(width * 0.74, 0.08, 0.18), _make_material_from_color(palette.accent, 0.46), structure_root)
@@ -4715,14 +4803,15 @@ func _add_bank_variant(position_3d: Vector3, variant: int) -> Node3D:
 	return root
 
 
-func _populate_grocery_variant(root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int) -> void:
+func _populate_grocery_variant(root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int, rebuild_lot_layout: bool = true) -> void:
 	var palette := _cozy_palette("grocery", variant)
 	var width := 3.0 + float(variant % 3) * 0.16
 	var depth := 2.02 + float(int(variant / 3) % 2) * 0.16
 	var height := 0.96 + float(int(variant / 5)) * 0.1
-	_add_parcel_shadow(root, Vector2(5.0, 3.9), 0.24)
+	if rebuild_lot_layout:
+		_add_parcel_shadow(root, Vector2(5.0, 3.9), 0.24)
 
-	var sections := create_property_visual_framework(root, lot_root, structure_root, BUILD_TOOL_GROCERY, variant)
+	var sections := create_property_visual_framework(root, lot_root, structure_root, BUILD_TOOL_GROCERY, variant, true, rebuild_lot_layout)
 	var props_root := sections["props"] as Node3D
 	structure_root = sections["main_building"] as Node3D
 	_add_soft_block(Vector3(0.0, height * 0.5 + 0.05, -0.48), Vector3(width, height, depth), _make_material_from_color(palette.wall, 0.9), structure_root, 0.18)
@@ -4741,9 +4830,11 @@ func _populate_grocery_variant(root: Node3D, lot_root: Node3D, structure_root: N
 		{"pos": Vector3(width * 0.26, 0.12, 0.74), "color": Color("6ca8c4")}
 	]:
 		_add_box(produce_data.pos, Vector3(0.18, 0.14, 0.18), _make_material_from_color(produce_data.color, 0.82), structure_root)
-	create_cart_rack(props_root, Vector3(1.64, 0.06, 1.18), deg_to_rad(90.0))
-	_add_trash_can_local(props_root, Vector3(-1.84, 0.02, 1.2), Color("4f6f5f"))
-	_add_grocery_signature_upgrade(structure_root, props_root, width, depth, height, palette)
+	if rebuild_lot_layout:
+		create_cart_rack(props_root, Vector3(1.64, 0.06, 1.18), deg_to_rad(90.0))
+		_add_trash_can_local(props_root, Vector3(-1.84, 0.02, 1.2), Color("4f6f5f"))
+	var signature_props: Node = props_root if rebuild_lot_layout else null
+	_add_grocery_signature_upgrade(structure_root, signature_props, width, depth, height, palette)
 	match posmod(variant, 5):
 		1:
 			_add_box(Vector3(0.0, height + 0.34, 0.36), Vector3(width * 0.76, 0.1, 0.14), _make_material_from_color(palette.accent, 0.46), structure_root)
@@ -4777,7 +4868,7 @@ func _restaurant_variant_profile(variant: int) -> Dictionary:
 	return profiles[posmod(variant, profiles.size())]
 
 
-func _populate_restaurant_variant(root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int) -> void:
+func _populate_restaurant_variant(root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int, rebuild_lot_layout: bool = true) -> void:
 	var palette := _cozy_palette("restaurant", variant)
 	var restaurant_profile := _restaurant_variant_profile(variant)
 	var width := float(restaurant_profile["width"])
@@ -4791,9 +4882,10 @@ func _populate_restaurant_variant(root: Node3D, lot_root: Node3D, structure_root
 	var roof_material := _make_material_from_color(palette.roof, 0.74)
 	var trim_material := _make_material_from_color(palette.trim, 0.76)
 	var accent_material := _make_material_from_color(palette.accent, 0.5)
-	_add_parcel_shadow(root, Vector2(4.1, 3.0), 0.22)
+	if rebuild_lot_layout:
+		_add_parcel_shadow(root, Vector2(4.1, 3.0), 0.22)
 
-	var sections := create_property_visual_framework(root, lot_root, structure_root, BUILD_TOOL_RESTAURANT, variant)
+	var sections := create_property_visual_framework(root, lot_root, structure_root, BUILD_TOOL_RESTAURANT, variant, true, rebuild_lot_layout)
 	var props_root := sections["props"] as Node3D
 	var signage_root := sections["signage"] as Node3D
 	structure_root = sections["main_building"] as Node3D
@@ -4812,10 +4904,12 @@ func _populate_restaurant_variant(root: Node3D, lot_root: Node3D, structure_root
 	else:
 		_add_box(Vector3(width * 0.28, height + 0.42, -0.46), Vector3(0.12, 0.4, 0.12), _stone_material, structure_root)
 	_add_front_lanterns(structure_root, 0.72, width * 0.74)
-	_add_string_lights_local(props_root, 1.18, width * 0.7)
-	_add_outdoor_table_local(props_root, Vector3(-1.1, 0.04, 1.04), palette.accent)
-	_add_outdoor_table_local(props_root, Vector3(1.1, 0.04, 1.04), palette.accent)
-	_add_restaurant_signature_upgrade(structure_root, props_root, width, depth, height, palette, canopy_style)
+	if rebuild_lot_layout:
+		_add_string_lights_local(props_root, 1.18, width * 0.7)
+		_add_outdoor_table_local(props_root, Vector3(-1.1, 0.04, 1.04), palette.accent)
+		_add_outdoor_table_local(props_root, Vector3(1.1, 0.04, 1.04), palette.accent)
+	var signature_props: Node = props_root if rebuild_lot_layout else null
+	_add_restaurant_signature_upgrade(structure_root, signature_props, width, depth, height, palette, canopy_style)
 
 
 func _add_restaurant_roof_local(center: Vector3, size: Vector3, material: Material, style: String, parent: Node) -> void:
@@ -4872,14 +4966,15 @@ func _add_restaurant_variant(position_3d: Vector3, variant: int) -> Node3D:
 	return root
 
 
-func _populate_corner_store_variant(root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int) -> void:
+func _populate_corner_store_variant(root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int, rebuild_lot_layout: bool = true) -> void:
 	var palette := _cozy_palette("corner_store", variant)
 	var width := 2.28 + float(variant % 3) * 0.14
 	var depth := 1.74 + float(int(variant / 3) % 2) * 0.12
 	var height := 0.92 + float(int(variant / 5)) * 0.1
-	_add_parcel_shadow(root, Vector2(4.0, 2.95), 0.22)
+	if rebuild_lot_layout:
+		_add_parcel_shadow(root, Vector2(4.0, 2.95), 0.22)
 
-	var sections := create_property_visual_framework(root, lot_root, structure_root, BUILD_TOOL_CORNER_STORE, variant)
+	var sections := create_property_visual_framework(root, lot_root, structure_root, BUILD_TOOL_CORNER_STORE, variant, true, rebuild_lot_layout)
 	var props_root := sections["props"] as Node3D
 	structure_root = sections["main_building"] as Node3D
 	_add_soft_block(Vector3(-0.18, height * 0.5 + 0.05, -0.24), Vector3(width, height, depth), _make_material_from_color(palette.wall, 0.9), structure_root, 0.18)
@@ -4892,9 +4987,11 @@ func _populate_corner_store_variant(root: Node3D, lot_root: Node3D, structure_ro
 	create_storefront_windows(structure_root, width * 0.58, 0.58, 0.62, 2)
 	create_hvac_units(structure_root, width, depth, height + 0.34, -0.24, variant)
 	_add_box(Vector3(-0.18, 0.82, 0.6), Vector3(width * 0.46, 0.1, 0.05), _make_material_from_color(palette.trim, 0.42), structure_root)
-	create_cart_rack(props_root, Vector3(1.42, 0.06, 1.06), deg_to_rad(90.0))
-	_add_trash_can_local(props_root, Vector3(-1.44, 0.02, 1.06), palette.roof)
-	_add_corner_store_signature_upgrade(structure_root, props_root, width, depth, height, palette)
+	if rebuild_lot_layout:
+		create_cart_rack(props_root, Vector3(1.42, 0.06, 1.06), deg_to_rad(90.0))
+		_add_trash_can_local(props_root, Vector3(-1.44, 0.02, 1.06), palette.roof)
+	var signature_props: Node = props_root if rebuild_lot_layout else null
+	_add_corner_store_signature_upgrade(structure_root, signature_props, width, depth, height, palette)
 	if variant % 2 == 1:
 		_add_soft_block(Vector3(width * 0.34, 0.56, -0.42), Vector3(0.46, 0.68, 0.52), _make_material_from_color(palette.trim, 0.84), structure_root, 0.1)
 
@@ -4948,7 +5045,7 @@ func _apply_property_tier_visuals(root: Node3D, tool: String, tier: int, variant
 func _apply_house_tier_visuals(root: Node3D, tier: int, variant: int, profile: Dictionary) -> void:
 	_upgrade_debug("apply house tier visuals tier=%d variant=%d profile=%s" % [tier, variant, str(profile)])
 	var palette := _cozy_palette("house", variant)
-	var structure_root := _property_structure_root(root)
+	var structure_root := _property_upgrade_visual_root(root)
 	var roof_trim := _make_material_from_color(palette.trim.lightened(0.04), 0.88)
 	var roof_detail := _make_material_from_color(palette.roof.darkened(0.03), 0.74)
 	var second_story_wall := _make_material_from_color(palette.wall.lightened(0.06), 0.94)
@@ -5043,7 +5140,7 @@ func _apply_service_tier_visuals(root: Node3D, tool: String, tier: int, variant:
 	var accent: Color = palette["accent"]
 	var trim: Color = palette["trim"]
 	var lot_root := _property_lot_root(root)
-	var structure_root := _property_structure_root(root)
+	var structure_root := _property_upgrade_visual_root(root)
 
 	match tool:
 		BUILD_TOOL_FIRE:
@@ -5102,8 +5199,6 @@ func _apply_fire_station_tier_visuals(lot_root: Node3D, structure_root: Node3D, 
 			_add_house_side_window_local(Vector3(-1.62, 1.08, -0.08), Vector3(0.24, 0.3, 0.05), structure_root, -1.0)
 			_add_box(Vector3(0.0, 2.18, 0.46), Vector3(1.18, 0.14, 0.08), _make_material_from_color(accent, 0.42), structure_root)
 			_add_local_cylinder(Vector3(1.08, 1.86, -0.8), 0.12, 0.12, 0.34, _make_material_from_color(accent, 0.46), structure_root)
-		if bool(profile.get("parking_expand", false)):
-			_add_fire_parking_lot(Vector3(0.0, 0.0, LOT_PARKING_Z + 0.02), Vector3(3.72, 1.0, 1.12), lot_root)
 
 
 func _apply_bank_tier_visuals(lot_root: Node3D, structure_root: Node3D, tier: int, variant: int, profile: Dictionary, palette: Dictionary, accent: Color, trim: Color) -> void:
@@ -5154,8 +5249,6 @@ func _apply_bank_tier_visuals(lot_root: Node3D, structure_root: Node3D, tier: in
 			for window_x in [-0.34, 0.34]:
 				_add_window_band_local(Vector3(window_x, 1.04, 1.2), Vector3(0.22, 0.24, 0.05), structure_root)
 			_add_box(Vector3(0.0, 2.3, 0.46), Vector3(1.36, 0.12, 0.08), _make_material_from_color(accent, 0.42), structure_root)
-		if bool(profile.get("plaza", false)):
-			_add_bank_forecourt(Vector3(0.0, 0.0, LOT_PARKING_Z - 0.02), Vector3(3.3, 1.0, 0.9), lot_root, accent, trim)
 
 
 func _apply_grocery_tier_visuals(lot_root: Node3D, structure_root: Node3D, tier: int, variant: int, profile: Dictionary, palette: Dictionary, accent: Color, trim: Color) -> void:
@@ -5209,8 +5302,6 @@ func _apply_grocery_tier_visuals(lot_root: Node3D, structure_root: Node3D, tier:
 			_add_house_side_window_local(Vector3(-width * 0.45, 1.12, -0.24), Vector3(0.24, 0.3, 0.05), structure_root, -1.0)
 			_add_house_side_window_local(Vector3(width * 0.45, 1.12, -0.24), Vector3(0.24, 0.3, 0.05), structure_root, 1.0)
 			_add_box(Vector3(0.0, 2.02, 0.34), Vector3(width * 0.74, 0.1, 0.08), accent_material, structure_root)
-		if bool(profile.get("parking_lot", false)):
-			_add_grocery_parking_lot(Vector3(0.0, 0.0, LOT_PARKING_Z + 0.06), Vector3(4.18, 1.0, 1.05), lot_root)
 
 
 func _apply_restaurant_tier_visuals(lot_root: Node3D, structure_root: Node3D, tier: int, variant: int, profile: Dictionary, palette: Dictionary, accent: Color, trim: Color) -> void:
@@ -5266,8 +5357,6 @@ func _apply_restaurant_tier_visuals(lot_root: Node3D, structure_root: Node3D, ti
 			_add_window_band_local(Vector3(width * 0.24, second_y + 0.36, -0.84), Vector3(0.24, 0.24, 0.05), structure_root)
 			_add_house_side_window_local(Vector3(-(width + 0.08) * 0.52, second_y + 0.34, -0.22), Vector3(0.26, 0.3, 0.05), structure_root, -1.0)
 			_add_house_side_window_local(Vector3((width + 0.08) * 0.52, second_y + 0.34, -0.22), Vector3(0.26, 0.3, 0.05), structure_root, 1.0)
-		if bool(profile.get("parking_lot", false)):
-			_add_restaurant_parking_court(Vector3(0.0, 0.0, LOT_PARKING_Z), Vector3(3.38, 1.0, 0.96), lot_root, accent, trim)
 
 
 func _apply_corner_store_tier_visuals(lot_root: Node3D, structure_root: Node3D, tier: int, variant: int, profile: Dictionary, palette: Dictionary, accent: Color, trim: Color) -> void:
@@ -5315,8 +5404,6 @@ func _apply_corner_store_tier_visuals(lot_root: Node3D, structure_root: Node3D, 
 			_add_house_side_window_local(Vector3(-width * 0.5, 1.12, -0.08), Vector3(0.24, 0.3, 0.05), structure_root, -1.0)
 			_add_house_side_window_local(Vector3(width * 0.58, 1.12, -0.08), Vector3(0.24, 0.3, 0.05), structure_root, 1.0)
 			_add_signboard_local(Vector3(-0.74, 1.72, upper_front_z + 0.14), Vector2(0.52, 0.2), accent, "corner", structure_root)
-		if bool(profile.get("parking_lot", false)):
-			_add_corner_store_parking_lot(Vector3(0.62, 0.0, LOT_PARKING_Z - 0.02), Vector3(1.86, 1.0, 0.96), lot_root, accent, trim)
 
 
 func _apply_park_tier_visuals(root: Node3D, tier: int, variant: int, profile: Dictionary) -> void:
