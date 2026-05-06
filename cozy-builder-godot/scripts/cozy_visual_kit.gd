@@ -20,12 +20,23 @@ const TRUNK := "805a3c"
 const SHADOW := "1f1a12"
 
 
+static func polished_color(color: Color, roughness: float) -> Color:
+	var luminance := color.r * 0.299 + color.g * 0.587 + color.b * 0.114
+	var adjusted := color
+	if luminance > 0.78:
+		adjusted = adjusted.darkened(0.025)
+	elif luminance < 0.2:
+		adjusted = adjusted.lightened(0.018)
+	adjusted = adjusted.lerp(Color(1.0, 0.93, 0.82), clampf((roughness - 0.65) * 0.055, 0.0, 0.025))
+	return adjusted
+
+
 static func material(color_hex: String, roughness: float = 0.85, emission_hex: String = "", emission_energy: float = 0.0) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(color_hex)
+	mat.albedo_color = polished_color(Color(color_hex), roughness)
 	mat.roughness = roughness
 	mat.metallic = 0.0
-	mat.metallic_specular = 0.12
+	mat.metallic_specular = 0.1
 	if emission_hex != "":
 		mat.emission_enabled = true
 		mat.emission = Color(emission_hex)

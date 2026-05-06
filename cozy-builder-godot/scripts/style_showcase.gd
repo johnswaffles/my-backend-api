@@ -16,38 +16,45 @@ func _ready() -> void:
 
 func _setup_camera() -> void:
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = 8.7
-	camera.position = Vector3(6.6, 4.45, 6.6)
-	camera.look_at(Vector3(0.0, 0.9, 0.78), Vector3.UP)
+	camera.size = 8.0
+	camera.position = Vector3(6.25, 3.85, 6.25)
+	camera.look_at(Vector3(0.0, 1.0, 0.72), Vector3.UP)
 
 
 func _setup_lighting() -> void:
 	var sky_material := ProceduralSkyMaterial.new()
-	sky_material.sky_top_color = Color("9ed1ff")
-	sky_material.sky_horizon_color = Color("dbeed6")
+	sky_material.sky_top_color = Color("a8d5ff")
+	sky_material.sky_horizon_color = Color("f7e4ba")
 	sky_material.ground_bottom_color = Color("7dae69")
-	sky_material.ground_horizon_color = Color("cfe6b4")
+	sky_material.ground_horizon_color = Color("d4e4a5")
 	var sky := Sky.new()
 	sky.sky_material = sky_material
 	var env := Environment.new()
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = 3
-	env.ambient_light_color = Color(0.72, 0.82, 0.72)
-	env.ambient_light_energy = 0.66
-	env.fog_enabled = false
-	env.glow_enabled = false
+	env.ambient_light_color = Color(0.82, 0.84, 0.72)
+	env.ambient_light_energy = 0.72
+	env.fog_enabled = true
+	env.fog_light_color = Color(0.72, 0.78, 0.72)
+	env.fog_light_energy = 0.035
+	env.fog_density = 0.00045
+	env.glow_enabled = true
+	env.glow_bloom = 0.018
+	env.glow_intensity = 0.09
 	env.adjustment_enabled = true
 	env.adjustment_brightness = 1.03
-	env.adjustment_contrast = 0.98
-	env.adjustment_saturation = 1.06
+	env.adjustment_contrast = 1.04
+	env.adjustment_saturation = 1.08
 	world_environment.environment = env
-	sun.rotation_degrees = Vector3(-58.0, 34.0, 0.0)
-	sun.light_energy = 1.18
+	sun.rotation_degrees = Vector3(-49.0, 32.0, 0.0)
+	sun.light_color = Color(1.0, 0.89, 0.68)
+	sun.light_energy = 1.34
 	sun.shadow_enabled = true
-	sun.shadow_blur = 2.4
+	sun.shadow_blur = 2.8
 	fill_light.rotation_degrees = Vector3(-20.0, 150.0, 0.0)
-	fill_light.light_energy = 0.34
+	fill_light.light_color = Color(0.62, 0.74, 1.0)
+	fill_light.light_energy = 0.24
 	fill_light.shadow_enabled = false
 
 

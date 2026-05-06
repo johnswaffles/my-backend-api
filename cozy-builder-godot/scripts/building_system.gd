@@ -4,7 +4,7 @@ const GRID_SIZE := 64
 const TILE_SIZE := 1.0
 const PAN_SPEED := 0.018
 const STARTING_MONEY := 500000
-const DEFAULT_ZOOM := 22.0
+const DEFAULT_ZOOM := 20.0
 const MIN_ZOOM := 8.0
 const MAX_ZOOM := 56.0
 const BUILD_TOOL_ROAD := "road"
@@ -558,31 +558,31 @@ func _input(event: InputEvent) -> void:
 
 
 func _build_materials() -> void:
-	_ground_material_a = _make_material("8fcb7b", 0.92)
-	_ground_material_b = _make_material("7fbd68", 0.94)
-	_ground_material_c = _make_material("a8d987", 0.92)
-	_soil_material = _make_material("6f563d", 0.96)
-	_stone_material = _make_material("e6dac6", 0.86)
-	_water_material = _make_material("3d9db5", 0.2, 0.0, true, "c9f4f9", 0.12)
+	_ground_material_a = _make_material("8bc877", 0.94)
+	_ground_material_b = _make_material("79b966", 0.96)
+	_ground_material_c = _make_material("a4d783", 0.93)
+	_soil_material = _make_material("6b5137", 0.98)
+	_stone_material = _make_material("e2d2ba", 0.9)
+	_water_material = _make_material("349ab4", 0.24, 0.0, true, "bceff5", 0.1)
 	_water_highlight_material = _make_transparent_material(Color("effffb"), 0.26, 0.42)
-	_road_material = _make_material("3a3a3a", 0.95)
-	_road_top_detail_material = _make_material("45484b", 0.93)
-	_road_edge_highlight_material = _make_material("f8f4ec", 0.86)
-	_crosswalk_material = _make_material("f8f4ec", 0.82)
-	_road_mark_material = _make_material("ffd75b", 0.66)
-	_sidewalk_material = _make_material("d9d9d9", 0.86)
-	_window_material = _make_material("ffc15e", 0.08, 0.0, true, "ffe09a", 0.42)
-	_window_frame_material = _make_material("fff4df", 0.74)
-	_roof_fascia_material = _make_material("66472f", 0.76)
+	_road_material = _make_material("323538", 0.98)
+	_road_top_detail_material = _make_material("3f4448", 0.97)
+	_road_edge_highlight_material = _make_material("efe9dd", 0.9)
+	_crosswalk_material = _make_material("f2eadb", 0.88)
+	_road_mark_material = _make_material("f0c94f", 0.78)
+	_sidewalk_material = _make_material("d5cdbf", 0.93)
+	_window_material = _make_material("ffc15e", 0.12, 0.0, true, "ffe09a", 0.38)
+	_window_frame_material = _make_material("f6ecd8", 0.82)
+	_roof_fascia_material = _make_material("5f412b", 0.84)
 	_street_lamp_bulb_material = _make_material("fff4d8", 0.04, 0.0, true, "ffe7a8", 0.38)
-	_leaf_material = _make_material("5f914f", 0.88)
-	_leaf_material_light = _make_material("89b96a", 0.88)
-	_leaf_material_dark = _make_material("3f7040", 0.92)
-	_trunk_material = _make_material("805a3c", 0.9)
+	_leaf_material = _make_material("5b8d4b", 0.93)
+	_leaf_material_light = _make_material("83b765", 0.91)
+	_leaf_material_dark = _make_material("38683a", 0.95)
+	_trunk_material = _make_material("7a5336", 0.94)
 	_flower_material_pink = _make_material("ef93b5", 0.7)
 	_flower_material_blue = _make_material("8fc6ef", 0.7)
-	_meadow_material = _make_material("9fb76c", 0.94)
-	_grass_blade_material = _make_material("638f43", 0.94)
+	_meadow_material = _make_material("9aac68", 0.96)
+	_grass_blade_material = _make_material("5d8540", 0.96)
 	_soft_shadow_material = _make_transparent_material(Color(0.08, 0.06, 0.04, 1.0), 1.0, 0.18)
 	_hover_material_valid = _make_transparent_material(Color("76e5c7"), 0.24, 0.34)
 	_hover_material_invalid = _make_transparent_material(Color("f29a8d"), 0.24, 0.34)
@@ -2745,9 +2745,11 @@ func create_sign(parent: Node, position_3d: Vector3, size: Vector2, accent: Colo
 func create_roof(parent: Node, center: Vector3, size: Vector3, roof_material: Material, style: String = "gabled") -> void:
 	if style == "flat":
 		_add_box(center + Vector3(0.0, -0.08, 0.0), Vector3(size.x, 0.16, size.z), roof_material, parent)
+		_add_flat_roof_surface_details(parent, center, size, roof_material)
 	elif style == "shed":
 		var roof := _add_box(center, Vector3(size.x, 0.16, size.z), roof_material, parent)
 		roof.rotation_degrees.x = -5.0
+		_add_flat_roof_surface_details(parent, center + Vector3(0.0, 0.09, 0.0), size * 0.92, roof_material)
 	else:
 		_add_gabled_roof(center, size, roof_material, parent, 10.0)
 
@@ -2755,15 +2757,43 @@ func create_roof(parent: Node, center: Vector3, size: Vector3, roof_material: Ma
 func create_modular_roof(parent: Node, center: Vector3, size: Vector3, roof_material: Material, style: String = "flat") -> void:
 	if style == "flat":
 		_add_box(center + Vector3(0.0, -0.08, 0.0), Vector3(size.x, 0.16, size.z), roof_material, parent)
-		var cap_material := _make_material_from_color((roof_material as StandardMaterial3D).albedo_color.darkened(0.2) if roof_material is StandardMaterial3D else Color("3f454a"), 0.86)
+		var base_color := Color("3f454a")
+		if roof_material is StandardMaterial3D:
+			base_color = (roof_material as StandardMaterial3D).albedo_color
+		var cap_material := _make_material_from_color(base_color.darkened(0.2), 0.86)
 		_add_box(center + Vector3(0.0, 0.04, size.z * 0.49), Vector3(size.x, 0.16, 0.09), cap_material, parent)
 		_add_box(center + Vector3(0.0, 0.04, -size.z * 0.49), Vector3(size.x, 0.16, 0.09), cap_material, parent)
 		_add_box(center + Vector3(-size.x * 0.49, 0.04, 0.0), Vector3(0.09, 0.16, size.z), cap_material, parent)
 		_add_box(center + Vector3(size.x * 0.49, 0.04, 0.0), Vector3(0.09, 0.16, size.z), cap_material, parent)
+		_add_flat_roof_surface_details(parent, center, size, roof_material)
 	elif style == "shed":
 		create_roof(parent, center, size, roof_material, "shed")
 	else:
 		create_roof(parent, center, size, roof_material, "gabled")
+
+
+func _add_flat_roof_surface_details(parent: Node, center: Vector3, size: Vector3, roof_material: Material) -> void:
+	if size.x < 0.7 or size.z < 0.7:
+		return
+	var base_color := Color("5b6266")
+	if roof_material is StandardMaterial3D:
+		base_color = (roof_material as StandardMaterial3D).albedo_color
+	var seam_material := _make_material_from_color(base_color.darkened(0.16), 0.9)
+	var highlight_material := _make_material_from_color(base_color.lightened(0.12), 0.86)
+	var detail_y := center.y + 0.14
+	var seam_count := clampi(int(size.x / 0.56), 2, 6)
+	for seam_index in range(seam_count):
+		var t := (float(seam_index) + 1.0) / float(seam_count + 1)
+		var x := lerpf(-size.x * 0.36, size.x * 0.36, t)
+		_add_box(Vector3(center.x + x, detail_y, center.z), Vector3(0.025, 0.018, size.z * 0.72), seam_material, parent)
+	for z in [-size.z * 0.28, size.z * 0.08]:
+		_add_box(Vector3(center.x, detail_y + 0.005, center.z + z), Vector3(size.x * 0.64, 0.014, 0.035), highlight_material, parent)
+	if size.x > 1.4 and size.z > 1.2:
+		var unit_material := _make_material("c9d0d2", 0.82)
+		var vent_material := _make_material("77838c", 0.88)
+		create_hvac_unit(parent, Vector3(center.x - size.x * 0.26, detail_y + 0.08, center.z - size.z * 0.18), unit_material, vent_material)
+	if size.x > 2.4:
+		_add_box(Vector3(center.x + size.x * 0.26, detail_y + 0.07, center.z + size.z * 0.1), Vector3(0.28, 0.07, 0.16), highlight_material, parent)
 
 
 func create_trim_layer(parent: Node, width: float, height: float, front_z: float, palette: Dictionary, sign_kind: String = "") -> void:
@@ -4011,31 +4041,34 @@ func _update_day_night_visuals() -> void:
 	var town_strength := _town_light_strength()
 	var daylight_scale := clampf(_ambient_light_scale, 0.0, 1.0)
 	var night_amount := 1.0 - daylight_scale
-	var daylight_curve := pow(daylight_scale, 1.35)
-	var sky_top: Color = Color(0.34, 0.62, 0.95).lerp(Color(0.015, 0.024, 0.055), night_amount)
-	var sky_horizon: Color = Color(0.74, 0.88, 1.0).lerp(Color(0.04, 0.055, 0.095), night_amount)
+	var daylight_curve := pow(daylight_scale, 1.12)
+	var sky_top: Color = Color(0.66, 0.83, 0.98).lerp(Color(0.025, 0.035, 0.08), night_amount)
+	var sky_horizon: Color = Color(0.98, 0.9, 0.72).lerp(Color(0.055, 0.07, 0.12), night_amount)
 	if world_environment and world_environment.environment:
 		var env: Environment = world_environment.environment
 		env.background_mode = Environment.BG_SKY
 		env.background_color = sky_top.lerp(sky_horizon, 0.08)
-		env.ambient_light_color = sky_top.lerp(sky_horizon, 0.35)
-		env.ambient_light_energy = lerpf(0.035, 0.22, daylight_curve)
-		env.fog_enabled = false
-		env.fog_density = 0.0
-		env.glow_bloom = 0.0
-		env.glow_intensity = 0.0
+		env.ambient_light_color = Color(0.82, 0.84, 0.72).lerp(Color(0.16, 0.2, 0.32), night_amount)
+		env.ambient_light_energy = lerpf(0.08, 0.72, daylight_curve)
+		env.fog_enabled = true
+		env.fog_light_color = Color(0.72, 0.78, 0.72).lerp(Color(0.05, 0.07, 0.12), night_amount)
+		env.fog_light_energy = lerpf(0.0, 0.035, daylight_curve)
+		env.fog_density = lerpf(0.0, 0.00045, daylight_curve)
+		env.glow_enabled = true
+		env.glow_bloom = lerpf(0.0, 0.018, daylight_curve)
+		env.glow_intensity = lerpf(0.0, 0.09, daylight_curve)
 		env.adjustment_enabled = true
-		env.adjustment_brightness = lerpf(0.62, 1.0, daylight_scale)
-		env.adjustment_contrast = lerpf(1.08, 1.0, daylight_scale)
-		env.adjustment_saturation = 1.0
+		env.adjustment_brightness = lerpf(0.72, 1.03, daylight_scale)
+		env.adjustment_contrast = lerpf(1.08, 1.04, daylight_scale)
+		env.adjustment_saturation = lerpf(0.98, 1.08, daylight_scale)
 	if sun:
-		sun.light_color = Color(1.0, 0.98, 0.93).lerp(Color(0.58, 0.66, 0.86), night_amount)
-		sun.light_energy = lerpf(0.025, 1.35, daylight_curve)
-		sun.rotation_degrees = Vector3(lerpf(-34.0, -62.0, daylight_scale), -30.0, 0.0)
-		sun.shadow_blur = 0.75
+		sun.light_color = Color(1.0, 0.89, 0.68).lerp(Color(0.58, 0.66, 0.86), night_amount)
+		sun.light_energy = lerpf(0.05, 1.34, daylight_curve)
+		sun.rotation_degrees = Vector3(lerpf(-32.0, -49.0, daylight_scale), 32.0, 0.0)
+		sun.shadow_blur = 2.8
 	if fill_light:
-		fill_light.light_color = Color(0.86, 0.93, 1.0).lerp(Color(0.2, 0.26, 0.4), night_amount)
-		fill_light.light_energy = lerpf(0.07, 0.2, daylight_curve)
+		fill_light.light_color = Color(0.62, 0.74, 1.0).lerp(Color(0.2, 0.26, 0.4), night_amount)
+		fill_light.light_energy = lerpf(0.08, 0.24, daylight_curve)
 
 	for band in _window_bands:
 		if is_instance_valid(band):
@@ -4322,6 +4355,7 @@ func _build_meadow() -> void:
 		{"center": Vector3(near_ring * 0.7, 0.02, -edge_ring), "size": Vector2(4.0, 2.6), "clumps": 6}
 	]:
 		_add_meadow_patch(patch.center, patch.size, patch.clumps)
+	_build_ground_surface_polish()
 
 	for tuft in [
 		Vector3(-8.8, 0.06, 2.35),
@@ -4334,6 +4368,23 @@ func _build_meadow() -> void:
 		Vector3(2.6, 0.06, -9.55),
 	]:
 		_add_grass_clump(tuft, 1.12)
+
+
+func _build_ground_surface_polish() -> void:
+	var patch_specs := [
+		{"center": Vector3(-7.4, 0.045, -7.8), "size": Vector2(2.2, 1.1), "color": "9fc979", "rot": -18.0},
+		{"center": Vector3(-3.2, 0.045, -9.2), "size": Vector2(1.7, 0.78), "color": "86bb69", "rot": 12.0},
+		{"center": Vector3(5.8, 0.045, -8.0), "size": Vector2(2.0, 0.92), "color": "a9d486", "rot": 24.0},
+		{"center": Vector3(9.2, 0.045, -3.5), "size": Vector2(1.5, 0.72), "color": "7fb768", "rot": -32.0},
+		{"center": Vector3(-9.0, 0.045, 3.6), "size": Vector2(1.8, 0.84), "color": "a2c977", "rot": 35.0},
+		{"center": Vector3(-4.8, 0.045, 8.6), "size": Vector2(2.2, 1.0), "color": "82b962", "rot": -9.0},
+		{"center": Vector3(3.4, 0.045, 9.4), "size": Vector2(1.8, 0.78), "color": "a4d083", "rot": 16.0},
+		{"center": Vector3(8.6, 0.045, 4.8), "size": Vector2(1.6, 0.72), "color": "8cc06f", "rot": -22.0},
+		{"center": Vector3(-1.6, 0.045, 6.8), "size": Vector2(1.25, 0.52), "color": "9ab96b", "rot": 38.0},
+		{"center": Vector3(1.2, 0.045, -6.6), "size": Vector2(1.35, 0.58), "color": "7fb15f", "rot": -28.0},
+	]
+	for spec in patch_specs:
+		_add_ground_tone_patch(spec.center, spec.size, Color(str(spec.color)), float(spec.rot))
 
 func _build_nature() -> void:
 	var edge_ring := float(GRID_SIZE) * 0.5 - 5.4
@@ -5255,6 +5306,10 @@ func _rebuild_commercial_tier_visuals(root: Node3D, tool: String, tier: int, var
 	_clear_visual_children(dynamic_root)
 	root.set_meta("commercial_architecture_tier", tier)
 	root.set_meta("commercial_architecture_profile", architecture)
+	var shadow_width := _commercial_float(architecture, "width", 2.8)
+	var shadow_depth := _commercial_float(architecture, "depth", 1.8)
+	var shadow_z := _commercial_float(architecture, "center_z", -0.6)
+	_add_shadow_disc_local(Vector3(0.0, 0.01, shadow_z + 0.04), Vector2(shadow_width * 1.12, shadow_depth * 1.0), 0.18, main_root)
 	match tool:
 		BUILD_TOOL_FIRE:
 			_build_fire_department_architecture(main_root, signage_root, upgrade_root, architecture, palette, variant)
@@ -5840,6 +5895,22 @@ func _add_meadow_patch(center: Vector3, size: Vector2, clump_count: int) -> void
 		_add_grass_clump(center + Vector3(local_x, 0.05, local_z), randf_range(0.85, 1.25))
 
 
+func _add_ground_tone_patch(center: Vector3, size: Vector2, color: Color, rotation_degrees_y: float) -> void:
+	var patch := MeshInstance3D.new()
+	var patch_mesh := CylinderMesh.new()
+	patch_mesh.top_radius = max(size.x, size.y) * 0.5
+	patch_mesh.bottom_radius = patch_mesh.top_radius * 1.04
+	patch_mesh.height = 0.018
+	patch.mesh = patch_mesh
+	patch.material_override = _make_material_from_color(color, 0.98)
+	patch.scale = Vector3(size.x / max(size.x, size.y), 1.0, size.y / max(size.x, size.y))
+	patch.position = center
+	patch.rotation_degrees.y = rotation_degrees_y
+	patch.set_meta("radius", max(size.x, size.y) * 0.5)
+	grid_root.add_child(patch)
+	_meadow_patches.append(patch)
+
+
 func _place_road_strip(origin: Vector3, count: int, horizontal: bool) -> void:
 	for i in range(count):
 		var offset := float(i) - float(count - 1) * 0.5
@@ -6014,6 +6085,7 @@ func _add_road_surface_polish_local(root: Node3D, vertical_straight: bool, horiz
 	var grate_material := _make_material("2d3034", 0.96)
 	var curb_cap_material := _make_material("f0eadc", 0.9)
 	_add_sidewalk_paver_detail_local(root, vertical_straight, horizontal_straight, intersection)
+	_add_asphalt_surface_variation_local(root, Vector2(ROAD_WIDTH * 0.88, ROAD_WIDTH * 0.88), 0.135)
 	if vertical_straight:
 		for z in [-1.6, 1.6]:
 			_add_box(Vector3(-1.78, 0.156, z), Vector3(0.16, 0.014, 0.08), curb_cap_material, root)
@@ -6040,6 +6112,34 @@ func _add_road_surface_polish_local(root: Node3D, vertical_straight: bool, horiz
 			_add_drain_grate_local(root, Vector3(1.44, 0.16, -1.42), false, grate_material)
 		if west:
 			_add_drain_grate_local(root, Vector3(-1.44, 0.16, 1.42), false, grate_material)
+
+
+func _add_asphalt_surface_variation_local(parent: Node, size: Vector2, y_position: float) -> void:
+	var mid_material := _make_material("42474b", 0.99)
+	var dark_material := _make_material("2d3135", 0.99)
+	for patch in [
+		{"pos": Vector2(-0.24, -0.28), "size": Vector2(0.42, 0.055), "rot": -8.0, "mat": mid_material},
+		{"pos": Vector2(0.28, 0.2), "size": Vector2(0.34, 0.042), "rot": 12.0, "mat": dark_material},
+		{"pos": Vector2(-0.05, 0.36), "size": Vector2(0.5, 0.032), "rot": 3.0, "mat": mid_material},
+	]:
+		var patch_pos: Vector2 = patch["pos"] * size
+		var patch_size: Vector2 = patch["size"] * size
+		var mark := _add_box(Vector3(patch_pos.x, y_position, patch_pos.y), Vector3(patch_size.x, 0.008, patch_size.y), patch["mat"], parent)
+		mark.rotation_degrees.y = float(patch["rot"])
+
+
+func _add_paved_stone_variation_local(parent: Node, size: Vector2, y_position: float) -> void:
+	var warm_material := _make_material("e3dac6", 0.94)
+	var cool_material := _make_material("c9c2b3", 0.96)
+	for patch in [
+		{"pos": Vector2(-0.28, -0.22), "size": Vector2(0.26, 0.035), "rot": -3.0, "mat": warm_material},
+		{"pos": Vector2(0.2, 0.18), "size": Vector2(0.22, 0.04), "rot": 7.0, "mat": cool_material},
+		{"pos": Vector2(0.0, -0.02), "size": Vector2(0.42, 0.026), "rot": 0.0, "mat": warm_material},
+	]:
+		var patch_pos: Vector2 = patch["pos"] * size
+		var patch_size: Vector2 = patch["size"] * size
+		var mark := _add_box(Vector3(patch_pos.x, y_position, patch_pos.y), Vector3(patch_size.x, 0.008, patch_size.y), patch["mat"], parent)
+		mark.rotation_degrees.y = float(patch["rot"])
 
 
 func _add_drain_grate_local(root: Node3D, center: Vector3, vertical: bool, material: Material) -> void:
@@ -6579,6 +6679,7 @@ func _add_fire_parking_lot(center: Vector3, size: Vector3, parent: Node) -> void
 	var stop_material := _make_material("f6d36e", 0.9)
 	_add_box(Vector3(0.0, 0.02, 0.0), Vector3(size.x + 0.18, 0.026, size.z + 0.16), apron_material, lot_root)
 	_add_box(Vector3(0.0, 0.052, 0.0), Vector3(size.x, 0.034, size.z), asphalt_material, lot_root)
+	_add_asphalt_surface_variation_local(lot_root, Vector2(size.x * 0.82, size.z * 0.72), 0.084)
 	_add_box(Vector3(0.0, 0.08, -size.z * 0.5 + 0.055), Vector3(size.x * 0.96, 0.014, 0.07), curb_material, lot_root)
 	_add_box(Vector3(-size.x * 0.5 + 0.055, 0.08, 0.0), Vector3(0.07, 0.014, size.z * 0.84), curb_material, lot_root)
 	_add_box(Vector3(size.x * 0.5 - 0.055, 0.08, 0.0), Vector3(0.07, 0.014, size.z * 0.84), curb_material, lot_root)
@@ -6603,6 +6704,7 @@ func _add_grocery_parking_lot(center: Vector3, size: Vector3, parent: Node) -> v
 	var planter_material := _make_material("799557", 0.86)
 	_add_box(Vector3(0.0, 0.032, 0.0), Vector3(size.x + 0.2, 0.026, size.z + 0.18), sidewalk_material, lot_root)
 	_add_box(Vector3(0.0, 0.058, 0.02), Vector3(size.x, 0.034, size.z), asphalt_material, lot_root)
+	_add_asphalt_surface_variation_local(lot_root, Vector2(size.x * 0.82, size.z * 0.68), 0.092)
 	_add_box(Vector3(0.0, 0.084, -size.z * 0.5 + 0.055), Vector3(size.x * 0.96, 0.014, 0.07), curb_material, lot_root)
 	_add_box(Vector3(0.0, 0.084, size.z * 0.5 - 0.055), Vector3(size.x * 0.96, 0.014, 0.07), curb_material, lot_root)
 	_add_box(Vector3(-size.x * 0.5 + 0.055, 0.084, 0.0), Vector3(0.07, 0.014, size.z * 0.86), curb_material, lot_root)
@@ -6641,6 +6743,7 @@ func _add_bank_forecourt(center: Vector3, size: Vector3, parent: Node, accent: C
 	var line_material := _make_material_from_color(trim.lightened(0.2), 0.82)
 	var accent_material := _make_material_from_color(accent, 0.48)
 	_add_box(Vector3(0.0, 0.036, 0.0), Vector3(size.x, 0.034, size.z), stone_material, court_root)
+	_add_paved_stone_variation_local(court_root, Vector2(size.x * 0.82, size.z * 0.72), 0.07)
 	_add_box(Vector3(0.0, 0.064, -size.z * 0.5 + 0.05), Vector3(size.x * 0.94, 0.014, 0.07), curb_material, court_root)
 	_add_box(Vector3(0.0, 0.064, size.z * 0.5 - 0.05), Vector3(size.x * 0.94, 0.014, 0.07), curb_material, court_root)
 	_add_box(Vector3(-size.x * 0.5 + 0.05, 0.064, 0.0), Vector3(0.07, 0.014, size.z * 0.82), curb_material, court_root)
@@ -6663,6 +6766,7 @@ func _add_restaurant_parking_court(center: Vector3, size: Vector3, parent: Node,
 	var stop_material := _make_material_from_color(accent.lightened(0.15), 0.82)
 	_add_box(Vector3(0.0, 0.034, 0.0), Vector3(size.x + 0.16, 0.026, size.z + 0.14), curb_material, court_root)
 	_add_box(Vector3(0.0, 0.058, -size.z * 0.06), Vector3(size.x, 0.034, size.z * 0.82), paving_material, court_root)
+	_add_asphalt_surface_variation_local(court_root, Vector2(size.x * 0.82, size.z * 0.55), 0.092)
 	_add_box(Vector3(0.0, 0.084, size.z * 0.34), Vector3(size.x * 0.9, 0.018, size.z * 0.24), patio_material, court_root)
 	for stall_index in range(4):
 		var t := float(stall_index) / 3.0
@@ -6687,6 +6791,7 @@ func _add_corner_store_parking_lot(center: Vector3, size: Vector3, parent: Node,
 	var planter_material := _make_material_from_color(trim, 0.86)
 	_add_box(Vector3(0.0, 0.034, 0.0), Vector3(size.x + 0.12, 0.026, size.z + 0.12), curb_material, lot_root)
 	_add_box(Vector3(0.0, 0.058, 0.0), Vector3(size.x, 0.034, size.z), asphalt_material, lot_root)
+	_add_asphalt_surface_variation_local(lot_root, Vector2(size.x * 0.78, size.z * 0.68), 0.092)
 	for line_x in [-size.x * 0.22, size.x * 0.22]:
 		_add_box(Vector3(line_x, 0.096, 0.0), Vector3(0.034, 0.012, size.z * 0.62), line_material, lot_root)
 	for stop_x in [-size.x * 0.11, size.x * 0.34]:
@@ -7470,12 +7575,23 @@ func _add_sphere(position_3d: Vector3, radius: float, height: float, material: M
 	return mesh_instance
 
 
+func _polished_albedo_color(color: Color, roughness: float) -> Color:
+	var luminance := color.r * 0.299 + color.g * 0.587 + color.b * 0.114
+	var adjusted := color
+	if luminance > 0.78:
+		adjusted = adjusted.darkened(0.025)
+	elif luminance < 0.2:
+		adjusted = adjusted.lightened(0.018)
+	adjusted = adjusted.lerp(Color(1.0, 0.93, 0.82), clampf((roughness - 0.65) * 0.055, 0.0, 0.025))
+	return adjusted
+
+
 func _make_material(color_hex: String, roughness: float, metallic: float = 0.0, emission_enabled: bool = false, emission_color_hex: String = "ffffff", emission_energy: float = 0.0) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
-	material.albedo_color = Color(color_hex)
+	material.albedo_color = _polished_albedo_color(Color(color_hex), roughness)
 	material.roughness = roughness
 	material.metallic = metallic
-	material.metallic_specular = 0.18
+	material.metallic_specular = 0.11
 	material.emission_enabled = emission_enabled
 	if emission_enabled:
 		material.emission = Color(emission_color_hex)
@@ -7485,9 +7601,9 @@ func _make_material(color_hex: String, roughness: float, metallic: float = 0.0, 
 
 func _make_material_from_color(color: Color, roughness: float) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
-	material.albedo_color = color
+	material.albedo_color = _polished_albedo_color(color, roughness)
 	material.roughness = roughness
-	material.metallic_specular = 0.18
+	material.metallic_specular = 0.11
 	return material
 
 

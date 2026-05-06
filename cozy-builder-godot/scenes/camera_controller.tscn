@@ -4,11 +4,13 @@
 
 [node name="CameraController" type="Node3D"]
 script = ExtResource("1")
+orbit_scale = Vector3(0.86, 0.55, 0.86)
+look_height = 0.92
 
 [node name="Camera3D" type="Camera3D" parent="."]
 current = true
 projection = 1
 fov = 34.0
-size = 22.0
+size = 20.0
 near = 0.1
 far = 700.0
