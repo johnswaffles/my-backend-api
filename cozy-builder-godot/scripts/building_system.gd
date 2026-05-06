@@ -143,6 +143,14 @@ const PROPERTY_BUFFER_BY_TOOL := {
 	BUILD_TOOL_CORNER_STORE: 1,
 	BUILD_TOOL_PARK: 1,
 }
+const ROAD_WIDTH := 2.18
+const CURB_WIDTH := 0.16
+const SIDEWALK_WIDTH := 0.86
+const PARKING_DEPTH := 1.34
+const BUILDING_SETBACK := 0.52
+const LOT_DEPTH := 4.6
+const LOT_FRONT_SIDEWALK_Z := 2.04
+const LOT_PARKING_Z := 0.74
 const PROPERTY_VISUAL_PRESETS := {
 	BUILD_TOOL_HOUSE: {
 		"display_name": "House",
@@ -152,10 +160,11 @@ const PROPERTY_VISUAL_PRESETS := {
 		"accent_color": "e1b672",
 		"lot_type": "residential",
 		"lot_color": "8da56b",
-		"lot_size": Vector2(5.34, 5.14),
+		"lot_size": Vector2(5.7, LOT_DEPTH + 1.12),
+		"building_z_offset": -BUILDING_SETBACK * 0.85,
 		"parking": "driveway",
-		"sidewalk": {"width": 0.76, "z": 2.04, "depth": 0.92},
-		"hedges": {"width": 5.1, "depth": 4.86},
+		"sidewalk": {"width": 0.84, "z": LOT_FRONT_SIDEWALK_Z + 0.22, "depth": SIDEWALK_WIDTH},
+		"hedges": {"width": 5.44, "depth": LOT_DEPTH + 0.68},
 		"props": ["fence", "bushes", "porch_light", "mailbox"],
 	},
 	BUILD_TOOL_FIRE: {
@@ -166,12 +175,13 @@ const PROPERTY_VISUAL_PRESETS := {
 		"accent_color": "f1d072",
 		"lot_type": "civic",
 		"lot_color": "c9c7b2",
-		"lot_size": Vector2(4.95, 3.72),
+		"lot_size": Vector2(5.24, LOT_DEPTH + 0.2),
+		"building_z_offset": -BUILDING_SETBACK * 0.9,
 		"parking": "front_apron",
-		"parking_position": Vector3(0.0, 0.0, 0.98),
-		"parking_size": Vector3(3.76, 1.0, 1.44),
-		"sidewalk": {"width": 1.18, "z": 1.38, "depth": 0.98},
-		"hedges": {"width": 4.68, "depth": 3.36},
+		"parking_position": Vector3(0.0, 0.0, LOT_PARKING_Z + 0.08),
+		"parking_size": Vector3(4.02, 1.0, PARKING_DEPTH + 0.08),
+		"sidewalk": {"width": 1.18, "z": LOT_FRONT_SIDEWALK_Z, "depth": SIDEWALK_WIDTH},
+		"hedges": {"width": 4.96, "depth": LOT_DEPTH - 0.18},
 		"props": ["garage_door", "bollards", "flag", "fire_sign"],
 	},
 	BUILD_TOOL_BANK: {
@@ -182,12 +192,13 @@ const PROPERTY_VISUAL_PRESETS := {
 		"accent_color": "f1c85f",
 		"lot_type": "commercial",
 		"lot_color": "d9d2bf",
-		"lot_size": Vector2(4.15, 2.95),
+		"lot_size": Vector2(4.62, LOT_DEPTH - 0.28),
+		"building_z_offset": -BUILDING_SETBACK * 1.12,
 		"parking": "small_lot",
-		"parking_position": Vector3(0.0, 0.0, 1.02),
-		"parking_size": Vector3(3.05, 1.0, 1.08),
-		"sidewalk": {"width": 1.0, "z": 1.32, "depth": 0.9},
-		"hedges": {"width": 3.88, "depth": 2.66},
+		"parking_position": Vector3(0.0, 0.0, LOT_PARKING_Z - 0.04),
+		"parking_size": Vector3(3.48, 1.0, PARKING_DEPTH - 0.1),
+		"sidewalk": {"width": 1.0, "z": LOT_FRONT_SIDEWALK_Z - 0.04, "depth": SIDEWALK_WIDTH},
+		"hedges": {"width": 4.28, "depth": LOT_DEPTH - 0.62},
 		"props": ["columns", "atm", "security_light", "handicap_space"],
 	},
 	BUILD_TOOL_GROCERY: {
@@ -198,12 +209,13 @@ const PROPERTY_VISUAL_PRESETS := {
 		"accent_color": "76d263",
 		"lot_type": "commercial",
 		"lot_color": "d5d1bc",
-		"lot_size": Vector2(5.05, 3.75),
+		"lot_size": Vector2(5.44, LOT_DEPTH + 0.18),
+		"building_z_offset": -BUILDING_SETBACK * 1.08,
 		"parking": "medium_lot",
-		"parking_position": Vector3(0.0, 0.0, 1.08),
-		"parking_size": Vector3(4.18, 1.0, 1.12),
-		"sidewalk": {"width": 1.28, "z": 1.42, "depth": 0.9},
-		"hedges": {"width": 4.74, "depth": 3.38},
+		"parking_position": Vector3(0.0, 0.0, LOT_PARKING_Z + 0.08),
+		"parking_size": Vector3(4.58, 1.0, PARKING_DEPTH + 0.06),
+		"sidewalk": {"width": 1.28, "z": LOT_FRONT_SIDEWALK_Z + 0.02, "depth": SIDEWALK_WIDTH},
+		"hedges": {"width": 5.1, "depth": LOT_DEPTH - 0.1},
 		"props": ["cart_rack", "produce_crates", "large_sign", "handicap_space"],
 	},
 	BUILD_TOOL_RESTAURANT: {
@@ -214,12 +226,13 @@ const PROPERTY_VISUAL_PRESETS := {
 		"accent_color": "ffc064",
 		"lot_type": "commercial",
 		"lot_color": "d9d0b9",
-		"lot_size": Vector2(4.12, 2.96),
+		"lot_size": Vector2(4.58, LOT_DEPTH - 0.36),
+		"building_z_offset": -BUILDING_SETBACK,
 		"parking": "small_lot",
-		"parking_position": Vector3(0.0, 0.0, 1.0),
-		"parking_size": Vector3(3.34, 1.0, 1.02),
-		"sidewalk": {"width": 1.02, "z": 1.34, "depth": 0.9},
-		"hedges": {"width": 3.84, "depth": 2.66},
+		"parking_position": Vector3(0.24, 0.0, LOT_PARKING_Z),
+		"parking_size": Vector3(3.36, 1.0, PARKING_DEPTH - 0.16),
+		"sidewalk": {"width": 1.02, "z": LOT_FRONT_SIDEWALK_Z - 0.08, "depth": SIDEWALK_WIDTH},
+		"hedges": {"width": 4.18, "depth": LOT_DEPTH - 0.72},
 		"props": ["awning", "outdoor_tables", "planters", "menu_board"],
 	},
 	BUILD_TOOL_CORNER_STORE: {
@@ -230,12 +243,13 @@ const PROPERTY_VISUAL_PRESETS := {
 		"accent_color": "86b4f4",
 		"lot_type": "commercial",
 		"lot_color": "d5cfbc",
-		"lot_size": Vector2(4.0, 2.92),
+		"lot_size": Vector2(4.48, LOT_DEPTH - 0.34),
+		"building_z_offset": -BUILDING_SETBACK * 1.22,
 		"parking": "compact_lot",
-		"parking_position": Vector3(0.72, 0.0, 0.98),
-		"parking_size": Vector3(2.28, 1.0, 0.98),
-		"sidewalk": {"width": 0.9, "z": 1.3, "depth": 0.84},
-		"hedges": {"width": 3.72, "depth": 2.64},
+		"parking_position": Vector3(0.56, 0.0, LOT_PARKING_Z - 0.02),
+		"parking_size": Vector3(2.92, 1.0, PARKING_DEPTH - 0.14),
+		"sidewalk": {"width": 0.9, "z": LOT_FRONT_SIDEWALK_Z - 0.08, "depth": SIDEWALK_WIDTH},
+		"hedges": {"width": 4.1, "depth": LOT_DEPTH - 0.74},
 		"props": ["trash_can", "cooler_box", "neon_sign", "newspaper_box"],
 	},
 }
@@ -2406,6 +2420,24 @@ func _property_visual_preset(tool: String) -> Dictionary:
 	return PROPERTY_VISUAL_PRESETS.get(tool, {})
 
 
+func _apply_property_structure_setback(structure_root: Node3D, preset: Dictionary) -> void:
+	var setback_z := float(preset.get("building_z_offset", 0.0))
+	structure_root.position.z = setback_z
+	structure_root.set_meta("visual_building_setback", -setback_z)
+
+
+func _validate_property_visual_spacing(tool: String, preset: Dictionary) -> void:
+	if not preset.has("sidewalk") or not preset.has("parking_position") or not preset.has("parking_size"):
+		return
+	var sidewalk: Dictionary = preset["sidewalk"]
+	var parking_position: Vector3 = preset["parking_position"]
+	var parking_size: Vector3 = preset["parking_size"]
+	var sidewalk_back_edge := float(sidewalk.get("z", LOT_FRONT_SIDEWALK_Z)) - float(sidewalk.get("depth", SIDEWALK_WIDTH)) * 0.5
+	var parking_front_edge := parking_position.z + parking_size.z * 0.5
+	if parking_front_edge > sidewalk_back_edge - CURB_WIDTH * 0.25:
+		push_warning("%s visual preset overlaps parking into sidewalk: parking_front=%.2f sidewalk_back=%.2f" % [tool, parking_front_edge, sidewalk_back_edge])
+
+
 func _property_preset_color(preset: Dictionary, key: String, fallback: String) -> Color:
 	return Color(str(preset.get(key, fallback)))
 
@@ -2515,6 +2547,7 @@ func create_parking_lot(parent: Node, preset: Dictionary, accent: Color = Color(
 	var root := Node3D.new()
 	root.name = "SharedParkingLot"
 	root.position = position
+	root.set_meta("visual_zone", "between_sidewalk_and_building")
 	parent.add_child(root)
 
 	var curb_material := _make_material("eee8dc", 0.92)
@@ -2532,12 +2565,20 @@ func create_parking_lot(parent: Node, preset: Dictionary, accent: Color = Color(
 	_add_box(Vector3(0.0, 0.084, -size.z * 0.5 + 0.055), Vector3(size.x * 0.94, 0.014, 0.07), curb_material, root)
 	_add_box(Vector3(-size.x * 0.5 + 0.055, 0.084, 0.0), Vector3(0.07, 0.014, size.z * 0.82), curb_material, root)
 	_add_box(Vector3(size.x * 0.5 - 0.055, 0.084, 0.0), Vector3(0.07, 0.014, size.z * 0.82), curb_material, root)
+	var curb_cut_width := minf(size.x * 0.38, 1.18)
+	_add_box(Vector3(0.0, 0.092, size.z * 0.5 + 0.08), Vector3(curb_cut_width, 0.018, 0.2), asphalt_material, root)
+	_add_box(Vector3(-curb_cut_width * 0.62, 0.1, size.z * 0.5 + 0.08), Vector3(0.05, 0.03, 0.18), curb_material, root)
+	_add_box(Vector3(curb_cut_width * 0.62, 0.1, size.z * 0.5 + 0.08), Vector3(0.05, 0.03, 0.18), curb_material, root)
+	if parking != "front_apron":
+		for island_x in [-size.x * 0.44, size.x * 0.44]:
+			_add_box(Vector3(island_x, 0.096, -size.z * 0.22), Vector3(0.22, 0.026, size.z * 0.44), curb_material, root)
+			create_bush_cluster(root, Vector3(island_x, 0.11, -size.z * 0.22), 3, Color("6fa85b"))
 
 	var spaces := 3
 	if parking == "medium_lot":
 		spaces = 5
 	elif parking == "compact_lot":
-		spaces = 2
+		spaces = 3
 	elif parking == "front_apron":
 		spaces = 3
 	for line_index in range(spaces + 1):
@@ -2710,32 +2751,35 @@ func _add_property_composed_lot_details(tool: String, sections: Dictionary, pres
 	var trim: Color = palette["trim"]
 	var lot_type := str(preset.get("lot_type", "commercial"))
 	var front_z := lot_size.y * 0.48
+	var sidewalk: Dictionary = preset.get("sidewalk", {})
+	var sidewalk_back_z := float(sidewalk.get("z", front_z)) - float(sidewalk.get("depth", SIDEWALK_WIDTH)) * 0.5
+	var frontage_z := sidewalk_back_z - 0.16
 	_add_box(Vector3(0.0, 0.118, front_z - 0.24), Vector3(lot_size.x * 0.84, 0.026, 0.08), _make_material("eee8dc", 0.92), sidewalk_root)
 	for paver_x in [-lot_size.x * 0.32, 0.0, lot_size.x * 0.32]:
 		_add_box(Vector3(paver_x, 0.126, front_z - 0.46), Vector3(0.04, 0.012, 0.42), _make_material("c9bea9", 0.92), sidewalk_root)
 	if lot_type == "residential":
 		create_tree(landscaping_root, Vector3(-lot_size.x * 0.36, 0.0, -lot_size.y * 0.28))
 		create_bush_cluster(landscaping_root, Vector3(lot_size.x * 0.34, 0.08, -lot_size.y * 0.34), 5, Color("6fa85b"))
-		_add_flower_bed_local(landscaping_root, Vector3(-lot_size.x * 0.2, 0.09, front_z - 0.54), lot_size.x * 0.28, accent)
-		create_street_sign(props_root, Vector3(lot_size.x * 0.4, 0.02, front_z - 0.24), accent)
+		_add_flower_bed_local(landscaping_root, Vector3(-lot_size.x * 0.2, 0.09, frontage_z - 0.08), lot_size.x * 0.28, accent)
+		create_street_sign(props_root, Vector3(lot_size.x * 0.4, 0.02, sidewalk_back_z + 0.06), accent)
 	elif tool == BUILD_TOOL_FIRE:
-		_add_flower_bed_local(landscaping_root, Vector3(-lot_size.x * 0.38, 0.09, front_z - 0.42), 0.7, accent)
+		_add_flower_bed_local(landscaping_root, Vector3(-lot_size.x * 0.38, 0.09, frontage_z), 0.7, accent)
 		create_bush_cluster(landscaping_root, Vector3(lot_size.x * 0.38, 0.08, -lot_size.y * 0.36), 4, Color("778f68"))
-		create_street_sign(props_root, Vector3(-lot_size.x * 0.42, 0.02, front_z - 0.2), accent, "fire")
-		_add_decorative_pedestrian_local(props_root, Vector3(lot_size.x * 0.36, 0.0, front_z - 0.32), Color("f1d072"), 0.0)
+		create_street_sign(props_root, Vector3(-lot_size.x * 0.42, 0.02, sidewalk_back_z + 0.06), accent, "fire")
+		_add_decorative_pedestrian_local(props_root, Vector3(lot_size.x * 0.36, 0.0, sidewalk_back_z + 0.02), Color("f1d072"), 0.0)
 	elif lot_type == "commercial":
-		_add_flower_bed_local(landscaping_root, Vector3(-lot_size.x * 0.38, 0.09, front_z - 0.36), 0.66, accent)
-		_add_flower_bed_local(landscaping_root, Vector3(lot_size.x * 0.38, 0.09, front_z - 0.36), 0.66, trim)
+		_add_flower_bed_local(landscaping_root, Vector3(-lot_size.x * 0.38, 0.09, frontage_z), 0.66, accent)
+		_add_flower_bed_local(landscaping_root, Vector3(lot_size.x * 0.38, 0.09, frontage_z), 0.66, trim)
 		create_bush_cluster(landscaping_root, Vector3(-lot_size.x * 0.43, 0.08, -lot_size.y * 0.34), 4, Color("6fa85b"))
 		create_bush_cluster(landscaping_root, Vector3(lot_size.x * 0.43, 0.08, -lot_size.y * 0.28), 4, Color("86bd69"))
 		if tool == BUILD_TOOL_BANK or tool == BUILD_TOOL_GROCERY:
-			_add_bench_local(Vector3(-lot_size.x * 0.34, 0.02, front_z - 0.18), deg_to_rad(0.0), props_root)
+			_add_bench_local(Vector3(-lot_size.x * 0.34, 0.02, sidewalk_back_z + 0.04), deg_to_rad(0.0), props_root)
 		if tool == BUILD_TOOL_RESTAURANT:
-			_add_sidewalk_banner_local(props_root, Vector3(lot_size.x * 0.42, 0.02, front_z - 0.2), accent)
+			_add_sidewalk_banner_local(props_root, Vector3(lot_size.x * 0.42, 0.02, sidewalk_back_z + 0.04), accent)
 		if tool == BUILD_TOOL_CORNER_STORE:
-			_add_compact_vending_machine_local(props_root, Vector3(-lot_size.x * 0.36, 0.03, front_z - 0.22), accent)
+			_add_compact_vending_machine_local(props_root, Vector3(-lot_size.x * 0.36, 0.03, frontage_z), accent)
 		if posmod(variant, 2) == 0:
-			_add_decorative_pedestrian_local(props_root, Vector3(lot_size.x * 0.32, 0.0, front_z - 0.18), accent, 0.0)
+			_add_decorative_pedestrian_local(props_root, Vector3(lot_size.x * 0.32, 0.0, sidewalk_back_z + 0.04), accent, 0.0)
 
 
 func _add_flower_bed_local(parent: Node, center: Vector3, width: float, accent: Color) -> void:
@@ -2862,8 +2906,13 @@ func create_property_visual_framework(root: Node3D, lot_root: Node3D, structure_
 	if preset.is_empty():
 		return sections
 	var palette := _cozy_palette(tool, variant)
+	_apply_property_structure_setback(structure_root, preset)
+	_validate_property_visual_spacing(tool, preset)
 	root.set_meta("visual_preset", tool)
 	root.set_meta("visual_lot_type", str(preset.get("lot_type", "commercial")))
+	var visual_lot_size: Vector2 = preset.get("lot_size", Vector2(0.0, LOT_DEPTH))
+	root.set_meta("visual_lot_depth", visual_lot_size.y)
+	root.set_meta("visual_building_setback", float(preset.get("building_z_offset", 0.0)))
 	root.set_meta("visual_props", preset.get("props", []))
 	create_lot_base(sections["lot_base"], preset)
 	create_sidewalk_connection(sections["sidewalk"], preset)
@@ -5054,7 +5103,7 @@ func _apply_fire_station_tier_visuals(lot_root: Node3D, structure_root: Node3D, 
 			_add_box(Vector3(0.0, 2.18, 0.46), Vector3(1.18, 0.14, 0.08), _make_material_from_color(accent, 0.42), structure_root)
 			_add_local_cylinder(Vector3(1.08, 1.86, -0.8), 0.12, 0.12, 0.34, _make_material_from_color(accent, 0.46), structure_root)
 		if bool(profile.get("parking_expand", false)):
-			_add_fire_parking_lot(Vector3(0.0, 0.0, 1.22), Vector3(3.72, 1.0, 1.12), lot_root)
+			_add_fire_parking_lot(Vector3(0.0, 0.0, LOT_PARKING_Z + 0.02), Vector3(3.72, 1.0, 1.12), lot_root)
 
 
 func _apply_bank_tier_visuals(lot_root: Node3D, structure_root: Node3D, tier: int, variant: int, profile: Dictionary, palette: Dictionary, accent: Color, trim: Color) -> void:
@@ -5106,7 +5155,7 @@ func _apply_bank_tier_visuals(lot_root: Node3D, structure_root: Node3D, tier: in
 				_add_window_band_local(Vector3(window_x, 1.04, 1.2), Vector3(0.22, 0.24, 0.05), structure_root)
 			_add_box(Vector3(0.0, 2.3, 0.46), Vector3(1.36, 0.12, 0.08), _make_material_from_color(accent, 0.42), structure_root)
 		if bool(profile.get("plaza", false)):
-			_add_bank_forecourt(Vector3(0.0, 0.0, 1.36), Vector3(3.3, 1.0, 0.9), lot_root, accent, trim)
+			_add_bank_forecourt(Vector3(0.0, 0.0, LOT_PARKING_Z - 0.02), Vector3(3.3, 1.0, 0.9), lot_root, accent, trim)
 
 
 func _apply_grocery_tier_visuals(lot_root: Node3D, structure_root: Node3D, tier: int, variant: int, profile: Dictionary, palette: Dictionary, accent: Color, trim: Color) -> void:
@@ -5161,7 +5210,7 @@ func _apply_grocery_tier_visuals(lot_root: Node3D, structure_root: Node3D, tier:
 			_add_house_side_window_local(Vector3(width * 0.45, 1.12, -0.24), Vector3(0.24, 0.3, 0.05), structure_root, 1.0)
 			_add_box(Vector3(0.0, 2.02, 0.34), Vector3(width * 0.74, 0.1, 0.08), accent_material, structure_root)
 		if bool(profile.get("parking_lot", false)):
-			_add_grocery_parking_lot(Vector3(0.0, 0.0, 1.26), Vector3(4.18, 1.0, 1.05), lot_root)
+			_add_grocery_parking_lot(Vector3(0.0, 0.0, LOT_PARKING_Z + 0.06), Vector3(4.18, 1.0, 1.05), lot_root)
 
 
 func _apply_restaurant_tier_visuals(lot_root: Node3D, structure_root: Node3D, tier: int, variant: int, profile: Dictionary, palette: Dictionary, accent: Color, trim: Color) -> void:
@@ -5218,7 +5267,7 @@ func _apply_restaurant_tier_visuals(lot_root: Node3D, structure_root: Node3D, ti
 			_add_house_side_window_local(Vector3(-(width + 0.08) * 0.52, second_y + 0.34, -0.22), Vector3(0.26, 0.3, 0.05), structure_root, -1.0)
 			_add_house_side_window_local(Vector3((width + 0.08) * 0.52, second_y + 0.34, -0.22), Vector3(0.26, 0.3, 0.05), structure_root, 1.0)
 		if bool(profile.get("parking_lot", false)):
-			_add_restaurant_parking_court(Vector3(0.0, 0.0, 1.24), Vector3(3.38, 1.0, 0.96), lot_root, accent, trim)
+			_add_restaurant_parking_court(Vector3(0.0, 0.0, LOT_PARKING_Z), Vector3(3.38, 1.0, 0.96), lot_root, accent, trim)
 
 
 func _apply_corner_store_tier_visuals(lot_root: Node3D, structure_root: Node3D, tier: int, variant: int, profile: Dictionary, palette: Dictionary, accent: Color, trim: Color) -> void:
@@ -5267,7 +5316,7 @@ func _apply_corner_store_tier_visuals(lot_root: Node3D, structure_root: Node3D, 
 			_add_house_side_window_local(Vector3(width * 0.58, 1.12, -0.08), Vector3(0.24, 0.3, 0.05), structure_root, 1.0)
 			_add_signboard_local(Vector3(-0.74, 1.72, upper_front_z + 0.14), Vector2(0.52, 0.2), accent, "corner", structure_root)
 		if bool(profile.get("parking_lot", false)):
-			_add_corner_store_parking_lot(Vector3(0.78, 0.0, 1.18), Vector3(1.64, 1.0, 0.96), lot_root, accent, trim)
+			_add_corner_store_parking_lot(Vector3(0.62, 0.0, LOT_PARKING_Z - 0.02), Vector3(1.86, 1.0, 0.96), lot_root, accent, trim)
 
 
 func _apply_park_tier_visuals(root: Node3D, tier: int, variant: int, profile: Dictionary) -> void:
@@ -5390,6 +5439,10 @@ func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = [
 	var road_material: Material = _ghost_accent_material if preview else _road_material
 	var road_top_material: Material = _ghost_accent_material if preview else _road_top_detail_material
 	var lane_material: Material = _ghost_base_material if preview else _road_mark_material
+	var road_width := ROAD_WIDTH
+	var road_top_width := maxf(1.72, road_width - 0.3)
+	var road_connector_width := road_width + 0.1
+	var road_connector_top_width := maxf(1.56, road_width - 0.12)
 	var source := road_source if road_source.size() > 0 else [cell]
 	var north := _road_in_source(Vector2i(cell.x, cell.y - 1), source)
 	var east := _road_in_source(Vector2i(cell.x + 1, cell.y), source)
@@ -5399,32 +5452,32 @@ func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = [
 	_add_box(Vector3(0.0, 0.004, 0.0), Vector3(5.18, 0.022, 5.18), verge_material, root)
 	_add_box(Vector3(0.0, 0.026, 0.0), Vector3(5.02, 0.042, 5.02), sidewalk_material, root)
 	_add_box(Vector3(0.0, 0.052, 0.0), Vector3(3.62, 0.026, 3.62), curb_material, root)
-	_add_box(Vector3(0.0, 0.078, 0.0), Vector3(2.48, 0.06, 2.48), road_material, root)
-	_add_box(Vector3(0.0, 0.096, 0.0), Vector3(2.16, 0.022, 2.16), road_top_material, root)
+	_add_box(Vector3(0.0, 0.078, 0.0), Vector3(road_width, 0.06, road_width), road_material, root)
+	_add_box(Vector3(0.0, 0.096, 0.0), Vector3(road_top_width, 0.022, road_top_width), road_top_material, root)
 
 	if north:
 		_add_box(Vector3(0.0, 0.026, -1.28), Vector3(5.74, 0.042, 2.74), sidewalk_material, root)
 		_add_box(Vector3(0.0, 0.052, -1.28), Vector3(4.58, 0.026, 2.28), curb_material, root)
-		_add_box(Vector3(0.0, 0.08, -1.28), Vector3(2.58, 0.064, 1.72), road_material, root)
-		_add_box(Vector3(0.0, 0.1, -1.28), Vector3(2.24, 0.024, 1.48), road_top_material, root)
+		_add_box(Vector3(0.0, 0.08, -1.28), Vector3(road_connector_width, 0.064, 1.72), road_material, root)
+		_add_box(Vector3(0.0, 0.1, -1.28), Vector3(road_connector_top_width, 0.024, 1.48), road_top_material, root)
 	if south:
 		_add_box(Vector3(0.0, 0.026, 1.28), Vector3(5.74, 0.042, 2.74), sidewalk_material, root)
 		_add_box(Vector3(0.0, 0.052, 1.28), Vector3(4.58, 0.026, 2.28), curb_material, root)
-		_add_box(Vector3(0.0, 0.08, 1.28), Vector3(2.58, 0.064, 1.72), road_material, root)
-		_add_box(Vector3(0.0, 0.1, 1.28), Vector3(2.24, 0.024, 1.48), road_top_material, root)
+		_add_box(Vector3(0.0, 0.08, 1.28), Vector3(road_connector_width, 0.064, 1.72), road_material, root)
+		_add_box(Vector3(0.0, 0.1, 1.28), Vector3(road_connector_top_width, 0.024, 1.48), road_top_material, root)
 	if east:
 		_add_box(Vector3(1.28, 0.026, 0.0), Vector3(2.74, 0.042, 5.74), sidewalk_material, root)
 		_add_box(Vector3(1.28, 0.052, 0.0), Vector3(2.28, 0.026, 4.58), curb_material, root)
-		_add_box(Vector3(1.28, 0.08, 0.0), Vector3(1.72, 0.064, 2.58), road_material, root)
-		_add_box(Vector3(1.28, 0.1, 0.0), Vector3(1.48, 0.024, 2.24), road_top_material, root)
+		_add_box(Vector3(1.28, 0.08, 0.0), Vector3(1.72, 0.064, road_connector_width), road_material, root)
+		_add_box(Vector3(1.28, 0.1, 0.0), Vector3(1.48, 0.024, road_connector_top_width), road_top_material, root)
 	if west:
 		_add_box(Vector3(-1.28, 0.026, 0.0), Vector3(2.74, 0.042, 5.74), sidewalk_material, root)
 		_add_box(Vector3(-1.28, 0.052, 0.0), Vector3(2.28, 0.026, 4.58), curb_material, root)
-		_add_box(Vector3(-1.28, 0.08, 0.0), Vector3(1.72, 0.064, 2.58), road_material, root)
-		_add_box(Vector3(-1.28, 0.1, 0.0), Vector3(1.48, 0.024, 2.24), road_top_material, root)
+		_add_box(Vector3(-1.28, 0.08, 0.0), Vector3(1.72, 0.064, road_connector_width), road_material, root)
+		_add_box(Vector3(-1.28, 0.1, 0.0), Vector3(1.48, 0.024, road_connector_top_width), road_top_material, root)
 	if not north and not south and not east and not west:
-		_add_box(Vector3(0.0, 0.08, 0.0), Vector3(2.58, 0.064, 2.58), road_material, root)
-		_add_box(Vector3(0.0, 0.1, 0.0), Vector3(2.24, 0.024, 2.24), road_top_material, root)
+		_add_box(Vector3(0.0, 0.08, 0.0), Vector3(road_connector_width, 0.064, road_connector_width), road_material, root)
+		_add_box(Vector3(0.0, 0.1, 0.0), Vector3(road_connector_top_width, 0.024, road_connector_top_width), road_top_material, root)
 
 	var vertical_straight := north and south and not east and not west
 	var horizontal_straight := east and west and not north and not south
@@ -5436,8 +5489,8 @@ func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = [
 		_add_lane_dashes_local(root, false, lane_material)
 		_add_road_edge_lines_local(root, false)
 	elif intersection:
-		_add_box(Vector3(0.0, 0.08, 0.0), Vector3(2.84, 0.064, 2.84), road_material, root)
-		_add_box(Vector3(0.0, 0.1, 0.0), Vector3(2.48, 0.024, 2.48), road_top_material, root)
+		_add_box(Vector3(0.0, 0.08, 0.0), Vector3(road_width + 0.26, 0.064, road_width + 0.26), road_material, root)
+		_add_box(Vector3(0.0, 0.1, 0.0), Vector3(road_top_width + 0.18, 0.024, road_top_width + 0.18), road_top_material, root)
 		_add_intersection_center_mark_local(root, lane_material)
 	else:
 		if north or south:
@@ -5463,12 +5516,14 @@ func _add_lane_dashes_local(root: Node3D, vertical: bool, material: Material) ->
 
 
 func _add_road_edge_lines_local(root: Node3D, vertical: bool) -> void:
+	var edge_offset := ROAD_WIDTH * 0.45
+	var line_length := ROAD_WIDTH + 0.18
 	if vertical:
-		for x in [-1.12, 1.12]:
-			_add_box(Vector3(x, 0.146, 0.0), Vector3(0.038, 0.018, 2.54), _road_edge_highlight_material, root)
+		for x in [-edge_offset, edge_offset]:
+			_add_box(Vector3(x, 0.146, 0.0), Vector3(0.038, 0.018, line_length), _road_edge_highlight_material, root)
 	else:
-		for z in [-1.12, 1.12]:
-			_add_box(Vector3(0.0, 0.146, z), Vector3(2.54, 0.018, 0.038), _road_edge_highlight_material, root)
+		for z in [-edge_offset, edge_offset]:
+			_add_box(Vector3(0.0, 0.146, z), Vector3(line_length, 0.018, 0.038), _road_edge_highlight_material, root)
 
 
 func _add_intersection_center_mark_local(root: Node3D, material: Material) -> void:
