@@ -16,9 +16,9 @@ func _ready() -> void:
 
 func _setup_camera() -> void:
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = 11.6
-	camera.position = Vector3(8.4, 6.2, 8.4)
-	camera.look_at(Vector3(0.0, 0.72, 0.62), Vector3.UP)
+	camera.size = 8.7
+	camera.position = Vector3(6.6, 4.45, 6.6)
+	camera.look_at(Vector3(0.0, 0.9, 0.78), Vector3.UP)
 
 
 func _setup_lighting() -> void:
@@ -57,15 +57,15 @@ func _build_showcase() -> void:
 	_build_road_strip()
 
 	var specs := [
-		{"x": -6.65, "kind": "house"},
-		{"x": -4.05, "kind": "fire"},
-		{"x": -1.42, "kind": "bank"},
-		{"x": 1.3, "kind": "grocery"},
-		{"x": 4.02, "kind": "restaurant"},
-		{"x": 6.62, "kind": "corner"},
+		{"x": -5.75, "z": -1.45, "kind": "house"},
+		{"x": -3.55, "z": -1.26, "kind": "fire"},
+		{"x": -1.28, "z": -1.38, "kind": "bank"},
+		{"x": 1.05, "z": -1.24, "kind": "grocery"},
+		{"x": 3.35, "z": -1.44, "kind": "restaurant"},
+		{"x": 5.55, "z": -1.3, "kind": "corner"},
 	]
 	for spec in specs:
-		var lot := _lot_root(float(spec["x"]), -1.32)
+		var lot := _lot_root(float(spec["x"]), float(spec["z"]))
 		match str(spec["kind"]):
 			"house":
 				_build_house(lot)
@@ -87,20 +87,20 @@ func _build_road_strip() -> void:
 	var length := 18.4
 	var road_z := 2.05
 	Kit.box(self, Vector3(0.0, 0.012, road_z), Vector3(length, 0.035, 4.36), Kit.material("91c778", 0.94))
-	Kit.box(self, Vector3(0.0, 0.05, 0.62), Vector3(length, 0.052, 0.82), Kit.material(Kit.SIDEWALK, 0.86))
-	Kit.box(self, Vector3(0.0, 0.05, 3.48), Vector3(length, 0.052, 0.82), Kit.material(Kit.SIDEWALK, 0.86))
+	Kit.box(self, Vector3(0.0, 0.052, 0.68), Vector3(length, 0.064, 1.0), Kit.material(Kit.SIDEWALK, 0.86))
+	Kit.box(self, Vector3(0.0, 0.052, 3.42), Vector3(length, 0.064, 1.0), Kit.material(Kit.SIDEWALK, 0.86))
 	for x in range(-8, 9):
 		if x % 2 == 0:
-			Kit.box(self, Vector3(float(x), 0.082, 0.62), Vector3(0.03, 0.012, 0.72), Kit.material("c9bea9", 0.92))
-			Kit.box(self, Vector3(float(x), 0.082, 3.48), Vector3(0.03, 0.012, 0.72), Kit.material("c9bea9", 0.92))
-	Kit.box(self, Vector3(0.0, 0.085, road_z), Vector3(length, 0.075, 2.42), Kit.material(Kit.ROAD, 0.95))
-	Kit.box(self, Vector3(0.0, 0.11, road_z), Vector3(length, 0.028, 2.16), Kit.material(Kit.ROAD_SOFT, 0.94))
-	Kit.box(self, Vector3(0.0, 0.145, 0.86), Vector3(length, 0.03, 0.08), Kit.material(Kit.CURB, 0.9))
-	Kit.box(self, Vector3(0.0, 0.145, 3.24), Vector3(length, 0.03, 0.08), Kit.material(Kit.CURB, 0.9))
-	Kit.box(self, Vector3(0.0, 0.166, 1.0), Vector3(length - 0.5, 0.012, 0.035), Kit.material(Kit.WHITE, 0.88))
-	Kit.box(self, Vector3(0.0, 0.166, 3.1), Vector3(length - 0.5, 0.012, 0.035), Kit.material(Kit.WHITE, 0.88))
+			Kit.box(self, Vector3(float(x), 0.09, 0.68), Vector3(0.028, 0.012, 0.82), Kit.material("c9bea9", 0.92))
+			Kit.box(self, Vector3(float(x), 0.09, 3.42), Vector3(0.028, 0.012, 0.82), Kit.material("c9bea9", 0.92))
+	Kit.box(self, Vector3(0.0, 0.09, road_z), Vector3(length, 0.07, 1.72), Kit.material(Kit.ROAD, 0.95))
+	Kit.box(self, Vector3(0.0, 0.115, road_z), Vector3(length, 0.026, 1.52), Kit.material(Kit.ROAD_SOFT, 0.94))
+	Kit.box(self, Vector3(0.0, 0.15, 1.14), Vector3(length, 0.035, 0.08), Kit.material(Kit.CURB, 0.9))
+	Kit.box(self, Vector3(0.0, 0.15, 2.96), Vector3(length, 0.035, 0.08), Kit.material(Kit.CURB, 0.9))
+	Kit.box(self, Vector3(0.0, 0.168, 1.26), Vector3(length - 0.5, 0.012, 0.03), Kit.material(Kit.WHITE, 0.88))
+	Kit.box(self, Vector3(0.0, 0.168, 2.84), Vector3(length - 0.5, 0.012, 0.03), Kit.material(Kit.WHITE, 0.88))
 	for x in [-7.6, -5.6, -3.6, -1.6, 0.4, 2.4, 4.4, 6.4, 8.0]:
-		Kit.box(self, Vector3(x, 0.175, road_z), Vector3(0.62, 0.016, 0.065), Kit.material(Kit.YELLOW, 0.68))
+		Kit.box(self, Vector3(x, 0.176, road_z), Vector3(0.48, 0.016, 0.055), Kit.material(Kit.YELLOW, 0.68))
 	for end_x in [-8.75, 8.75]:
 		_create_crosswalk(end_x, road_z)
 	for cut in [
@@ -116,25 +116,30 @@ func _build_road_strip() -> void:
 
 func _create_crosswalk(x: float, road_z: float) -> void:
 	for stripe in range(6):
-		var z := road_z - 0.72 + float(stripe) * 0.28
-		Kit.box(self, Vector3(x, 0.182, z), Vector3(0.14, 0.018, 0.16), Kit.material(Kit.WHITE, 0.82))
+		var z := road_z - 0.54 + float(stripe) * 0.22
+		Kit.box(self, Vector3(x, 0.182, z), Vector3(0.13, 0.018, 0.13), Kit.material(Kit.WHITE, 0.82))
 
 
 func _add_curb_cut(x: float, width: float) -> void:
-	Kit.box(self, Vector3(x, 0.172, 0.86), Vector3(width, 0.034, 0.13), Kit.material("d9d9d9", 0.86))
-	Kit.box(self, Vector3(x, 0.086, 0.62), Vector3(width * 0.72, 0.018, 0.58), Kit.material("eee8dc", 0.9))
+	Kit.box(self, Vector3(x, 0.172, 1.14), Vector3(width, 0.034, 0.13), Kit.material("d9d9d9", 0.86))
+	Kit.box(self, Vector3(x, 0.092, 0.68), Vector3(width * 0.72, 0.018, 0.68), Kit.material("eee8dc", 0.9))
 
 
 func _lot_root(x: float, z: float) -> Node3D:
 	var lot := Node3D.new()
 	lot.position = Vector3(x, 0.0, z)
 	add_child(lot)
-	Kit.box(lot, Vector3(0.0, 0.02, 0.0), Vector3(2.72, 0.05, 2.78), Kit.material("d9d5bf", 0.94))
-	Kit.box(lot, Vector3(0.0, 0.056, 1.12), Vector3(0.82, 0.04, 1.24), Kit.material(Kit.SIDEWALK, 0.86))
-	Kit.add_hedge(lot, Vector3(-1.27, 0.08, -0.18), Vector3(0.12, 0.2, 1.9))
-	Kit.add_hedge(lot, Vector3(1.27, 0.08, -0.18), Vector3(0.12, 0.2, 1.9))
-	Kit.add_bush(lot, Vector3(-1.05, 0.08, 1.1), 0.34)
-	Kit.add_bush(lot, Vector3(1.05, 0.08, 1.1), 0.34)
+	Kit.box(lot, Vector3(0.0, 0.012, 0.0), Vector3(2.96, 0.024, 2.92), Kit.transparent_material(Kit.SHADOW, 0.12, 1.0))
+	Kit.box(lot, Vector3(0.0, 0.03, 0.0), Vector3(2.86, 0.06, 2.84), Kit.material("eee8dc", 0.92))
+	Kit.box(lot, Vector3(0.0, 0.065, 0.0), Vector3(2.72, 0.05, 2.68), Kit.material("d9d5bf", 0.94))
+	Kit.box(lot, Vector3(0.0, 0.096, 1.08), Vector3(0.9, 0.04, 1.2), Kit.material(Kit.SIDEWALK, 0.86))
+	Kit.box(lot, Vector3(0.0, 0.12, 1.34), Vector3(2.34, 0.035, 0.1), Kit.material(Kit.CURB, 0.9))
+	Kit.add_hedge(lot, Vector3(-1.27, 0.12, -0.18), Vector3(0.12, 0.24, 1.9))
+	Kit.add_hedge(lot, Vector3(1.27, 0.12, -0.18), Vector3(0.12, 0.24, 1.9))
+	Kit.add_bush(lot, Vector3(-1.05, 0.1, 1.1), 0.42)
+	Kit.add_bush(lot, Vector3(1.05, 0.1, 1.1), 0.42)
+	_flower_cluster(Vector3(x - 0.86, 0.03, z + 1.08), Color("ffd067"))
+	_flower_cluster(Vector3(x + 0.86, 0.03, z + 1.1), Color("df675f"))
 	return lot
 
 

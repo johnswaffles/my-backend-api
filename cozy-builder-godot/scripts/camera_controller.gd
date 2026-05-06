@@ -1,16 +1,16 @@
 extends Node3D
 
-@export var orbit_scale := Vector3(0.94, 0.94, 0.94)
-@export var look_height := 0.55
-@export var min_orthographic_size := 10.0
-@export var max_orthographic_size := 72.0
+@export var orbit_scale := Vector3(0.9, 0.64, 0.9)
+@export var look_height := 0.82
+@export var min_orthographic_size := 8.0
+@export var max_orthographic_size := 56.0
 
 @onready var camera: Camera3D = $Camera3D
 
 
 func _ready() -> void:
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = 34.0
+	camera.size = 22.0
 	camera.near = 0.1
 	camera.far = 700.0
 
