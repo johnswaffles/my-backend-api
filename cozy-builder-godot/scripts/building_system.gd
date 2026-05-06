@@ -4292,6 +4292,136 @@ func _add_deer_local(position_3d: Vector3, rotation_y: float, parent: Node) -> v
 	_add_box(Vector3(0.0, 0.18, -0.24), Vector3(0.07, 0.045, 0.09), spot_material, root)
 
 
+func _add_fire_department_signature_upgrade(structure_root: Node, props_root: Node, width: float, depth: float, height: float, palette: Dictionary) -> void:
+	var wall_material := _make_material_from_color(palette["wall"].darkened(0.04), 0.86)
+	var trim_material := _make_material_from_color(palette["trim"], 0.8)
+	var accent_material := _make_material_from_color(palette["accent"], 0.5)
+	var dark_material := _make_material("383d42", 0.88)
+	var brass_material := _make_material("f1d072", 0.7)
+	var tower_x := -width * 0.48
+	var tower_z := -0.62
+	_add_soft_block(Vector3(tower_x, 1.16, tower_z), Vector3(0.58, 2.1, 0.58), wall_material, structure_root, 0.09)
+	_add_box(Vector3(tower_x, 2.28, tower_z), Vector3(0.7, 0.14, 0.7), dark_material, structure_root)
+	_add_box(Vector3(tower_x, 2.42, tower_z), Vector3(0.5, 0.12, 0.5), accent_material, structure_root)
+	_add_local_sphere(Vector3(tower_x, 1.92, -0.28), 0.13, 0.035, brass_material, structure_root)
+	for level_y in [0.82, 1.22, 1.62]:
+		_add_house_wall_window_local(Vector3(tower_x, level_y, -0.27), Vector3(0.18, 0.22, 0.05), structure_root)
+	for rung_y in [0.76, 0.98, 1.2, 1.42, 1.64]:
+		_add_box(Vector3(width * 0.52, rung_y, -0.22), Vector3(0.03, 0.035, 0.38), brass_material, structure_root)
+	_add_box(Vector3(width * 0.52, 1.18, -0.22), Vector3(0.035, 1.02, 0.035), brass_material, structure_root)
+	_add_box(Vector3(width * 0.4, 1.18, -0.22), Vector3(0.035, 1.02, 0.035), brass_material, structure_root)
+	for bay_x in [-width * 0.18, width * 0.18]:
+		_add_box(Vector3(bay_x, 0.38, 0.62), Vector3(width * 0.24, 0.62, 0.055), dark_material, structure_root)
+		_add_box(Vector3(bay_x, 0.64, 0.66), Vector3(width * 0.21, 0.035, 0.055), trim_material, structure_root)
+		_add_box(Vector3(bay_x, 0.46, 0.66), Vector3(width * 0.21, 0.035, 0.055), trim_material, structure_root)
+		_add_box(Vector3(bay_x, 0.28, 0.66), Vector3(width * 0.21, 0.035, 0.055), trim_material, structure_root)
+	_add_box(Vector3(0.0, 0.12, 1.08), Vector3(width * 0.86, 0.045, 0.5), _make_material("848d92", 0.92), props_root)
+	_add_box(Vector3(0.0, 0.15, 1.0), Vector3(width * 0.78, 0.035, 0.06), brass_material, props_root)
+
+
+func _add_bank_signature_upgrade(structure_root: Node, props_root: Node, width: float, depth: float, height: float, palette: Dictionary) -> void:
+	var stone_material := _make_material_from_color(palette["trim"], 0.84)
+	var roof_material := _make_material_from_color(palette["roof"].darkened(0.08), 0.76)
+	var accent_material := _make_material_from_color(palette["accent"], 0.46)
+	var brass_material := _make_material("d0a64c", 0.56)
+	var plaza_material := _make_material("d8d2c8", 0.9)
+	_add_box(Vector3(0.0, 0.08, 0.98), Vector3(width * 0.82, 0.05, 0.5), plaza_material, props_root)
+	for step_index in range(3):
+		_add_box(Vector3(0.0, 0.05 + float(step_index) * 0.045, 0.82 + float(step_index) * 0.11), Vector3(width * (0.72 - float(step_index) * 0.08), 0.04, 0.16), plaza_material, props_root)
+	_add_box(Vector3(0.0, 1.03, 0.8), Vector3(width * 0.74, 0.14, 0.16), stone_material, structure_root)
+	_add_box(Vector3(0.0, 1.18, 0.78), Vector3(width * 0.58, 0.1, 0.12), roof_material, structure_root)
+	for col_x in [-width * 0.34, -width * 0.17, 0.0, width * 0.17, width * 0.34]:
+		_add_local_cylinder(Vector3(col_x, 0.48, 0.83), 0.055, 0.07, 0.86, stone_material, structure_root)
+		_add_box(Vector3(col_x, 0.92, 0.83), Vector3(0.18, 0.045, 0.12), stone_material, structure_root)
+		_add_box(Vector3(col_x, 0.05, 0.83), Vector3(0.18, 0.05, 0.12), stone_material, structure_root)
+	_add_local_sphere(Vector3(0.0, 1.34, 0.76), 0.16, 0.045, brass_material, structure_root)
+	_add_box(Vector3(0.0, 1.34, 0.8), Vector3(0.1, 0.18, 0.035), accent_material, structure_root)
+	for side in [-1.0, 1.0]:
+		_add_box(Vector3(side * width * 0.48, 0.64, 0.42), Vector3(0.16, 0.42, 0.055), _window_material, structure_root)
+		_add_window_planter_local(structure_root, Vector3(side * width * 0.48, 0.34, 0.48), 0.28, palette["accent"])
+	_add_atm_local(props_root, Vector3(width * 0.48, 0.03, 0.72), palette["roof"])
+	_add_lantern_glow_local(Vector3(-width * 0.5, 0.92, 0.72), structure_root)
+	_add_lantern_glow_local(Vector3(width * 0.5, 0.92, 0.72), structure_root)
+
+
+func _add_grocery_signature_upgrade(structure_root: Node, props_root: Node, width: float, depth: float, height: float, palette: Dictionary) -> void:
+	var roof_material := _make_material_from_color(palette["roof"].darkened(0.05), 0.74)
+	var accent_material := _make_material_from_color(palette["accent"], 0.48)
+	var trim_material := _make_material_from_color(palette["trim"], 0.78)
+	var glass_material := _make_transparent_material(Color("bfe6ff"), 0.22, 0.22)
+	_add_box(Vector3(0.0, height + 0.38, 0.42), Vector3(width * 0.94, 0.18, 0.14), roof_material, structure_root)
+	create_sign(structure_root, Vector3(0.0, height + 0.5, 0.52), Vector2(width * 0.54, 0.22), palette["accent"], "grocer")
+	for x in [-width * 0.35, -width * 0.12, width * 0.12, width * 0.35]:
+		_add_house_wall_window_local(Vector3(x, 0.56, 0.56), Vector3(0.22, 0.42, 0.055), structure_root)
+		_add_box(Vector3(x, 0.31, 0.62), Vector3(0.18, 0.05, 0.04), trim_material, structure_root)
+	_add_box(Vector3(0.0, 0.68, 0.66), Vector3(width * 0.88, 0.055, 0.34), accent_material, structure_root)
+	for stripe_x in [-0.34, -0.12, 0.12, 0.34]:
+		_add_box(Vector3(stripe_x * width, 0.7, 0.68), Vector3(width * 0.08, 0.04, 0.36), trim_material, structure_root)
+	_add_box(Vector3(-width * 0.55, 0.32, 0.56), Vector3(0.26, 0.42, 0.05), glass_material, structure_root)
+	_add_box(Vector3(width * 0.55, 0.32, 0.56), Vector3(0.26, 0.42, 0.05), glass_material, structure_root)
+	_add_box(Vector3(-width * 0.46, 0.18, 1.0), Vector3(0.92, 0.11, 0.28), _make_material("9f7b56", 0.82), props_root)
+	for produce_index in range(7):
+		var x := -width * 0.66 + float(produce_index) * 0.18
+		var produce_colors: Array[Color] = [Color("cb644c"), Color("7da85b"), Color("f0be63"), Color("6ca8c4")]
+		var produce_color: Color = produce_colors[produce_index % produce_colors.size()]
+		_add_local_sphere(Vector3(x, 0.28, 1.0 + sin(float(produce_index)) * 0.03), 0.055, 0.045, _make_material_from_color(produce_color, 0.82), props_root)
+	create_cart_rack(props_root, Vector3(width * 0.52, 0.08, 0.98), deg_to_rad(90.0))
+	_add_box(Vector3(width * 0.52, 0.48, 0.98), Vector3(0.62, 0.08, 0.36), roof_material, props_root)
+	for post_x in [width * 0.33, width * 0.71]:
+		_add_box(Vector3(post_x, 0.28, 0.98), Vector3(0.045, 0.48, 0.045), trim_material, props_root)
+
+
+func _add_restaurant_signature_upgrade(structure_root: Node, props_root: Node, width: float, depth: float, height: float, palette: Dictionary, canopy_style: String) -> void:
+	var wood_material := _make_material("8d543c", 0.78)
+	var accent_material := _make_material_from_color(palette["accent"], 0.52)
+	var trim_material := _make_material_from_color(palette["trim"], 0.78)
+	var light_material := _make_material("fff4d8", 0.12, 0.0, true, "ffe4a4", 0.28)
+	_add_box(Vector3(0.0, 0.11, 1.0), Vector3(width * 0.92, 0.05, 0.66), _make_material("d8c7ab", 0.88), props_root)
+	for post_x in [-width * 0.4, -width * 0.13, width * 0.13, width * 0.4]:
+		_add_box(Vector3(post_x, 0.62, 1.08), Vector3(0.045, 1.04, 0.045), wood_material, props_root)
+	_add_box(Vector3(0.0, 1.16, 1.08), Vector3(width * 0.94, 0.07, 0.62), wood_material, props_root)
+	for beam_x in [-width * 0.34, -width * 0.17, 0.0, width * 0.17, width * 0.34]:
+		_add_box(Vector3(beam_x, 1.22, 1.08), Vector3(0.045, 0.06, 0.68), accent_material, props_root)
+	_add_string_lights_local(props_root, 1.08, width * 0.86)
+	for table_data in [
+		Vector3(-width * 0.28, 0.06, 1.04),
+		Vector3(0.0, 0.06, 1.14),
+		Vector3(width * 0.28, 0.06, 1.04),
+	]:
+		_add_outdoor_table_local(props_root, table_data, palette["accent"])
+	_add_menu_board_local(props_root, Vector3(-width * 0.54, 0.0, 0.76), palette["accent"])
+	_add_planter_box_local(props_root, Vector3(width * 0.54, 0.12, 0.76), palette["accent"], 0.5)
+	if canopy_style != "stripe":
+		create_awning(structure_root, Vector3(0.0, 0.58, 0.72), width * 0.88, accent_material, trim_material, "stripe")
+	_add_box(Vector3(-width * 0.58, 0.78, 0.54), Vector3(0.08, 0.16, 0.035), light_material, structure_root)
+	_add_box(Vector3(width * 0.58, 0.78, 0.54), Vector3(0.08, 0.16, 0.035), light_material, structure_root)
+
+
+func _add_corner_store_signature_upgrade(structure_root: Node, props_root: Node, width: float, depth: float, height: float, palette: Dictionary) -> void:
+	var blue_material := _make_material_from_color(palette["roof"], 0.72)
+	var trim_material := _make_material_from_color(palette["trim"], 0.78)
+	var accent_material := _make_material_from_color(palette["accent"], 0.5)
+	var poster_materials := [
+		_make_material("ffd067", 0.8),
+		_make_material("df675f", 0.8),
+		_make_material("70d5bd", 0.8),
+	]
+	_add_box(Vector3(-0.18, 0.72, 0.72), Vector3(width * 1.05, 0.14, 0.34), blue_material, structure_root)
+	_add_box(Vector3(-width * 0.55, 0.72, -0.18), Vector3(0.28, 0.14, depth * 0.86), blue_material, structure_root)
+	_add_box(Vector3(-0.18, 0.86, 0.76), Vector3(width * 0.78, 0.1, 0.08), trim_material, structure_root)
+	create_sign(structure_root, Vector3(-0.18, height + 0.3, 0.7), Vector2(width * 0.62, 0.2), palette["accent"], "quick_mart")
+	for window_index in range(3):
+		var x := -width * 0.32 + float(window_index) * width * 0.22
+		_add_box(Vector3(x, 0.36, 0.7), Vector3(0.18, 0.22, 0.035), poster_materials[window_index % poster_materials.size()], structure_root)
+	_add_ice_box_local(props_root, Vector3(width * 0.5, 0.02, 0.82), palette["roof"])
+	_add_newspaper_box_local(props_root, Vector3(-width * 0.58, 0.02, 0.82), palette["accent"])
+	_add_trash_can_local(props_root, Vector3(width * 0.75, 0.02, 0.96), Color("4b6778"))
+	_add_box(Vector3(0.0, 0.1, 1.08), Vector3(width * 0.82, 0.04, 0.26), _make_material("d8c7ab", 0.88), props_root)
+	for mat_index in range(3):
+		var x := -width * 0.28 + float(mat_index) * width * 0.28
+		_add_box(Vector3(x, 0.13, 1.08), Vector3(0.22, 0.03, 0.18), poster_materials[mat_index % poster_materials.size()], props_root)
+
+
 func _populate_fire_station_variant(root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int) -> void:
 	var palette := _cozy_palette("fire", variant)
 	var width := 2.9 + float(variant % 2) * 0.24
@@ -4314,6 +4444,7 @@ func _populate_fire_station_variant(root: Node3D, lot_root: Node3D, structure_ro
 	create_hvac_units(structure_root, width, depth, height + 0.34, -0.38, variant)
 	_add_local_cylinder(Vector3(width * 0.36, 2.08, -0.74), 0.1, 0.1, 0.28, _make_material_from_color(palette.accent, 0.46), structure_root)
 	create_bollards(props_root, 1.34, 2.4, 5, palette.accent)
+	_add_fire_department_signature_upgrade(structure_root, props_root, width, depth, height, palette)
 	match posmod(variant, 5):
 		1:
 			_add_soft_block(Vector3(-width * 0.38, 0.52, -0.96), Vector3(0.72, 0.76, 0.82), _make_material_from_color(palette.wall.darkened(0.03), 0.9), structure_root, 0.1)
@@ -4362,6 +4493,7 @@ func _populate_bank_variant(root: Node3D, lot_root: Node3D, structure_root: Node
 	_add_round_canopy(Vector3(0.0, 0.28, 0.92), Vector3(width * 0.44, 0.14, 0.18), _make_material_from_color(palette.trim, 0.48), structure_root)
 	_add_local_sphere(Vector3(0.0, 1.18, -0.12), 0.18, 0.22, _make_material_from_color(palette.accent, 0.36), structure_root)
 	create_sign(signage_root, Vector3(0.0, height + 0.18, 0.78), Vector2(width * 0.42, 0.18), palette.accent, "vault")
+	_add_bank_signature_upgrade(structure_root, sections["props"] as Node3D, width, depth, height, palette)
 	match posmod(variant, 5):
 		1:
 			_add_box(Vector3(0.0, height + 0.38, 0.22), Vector3(width * 0.74, 0.08, 0.18), _make_material_from_color(palette.accent, 0.46), structure_root)
@@ -4411,6 +4543,7 @@ func _populate_grocery_variant(root: Node3D, lot_root: Node3D, structure_root: N
 		_add_box(produce_data.pos, Vector3(0.18, 0.14, 0.18), _make_material_from_color(produce_data.color, 0.82), structure_root)
 	create_cart_rack(props_root, Vector3(1.64, 0.06, 1.18), deg_to_rad(90.0))
 	_add_trash_can_local(props_root, Vector3(-1.84, 0.02, 1.2), Color("4f6f5f"))
+	_add_grocery_signature_upgrade(structure_root, props_root, width, depth, height, palette)
 	match posmod(variant, 5):
 		1:
 			_add_box(Vector3(0.0, height + 0.34, 0.36), Vector3(width * 0.76, 0.1, 0.14), _make_material_from_color(palette.accent, 0.46), structure_root)
@@ -4481,6 +4614,7 @@ func _populate_restaurant_variant(root: Node3D, lot_root: Node3D, structure_root
 	_add_string_lights_local(props_root, 1.18, width * 0.7)
 	_add_outdoor_table_local(props_root, Vector3(-1.1, 0.04, 1.04), palette.accent)
 	_add_outdoor_table_local(props_root, Vector3(1.1, 0.04, 1.04), palette.accent)
+	_add_restaurant_signature_upgrade(structure_root, props_root, width, depth, height, palette, canopy_style)
 
 
 func _add_restaurant_roof_local(center: Vector3, size: Vector3, material: Material, style: String, parent: Node) -> void:
@@ -4558,6 +4692,7 @@ func _populate_corner_store_variant(root: Node3D, lot_root: Node3D, structure_ro
 	_add_box(Vector3(-0.18, 0.82, 0.6), Vector3(width * 0.46, 0.1, 0.05), _make_material_from_color(palette.trim, 0.42), structure_root)
 	create_cart_rack(props_root, Vector3(1.42, 0.06, 1.06), deg_to_rad(90.0))
 	_add_trash_can_local(props_root, Vector3(-1.44, 0.02, 1.06), palette.roof)
+	_add_corner_store_signature_upgrade(structure_root, props_root, width, depth, height, palette)
 	if variant % 2 == 1:
 		_add_soft_block(Vector3(width * 0.34, 0.56, -0.42), Vector3(0.46, 0.68, 0.52), _make_material_from_color(palette.trim, 0.84), structure_root, 0.1)
 

@@ -155,7 +155,19 @@ func _build_fire(lot: Node3D) -> void:
 	Kit.add_parking_lot(lot, Vector3(0.0, 0.04, 1.02), Vector2(2.3, 0.92), 2, false)
 	Kit.box(lot, Vector3(0.0, 0.55, -0.48), Vector3(1.72, 1.1, 1.2), Kit.material("c94f45", 0.84))
 	Kit.box(lot, Vector3(0.0, 1.18, -0.48), Vector3(1.92, 0.2, 1.34), Kit.material("34383d", 0.82))
-	Kit.box(lot, Vector3(0.0, 0.38, 0.22), Vector3(0.78, 0.64, 0.065), Kit.material("383d42", 0.88))
+	for bay_x in [-0.34, 0.34]:
+		Kit.box(lot, Vector3(bay_x, 0.38, 0.22), Vector3(0.58, 0.64, 0.065), Kit.material("383d42", 0.88))
+		for rail_y in [0.25, 0.43, 0.61]:
+			Kit.box(lot, Vector3(bay_x, rail_y, 0.26), Vector3(0.48, 0.035, 0.04), Kit.material("f1d072", 0.74))
+	Kit.box(lot, Vector3(-0.86, 1.04, -0.55), Vector3(0.42, 1.88, 0.42), Kit.material("b93f3a", 0.86))
+	Kit.box(lot, Vector3(-0.86, 2.02, -0.55), Vector3(0.54, 0.12, 0.54), Kit.material("34383d", 0.82))
+	Kit.sphere(lot, Vector3(-0.86, 1.68, -0.29), 0.1, Kit.material("f1d072", 0.64), 0.3)
+	for level_y in [0.82, 1.16, 1.5]:
+		_window(lot, Vector3(-0.86, level_y, -0.28), Vector3(0.16, 0.18, 0.045))
+	for rung_y in [0.68, 0.9, 1.12, 1.34]:
+		Kit.box(lot, Vector3(0.9, rung_y, -0.08), Vector3(0.03, 0.03, 0.34), Kit.material("f1d072", 0.74))
+	Kit.box(lot, Vector3(0.78, 1.02, -0.08), Vector3(0.025, 0.86, 0.025), Kit.material("f1d072", 0.74))
+	Kit.box(lot, Vector3(1.02, 1.02, -0.08), Vector3(0.025, 0.86, 0.025), Kit.material("f1d072", 0.74))
 	_sign(lot, "FIRE DEPT", Vector3(0.0, 0.9, 0.28), Vector2(1.08, 0.22), Color("f1d072"))
 	for x in [-0.64, 0.64]:
 		Kit.cylinder(lot, Vector3(x, 0.2, 0.78), 0.045, 0.4, Kit.material("f1d072", 0.72))
@@ -166,12 +178,18 @@ func _build_bank(lot: Node3D) -> void:
 	Kit.add_parking_lot(lot, Vector3(0.0, 0.04, 1.08), Vector2(2.28, 0.86), 3, true)
 	Kit.box(lot, Vector3(0.0, 0.52, -0.52), Vector3(1.66, 1.04, 1.1), Kit.material("dfe8ef", 0.9))
 	Kit.box(lot, Vector3(0.0, 1.12, -0.52), Vector3(1.88, 0.2, 1.24), Kit.material("557da1", 0.78))
-	for x in [-0.55, 0.0, 0.55]:
-		Kit.cylinder(lot, Vector3(x, 0.42, 0.18), 0.055, 0.76, Kit.material(Kit.TRIM, 0.86))
+	Kit.box(lot, Vector3(0.0, 0.09, 0.72), Vector3(1.44, 0.06, 0.42), Kit.material("d8d2c8", 0.9))
+	for step_index in range(3):
+		Kit.box(lot, Vector3(0.0, 0.11 + float(step_index) * 0.04, 0.54 + float(step_index) * 0.1), Vector3(1.24 - float(step_index) * 0.14, 0.04, 0.14), Kit.material("d8d2c8", 0.9))
+	Kit.box(lot, Vector3(0.0, 0.96, 0.26), Vector3(1.34, 0.12, 0.14), Kit.material(Kit.TRIM, 0.86))
+	Kit.box(lot, Vector3(0.0, 1.1, 0.24), Vector3(1.06, 0.08, 0.1), Kit.material("557da1", 0.78))
+	for x in [-0.58, -0.29, 0.0, 0.29, 0.58]:
+		Kit.cylinder(lot, Vector3(x, 0.46, 0.22), 0.055, 0.86, Kit.material(Kit.TRIM, 0.86))
 	Kit.box(lot, Vector3(0.0, 0.32, 0.28), Vector3(0.3, 0.5, 0.055), Kit.material("6b7c8d", 0.72))
 	for x in [-0.52, 0.52]:
 		_window(lot, Vector3(x, 0.62, 0.24), Vector3(0.24, 0.28, 0.05))
 	_sign(lot, "BANK", Vector3(0.0, 0.9, 0.31), Vector2(0.86, 0.2), Color("557da1"))
+	Kit.sphere(lot, Vector3(0.0, 1.27, 0.24), 0.12, Kit.material("d0a64c", 0.56), 0.3)
 	_atm(lot, Vector3(-1.0, 0.0, 0.56))
 
 
@@ -183,8 +201,15 @@ func _build_grocery(lot: Node3D) -> void:
 	_window(lot, Vector3(0.42, 0.55, 0.19), Vector3(0.42, 0.44, 0.055))
 	Kit.box(lot, Vector3(0.0, 0.86, 0.28), Vector3(1.46, 0.22, 0.06), Kit.material("5fae54", 0.72))
 	_sign(lot, "GROCERY", Vector3(0.0, 0.9, 0.33), Vector2(1.18, 0.2), Color("5fae54"))
+	Kit.box(lot, Vector3(0.0, 1.36, 0.22), Vector3(1.9, 0.18, 0.12), Kit.material("4f8d49", 0.76))
+	_sign(lot, "FRESH MARKET", Vector3(0.0, 1.48, 0.3), Vector2(1.34, 0.16), Color("5fae54"))
+	Kit.box(lot, Vector3(0.0, 0.69, 0.36), Vector3(1.74, 0.055, 0.3), Kit.material("5fae54", 0.72))
+	for stripe_x in [-0.54, -0.18, 0.18, 0.54]:
+		Kit.box(lot, Vector3(stripe_x, 0.72, 0.38), Vector3(0.14, 0.04, 0.32), Kit.material(Kit.TRIM, 0.82))
 	Kit.add_cart_rack(lot, Vector3(0.95, 0.08, 0.72), deg_to_rad(90.0))
+	Kit.box(lot, Vector3(0.95, 0.48, 0.72), Vector3(0.56, 0.08, 0.34), Kit.material(Kit.ROOF_GREEN, 0.76))
 	_crates(lot, Vector3(-1.0, 0.06, 0.76))
+	_crates(lot, Vector3(-0.72, 0.06, 0.83))
 
 
 func _build_restaurant(lot: Node3D) -> void:
@@ -201,6 +226,14 @@ func _build_restaurant(lot: Node3D) -> void:
 	for x in [-0.72, 0.72]:
 		_table(lot, Vector3(x, 0.05, 0.78))
 	_menu_board(lot, Vector3(-1.06, 0.0, 0.72))
+	Kit.box(lot, Vector3(0.0, 0.11, 1.0), Vector3(1.76, 0.05, 0.58), Kit.material("d8c7ab", 0.88))
+	for post_x in [-0.78, -0.26, 0.26, 0.78]:
+		Kit.box(lot, Vector3(post_x, 0.6, 1.04), Vector3(0.045, 0.96, 0.045), Kit.material("8d543c", 0.78))
+	Kit.box(lot, Vector3(0.0, 1.1, 1.04), Vector3(1.82, 0.06, 0.56), Kit.material("8d543c", 0.78))
+	for slat_x in [-0.56, -0.28, 0.0, 0.28, 0.56]:
+		Kit.box(lot, Vector3(slat_x, 1.16, 1.04), Vector3(0.045, 0.055, 0.62), Kit.material("ef8b5f", 0.66))
+	for x in [-0.42, 0.0, 0.42]:
+		_table(lot, Vector3(x, 0.05, 1.05))
 
 
 func _build_corner(lot: Node3D) -> void:
@@ -211,8 +244,16 @@ func _build_corner(lot: Node3D) -> void:
 	_window(lot, Vector3(0.36, 0.58, 0.2), Vector3(0.34, 0.36, 0.055))
 	Kit.box(lot, Vector3(0.0, 0.87, 0.27), Vector3(1.28, 0.21, 0.06), Kit.material("4f76a0", 0.72))
 	_sign(lot, "QUICK MART", Vector3(0.0, 0.91, 0.32), Vector2(1.1, 0.2), Color("4f76a0"))
+	Kit.box(lot, Vector3(0.0, 0.72, 0.52), Vector3(1.74, 0.14, 0.28), Kit.material(Kit.ROOF_BLUE, 0.74))
+	Kit.box(lot, Vector3(-0.82, 0.72, -0.08), Vector3(0.24, 0.14, 0.9), Kit.material(Kit.ROOF_BLUE, 0.74))
+	var poster_colors: Array[Color] = [Color("ffd067"), Color("df675f"), Color("70d5bd")]
+	for index in range(3):
+		var poster_x := -0.38 + float(index) * 0.38
+		var poster_color: Color = poster_colors[index]
+		Kit.box(lot, Vector3(poster_x, 0.38, 0.36), Vector3(0.18, 0.22, 0.035), Kit.material(poster_color.to_html(false), 0.8))
 	Kit.add_trash_can(lot, Vector3(-1.02, 0.04, 0.82), Color("4b6778"))
 	_ice_box(lot, Vector3(0.96, 0.0, 0.72))
+	Kit.box(lot, Vector3(-0.92, 0.2, 0.78), Vector3(0.24, 0.36, 0.2), Kit.material("df675f", 0.78))
 
 
 func _build_sidewalk_life() -> void:
