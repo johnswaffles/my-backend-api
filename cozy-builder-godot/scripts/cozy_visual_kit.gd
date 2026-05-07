@@ -58,8 +58,25 @@ static func box(parent: Node, position: Vector3, size: Vector3, mat: Material) -
 	instance.mesh = mesh
 	instance.position = position
 	instance.material_override = mat
+	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 	parent.add_child(instance)
 	return instance
+
+
+static func soft_box(parent: Node, position: Vector3, size: Vector3, mat: Material, corner_radius: float = 0.08) -> Node3D:
+	var root := Node3D.new()
+	root.position = position
+	parent.add_child(root)
+	var radius: float = minf(corner_radius, minf(size.x * 0.22, size.z * 0.22))
+	box(root, Vector3.ZERO, Vector3(maxf(0.12, size.x - radius * 1.45), size.y, size.z), mat)
+	box(root, Vector3.ZERO, Vector3(size.x, size.y, maxf(0.12, size.z - radius * 1.45)), mat)
+	for sx in [-1.0, 1.0]:
+		for sz in [-1.0, 1.0]:
+			cylinder(root, Vector3(sx * (size.x * 0.5 - radius), 0.0, sz * (size.z * 0.5 - radius)), radius, size.y, mat)
+	if mat is StandardMaterial3D and size.y >= 0.12:
+		var base := mat as StandardMaterial3D
+		box(root, Vector3(0.0, size.y * 0.5 + 0.008, 0.0), Vector3(maxf(0.1, size.x - radius * 1.1), 0.012, maxf(0.1, size.z - radius * 1.1)), material(base.albedo_color.lightened(0.06).to_html(false), maxf(0.72, base.roughness - 0.04)))
+	return root
 
 
 static func cylinder(parent: Node, position: Vector3, radius: float, height: float, mat: Material) -> MeshInstance3D:
@@ -91,15 +108,25 @@ static func sphere(parent: Node, position: Vector3, radius: float, mat: Material
 	return instance
 
 
-static func add_tree(parent: Node, position: Vector3) -> Node3D:
+static func add_tree(parent: Node, position: Vector3, variant: int = 0) -> Node3D:
 	var root := Node3D.new()
 	root.position = position
 	parent.add_child(root)
 	box(root, Vector3(0.0, 0.012, 0.0), Vector3(0.74, 0.024, 0.56), transparent_material(SHADOW, 0.16, 1.0))
 	cylinder(root, Vector3(0.0, 0.36, 0.0), 0.11, 0.72, material(TRUNK, 0.9))
-	sphere(root, Vector3(0.0, 0.98, 0.0), 0.48, material(TREE, 0.88), 1.22)
-	sphere(root, Vector3(-0.22, 0.9, 0.04), 0.32, material(TREE_LIGHT, 0.88), 1.08)
-	sphere(root, Vector3(0.23, 0.86, -0.05), 0.3, material("3f7f38", 0.9), 1.0)
+	match posmod(variant, 3):
+		0:
+			sphere(root, Vector3(0.0, 0.98, 0.0), 0.48, material(TREE, 0.88), 1.22)
+			sphere(root, Vector3(-0.22, 0.9, 0.04), 0.32, material(TREE_LIGHT, 0.88), 1.08)
+			sphere(root, Vector3(0.23, 0.86, -0.05), 0.3, material("3f7f38", 0.9), 1.0)
+		1:
+			sphere(root, Vector3(0.0, 0.94, 0.0), 0.38, material("3f7f38", 0.9), 1.55)
+			sphere(root, Vector3(0.0, 1.28, 0.0), 0.28, material(TREE_LIGHT, 0.88), 1.28)
+			sphere(root, Vector3(0.0, 1.54, 0.0), 0.18, material(TREE, 0.88), 1.05)
+		_:
+			sphere(root, Vector3(-0.14, 0.9, 0.02), 0.42, material(TREE, 0.88), 1.0)
+			sphere(root, Vector3(0.18, 0.98, -0.04), 0.38, material(TREE_LIGHT, 0.88), 1.12)
+			sphere(root, Vector3(0.04, 1.22, 0.08), 0.28, material("4c9342", 0.9), 0.95)
 	return root
 
 

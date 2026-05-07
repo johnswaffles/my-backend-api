@@ -4,9 +4,9 @@ const GRID_SIZE := 64
 const TILE_SIZE := 1.0
 const PAN_SPEED := 0.018
 const STARTING_MONEY := 500000
-const DEFAULT_ZOOM := 20.0
-const MIN_ZOOM := 8.0
-const MAX_ZOOM := 56.0
+const DEFAULT_ZOOM := 16.5
+const MIN_ZOOM := 7.0
+const MAX_ZOOM := 48.0
 const BUILD_TOOL_ROAD := "road"
 const BUILD_TOOL_HOUSE := "house"
 const BUILD_TOOL_FIRE := "fire"
@@ -143,9 +143,9 @@ const PROPERTY_BUFFER_BY_TOOL := {
 	BUILD_TOOL_CORNER_STORE: 1,
 	BUILD_TOOL_PARK: 1,
 }
-const ROAD_WIDTH := 2.18
+const ROAD_WIDTH := 1.96
 const CURB_WIDTH := 0.16
-const SIDEWALK_WIDTH := 0.86
+const SIDEWALK_WIDTH := 0.96
 const FRONT_BUFFER := 0.32
 const PARKING_DEPTH := 1.22
 const BUILDING_SETBACK := 0.72
@@ -741,19 +741,19 @@ func _input(event: InputEvent) -> void:
 
 
 func _build_materials() -> void:
-	_ground_material_a = _make_material("8bc877", 0.94)
-	_ground_material_b = _make_material("79b966", 0.96)
-	_ground_material_c = _make_material("a4d783", 0.93)
+	_ground_material_a = _make_material("8fcf78", 0.94)
+	_ground_material_b = _make_material("78b965", 0.96)
+	_ground_material_c = _make_material("a7d989", 0.93)
 	_soil_material = _make_material("6b5137", 0.98)
 	_stone_material = _make_material("e2d2ba", 0.9)
 	_water_material = _make_material("349ab4", 0.24, 0.0, true, "bceff5", 0.1)
 	_water_highlight_material = _make_transparent_material(Color("effffb"), 0.26, 0.42)
-	_road_material = _make_material("323538", 0.98)
-	_road_top_detail_material = _make_material("3f4448", 0.97)
-	_road_edge_highlight_material = _make_material("efe9dd", 0.9)
-	_crosswalk_material = _make_material("f2eadb", 0.88)
+	_road_material = _make_material("2f3438", 0.98)
+	_road_top_detail_material = _make_material("3a4146", 0.97)
+	_road_edge_highlight_material = _make_material("d9d1c2", 0.92)
+	_crosswalk_material = _make_material("e7dece", 0.9)
 	_road_mark_material = _make_material("f0c94f", 0.78)
-	_sidewalk_material = _make_material("d5cdbf", 0.93)
+	_sidewalk_material = _make_material("cec6b8", 0.94)
 	_window_material = _make_material("ffc15e", 0.12, 0.0, true, "ffe09a", 0.38)
 	_window_frame_material = _make_material("f6ecd8", 0.82)
 	_roof_fascia_material = _make_material("5f412b", 0.84)
@@ -2889,6 +2889,7 @@ func create_lot_base(parent: Node, preset: Dictionary, size_override: Vector2 = 
 	for side_x in [-1.0, 1.0]:
 		_add_box(Vector3(side_x * lot_size.x * 0.5, 0.084, 0.0), Vector3(0.06, 0.04, lot_size.y * 0.88), curb_material, parent)
 	_add_box(Vector3(0.0, 0.084, lot_size.y * 0.5), Vector3(lot_size.x * 0.92, 0.04, 0.06), curb_material, parent)
+	_add_lot_surface_polish_local(parent, lot_size, lot_type, sidewalk_back_z)
 
 
 func create_sidewalk_connection(parent: Node, preset: Dictionary) -> void:
@@ -2958,6 +2959,7 @@ func create_parking_lot(parent: Node, preset: Dictionary, accent: Color = Color(
 	_add_shadow_disc_local(Vector3(0.0, 0.0, 0.02), Vector2(size.x * 0.96, size.z * 0.92), 0.08, root)
 	_add_box(Vector3(0.0, 0.032, 0.0), Vector3(size.x + 0.16, 0.026, size.z + 0.14), curb_material, root)
 	_add_box(Vector3(0.0, 0.058, 0.0), Vector3(size.x, 0.034, size.z), asphalt_material, root)
+	_add_parking_surface_polish_local(root, size, parking)
 	_add_box(Vector3(0.0, 0.084, -size.z * 0.5 + 0.055), Vector3(size.x * 0.94, 0.014, 0.07), curb_material, root)
 	_add_box(Vector3(-size.x * 0.5 + 0.055, 0.084, 0.0), Vector3(0.07, 0.014, size.z * 0.82), curb_material, root)
 	_add_box(Vector3(size.x * 0.5 - 0.055, 0.084, 0.0), Vector3(0.07, 0.014, size.z * 0.82), curb_material, root)
@@ -2994,6 +2996,51 @@ func create_parking_lot(parent: Node, preset: Dictionary, accent: Color = Color(
 		_add_box(Vector3(size.x * 0.44, 0.104, size.z * 0.32), Vector3(0.16, 0.1, 0.22), _make_material_from_color(trim, 0.86), root)
 	if parking == "front_apron":
 		_add_fire_truck_local(Vector3(size.x * 0.24, 0.02, -0.02), 0.0, root)
+
+
+func _add_lot_surface_polish_local(parent: Node, lot_size: Vector2, lot_type: String, sidewalk_back_z: float) -> void:
+	var seam_material := _make_material("c7bca8", 0.95)
+	var warm_patch := _make_material("9acb7a", 0.96)
+	var cool_patch := _make_material("78b462", 0.96)
+	var slab_z := sidewalk_back_z - 0.34
+	for x in [-lot_size.x * 0.34, -lot_size.x * 0.12, lot_size.x * 0.12, lot_size.x * 0.34]:
+		_add_box(Vector3(x, 0.104, slab_z), Vector3(0.026, 0.01, 0.48), seam_material, parent)
+	for z in [lot_size.y * 0.26, -lot_size.y * 0.28]:
+		_add_box(Vector3(0.0, 0.088, z), Vector3(lot_size.x * 0.7, 0.01, 0.022), seam_material, parent)
+	if lot_type == "residential":
+		for patch in [
+			{"pos": Vector3(-lot_size.x * 0.32, 0.088, -lot_size.y * 0.18), "size": Vector3(0.56, 0.012, 0.28), "rot": -8.0, "mat": warm_patch},
+			{"pos": Vector3(lot_size.x * 0.28, 0.088, -lot_size.y * 0.05), "size": Vector3(0.48, 0.012, 0.24), "rot": 11.0, "mat": cool_patch},
+		]:
+			var patch_pos: Vector3 = patch["pos"]
+			var patch_size: Vector3 = patch["size"]
+			var patch_material: Material = patch["mat"]
+			var patch_node := _add_box(patch_pos, patch_size, patch_material, parent)
+			patch_node.rotation_degrees.y = float(patch["rot"])
+	else:
+		for x in [-lot_size.x * 0.42, lot_size.x * 0.42]:
+			create_landscape_island(parent, Vector3(x, 0.1, -lot_size.y * 0.42), Vector3(0.32, 0.08, 0.22), Color("6fa85b"), 3)
+
+
+func _add_parking_surface_polish_local(parent: Node, size: Vector3, parking_kind: String) -> void:
+	var mid_material := _make_material("6b7378", 0.98)
+	var dark_material := _make_material("454c51", 0.99)
+	var arrow_material := _make_material("d8d0c1", 0.92)
+	for patch in [
+		{"pos": Vector3(-size.x * 0.22, 0.082, -size.z * 0.18), "size": Vector3(size.x * 0.22, 0.006, 0.035), "rot": -7.0, "mat": mid_material},
+		{"pos": Vector3(size.x * 0.2, 0.083, size.z * 0.18), "size": Vector3(size.x * 0.18, 0.006, 0.03), "rot": 9.0, "mat": dark_material},
+	]:
+		var patch_pos: Vector3 = patch["pos"]
+		var patch_size: Vector3 = patch["size"]
+		var patch_material: Material = patch["mat"]
+		var patch_node := _add_box(patch_pos, patch_size, patch_material, parent)
+		patch_node.rotation_degrees.y = float(patch["rot"])
+	if parking_kind != "front_apron":
+		_add_box(Vector3(0.0, 0.107, size.z * 0.28), Vector3(0.3, 0.01, 0.035), arrow_material, parent)
+		var arrow_left := _add_box(Vector3(0.13, 0.108, size.z * 0.28), Vector3(0.12, 0.01, 0.035), arrow_material, parent)
+		arrow_left.rotation_degrees.y = 28.0
+		var arrow_right := _add_box(Vector3(0.13, 0.108, size.z * 0.28), Vector3(0.12, 0.01, 0.035), arrow_material, parent)
+		arrow_right.rotation_degrees.y = -28.0
 
 
 func create_storefront_windows(parent: Node, width: float, height: float, front_z: float, columns: int = 3) -> void:
@@ -3234,24 +3281,30 @@ func _add_property_composed_lot_details(tool: String, sections: Dictionary, pres
 		_add_box(Vector3(paver_x, 0.126, front_z - 0.46), Vector3(0.04, 0.012, 0.42), _make_material("c9bea9", 0.92), sidewalk_root)
 	if lot_type == "residential":
 		create_tree(landscaping_root, Vector3(-lot_size.x * 0.36, 0.0, -lot_size.y * 0.28))
+		create_tree(landscaping_root, Vector3(lot_size.x * 0.38, 0.0, -lot_size.y * 0.06))
 		create_bush_cluster(landscaping_root, Vector3(lot_size.x * 0.34, 0.08, -lot_size.y * 0.34), 5, Color("6fa85b"))
 		_add_flower_bed_local(landscaping_root, Vector3(-lot_size.x * 0.2, 0.09, frontage_z - 0.08), lot_size.x * 0.28, accent)
 		create_street_sign(props_root, Vector3(lot_size.x * 0.4, 0.02, sidewalk_back_z + 0.06), accent)
 	elif tool == BUILD_TOOL_FIRE:
 		_add_flower_bed_local(landscaping_root, Vector3(-lot_size.x * 0.38, 0.09, frontage_z), 0.7, accent)
 		create_bush_cluster(landscaping_root, Vector3(lot_size.x * 0.38, 0.08, -lot_size.y * 0.36), 4, Color("778f68"))
+		create_tree(landscaping_root, Vector3(-lot_size.x * 0.45, 0.0, -lot_size.y * 0.3))
 		create_street_sign(props_root, Vector3(-lot_size.x * 0.42, 0.02, sidewalk_back_z + 0.06), accent, "fire")
 	elif lot_type == "commercial":
 		_add_flower_bed_local(landscaping_root, Vector3(-lot_size.x * 0.38, 0.09, frontage_z), 0.66, accent)
 		_add_flower_bed_local(landscaping_root, Vector3(lot_size.x * 0.38, 0.09, frontage_z), 0.66, trim)
 		create_bush_cluster(landscaping_root, Vector3(-lot_size.x * 0.43, 0.08, -lot_size.y * 0.34), 4, Color("6fa85b"))
 		create_bush_cluster(landscaping_root, Vector3(lot_size.x * 0.43, 0.08, -lot_size.y * 0.28), 4, Color("86bd69"))
+		create_tree(landscaping_root, Vector3(lot_size.x * 0.44, 0.0, -lot_size.y * 0.43))
+		create_streetlamp(props_root, Vector3(lot_size.x * 0.46, 0.0, sidewalk_back_z + 0.08))
 		if tool == BUILD_TOOL_BANK or tool == BUILD_TOOL_GROCERY:
 			_add_bench_local(Vector3(-lot_size.x * 0.34, 0.02, sidewalk_back_z + 0.04), deg_to_rad(0.0), props_root)
 		if tool == BUILD_TOOL_RESTAURANT:
 			_add_sidewalk_banner_local(props_root, Vector3(lot_size.x * 0.42, 0.02, sidewalk_back_z + 0.04), accent)
+			_add_bench_local(Vector3(-lot_size.x * 0.38, 0.02, sidewalk_back_z + 0.02), deg_to_rad(0.0), props_root)
 		if tool == BUILD_TOOL_CORNER_STORE:
 			_add_compact_vending_machine_local(props_root, Vector3(-lot_size.x * 0.36, 0.03, frontage_z), accent)
+			_add_trash_can_local(props_root, Vector3(lot_size.x * 0.38, 0.03, sidewalk_back_z + 0.04), palette["roof"])
 
 
 func _add_flower_bed_local(parent: Node, center: Vector3, width: float, accent: Color) -> void:
@@ -4340,33 +4393,32 @@ func _update_day_night_visuals() -> void:
 	var daylight_scale := clampf(_ambient_light_scale, 0.0, 1.0)
 	var night_amount := 1.0 - daylight_scale
 	var daylight_curve := pow(daylight_scale, 1.12)
-	var sky_top: Color = Color(0.66, 0.83, 0.98).lerp(Color(0.025, 0.035, 0.08), night_amount)
-	var sky_horizon: Color = Color(0.98, 0.9, 0.72).lerp(Color(0.055, 0.07, 0.12), night_amount)
+	var sky_top: Color = Color(0.68, 0.84, 0.98).lerp(Color(0.025, 0.035, 0.075), night_amount)
+	var sky_horizon: Color = Color(1.0, 0.88, 0.66).lerp(Color(0.05, 0.06, 0.11), night_amount)
 	if world_environment and world_environment.environment:
 		var env: Environment = world_environment.environment
 		env.background_mode = Environment.BG_SKY
 		env.background_color = sky_top.lerp(sky_horizon, 0.08)
-		env.ambient_light_color = Color(0.82, 0.84, 0.72).lerp(Color(0.16, 0.2, 0.32), night_amount)
-		env.ambient_light_energy = lerpf(0.08, 0.72, daylight_curve)
-		env.fog_enabled = true
-		env.fog_light_color = Color(0.72, 0.78, 0.72).lerp(Color(0.05, 0.07, 0.12), night_amount)
-		env.fog_light_energy = lerpf(0.0, 0.035, daylight_curve)
-		env.fog_density = lerpf(0.0, 0.00045, daylight_curve)
+		env.ambient_light_color = Color(0.8, 0.84, 0.74).lerp(Color(0.16, 0.2, 0.32), night_amount)
+		env.ambient_light_energy = lerpf(0.12, 0.82, daylight_curve)
+		env.fog_enabled = false
+		env.fog_light_energy = 0.0
+		env.fog_density = 0.0
 		env.glow_enabled = true
-		env.glow_bloom = lerpf(0.0, 0.018, daylight_curve)
-		env.glow_intensity = lerpf(0.0, 0.09, daylight_curve)
+		env.glow_bloom = lerpf(0.0, 0.014, daylight_curve)
+		env.glow_intensity = lerpf(0.0, 0.075, daylight_curve)
 		env.adjustment_enabled = true
-		env.adjustment_brightness = lerpf(0.72, 1.03, daylight_scale)
-		env.adjustment_contrast = lerpf(1.08, 1.04, daylight_scale)
-		env.adjustment_saturation = lerpf(0.98, 1.08, daylight_scale)
+		env.adjustment_brightness = lerpf(0.76, 1.0, daylight_scale)
+		env.adjustment_contrast = lerpf(1.12, 1.08, daylight_scale)
+		env.adjustment_saturation = lerpf(0.98, 1.07, daylight_scale)
 	if sun:
-		sun.light_color = Color(1.0, 0.89, 0.68).lerp(Color(0.58, 0.66, 0.86), night_amount)
-		sun.light_energy = lerpf(0.05, 1.34, daylight_curve)
-		sun.rotation_degrees = Vector3(lerpf(-32.0, -49.0, daylight_scale), 32.0, 0.0)
-		sun.shadow_blur = 2.8
+		sun.light_color = Color(1.0, 0.86, 0.62).lerp(Color(0.58, 0.66, 0.86), night_amount)
+		sun.light_energy = lerpf(0.08, 1.42, daylight_curve)
+		sun.rotation_degrees = Vector3(lerpf(-34.0, -54.0, daylight_scale), 30.0, 0.0)
+		sun.shadow_blur = 2.35
 	if fill_light:
 		fill_light.light_color = Color(0.62, 0.74, 1.0).lerp(Color(0.2, 0.26, 0.4), night_amount)
-		fill_light.light_energy = lerpf(0.08, 0.24, daylight_curve)
+		fill_light.light_energy = lerpf(0.06, 0.2, daylight_curve)
 
 	for band in _window_bands:
 		if is_instance_valid(band):
@@ -6607,22 +6659,22 @@ func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = [
 
 
 func _add_lane_dashes_local(root: Node3D, vertical: bool, material: Material) -> void:
-	for offset in [-0.84, -0.28, 0.28, 0.84]:
+	for offset in [-0.68, 0.0, 0.68]:
 		if vertical:
-			_add_box(Vector3(0.0, 0.148, offset), Vector3(0.085, 0.018, 0.28), material, root)
+			_add_box(Vector3(0.0, 0.148, offset), Vector3(0.078, 0.018, 0.24), material, root)
 		else:
-			_add_box(Vector3(offset, 0.148, 0.0), Vector3(0.28, 0.018, 0.085), material, root)
+			_add_box(Vector3(offset, 0.148, 0.0), Vector3(0.24, 0.018, 0.078), material, root)
 
 
 func _add_road_edge_lines_local(root: Node3D, vertical: bool) -> void:
 	var edge_offset := ROAD_WIDTH * 0.45
-	var line_length := ROAD_WIDTH + 0.18
+	var line_length := ROAD_WIDTH + 0.02
 	if vertical:
 		for x in [-edge_offset, edge_offset]:
-			_add_box(Vector3(x, 0.146, 0.0), Vector3(0.038, 0.018, line_length), _road_edge_highlight_material, root)
+			_add_box(Vector3(x, 0.146, 0.0), Vector3(0.024, 0.018, line_length), _road_edge_highlight_material, root)
 	else:
 		for z in [-edge_offset, edge_offset]:
-			_add_box(Vector3(0.0, 0.146, z), Vector3(line_length, 0.018, 0.038), _road_edge_highlight_material, root)
+			_add_box(Vector3(0.0, 0.146, z), Vector3(line_length, 0.018, 0.024), _road_edge_highlight_material, root)
 
 
 func _add_intersection_center_mark_local(root: Node3D, material: Material) -> void:
@@ -6656,12 +6708,12 @@ func _add_road_finish_details(root: Node3D, vertical_straight: bool, horizontal_
 
 
 func _add_crosswalk_local(root: Node3D, center: Vector3, horizontal: bool) -> void:
-	for stripe_index in range(3):
-		var offset := (float(stripe_index) - 1.0) * 0.24
+	for stripe_index in range(4):
+		var offset := (float(stripe_index) - 1.5) * 0.18
 		if horizontal:
-			_add_box(center + Vector3(offset, 0.0, 0.0), Vector3(0.09, 0.018, 0.46), _crosswalk_material, root)
+			_add_box(center + Vector3(offset, 0.0, 0.0), Vector3(0.075, 0.018, 0.42), _crosswalk_material, root)
 		else:
-			_add_box(center + Vector3(0.0, 0.0, offset), Vector3(0.46, 0.018, 0.09), _crosswalk_material, root)
+			_add_box(center + Vector3(0.0, 0.0, offset), Vector3(0.42, 0.018, 0.075), _crosswalk_material, root)
 
 
 func _add_road_surface_polish_local(root: Node3D, vertical_straight: bool, horizontal_straight: bool, intersection: bool, north: bool, east: bool, south: bool, west: bool) -> void:
@@ -8168,6 +8220,16 @@ func _add_soft_block(center: Vector3, size: Vector3, material: Material, parent:
 				material,
 				root
 			)
+
+	if material is StandardMaterial3D and size.y >= 0.12:
+		var base_material := material as StandardMaterial3D
+		var top_material := _make_material_from_color(base_material.albedo_color.lightened(0.065), maxf(0.72, base_material.roughness - 0.04))
+		var foot_material := _make_material_from_color(base_material.albedo_color.darkened(0.12), minf(0.98, base_material.roughness + 0.04))
+		var cap_size := Vector3(maxf(0.12, size.x - radius * 1.2), 0.012, maxf(0.12, size.z - radius * 1.2))
+		_add_box(Vector3(0.0, size.y * 0.5 + 0.008, 0.0), cap_size, top_material, root)
+		if size.y > 0.28:
+			_add_box(Vector3(0.0, -size.y * 0.5 + 0.026, size.z * 0.49), Vector3(size.x * 0.78, 0.045, 0.035), foot_material, root)
+			_add_box(Vector3(-size.x * 0.49, -size.y * 0.5 + 0.026, 0.0), Vector3(0.035, 0.045, size.z * 0.7), foot_material, root)
 
 	return root
 

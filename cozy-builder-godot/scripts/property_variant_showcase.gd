@@ -25,9 +25,9 @@ func _ready() -> void:
 
 func _setup_camera() -> void:
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = 22.0
-	camera.position = Vector3(17.0, 12.0, 18.0)
-	camera.look_at(Vector3(0.0, 1.0, -4.0), Vector3.UP)
+	camera.size = 18.5
+	camera.position = Vector3(14.0, 8.2, 15.5)
+	camera.look_at(Vector3(0.0, 1.35, -4.0), Vector3.UP)
 
 
 func _setup_lighting() -> void:
@@ -82,11 +82,13 @@ func _build_showcase_grid() -> void:
 
 
 func _add_showcase_road(width: float) -> void:
-	Kit.box(self, Vector3(0.0, 0.02, 7.4), Vector3(width, 0.04, 1.7), Kit.material(Kit.ROAD, 0.95))
-	Kit.box(self, Vector3(0.0, 0.06, 6.3), Vector3(width, 0.06, 0.56), Kit.material(Kit.SIDEWALK, 0.86))
-	Kit.box(self, Vector3(0.0, 0.09, 6.72), Vector3(width, 0.04, 0.08), Kit.material(Kit.CURB, 0.9))
+	Kit.box(self, Vector3(0.0, 0.02, 7.4), Vector3(width, 0.04, 1.45), Kit.material("2f3438", 0.95))
+	Kit.box(self, Vector3(0.0, 0.06, 6.25), Vector3(width, 0.06, 0.68), Kit.material("cec6b8", 0.9))
+	Kit.box(self, Vector3(0.0, 0.09, 6.68), Vector3(width, 0.04, 0.08), Kit.material(Kit.CURB, 0.9))
 	for x in [-10.0, -8.2, -6.4, -4.6, -2.8, -1.0, 0.8, 2.6, 4.4, 6.2, 8.0, 9.8]:
 		Kit.box(self, Vector3(x, 0.115, 7.4), Vector3(0.46, 0.014, 0.055), Kit.material(Kit.YELLOW, 0.7))
+	for x in [-9.0, -6.0, -3.0, 0.0, 3.0, 6.0, 9.0]:
+		Kit.add_streetlight(self, Vector3(x, 0.08, 6.0))
 
 
 func _build_property_sample(row: Dictionary, variant_index: int, tier: int, position_3d: Vector3) -> void:
@@ -103,13 +105,13 @@ func _build_property_sample(row: Dictionary, variant_index: int, tier: int, posi
 	Kit.box(root, Vector3(0.0, 0.025, 0.0), Vector3(0.96, 0.05, 1.16), Kit.material("eee8dc", 0.92))
 	Kit.box(root, Vector3(0.0, 0.065, 0.42), Vector3(0.82, 0.035, 0.42), Kit.material("555b60", 0.96))
 	_add_mini_parking(root, parking, tier)
-	Kit.box(root, Vector3(0.0, height * 0.5 + 0.1, -0.28), Vector3(width, height, depth), Kit.material(color, 0.88))
+	Kit.soft_box(root, Vector3(0.0, height * 0.5 + 0.1, -0.28), Vector3(width, height, depth), Kit.material(color, 0.88), 0.08)
 	_add_variant_roof(root, variant_index, tier, Vector3(0.0, height + 0.18, -0.28), Vector3(width + 0.16, 0.14, depth + 0.14), roof)
 	_add_mini_facade(root, label, variant_index, tier, width, height)
 	if tier >= 3:
-		Kit.box(root, Vector3(0.28, 0.42, -0.58), Vector3(width * 0.36, height * 0.72, depth * 0.56), Kit.material(color, 0.9))
+		Kit.soft_box(root, Vector3(0.28, 0.42, -0.58), Vector3(width * 0.36, height * 0.72, depth * 0.56), Kit.material(color, 0.9), 0.06)
 	if tier >= 4:
-		Kit.box(root, Vector3(0.0, height + 0.44, -0.34), Vector3(width * 0.72, 0.48, depth * 0.64), Kit.material(color, 0.9))
+		Kit.soft_box(root, Vector3(0.0, height + 0.44, -0.34), Vector3(width * 0.72, 0.48, depth * 0.64), Kit.material(color, 0.9), 0.06)
 		_add_window(root, Vector3(0.0, height + 0.42, 0.02), Vector3(0.22, 0.2, 0.035))
 		Kit.box(root, Vector3(0.0, height + 0.76, -0.34), Vector3(width * 0.82, 0.1, depth * 0.72), Kit.material(roof, 0.78))
 	Kit.add_bush(root, Vector3(-0.42, 0.08, 0.28), 0.28)
