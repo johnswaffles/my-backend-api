@@ -267,6 +267,189 @@ const COMMERCIAL_VISUAL_PRESETS := {
 	BUILD_TOOL_RESTAURANT: {"identity": "hospitality", "sign": "restaurant", "parking": "small_lot", "mood": "warm"},
 	BUILD_TOOL_CORNER_STORE: {"identity": "convenience", "sign": "quick_mart", "parking": "compact_lot", "mood": "bright"},
 }
+const PROPERTY_VARIANTS := {
+	BUILD_TOOL_HOUSE: {
+		"suburban_cottage": {"variant_name": "Suburban Cottage", "style_notes": "warm gabled cottage, porch focus, cozy yard", "tiers": {1: {"massing": "compact"}, 2: {"massing": "front entry"}, 3: {"massing": "side annex"}, 4: {"massing": "two story"}}},
+		"modern_boxy_house": {"variant_name": "Modern Boxy House", "style_notes": "flat roof, clean lines, wide glass, simple driveway", "tiers": {1: {"massing": "single box"}, 2: {"massing": "front canopy"}, 3: {"massing": "garage wing"}, 4: {"massing": "upper box"}}},
+		"farmhouse_style": {"variant_name": "Farmhouse Style", "style_notes": "broader roof, porch rail, rustic trim, garden edges", "tiers": {1: {"massing": "small farmhouse"}, 2: {"massing": "porch"}, 3: {"massing": "side room"}, 4: {"massing": "full farmhouse"}}},
+		"compact_townhome": {"variant_name": "Compact Townhome", "style_notes": "narrow taller body, tidy stoop, vertical windows", "tiers": {1: {"massing": "narrow base"}, 2: {"massing": "stoop"}, 3: {"massing": "rear depth"}, 4: {"massing": "tall flagship"}}},
+	},
+	BUILD_TOOL_FIRE: {
+		"classic_brick_station": {"variant_name": "Classic Brick Station", "style_notes": "brick civic face, garage bay rhythm, flag and bollards", "wall_color": "c94f45", "roof_color": "34383d", "trim_color": "fff4df", "accent_color": "f1d072", "tiers": {
+			1: {"width": 2.58, "depth": 1.72, "height": 1.04, "center_z": -0.64, "front_z": 0.28, "bays": 1, "upper": false, "tower": false, "wing": 0, "signature": false, "roof": "flat"},
+			2: {"width": 3.14, "depth": 1.92, "height": 1.14, "center_z": -0.66, "front_z": 0.36, "bays": 2, "upper": false, "tower": false, "wing": 1, "signature": false, "roof": "flat"},
+			3: {"width": 3.54, "depth": 2.14, "height": 1.26, "center_z": -0.72, "front_z": 0.42, "bays": 2, "upper": false, "tower": true, "wing": 2, "signature": true, "roof": "flat"},
+			4: {"width": 3.92, "depth": 2.32, "height": 1.38, "center_z": -0.78, "front_z": 0.48, "bays": 3, "upper": true, "tower": true, "wing": 2, "signature": true, "roof": "flat"},
+		}},
+		"modern_civic_station": {"variant_name": "Modern Civic Station", "style_notes": "flat modern mass, large glass, clean emergency apron", "wall_color": "d85c4e", "roof_color": "3e4248", "trim_color": "edf4f4", "accent_color": "8ec5df", "tiers": {
+			1: {"width": 2.72, "depth": 1.66, "height": 1.0, "center_z": -0.62, "front_z": 0.28, "bays": 1, "upper": false, "tower": false, "wing": 0, "signature": false, "roof": "flat", "glass": true},
+			2: {"width": 3.24, "depth": 1.86, "height": 1.12, "center_z": -0.66, "front_z": 0.34, "bays": 2, "upper": false, "tower": false, "wing": 1, "signature": false, "roof": "flat", "glass": true},
+			3: {"width": 3.62, "depth": 2.04, "height": 1.22, "center_z": -0.72, "front_z": 0.4, "bays": 2, "upper": true, "tower": false, "wing": 1, "signature": true, "roof": "flat", "glass": true},
+			4: {"width": 4.06, "depth": 2.24, "height": 1.34, "center_z": -0.8, "front_z": 0.46, "bays": 3, "upper": true, "tower": true, "wing": 2, "signature": true, "roof": "flat", "glass": true},
+		}},
+		"volunteer_station": {"variant_name": "Small-Town Volunteer Station", "style_notes": "friendly small-town station, pitched roof, single bay identity", "wall_color": "bd443f", "roof_color": "4b4542", "trim_color": "fff4df", "accent_color": "ffb35f", "tiers": {
+			1: {"width": 2.38, "depth": 1.62, "height": 0.96, "center_z": -0.58, "front_z": 0.24, "bays": 1, "upper": false, "tower": false, "wing": 0, "signature": false, "roof": "gabled"},
+			2: {"width": 2.86, "depth": 1.84, "height": 1.05, "center_z": -0.62, "front_z": 0.3, "bays": 1, "upper": false, "tower": false, "wing": 1, "signature": false, "roof": "gabled"},
+			3: {"width": 3.18, "depth": 2.02, "height": 1.14, "center_z": -0.7, "front_z": 0.36, "bays": 2, "upper": false, "tower": true, "wing": 1, "signature": true, "roof": "gabled"},
+			4: {"width": 3.52, "depth": 2.16, "height": 1.22, "center_z": -0.76, "front_z": 0.42, "bays": 2, "upper": true, "tower": true, "wing": 2, "signature": true, "roof": "gabled"},
+		}},
+		"industrial_emergency_station": {"variant_name": "Industrial Emergency Station", "style_notes": "wide apparatus bays, tower mass, rugged service wings", "wall_color": "b93f3a", "roof_color": "30353a", "trim_color": "e9ece8", "accent_color": "f6e7c8", "tiers": {
+			1: {"width": 2.92, "depth": 1.82, "height": 1.08, "center_z": -0.66, "front_z": 0.32, "bays": 2, "upper": false, "tower": false, "wing": 0, "signature": false, "roof": "flat"},
+			2: {"width": 3.44, "depth": 2.02, "height": 1.18, "center_z": -0.7, "front_z": 0.38, "bays": 2, "upper": false, "tower": true, "wing": 1, "signature": false, "roof": "flat"},
+			3: {"width": 3.86, "depth": 2.26, "height": 1.32, "center_z": -0.78, "front_z": 0.44, "bays": 3, "upper": false, "tower": true, "wing": 2, "signature": true, "roof": "flat"},
+			4: {"width": 4.22, "depth": 2.46, "height": 1.48, "center_z": -0.84, "front_z": 0.5, "bays": 3, "upper": true, "tower": true, "wing": 3, "signature": true, "roof": "flat"},
+		}},
+	},
+	BUILD_TOOL_BANK: {
+		"traditional_column_bank": {
+			"variant_name": "Traditional Column Bank",
+			"style_notes": "formal columns, symmetrical facade, stone trim",
+			"wall_color": "dfe8ef",
+			"roof_color": "557da1",
+			"trim_color": "f6f1e6",
+			"accent_color": "f1c85f",
+			"parking_style": "formal_forecourt",
+			"tiers": {
+				1: {"width": 2.46, "depth": 1.54, "height": 1.0, "center_z": -0.58, "front_z": 0.24, "columns": 3, "roof": "flat", "glass": false, "upper": false, "wing": 0, "signature": false},
+				2: {"width": 2.94, "depth": 1.76, "height": 1.1, "center_z": -0.62, "front_z": 0.32, "columns": 4, "roof": "flat", "glass": false, "upper": false, "wing": 1, "signature": false},
+				3: {"width": 3.34, "depth": 1.98, "height": 1.22, "center_z": -0.7, "front_z": 0.38, "columns": 5, "roof": "flat", "glass": false, "upper": false, "wing": 2, "signature": true},
+				4: {"width": 3.86, "depth": 2.22, "height": 1.38, "center_z": -0.82, "front_z": 0.44, "columns": 6, "roof": "flat", "glass": true, "upper": true, "wing": 2, "signature": true},
+			},
+		},
+		"modern_glass_bank": {
+			"variant_name": "Modern Glass Bank",
+			"style_notes": "glass front, flat roof, offset tower, blue-gray palette",
+			"wall_color": "d8e3ea",
+			"roof_color": "3f6078",
+			"trim_color": "eef6f7",
+			"accent_color": "8ec5df",
+			"parking_style": "sleek_asphalt",
+			"tiers": {
+				1: {"width": 2.4, "depth": 1.5, "height": 0.96, "center_z": -0.58, "front_z": 0.24, "columns": 0, "roof": "flat", "glass": true, "upper": false, "wing": 0, "signature": false},
+				2: {"width": 2.92, "depth": 1.78, "height": 1.06, "center_z": -0.64, "front_z": 0.32, "columns": 0, "roof": "flat", "glass": true, "upper": false, "wing": 1, "signature": false},
+				3: {"width": 3.34, "depth": 2.02, "height": 1.16, "center_z": -0.72, "front_z": 0.38, "columns": 0, "roof": "flat", "glass": true, "upper": false, "wing": 2, "signature": true},
+				4: {"width": 3.78, "depth": 2.18, "height": 1.26, "center_z": -0.8, "front_z": 0.44, "columns": 0, "roof": "flat", "glass": true, "upper": true, "wing": 2, "signature": true},
+			},
+		},
+		"small_town_brick_bank": {
+			"variant_name": "Small-Town Brick Bank",
+			"style_notes": "brick facade, pitched roof, old downtown branch character",
+			"wall_color": "b96b58",
+			"roof_color": "53616e",
+			"trim_color": "f4dfc5",
+			"accent_color": "d8b35a",
+			"parking_style": "brick_branch",
+			"tiers": {
+				1: {"width": 2.34, "depth": 1.48, "height": 0.96, "center_z": -0.58, "front_z": 0.22, "columns": 0, "roof": "gabled", "glass": false, "upper": false, "wing": 0, "signature": false},
+				2: {"width": 2.82, "depth": 1.72, "height": 1.06, "center_z": -0.64, "front_z": 0.3, "columns": 0, "roof": "gabled", "glass": false, "upper": false, "wing": 1, "signature": false},
+				3: {"width": 3.18, "depth": 1.94, "height": 1.16, "center_z": -0.72, "front_z": 0.36, "columns": 0, "roof": "gabled", "glass": false, "upper": false, "wing": 2, "signature": true},
+				4: {"width": 3.52, "depth": 2.08, "height": 1.28, "center_z": -0.78, "front_z": 0.42, "columns": 0, "roof": "gabled", "glass": true, "upper": true, "wing": 2, "signature": true},
+			},
+		},
+		"premium_financial_center": {
+			"variant_name": "Premium Financial Center",
+			"style_notes": "prestige flagship, layered glass, premium landscaping, formal entry",
+			"wall_color": "e9edf0",
+			"roof_color": "6c7f90",
+			"trim_color": "ffffff",
+			"accent_color": "d9b76a",
+			"parking_style": "premium_landscaped",
+			"tiers": {
+				1: {"width": 2.58, "depth": 1.6, "height": 1.04, "center_z": -0.6, "front_z": 0.26, "columns": 2, "roof": "flat", "glass": true, "upper": false, "wing": 0, "signature": false},
+				2: {"width": 3.06, "depth": 1.84, "height": 1.14, "center_z": -0.66, "front_z": 0.34, "columns": 2, "roof": "flat", "glass": true, "upper": false, "wing": 1, "signature": false},
+				3: {"width": 3.48, "depth": 2.06, "height": 1.24, "center_z": -0.74, "front_z": 0.4, "columns": 4, "roof": "flat", "glass": true, "upper": true, "wing": 1, "signature": true},
+				4: {"width": 3.96, "depth": 2.28, "height": 1.38, "center_z": -0.84, "front_z": 0.46, "columns": 4, "roof": "flat", "glass": true, "upper": true, "wing": 2, "signature": true},
+			},
+		},
+	},
+	BUILD_TOOL_GROCERY: {
+		"local_market": {"variant_name": "Local Market", "style_notes": "small neighborhood market, warm storefront, simple sign", "wall_color": "f2e8d8", "roof_color": "6faf5f", "trim_color": "fff4df", "accent_color": "ffd067", "tiers": {
+			1: {"width": 2.66, "depth": 1.62, "height": 0.94, "center_z": -0.62, "front_z": 0.2, "wing": 0, "glass": false, "signature": false, "roof": "gabled", "awning": "round"},
+			2: {"width": 3.06, "depth": 1.84, "height": 1.02, "center_z": -0.68, "front_z": 0.28, "wing": 0, "glass": false, "signature": false, "roof": "gabled", "awning": "round"},
+			3: {"width": 3.42, "depth": 2.04, "height": 1.1, "center_z": -0.76, "front_z": 0.34, "wing": 1, "glass": true, "signature": true, "roof": "gabled", "awning": "round"},
+			4: {"width": 3.72, "depth": 2.2, "height": 1.18, "center_z": -0.82, "front_z": 0.4, "wing": 2, "glass": true, "signature": true, "roof": "gabled", "awning": "round"},
+		}},
+		"green_supermarket": {"variant_name": "Green Supermarket", "style_notes": "green branded market, broad glass front, cart area", "wall_color": "e8ecd8", "roof_color": "5c9c52", "trim_color": "fff4df", "accent_color": "76d263", "tiers": {
+			1: {"width": 2.86, "depth": 1.7, "height": 0.96, "center_z": -0.66, "front_z": 0.22, "wing": 0, "glass": true, "signature": false, "roof": "flat", "awning": "round"},
+			2: {"width": 3.34, "depth": 1.96, "height": 1.06, "center_z": -0.72, "front_z": 0.3, "wing": 1, "glass": true, "signature": false, "roof": "flat", "awning": "round"},
+			3: {"width": 3.78, "depth": 2.18, "height": 1.16, "center_z": -0.78, "front_z": 0.36, "wing": 2, "glass": true, "signature": true, "roof": "flat", "awning": "round"},
+			4: {"width": 4.24, "depth": 2.48, "height": 1.34, "center_z": -0.88, "front_z": 0.46, "wing": 2, "glass": true, "signature": true, "roof": "flat", "awning": "round"},
+		}},
+		"warehouse_grocery": {"variant_name": "Warehouse-Style Grocery", "style_notes": "wide practical mass, flat roof, service loading feel", "wall_color": "e3ddca", "roof_color": "668f53", "trim_color": "e8ddcc", "accent_color": "7cc6e4", "tiers": {
+			1: {"width": 3.02, "depth": 1.76, "height": 0.92, "center_z": -0.68, "front_z": 0.22, "wing": 0, "glass": false, "signature": false, "roof": "shed", "awning": "bold"},
+			2: {"width": 3.52, "depth": 2.04, "height": 1.02, "center_z": -0.74, "front_z": 0.3, "wing": 1, "glass": false, "signature": false, "roof": "shed", "awning": "bold"},
+			3: {"width": 3.96, "depth": 2.32, "height": 1.12, "center_z": -0.82, "front_z": 0.38, "wing": 2, "glass": true, "signature": true, "roof": "shed", "awning": "bold"},
+			4: {"width": 4.32, "depth": 2.58, "height": 1.24, "center_z": -0.9, "front_z": 0.46, "wing": 3, "glass": true, "signature": true, "roof": "shed", "awning": "bold"},
+		}},
+		"organic_market": {"variant_name": "Organic Market", "style_notes": "wood accents, produce display, softer natural palette", "wall_color": "f6ecd5", "roof_color": "74a66a", "trim_color": "ead7b8", "accent_color": "5fae54", "tiers": {
+			1: {"width": 2.72, "depth": 1.66, "height": 0.94, "center_z": -0.62, "front_z": 0.22, "wing": 0, "glass": false, "signature": false, "roof": "gabled", "awning": "stripe"},
+			2: {"width": 3.16, "depth": 1.9, "height": 1.04, "center_z": -0.7, "front_z": 0.3, "wing": 1, "glass": true, "signature": false, "roof": "gabled", "awning": "stripe"},
+			3: {"width": 3.56, "depth": 2.14, "height": 1.14, "center_z": -0.78, "front_z": 0.38, "wing": 1, "glass": true, "signature": true, "roof": "gabled", "awning": "stripe"},
+			4: {"width": 3.9, "depth": 2.34, "height": 1.24, "center_z": -0.84, "front_z": 0.44, "wing": 2, "glass": true, "signature": true, "roof": "gabled", "awning": "stripe"},
+		}},
+	},
+	BUILD_TOOL_RESTAURANT: {
+		"diner": {"variant_name": "Diner", "style_notes": "compact diner, bright awning, nostalgic sign", "wall_color": "f7d9bf", "roof_color": "c96b5f", "trim_color": "fff4df", "accent_color": "ffc064", "tiers": {
+			1: {"width": 2.34, "depth": 1.42, "height": 0.92, "center_z": -0.52, "front_z": 0.22, "wing": 0, "upper": false, "signature": false, "roof": "flat", "awning": "stripe"},
+			2: {"width": 2.72, "depth": 1.62, "height": 1.0, "center_z": -0.6, "front_z": 0.3, "wing": 0, "upper": false, "signature": false, "roof": "flat", "awning": "stripe"},
+			3: {"width": 3.08, "depth": 1.86, "height": 1.08, "center_z": -0.68, "front_z": 0.36, "wing": 1, "upper": false, "signature": true, "roof": "flat", "awning": "stripe"},
+			4: {"width": 3.38, "depth": 2.0, "height": 1.16, "center_z": -0.74, "front_z": 0.42, "wing": 2, "upper": false, "signature": true, "roof": "flat", "awning": "stripe"},
+		}},
+		"cafe_bistro": {"variant_name": "Cafe Bistro", "style_notes": "small cafe facade, patio tables, delicate trim", "wall_color": "ffe4d2", "roof_color": "d77758", "trim_color": "fff4df", "accent_color": "65d8c0", "tiers": {
+			1: {"width": 2.24, "depth": 1.48, "height": 0.96, "center_z": -0.54, "front_z": 0.24, "wing": 0, "upper": false, "signature": false, "roof": "gabled", "awning": "round"},
+			2: {"width": 2.68, "depth": 1.7, "height": 1.04, "center_z": -0.62, "front_z": 0.32, "wing": 1, "upper": false, "signature": false, "roof": "gabled", "awning": "round"},
+			3: {"width": 3.02, "depth": 1.94, "height": 1.14, "center_z": -0.7, "front_z": 0.38, "wing": 1, "upper": false, "signature": true, "roof": "gabled", "awning": "round"},
+			4: {"width": 3.3, "depth": 2.08, "height": 1.22, "center_z": -0.76, "front_z": 0.44, "wing": 2, "upper": true, "signature": true, "roof": "gabled", "awning": "round"},
+		}},
+		"family_restaurant": {"variant_name": "Family Restaurant", "style_notes": "wider family dining building, warm roof, larger sign", "wall_color": "f3ddc8", "roof_color": "b85b4f", "trim_color": "fff4df", "accent_color": "f2b35f", "tiers": {
+			1: {"width": 2.62, "depth": 1.54, "height": 0.96, "center_z": -0.56, "front_z": 0.26, "wing": 0, "upper": false, "signature": false, "roof": "gabled", "awning": "bold"},
+			2: {"width": 3.08, "depth": 1.8, "height": 1.06, "center_z": -0.66, "front_z": 0.34, "wing": 1, "upper": false, "signature": false, "roof": "gabled", "awning": "bold"},
+			3: {"width": 3.42, "depth": 2.02, "height": 1.18, "center_z": -0.74, "front_z": 0.4, "wing": 2, "upper": false, "signature": true, "roof": "gabled", "awning": "bold"},
+			4: {"width": 3.72, "depth": 2.18, "height": 1.28, "center_z": -0.82, "front_z": 0.46, "wing": 2, "upper": true, "signature": true, "roof": "gabled", "awning": "bold"},
+		}},
+		"upscale_patio_restaurant": {"variant_name": "Upscale Patio Restaurant", "style_notes": "premium patio, elegant entry, stronger facade depth", "wall_color": "ead8c9", "roof_color": "d96f4f", "trim_color": "fff4df", "accent_color": "ef7178", "tiers": {
+			1: {"width": 2.5, "depth": 1.56, "height": 1.02, "center_z": -0.58, "front_z": 0.28, "wing": 0, "upper": false, "signature": false, "roof": "shed", "awning": "round"},
+			2: {"width": 2.96, "depth": 1.82, "height": 1.12, "center_z": -0.68, "front_z": 0.36, "wing": 1, "upper": false, "signature": true, "roof": "shed", "awning": "round"},
+			3: {"width": 3.34, "depth": 2.06, "height": 1.24, "center_z": -0.76, "front_z": 0.42, "wing": 2, "upper": false, "signature": true, "roof": "shed", "awning": "round"},
+			4: {"width": 3.66, "depth": 2.24, "height": 1.34, "center_z": -0.84, "front_z": 0.48, "wing": 2, "upper": true, "signature": true, "roof": "shed", "awning": "round"},
+		}},
+	},
+	BUILD_TOOL_CORNER_STORE: {
+		"small_quick_mart": {"variant_name": "Small Quick Mart", "style_notes": "compact convenience store, simple blue sign", "wall_color": "f2e8d8", "roof_color": "557da1", "trim_color": "fff4df", "accent_color": "86b4f4", "tiers": {
+			1: {"width": 2.18, "depth": 1.42, "height": 0.9, "center_z": -0.56, "front_z": 0.2, "wing": 0, "glass": false, "upper": false, "signature": false, "roof": "flat", "awning": "bold"},
+			2: {"width": 2.56, "depth": 1.62, "height": 1.0, "center_z": -0.64, "front_z": 0.28, "wing": 1, "glass": false, "upper": false, "signature": false, "roof": "flat", "awning": "bold"},
+			3: {"width": 2.9, "depth": 1.82, "height": 1.08, "center_z": -0.7, "front_z": 0.34, "wing": 2, "glass": true, "upper": false, "signature": true, "roof": "flat", "awning": "bold"},
+			4: {"width": 3.22, "depth": 1.98, "height": 1.18, "center_z": -0.76, "front_z": 0.38, "wing": 2, "glass": true, "upper": true, "signature": true, "roof": "flat", "awning": "bold"},
+		}},
+		"convenience_store_no_pumps": {"variant_name": "Convenience Store Without Pumps", "style_notes": "gas-station-style canopy language without pumps", "wall_color": "e8edf0", "roof_color": "4f76a0", "trim_color": "fff4df", "accent_color": "70d5bd", "tiers": {
+			1: {"width": 2.32, "depth": 1.44, "height": 0.9, "center_z": -0.56, "front_z": 0.2, "wing": 0, "glass": true, "upper": false, "signature": false, "roof": "flat", "awning": "canopy"},
+			2: {"width": 2.76, "depth": 1.64, "height": 1.0, "center_z": -0.64, "front_z": 0.28, "wing": 1, "glass": true, "upper": false, "signature": false, "roof": "flat", "awning": "canopy"},
+			3: {"width": 3.1, "depth": 1.86, "height": 1.1, "center_z": -0.72, "front_z": 0.36, "wing": 1, "glass": true, "upper": false, "signature": true, "roof": "flat", "awning": "canopy"},
+			4: {"width": 3.42, "depth": 2.04, "height": 1.2, "center_z": -0.78, "front_z": 0.42, "wing": 2, "glass": true, "upper": true, "signature": true, "roof": "flat", "awning": "canopy"},
+		}},
+		"urban_corner_shop": {"variant_name": "Urban Corner Shop", "style_notes": "street-corner storefront, poster windows, compact footprint", "wall_color": "fdebd7", "roof_color": "66839a", "trim_color": "f8e7c7", "accent_color": "f8d85f", "tiers": {
+			1: {"width": 2.06, "depth": 1.36, "height": 1.0, "center_z": -0.54, "front_z": 0.2, "wing": 0, "glass": false, "upper": false, "signature": false, "roof": "gabled", "awning": "stripe"},
+			2: {"width": 2.42, "depth": 1.58, "height": 1.08, "center_z": -0.62, "front_z": 0.28, "wing": 1, "glass": false, "upper": false, "signature": false, "roof": "gabled", "awning": "stripe"},
+			3: {"width": 2.78, "depth": 1.8, "height": 1.18, "center_z": -0.7, "front_z": 0.34, "wing": 1, "glass": true, "upper": true, "signature": true, "roof": "gabled", "awning": "stripe"},
+			4: {"width": 3.08, "depth": 1.96, "height": 1.28, "center_z": -0.76, "front_z": 0.4, "wing": 2, "glass": true, "upper": true, "signature": true, "roof": "gabled", "awning": "stripe"},
+		}},
+		"modern_mini_mart": {"variant_name": "Modern Mini-Mart", "style_notes": "clean modern mini-mart, larger glass, strong blue branding", "wall_color": "e7dfc4", "roof_color": "416d96", "trim_color": "fff4df", "accent_color": "df675f", "tiers": {
+			1: {"width": 2.3, "depth": 1.46, "height": 0.94, "center_z": -0.58, "front_z": 0.22, "wing": 0, "glass": true, "upper": false, "signature": false, "roof": "shed", "awning": "round"},
+			2: {"width": 2.74, "depth": 1.68, "height": 1.04, "center_z": -0.66, "front_z": 0.3, "wing": 1, "glass": true, "upper": false, "signature": false, "roof": "shed", "awning": "round"},
+			3: {"width": 3.12, "depth": 1.9, "height": 1.14, "center_z": -0.74, "front_z": 0.36, "wing": 2, "glass": true, "upper": false, "signature": true, "roof": "shed", "awning": "round"},
+			4: {"width": 3.46, "depth": 2.08, "height": 1.24, "center_z": -0.82, "front_z": 0.42, "wing": 2, "glass": true, "upper": true, "signature": true, "roof": "shed", "awning": "round"},
+		}},
+	},
+}
+const PROPERTY_VARIANT_ORDER := {
+	BUILD_TOOL_HOUSE: ["suburban_cottage", "modern_boxy_house", "farmhouse_style", "compact_townhome"],
+	BUILD_TOOL_FIRE: ["classic_brick_station", "modern_civic_station", "volunteer_station", "industrial_emergency_station"],
+	BUILD_TOOL_BANK: ["traditional_column_bank", "modern_glass_bank", "small_town_brick_bank", "premium_financial_center"],
+	BUILD_TOOL_GROCERY: ["local_market", "green_supermarket", "warehouse_grocery", "organic_market"],
+	BUILD_TOOL_RESTAURANT: ["diner", "cafe_bistro", "family_restaurant", "upscale_patio_restaurant"],
+	BUILD_TOOL_CORNER_STORE: ["small_quick_mart", "convenience_store_no_pumps", "urban_corner_shop", "modern_mini_mart"],
+}
+const PROPERTY_VARIANT_ARCHITECTURE_VERSION := 2
 const COMMERCIAL_TIER_ARCHITECTURE := {
 	BUILD_TOOL_FIRE: {
 		1: {"width": 2.58, "depth": 1.72, "height": 1.04, "center_z": -0.64, "front_z": 0.28, "bays": 1, "columns": 0, "upper": false, "tower": false, "wing": 0, "sign": "fire", "roof": "flat"},
@@ -1406,12 +1589,13 @@ func _try_place_hovered_tile() -> void:
 	var placed: Node3D
 	var tier := 1
 	var variant := _next_variant_for_tool(_build_tool)
+	var variant_id := _property_variant_id_for_seed(_build_tool, variant)
 	var frontage_side := _hover_frontage_side
-	placed = _spawn_building_for_tool(_build_tool, world, _tool_rotation_y(_build_tool, _hover_anchor, footprint, frontage_side), tier, variant)
+	placed = _spawn_building_for_tool(_build_tool, world, _tool_rotation_y(_build_tool, _hover_anchor, footprint, frontage_side), tier, variant, variant_id)
 
 	_clear_nature_for_cells(_hover_cells)
 	_money -= cost
-	_register_placement(_hover_anchor, _hover_cells, _build_tool, placed, cost, tier, variant, frontage_side)
+	_register_placement(_hover_anchor, _hover_cells, _build_tool, placed, cost, tier, variant, frontage_side, variant_id)
 	_recalculate_cashflow()
 	_rebuild_ambient_life()
 	_update_hover_from_mouse()
@@ -1432,6 +1616,83 @@ func _next_variant_for_tool(tool: String) -> int:
 	var next_variant := int(_variant_cycle.get(tool, 0))
 	_variant_cycle[tool] = posmod(next_variant + 1, 10)
 	return next_variant
+
+
+func _property_variant_ids(tool: String) -> Array:
+	if PROPERTY_VARIANT_ORDER.has(tool):
+		return (PROPERTY_VARIANT_ORDER[tool] as Array).duplicate()
+	if not PROPERTY_VARIANTS.has(tool):
+		return []
+	var ids := (PROPERTY_VARIANTS[tool] as Dictionary).keys()
+	ids.sort()
+	return ids
+
+
+func _property_variant_config(tool: String, variant_id: String) -> Dictionary:
+	if variant_id == "" or not PROPERTY_VARIANTS.has(tool):
+		return {}
+	var variants: Dictionary = PROPERTY_VARIANTS[tool]
+	return variants.get(variant_id, {})
+
+
+func _property_variant_display_name(tool: String, variant_id: String) -> String:
+	var config := _property_variant_config(tool, variant_id)
+	if config.is_empty():
+		return ""
+	return str(config.get("variant_name", variant_id.capitalize()))
+
+
+func _property_variant_id_for_seed(tool: String, variant_seed: int) -> String:
+	var ids := _property_variant_ids(tool)
+	if ids.is_empty():
+		return ""
+	return str(ids[posmod(maxi(0, variant_seed), ids.size())])
+
+
+func _resolve_property_variant_id(tool: String, variant_seed: int, requested_variant_id: String = "") -> String:
+	if not _property_variant_config(tool, requested_variant_id).is_empty():
+		return requested_variant_id
+	return _property_variant_id_for_seed(tool, variant_seed)
+
+
+func _legacy_variant_seed_for_loaded_placement(tool: String, anchor: Vector2i, saved_variant_seed: int) -> int:
+	var ids := _property_variant_ids(tool)
+	if ids.is_empty():
+		return saved_variant_seed
+	var base_seed := maxi(0, saved_variant_seed)
+	var anchor_mix := absi(anchor.x * 31 + anchor.y * 17 + tool.length() * 7)
+	return posmod(base_seed + anchor_mix, ids.size())
+
+
+func _property_visual_tier(tier: int) -> int:
+	return clamp(tier, 1, 4)
+
+
+func _property_variant_tier_config(tool: String, variant_id: String, tier: int) -> Dictionary:
+	var config := _property_variant_config(tool, variant_id)
+	if config.is_empty():
+		return {}
+	var tiers: Dictionary = config.get("tiers", {})
+	var visual_tier := _property_visual_tier(tier)
+	return tiers.get(visual_tier, {}).duplicate(true)
+
+
+func _palette_for_property_variant(tool: String, variant_seed: int, variant_id: String) -> Dictionary:
+	var palette := _cozy_palette(tool, variant_seed)
+	var config := _property_variant_config(tool, variant_id)
+	if config.is_empty():
+		return palette
+	for key in [
+		["wall_color", "wall"],
+		["roof_color", "roof"],
+		["trim_color", "trim"],
+		["accent_color", "accent"],
+	]:
+		var config_key := str(key[0])
+		var palette_key := str(key[1])
+		if config.has(config_key):
+			palette[palette_key] = Color(str(config[config_key]))
+	return palette
 
 
 func _tool_footprint(tool: String) -> Vector2i:
@@ -1710,10 +1971,14 @@ func _mark_cells(cells: Array[Vector2i], tool: String, node: Node3D) -> void:
 		_placed_nodes[key] = node
 
 
-func _register_placement(anchor: Vector2i, cells: Array[Vector2i], tool: String, node: Node3D, cost: int, tier: int = 1, variant: int = -1, frontage_side: String = "") -> void:
+func _register_placement(anchor: Vector2i, cells: Array[Vector2i], tool: String, node: Node3D, cost: int, tier: int = 1, variant: int = -1, frontage_side: String = "", variant_id: String = "") -> void:
 	var anchor_key := _cell_key(anchor)
-	_upgrade_debug("register placement anchor=%s tool=%s tier=%d variant=%d frontage=%s cost=%d cells=%s node=%s" % [
-		anchor_key, tool, tier, variant, frontage_side, cost, str(cells), str(node)
+	var resolved_variant_id := _resolve_property_variant_id(tool, variant, variant_id)
+	if is_instance_valid(node):
+		node.set_meta("variant_id", resolved_variant_id)
+		node.set_meta("variant_architecture_version", PROPERTY_VARIANT_ARCHITECTURE_VERSION)
+	_upgrade_debug("register placement anchor=%s tool=%s tier=%d variant=%d variant_id=%s frontage=%s cost=%d cells=%s node=%s" % [
+		anchor_key, tool, tier, variant, resolved_variant_id, frontage_side, cost, str(cells), str(node)
 	])
 	_placements[anchor_key] = {
 		"anchor": anchor,
@@ -1723,6 +1988,8 @@ func _register_placement(anchor: Vector2i, cells: Array[Vector2i], tool: String,
 		"cost": cost,
 		"tier": tier,
 		"variant": variant,
+		"variant_id": resolved_variant_id,
+		"variant_architecture_version": PROPERTY_VARIANT_ARCHITECTURE_VERSION,
 		"frontage_side": frontage_side,
 	}
 	for cell in cells:
@@ -1738,6 +2005,7 @@ func _register_placement(anchor: Vector2i, cells: Array[Vector2i], tool: String,
 		"type": "place",
 		"anchor_key": anchor_key,
 		"money": cost,
+		"variant_id": resolved_variant_id,
 		"frontage_side": frontage_side,
 	})
 	_set_selected_anchor(anchor_key)
@@ -1839,13 +2107,15 @@ func _placement_debug_string(placement: Dictionary) -> String:
 	var tier: int = int(placement.get("tier", 1))
 	var cost: int = int(placement.get("cost", 0))
 	var variant: int = int(placement.get("variant", -1))
+	var variant_id: String = str(placement.get("variant_id", ""))
 	var frontage_side: String = str(placement.get("frontage_side", ""))
-	return "anchor=%s tool=%s tier=%d cost=%d variant=%d frontage=%s" % [
+	return "anchor=%s tool=%s tier=%d cost=%d variant=%d variant_id=%s frontage=%s" % [
 		str(anchor),
 		tool,
 		tier,
 		cost,
 		variant,
+		variant_id,
 		frontage_side,
 	]
 
@@ -1919,6 +2189,7 @@ func _upgrade_selected_property() -> void:
 	var anchor: Vector2i = placement["anchor"]
 	var cells: Array[Vector2i] = placement["cells"]
 	var variant := int(placement.get("variant", -1))
+	var variant_id := _resolve_property_variant_id(tool, variant, str(placement.get("variant_id", "")))
 	var frontage_side := str(placement.get("frontage_side", ""))
 	var base_cost := int(placement["cost"])
 	var next_tier := current_tier + 1
@@ -1933,16 +2204,17 @@ func _upgrade_selected_property() -> void:
 		var before_global := existing_node.global_position
 		var before_rotation := existing_node.global_rotation_degrees
 		if tool == BUILD_TOOL_HOUSE:
-			_rebuild_house_visuals_in_place(existing_node, next_tier, variant)
+			_rebuild_house_visuals_in_place(existing_node, next_tier, variant, variant_id)
 		elif tool == BUILD_TOOL_FIRE:
-			_rebuild_fire_visuals_in_place(existing_node, next_tier, variant)
+			_rebuild_fire_visuals_in_place(existing_node, next_tier, variant, variant_id)
 		else:
-			_rebuild_service_visuals_in_place(existing_node, tool, next_tier, variant)
+			_rebuild_service_visuals_in_place(existing_node, tool, next_tier, variant, variant_id)
 		var after_global := existing_node.global_position
 		var after_rotation := existing_node.global_rotation_degrees
 		placement["node"] = existing_node
 		placement["tier"] = next_tier
 		placement["variant"] = variant
+		placement["variant_id"] = variant_id
 		placement["frontage_side"] = frontage_side
 		_placements[anchor_key] = placement
 		print("[%s UPGRADE VERIFY] anchor=%s before_pos=%s after_pos=%s before_rot=%s after_rot=%s identical_pos=%s identical_rot=%s" % [
@@ -1967,9 +2239,9 @@ func _upgrade_selected_property() -> void:
 			_selected_anchor_key,
 			str(_placements.has(anchor_key))
 		])
-		var node := _spawn_building_for_tool(tool, _anchor_to_world(anchor, _footprint_from_cells(cells)), _tool_rotation_y(tool, anchor, _footprint_from_cells(cells), frontage_side), next_tier, variant)
+		var node := _spawn_building_for_tool(tool, _anchor_to_world(anchor, _footprint_from_cells(cells)), _tool_rotation_y(tool, anchor, _footprint_from_cells(cells), frontage_side), next_tier, variant, variant_id)
 		_upgrade_debug("upgrade spawned node=%s next_tier=%d" % [str(node), next_tier])
-		_register_placement(anchor, cells, tool, node, base_cost, next_tier, variant, frontage_side)
+		_register_placement(anchor, cells, tool, node, base_cost, next_tier, variant, frontage_side, variant_id)
 		_upgrade_debug("upgrade registered placement anchor=%s selected_now=%s placement=%s" % [
 			anchor_key,
 			_selected_anchor_key,
@@ -1987,6 +2259,7 @@ func _upgrade_selected_property() -> void:
 		"cost": upgrade_cost,
 		"base_cost": base_cost,
 		"variant": variant,
+		"variant_id": variant_id,
 		"frontage_side": frontage_side,
 	})
 	_upgrade_debug("upgrade action recorded from=%d to=%d cost=%d base_cost=%d" % [current_tier, next_tier, upgrade_cost, base_cost])
@@ -2023,12 +2296,17 @@ func _selection_text() -> String:
 	var road_status := "Road Access: yes" if _cells_touch_road(cells) else "Road Access: no"
 	var tool := str(placement["tool"])
 	var tier := int(placement.get("tier", 1))
+	var variant_id := _resolve_property_variant_id(tool, int(placement.get("variant", -1)), str(placement.get("variant_id", "")))
+	var variant_name := _property_variant_display_name(tool, variant_id)
 	var max_tier: int = PropertyUpgradeData.max_tier(tool)
 	var upgrade_text := "Upgrade: maxed"
 	if tier < max_tier:
 		upgrade_text = "Upgrade: $%d" % _selected_upgrade_cost()
+	var display_name := _tool_name(tool)
+	if variant_name != "":
+		display_name = "%s (%s)" % [display_name, variant_name]
 	return "Selection: %s  |  Tier: %d/%d  |  Footprint: %dx%d  |  Build Cost: $%d  |  %s  |  %s" % [
-		_tool_name(tool),
+		display_name,
 		tier,
 		max_tier,
 		footprint.x,
@@ -2145,6 +2423,8 @@ func _remove_selected_placement(refund: bool, record_action: bool = true) -> voi
 			"refund": refund_amount,
 			"tier": int(placement.get("tier", 1)),
 			"variant": int(placement.get("variant", -1)),
+			"variant_id": str(placement.get("variant_id", "")),
+			"variant_architecture_version": int(placement.get("variant_architecture_version", PROPERTY_VARIANT_ARCHITECTURE_VERSION)),
 			"frontage_side": str(placement.get("frontage_side", "")),
 		})
 	if tool == BUILD_TOOL_ROAD:
@@ -2240,9 +2520,10 @@ func _undo_last_action() -> void:
 		else:
 			var tier := int(action.get("tier", 1))
 			var variant := int(action.get("variant", -1))
+			var variant_id := _resolve_property_variant_id(str(action["tool"]), variant, str(action.get("variant_id", "")))
 			var frontage_side := str(action.get("frontage_side", ""))
-			var node := _spawn_building_for_tool(action["tool"], _anchor_to_world(anchor, _footprint_from_cells(cells)), _tool_rotation_y(action["tool"], anchor, _footprint_from_cells(cells), frontage_side), tier, variant)
-			_register_placement(anchor, cells, action["tool"], node, int(action["cost"]), tier, variant, frontage_side)
+			var node := _spawn_building_for_tool(action["tool"], _anchor_to_world(anchor, _footprint_from_cells(cells)), _tool_rotation_y(action["tool"], anchor, _footprint_from_cells(cells), frontage_side), tier, variant, variant_id)
+			_register_placement(anchor, cells, action["tool"], node, int(action["cost"]), tier, variant, frontage_side, variant_id)
 	elif action["type"] == "upgrade":
 		_money += int(action["cost"])
 		var anchor_key := str(action["anchor_key"])
@@ -2251,26 +2532,28 @@ func _undo_last_action() -> void:
 			var placement: Dictionary = _placements[anchor_key]
 			var tool := str(placement["tool"])
 			var variant := int(placement.get("variant", -1))
+			var variant_id := _resolve_property_variant_id(tool, variant, str(placement.get("variant_id", action.get("variant_id", ""))))
 			var frontage_side := str(placement.get("frontage_side", ""))
 			var from_tier := int(action.get("from_tier", 1))
 			if (tool == BUILD_TOOL_HOUSE or tool == BUILD_TOOL_FIRE or tool == BUILD_TOOL_BANK or tool == BUILD_TOOL_GROCERY or tool == BUILD_TOOL_RESTAURANT or tool == BUILD_TOOL_CORNER_STORE) and is_instance_valid(placement.get("node") as Node3D):
 				var node := placement.get("node") as Node3D
 				if tool == BUILD_TOOL_HOUSE:
-					_rebuild_house_visuals_in_place(node, from_tier, variant)
+					_rebuild_house_visuals_in_place(node, from_tier, variant, variant_id)
 				elif tool == BUILD_TOOL_FIRE:
-					_rebuild_fire_visuals_in_place(node, from_tier, variant)
+					_rebuild_fire_visuals_in_place(node, from_tier, variant, variant_id)
 				else:
-					_rebuild_service_visuals_in_place(node, tool, from_tier, variant)
+					_rebuild_service_visuals_in_place(node, tool, from_tier, variant, variant_id)
 				placement["tier"] = from_tier
 				placement["variant"] = variant
+				placement["variant_id"] = variant_id
 				placement["frontage_side"] = frontage_side
 				_placements[anchor_key] = placement
 			else:
 				var anchor: Vector2i = placement["anchor"]
 				var cells: Array[Vector2i] = placement["cells"]
 				_remove_selected_placement(false, false)
-				var node := _spawn_building_for_tool(tool, _anchor_to_world(anchor, _footprint_from_cells(cells)), _tool_rotation_y(tool, anchor, _footprint_from_cells(cells), frontage_side), from_tier, variant)
-				_register_placement(anchor, cells, tool, node, int(action.get("base_cost", placement.get("cost", 0))), from_tier, variant, frontage_side)
+				var node := _spawn_building_for_tool(tool, _anchor_to_world(anchor, _footprint_from_cells(cells)), _tool_rotation_y(tool, anchor, _footprint_from_cells(cells), frontage_side), from_tier, variant, variant_id)
+				_register_placement(anchor, cells, tool, node, int(action.get("base_cost", placement.get("cost", 0))), from_tier, variant, frontage_side, variant_id)
 		if not _action_history.is_empty():
 			_action_history.pop_back()
 	_recalculate_cashflow()
@@ -2389,11 +2672,12 @@ func _spawn_generic_building_preview(tool: String) -> Node3D:
 	return root
 
 
-func _spawn_building_for_tool(tool: String, world_position: Vector3, rotation_y: float, tier: int = 1, variant: int = -1) -> Node3D:
+func _spawn_building_for_tool(tool: String, world_position: Vector3, rotation_y: float, tier: int = 1, variant: int = -1, variant_id: String = "") -> Node3D:
 	if variant < 0:
 		variant = randi() % 10
+	var resolved_variant_id := _resolve_property_variant_id(tool, variant, variant_id)
 	tier = clamp(tier, 1, PropertyUpgradeData.max_tier(tool))
-	_upgrade_debug("spawn building tool=%s tier=%d variant=%d world=%s rot=%.2f" % [tool, tier, variant, str(world_position), rotation_y])
+	_upgrade_debug("spawn building tool=%s tier=%d variant=%d variant_id=%s world=%s rot=%.2f" % [tool, tier, variant, resolved_variant_id, str(world_position), rotation_y])
 	var node: Node3D
 	match tool:
 		BUILD_TOOL_HOUSE:
@@ -2429,10 +2713,11 @@ func _spawn_building_for_tool(tool: String, world_position: Vector3, rotation_y:
 			var structure_root := _property_structure_root(node)
 			structure_root.translate_object_local(Vector3(0.0, 0.0, -setback))
 		_upgrade_debug("spawn building tool=%s applied lot_setback=%.2f structure_setback=%.2f" % [tool, lot_setback, setback])
-	_apply_property_tier_visuals(node, tool, tier, variant)
+	_apply_property_tier_visuals(node, tool, tier, variant, resolved_variant_id)
 	node.set_meta("tier", tier)
 	node.set_meta("variant", variant)
-	_upgrade_debug("spawn building complete node=%s tier_meta=%d variant_meta=%d" % [str(node), int(node.get_meta("tier", -1)), int(node.get_meta("variant", -1))])
+	node.set_meta("variant_id", resolved_variant_id)
+	_upgrade_debug("spawn building complete node=%s tier_meta=%d variant_meta=%d variant_id_meta=%s" % [str(node), int(node.get_meta("tier", -1)), int(node.get_meta("variant", -1)), str(node.get_meta("variant_id", ""))])
 	return node
 
 
@@ -3139,24 +3424,28 @@ func _clear_property_building_visuals(root: Node3D) -> void:
 		child.free()
 
 
-func _rebuild_house_visuals_in_place(root: Node3D, tier: int, variant: int) -> void:
+func _rebuild_house_visuals_in_place(root: Node3D, tier: int, variant: int, variant_id: String = "") -> void:
 	_clear_property_building_visuals(root)
 	var lot_root := _property_lot_root(root)
 	var structure_root := _property_structure_root(root)
 	_populate_village_house_variant(root, lot_root, structure_root, variant, false)
-	_apply_property_tier_visuals(root, BUILD_TOOL_HOUSE, tier, variant)
+	var resolved_variant_id := _resolve_property_variant_id(BUILD_TOOL_HOUSE, variant, variant_id)
+	_apply_property_tier_visuals(root, BUILD_TOOL_HOUSE, tier, variant, resolved_variant_id)
 	root.set_meta("tier", tier)
 	root.set_meta("variant", variant)
+	root.set_meta("variant_id", resolved_variant_id)
 
 
-func _rebuild_fire_visuals_in_place(root: Node3D, tier: int, variant: int) -> void:
+func _rebuild_fire_visuals_in_place(root: Node3D, tier: int, variant: int, variant_id: String = "") -> void:
 	_clear_property_building_visuals(root)
 	var lot_root := _property_lot_root(root)
 	var structure_root := _property_structure_root(root)
 	_populate_fire_station_variant(root, lot_root, structure_root, variant, false)
-	_apply_property_tier_visuals(root, BUILD_TOOL_FIRE, tier, variant)
+	var resolved_variant_id := _resolve_property_variant_id(BUILD_TOOL_FIRE, variant, variant_id)
+	_apply_property_tier_visuals(root, BUILD_TOOL_FIRE, tier, variant, resolved_variant_id)
 	root.set_meta("tier", tier)
 	root.set_meta("variant", variant)
+	root.set_meta("variant_id", resolved_variant_id)
 
 
 func _populate_service_variant(tool: String, root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int, rebuild_lot_layout: bool = true) -> void:
@@ -3173,16 +3462,18 @@ func _populate_service_variant(tool: String, root: Node3D, lot_root: Node3D, str
 			pass
 
 
-func _rebuild_service_visuals_in_place(root: Node3D, tool: String, tier: int, variant: int) -> void:
+func _rebuild_service_visuals_in_place(root: Node3D, tool: String, tier: int, variant: int, variant_id: String = "") -> void:
 	var before_global := root.global_position
 	var before_rotation := root.global_rotation_degrees
 	_clear_property_building_visuals(root)
 	var lot_root := _property_lot_root(root)
 	var structure_root := _property_structure_root(root)
 	_populate_service_variant(tool, root, lot_root, structure_root, variant, false)
-	_apply_property_tier_visuals(root, tool, tier, variant)
+	var resolved_variant_id := _resolve_property_variant_id(tool, variant, variant_id)
+	_apply_property_tier_visuals(root, tool, tier, variant, resolved_variant_id)
 	root.set_meta("tier", tier)
 	root.set_meta("variant", variant)
+	root.set_meta("variant_id", resolved_variant_id)
 	var after_global := root.global_position
 	var after_rotation := root.global_rotation_degrees
 	print("[%s UPGRADE VERIFY] before_pos=%s after_pos=%s before_rot=%s after_rot=%s identical_pos=%s identical_rot=%s" % [
@@ -3283,6 +3574,7 @@ func _save_game() -> void:
 			"cost": int(placement["cost"]),
 			"tier": int(placement.get("tier", 1)),
 			"variant": int(placement.get("variant", -1)),
+			"variant_id": str(placement.get("variant_id", "")),
 			"frontage_side": str(placement.get("frontage_side", "")),
 		})
 	save_data["placements"] = placement_list
@@ -3358,9 +3650,15 @@ func _try_load_game(force_feedback: bool = false) -> void:
 			var cells := _cells_for_anchor(anchor, footprint)
 			var tier := int(entry.get("tier", 1))
 			var variant := int(entry.get("variant", randi() % 10))
+			var saved_variant_id := str(entry.get("variant_id", ""))
+			var variant_architecture_version := int(entry.get("variant_architecture_version", 0))
+			if variant_architecture_version < PROPERTY_VARIANT_ARCHITECTURE_VERSION and not _property_variant_ids(tool).is_empty():
+				variant = _legacy_variant_seed_for_loaded_placement(tool, anchor, variant)
+				saved_variant_id = ""
+			var variant_id := _resolve_property_variant_id(tool, variant, saved_variant_id)
 			var frontage_side := str(entry.get("frontage_side", _preferred_frontage_side(tool, anchor, footprint)))
-			var node := _spawn_building_for_tool(tool, _anchor_to_world(anchor, footprint), _tool_rotation_y(tool, anchor, footprint, frontage_side), tier, variant)
-			_register_placement(anchor, cells, tool, node, int(entry.get("cost", BUILD_TOOL_COSTS.get(tool, 0))), tier, variant, frontage_side)
+			var node := _spawn_building_for_tool(tool, _anchor_to_world(anchor, footprint), _tool_rotation_y(tool, anchor, footprint, frontage_side), tier, variant, variant_id)
+			_register_placement(anchor, cells, tool, node, int(entry.get("cost", BUILD_TOOL_COSTS.get(tool, 0))), tier, variant, frontage_side, variant_id)
 			if not _action_history.is_empty():
 				_action_history.pop_back()
 	for road_key in _road_cells.keys():
@@ -5159,9 +5457,11 @@ func _add_park_variant(position_3d: Vector3, variant: int) -> Node3D:
 	return root
 
 
-func _apply_property_tier_visuals(root: Node3D, tool: String, tier: int, variant: int) -> void:
+func _apply_property_tier_visuals(root: Node3D, tool: String, tier: int, variant: int, variant_id: String = "") -> void:
 	tier = clamp(tier, 1, PropertyUpgradeData.max_tier(tool))
-	_upgrade_debug("apply tier visuals tool=%s tier=%d variant=%d root=%s" % [tool, tier, variant, str(root)])
+	var resolved_variant_id := _resolve_property_variant_id(tool, variant, variant_id)
+	root.set_meta("variant_id", resolved_variant_id)
+	_upgrade_debug("apply tier visuals tool=%s tier=%d variant=%d variant_id=%s root=%s" % [tool, tier, variant, resolved_variant_id, str(root)])
 	if tier <= 1 and not _is_commercial_property_tool(tool):
 		_upgrade_debug("apply tier visuals skipped (base tier)")
 		return
@@ -5172,7 +5472,7 @@ func _apply_property_tier_visuals(root: Node3D, tool: String, tier: int, variant
 		BUILD_TOOL_HOUSE:
 			_apply_house_tier_visuals(root, tier, variant, profile)
 		BUILD_TOOL_FIRE, BUILD_TOOL_BANK, BUILD_TOOL_GROCERY, BUILD_TOOL_RESTAURANT, BUILD_TOOL_CORNER_STORE:
-			_apply_service_tier_visuals(root, tool, tier, variant, profile)
+			_apply_service_tier_visuals(root, tool, tier, variant, profile, resolved_variant_id)
 		BUILD_TOOL_PARK:
 			_apply_park_tier_visuals(root, tier, variant, profile)
 
@@ -5280,19 +5580,31 @@ func _clear_visual_children(parent: Node) -> void:
 		child.free()
 
 
-func _commercial_tier_architecture(tool: String, tier: int) -> Dictionary:
+func _commercial_tier_architecture(tool: String, tier: int, variant_id: String = "") -> Dictionary:
+	var variant_tier := _property_variant_tier_config(tool, variant_id, tier)
+	if not variant_tier.is_empty():
+		var variant_profile := variant_tier.duplicate(true)
+		variant_profile["tier"] = _property_visual_tier(tier)
+		variant_profile["gameplay_tier"] = tier
+		variant_profile["variant_id"] = variant_id
+		variant_profile["variant_config"] = _property_variant_config(tool, variant_id)
+		variant_profile["visual_preset"] = COMMERCIAL_VISUAL_PRESETS.get(tool, {})
+		return variant_profile
 	var tier_map: Dictionary = COMMERCIAL_TIER_ARCHITECTURE.get(tool, {})
 	if tier_map.is_empty():
 		return {}
 	var clamped_tier: int = clamp(tier, 1, 5)
 	var profile: Dictionary = tier_map.get(clamped_tier, tier_map.get(1, {})).duplicate(true)
 	profile["tier"] = clamped_tier
+	profile["gameplay_tier"] = tier
+	profile["variant_id"] = variant_id
 	profile["visual_preset"] = COMMERCIAL_VISUAL_PRESETS.get(tool, {})
 	return profile
 
 
-func _rebuild_commercial_tier_visuals(root: Node3D, tool: String, tier: int, variant: int, palette: Dictionary) -> void:
-	var architecture := _commercial_tier_architecture(tool, tier)
+func _rebuild_commercial_tier_visuals(root: Node3D, tool: String, tier: int, variant: int, palette: Dictionary, variant_id: String = "") -> void:
+	var resolved_variant_id := _resolve_property_variant_id(tool, variant, variant_id)
+	var architecture := _commercial_tier_architecture(tool, tier, resolved_variant_id)
 	if architecture.is_empty():
 		return
 	var building_anchor := _property_building_anchor(root)
@@ -5304,8 +5616,10 @@ func _rebuild_commercial_tier_visuals(root: Node3D, tool: String, tier: int, var
 	_clear_visual_children(signage_root)
 	_clear_visual_children(upgrade_root)
 	_clear_visual_children(dynamic_root)
-	root.set_meta("commercial_architecture_tier", tier)
+	root.set_meta("commercial_architecture_tier", _property_visual_tier(tier) if not _property_variant_config(tool, resolved_variant_id).is_empty() else int(architecture.get("tier", tier)))
+	root.set_meta("commercial_gameplay_tier", tier)
 	root.set_meta("commercial_architecture_profile", architecture)
+	root.set_meta("variant_id", resolved_variant_id)
 	var shadow_width := _commercial_float(architecture, "width", 2.8)
 	var shadow_depth := _commercial_float(architecture, "depth", 1.8)
 	var shadow_z := _commercial_float(architecture, "center_z", -0.6)
@@ -5321,7 +5635,7 @@ func _rebuild_commercial_tier_visuals(root: Node3D, tool: String, tier: int, var
 			_build_restaurant_architecture(main_root, signage_root, upgrade_root, architecture, palette, variant)
 		BUILD_TOOL_CORNER_STORE:
 			_build_corner_store_architecture(main_root, signage_root, upgrade_root, architecture, palette, variant)
-	_add_commercial_dynamic_lot_details(dynamic_root, tool, architecture, palette, tier, variant)
+	_add_commercial_dynamic_lot_details(dynamic_root, tool, architecture, palette, tier, variant, resolved_variant_id)
 
 
 func _commercial_float(profile: Dictionary, key: String, fallback: float) -> float:
@@ -5337,12 +5651,14 @@ func _commercial_bool(profile: Dictionary, key: String) -> bool:
 
 
 func _build_fire_department_architecture(main_root: Node, signage_root: Node, upgrade_root: Node, profile: Dictionary, palette: Dictionary, variant: int) -> void:
+	var variant_id := str(profile.get("variant_id", "classic_brick_station"))
 	var width := _commercial_float(profile, "width", 2.8)
 	var depth := _commercial_float(profile, "depth", 1.8)
 	var height := _commercial_float(profile, "height", 1.0)
 	var center_z := _commercial_float(profile, "center_z", -0.62)
 	var front_z := _commercial_float(profile, "front_z", 0.32)
 	var bays := _commercial_int(profile, "bays", 1)
+	var roof_style := str(profile.get("roof", "flat"))
 	var wall_material := _make_material_from_color(palette["wall"], 0.88)
 	var darker_wall := _make_material_from_color(palette["wall"].darkened(0.08), 0.9)
 	var roof_material := _make_material_from_color(palette["roof"], 0.76)
@@ -5350,7 +5666,7 @@ func _build_fire_department_architecture(main_root: Node, signage_root: Node, up
 	var trim_material := _make_material_from_color(palette["trim"], 0.82)
 	var accent_material := _make_material_from_color(palette["accent"], 0.5)
 	_add_soft_block(Vector3(0.0, height * 0.5 + 0.05, center_z), Vector3(width, height, depth), wall_material, main_root, 0.16)
-	create_modular_roof(main_root, Vector3(0.0, height + 0.2, center_z), Vector3(width + 0.18, 0.18, depth + 0.2), roof_material, "flat")
+	create_modular_roof(main_root, Vector3(0.0, height + 0.2, center_z), Vector3(width + 0.18, 0.18, depth + 0.2), roof_material, roof_style)
 	create_trim_layer(main_root, width, height, front_z, palette, "")
 	var bay_area_width := width * 0.74
 	var bay_width := minf(0.82, bay_area_width / maxf(1.0, float(bays)) * 0.82)
@@ -5362,7 +5678,15 @@ func _build_fire_department_architecture(main_root: Node, signage_root: Node, up
 			_add_box(Vector3(x, slat_y, front_z + 0.09), Vector3(bay_width * 0.84, 0.035, 0.035), trim_material, main_root)
 	_add_restaurant_front_door_local(Vector3(-width * 0.42, 0.0, front_z + 0.06), main_root, palette["accent"])
 	_add_box(Vector3(width * 0.42, 0.68, front_z + 0.06), Vector3(0.28, 0.28, 0.06), _window_material, main_root)
-	create_sign(signage_root, Vector3(0.0, height + 0.42, front_z + 0.12), Vector2(width * 0.46, 0.2), palette["accent"], "fire")
+	if _commercial_bool(profile, "glass"):
+		_add_box(Vector3(-width * 0.36, 0.68, front_z + 0.08), Vector3(width * 0.18, 0.38, 0.055), _make_transparent_material(Color("bfe6ff"), 0.2, 0.22), main_root)
+	if variant_id == "volunteer_station":
+		_add_box(Vector3(0.0, 0.82, front_z + 0.08), Vector3(width * 0.42, 0.08, 0.055), accent_material, main_root)
+	if variant_id == "industrial_emergency_station":
+		_add_box(Vector3(width * 0.48, 0.92, center_z - depth * 0.1), Vector3(0.035, 0.78, 0.035), trim_material, main_root)
+		for rung_y in [0.58, 0.78, 0.98]:
+			_add_box(Vector3(width * 0.48, rung_y, center_z - depth * 0.1), Vector3(0.24, 0.026, 0.026), trim_material, main_root)
+	create_sign(signage_root, Vector3(0.0, height + 0.42, front_z + 0.12), Vector2(width * 0.46, 0.2), palette["accent"], _variant_sign_kind(BUILD_TOOL_FIRE, variant_id))
 	if _commercial_int(profile, "wing", 0) >= 1:
 		_add_soft_block(Vector3(-width * 0.42, 0.52, center_z - depth * 0.42), Vector3(width * 0.34, 0.84, depth * 0.74), darker_wall, upgrade_root, 0.12)
 		_add_box(Vector3(-width * 0.42, 0.62, center_z - depth * 0.08), Vector3(0.28, 0.34, 0.055), _window_material, upgrade_root)
@@ -5388,6 +5712,19 @@ func _build_fire_department_architecture(main_root: Node, signage_root: Node, up
 
 
 func _build_bank_architecture(main_root: Node, signage_root: Node, upgrade_root: Node, profile: Dictionary, palette: Dictionary, variant: int) -> void:
+	var variant_id := str(profile.get("variant_id", _property_variant_id_for_seed(BUILD_TOOL_BANK, variant)))
+	match variant_id:
+		"modern_glass_bank":
+			_build_modern_glass_bank_architecture(main_root, signage_root, upgrade_root, profile, palette, variant)
+		"small_town_brick_bank":
+			_build_small_town_brick_bank_architecture(main_root, signage_root, upgrade_root, profile, palette, variant)
+		"premium_financial_center":
+			_build_premium_financial_center_architecture(main_root, signage_root, upgrade_root, profile, palette, variant)
+		_:
+			_build_traditional_column_bank_architecture(main_root, signage_root, upgrade_root, profile, palette, variant)
+
+
+func _build_traditional_column_bank_architecture(main_root: Node, signage_root: Node, upgrade_root: Node, profile: Dictionary, palette: Dictionary, variant: int) -> void:
 	var width := _commercial_float(profile, "width", 2.6)
 	var depth := _commercial_float(profile, "depth", 1.6)
 	var height := _commercial_float(profile, "height", 1.0)
@@ -5421,23 +5758,138 @@ func _build_bank_architecture(main_root: Node, signage_root: Node, upgrade_root:
 		_add_lantern_glow_local(Vector3(width * 0.48, 0.9, front_z + 0.14), upgrade_root)
 
 
+func _build_modern_glass_bank_architecture(main_root: Node, signage_root: Node, upgrade_root: Node, profile: Dictionary, palette: Dictionary, variant: int) -> void:
+	var width := _commercial_float(profile, "width", 2.8)
+	var depth := _commercial_float(profile, "depth", 1.8)
+	var height := _commercial_float(profile, "height", 1.06)
+	var center_z := _commercial_float(profile, "center_z", -0.64)
+	var front_z := _commercial_float(profile, "front_z", 0.32)
+	var wall_material := _make_material_from_color(palette["wall"], 0.88)
+	var roof_material := _make_material_from_color(palette["roof"], 0.78)
+	var trim_material := _make_material_from_color(palette["trim"], 0.82)
+	var accent_material := _make_material_from_color(palette["accent"], 0.46)
+	var glass_material := _make_transparent_material(Color("bfe6ff"), 0.18, 0.2)
+	_add_soft_block(Vector3(-width * 0.08, height * 0.5 + 0.05, center_z), Vector3(width * 0.86, height, depth), wall_material, main_root, 0.1)
+	_add_soft_block(Vector3(width * 0.36, height * 0.56 + 0.05, center_z + 0.04), Vector3(width * 0.28, height * 1.08, depth * 0.88), glass_material, main_root, 0.06)
+	create_modular_roof(main_root, Vector3(-width * 0.08, height + 0.2, center_z), Vector3(width + 0.26, 0.16, depth + 0.18), roof_material, "flat")
+	_add_box(Vector3(-width * 0.1, 0.7, front_z + 0.08), Vector3(width * 0.72, 0.08, 0.08), accent_material, main_root)
+	create_glass_frontage(main_root, width * 0.82, 0.48, front_z + 0.05, 4)
+	_add_restaurant_front_door_local(Vector3(-width * 0.14, 0.0, front_z + 0.1), main_root, palette["accent"])
+	create_sign(signage_root, Vector3(-width * 0.08, height + 0.38, front_z + 0.14), Vector2(width * 0.42, 0.2), palette["accent"], "bank")
+	if _commercial_int(profile, "wing", 0) >= 1:
+		_add_soft_block(Vector3(-width * 0.44, 0.52, center_z - depth * 0.42), Vector3(width * 0.32, 0.84, depth * 0.62), _make_material_from_color(palette["wall"].darkened(0.04), 0.9), upgrade_root, 0.08)
+		_add_box(Vector3(-width * 0.44, 0.62, center_z - depth * 0.08), Vector3(0.28, 0.34, 0.055), glass_material, upgrade_root)
+	if _commercial_int(profile, "wing", 0) >= 2:
+		_add_soft_block(Vector3(width * 0.12, 0.6, center_z - depth * 0.5), Vector3(width * 0.42, 0.96, depth * 0.58), glass_material, upgrade_root, 0.06)
+		_add_box(Vector3(width * 0.12, 1.14, center_z - depth * 0.5), Vector3(width * 0.46, 0.08, depth * 0.62), roof_material, upgrade_root)
+	if _commercial_bool(profile, "upper"):
+		_add_soft_block(Vector3(-width * 0.08, height + 0.42, center_z - 0.1), Vector3(width * 0.66, 0.74, depth * 0.66), glass_material, upgrade_root, 0.06)
+		create_modular_roof(upgrade_root, Vector3(-width * 0.08, height + 0.94, center_z - 0.1), Vector3(width * 0.76, 0.12, depth * 0.74), roof_material, "flat")
+		_add_box(Vector3(-width * 0.08, height + 0.38, front_z + 0.06), Vector3(width * 0.5, 0.28, 0.05), glass_material, upgrade_root)
+	if _commercial_bool(profile, "signature"):
+		_add_box(Vector3(-width * 0.1, height + 0.58, front_z + 0.16), Vector3(width * 0.62, 0.08, 0.1), accent_material, upgrade_root)
+		_add_lantern_glow_local(Vector3(-width * 0.48, 0.92, front_z + 0.14), upgrade_root)
+		_add_lantern_glow_local(Vector3(width * 0.42, 0.92, front_z + 0.14), upgrade_root)
+
+
+func _build_small_town_brick_bank_architecture(main_root: Node, signage_root: Node, upgrade_root: Node, profile: Dictionary, palette: Dictionary, variant: int) -> void:
+	var width := _commercial_float(profile, "width", 2.5)
+	var depth := _commercial_float(profile, "depth", 1.6)
+	var height := _commercial_float(profile, "height", 1.0)
+	var center_z := _commercial_float(profile, "center_z", -0.6)
+	var front_z := _commercial_float(profile, "front_z", 0.28)
+	var wall_material := _make_material_from_color(palette["wall"], 0.9)
+	var brick_shadow := _make_material_from_color(palette["wall"].darkened(0.12), 0.92)
+	var roof_material := _make_material_from_color(palette["roof"], 0.78)
+	var trim_material := _make_material_from_color(palette["trim"], 0.84)
+	var accent_material := _make_material_from_color(palette["accent"], 0.54)
+	_add_soft_block(Vector3(0.0, height * 0.5 + 0.05, center_z), Vector3(width, height, depth), wall_material, main_root, 0.12)
+	create_modular_roof(main_root, Vector3(0.0, height + 0.26, center_z), Vector3(width + 0.24, 0.16, depth + 0.22), roof_material, str(profile.get("roof", "gabled")))
+	for row_y in [0.34, 0.58, 0.82]:
+		_add_box(Vector3(0.0, row_y, front_z + 0.055), Vector3(width * 0.78, 0.028, 0.035), brick_shadow, main_root)
+	_add_box(Vector3(0.0, 0.82, front_z + 0.06), Vector3(width * 0.62, 0.11, 0.07), trim_material, main_root)
+	_add_restaurant_front_door_local(Vector3(0.0, 0.0, front_z + 0.08), main_root, palette["accent"])
+	for window_x in [-width * 0.3, width * 0.3]:
+		_add_box(Vector3(window_x, 0.54, front_z + 0.06), Vector3(0.28, 0.34, 0.055), _window_material, main_root)
+	create_sign(signage_root, Vector3(0.0, height + 0.26, front_z + 0.12), Vector2(width * 0.42, 0.18), palette["accent"], "bank")
+	if _commercial_int(profile, "wing", 0) >= 1:
+		_add_soft_block(Vector3(-width * 0.4, 0.54, center_z - depth * 0.42), Vector3(width * 0.34, 0.86, depth * 0.64), _make_material_from_color(palette["wall"].darkened(0.04), 0.9), upgrade_root, 0.1)
+		_add_box(Vector3(-width * 0.4, 0.58, center_z - depth * 0.08), Vector3(0.24, 0.32, 0.055), _window_material, upgrade_root)
+	if _commercial_int(profile, "wing", 0) >= 2:
+		_add_soft_block(Vector3(width * 0.4, 0.58, center_z - depth * 0.44), Vector3(width * 0.34, 0.94, depth * 0.7), _make_material_from_color(palette["wall"].lightened(0.04), 0.9), upgrade_root, 0.1)
+		_add_box(Vector3(width * 0.4, 0.64, center_z - depth * 0.08), Vector3(0.26, 0.34, 0.055), _window_material, upgrade_root)
+	if _commercial_bool(profile, "upper"):
+		_add_soft_block(Vector3(0.0, height + 0.42, center_z - 0.06), Vector3(width * 0.78, 0.72, depth * 0.66), _make_material_from_color(palette["wall"].lightened(0.05), 0.9), upgrade_root, 0.1)
+		create_modular_roof(upgrade_root, Vector3(0.0, height + 0.94, center_z - 0.06), Vector3(width * 0.86, 0.13, depth * 0.72), roof_material, str(profile.get("roof", "gabled")))
+		for window_x in [-width * 0.22, width * 0.22]:
+			_add_window_band_local(Vector3(window_x, height + 0.38, front_z + 0.02), Vector3(0.24, 0.26, 0.05), upgrade_root)
+	if _commercial_bool(profile, "signature"):
+		_add_box(Vector3(0.0, height + 0.5, front_z + 0.16), Vector3(width * 0.54, 0.09, 0.1), accent_material, upgrade_root)
+		_add_local_cylinder(Vector3(width * 0.46, 1.0, center_z - depth * 0.35), 0.06, 0.06, 0.42, trim_material, upgrade_root)
+
+
+func _build_premium_financial_center_architecture(main_root: Node, signage_root: Node, upgrade_root: Node, profile: Dictionary, palette: Dictionary, variant: int) -> void:
+	var width := _commercial_float(profile, "width", 3.1)
+	var depth := _commercial_float(profile, "depth", 1.9)
+	var height := _commercial_float(profile, "height", 1.14)
+	var center_z := _commercial_float(profile, "center_z", -0.68)
+	var front_z := _commercial_float(profile, "front_z", 0.34)
+	var wall_material := _make_material_from_color(palette["wall"], 0.88)
+	var roof_material := _make_material_from_color(palette["roof"], 0.76)
+	var trim_material := _make_material_from_color(palette["trim"], 0.82)
+	var accent_material := _make_material_from_color(palette["accent"], 0.48)
+	var glass_material := _make_transparent_material(Color("d8f2ff"), 0.18, 0.2)
+	_add_soft_block(Vector3(0.0, height * 0.5 + 0.05, center_z), Vector3(width, height, depth), wall_material, main_root, 0.12)
+	_add_soft_block(Vector3(0.0, 0.62, front_z + 0.04), Vector3(width * 0.58, 0.86, 0.18), glass_material, main_root, 0.06)
+	create_modular_roof(main_root, Vector3(0.0, height + 0.22, center_z), Vector3(width + 0.28, 0.18, depth + 0.2), roof_material, "flat")
+	create_trim_layer(main_root, width, height, front_z, palette, "")
+	_add_box(Vector3(0.0, 0.88, front_z + 0.13), Vector3(width * 0.72, 0.1, 0.1), accent_material, main_root)
+	_add_restaurant_front_door_local(Vector3(0.0, 0.0, front_z + 0.12), main_root, palette["accent"])
+	create_columns(main_root, width * 0.72, front_z + 0.13, _commercial_int(profile, "columns", 4), trim_material)
+	create_sign(signage_root, Vector3(0.0, height + 0.4, front_z + 0.14), Vector2(width * 0.48, 0.2), palette["accent"], "bank")
+	if _commercial_int(profile, "wing", 0) >= 1:
+		for side in [-1.0, 1.0]:
+			_add_soft_block(Vector3(side * width * 0.42, 0.62, center_z - depth * 0.44), Vector3(width * 0.3, 0.96, depth * 0.68), _make_material_from_color(palette["wall"].darkened(0.02), 0.88), upgrade_root, 0.1)
+			_add_box(Vector3(side * width * 0.42, 0.66, center_z - depth * 0.1), Vector3(0.24, 0.34, 0.055), glass_material, upgrade_root)
+	if _commercial_bool(profile, "upper"):
+		_add_soft_block(Vector3(0.0, height + 0.48, center_z - 0.08), Vector3(width * 0.84, 0.8, depth * 0.72), _make_material_from_color(palette["wall"].lightened(0.04), 0.88), upgrade_root, 0.1)
+		_add_soft_block(Vector3(0.0, height + 0.46, front_z + 0.05), Vector3(width * 0.54, 0.66, 0.16), glass_material, upgrade_root, 0.05)
+		create_modular_roof(upgrade_root, Vector3(0.0, height + 1.02, center_z - 0.08), Vector3(width * 0.94, 0.14, depth * 0.84), roof_material, "flat")
+		for side in [-1.0, 1.0]:
+			_add_window_band_local(Vector3(side * width * 0.3, height + 0.44, front_z + 0.02), Vector3(0.24, 0.28, 0.05), upgrade_root)
+	if _commercial_bool(profile, "signature"):
+		_add_box(Vector3(0.0, height + 0.68, front_z + 0.18), Vector3(width * 0.62, 0.1, 0.12), accent_material, upgrade_root)
+		_add_lantern_glow_local(Vector3(-width * 0.48, 0.96, front_z + 0.16), upgrade_root)
+		_add_lantern_glow_local(Vector3(width * 0.48, 0.96, front_z + 0.16), upgrade_root)
+
+
 func _build_grocery_architecture(main_root: Node, signage_root: Node, upgrade_root: Node, profile: Dictionary, palette: Dictionary, variant: int) -> void:
+	var variant_id := str(profile.get("variant_id", "green_supermarket"))
 	var width := _commercial_float(profile, "width", 3.0)
 	var depth := _commercial_float(profile, "depth", 1.8)
 	var height := _commercial_float(profile, "height", 1.0)
 	var center_z := _commercial_float(profile, "center_z", -0.66)
 	var front_z := _commercial_float(profile, "front_z", 0.28)
+	var roof_style := str(profile.get("roof", "flat"))
+	var awning_style := str(profile.get("awning", "round"))
 	var wall_material := _make_material_from_color(palette["wall"], 0.9)
 	var roof_material := _make_material_from_color(palette["roof"], 0.74)
 	var trim_material := _make_material_from_color(palette["trim"], 0.82)
 	var accent_material := _make_material_from_color(palette["accent"], 0.48)
 	_add_soft_block(Vector3(0.0, height * 0.5 + 0.05, center_z), Vector3(width, height, depth), wall_material, main_root, 0.16)
-	create_modular_roof(main_root, Vector3(0.0, height + 0.2, center_z), Vector3(width + 0.24, 0.18, depth + 0.22), roof_material, "flat")
+	create_modular_roof(main_root, Vector3(0.0, height + 0.2, center_z), Vector3(width + 0.24, 0.18, depth + 0.22), roof_material, roof_style)
 	create_trim_layer(main_root, width, height, front_z, palette, "")
 	create_glass_frontage(main_root, width * (0.82 if _commercial_bool(profile, "glass") else 0.68), 0.48, front_z + 0.04, 4)
 	_add_restaurant_front_door_local(Vector3(0.0, 0.0, front_z + 0.08), main_root, palette["accent"])
-	create_awning(main_root, Vector3(0.0, 0.72, front_z + 0.14), width * 0.9, accent_material, trim_material, "round")
-	create_sign(signage_root, Vector3(0.0, height + 0.38, front_z + 0.14), Vector2(width * 0.5, 0.22), palette["accent"], "grocer")
+	create_awning(main_root, Vector3(0.0, 0.72, front_z + 0.14), width * 0.9, accent_material, trim_material, awning_style)
+	create_sign(signage_root, Vector3(0.0, height + 0.38, front_z + 0.14), Vector2(width * 0.5, 0.22), palette["accent"], _variant_sign_kind(BUILD_TOOL_GROCERY, variant_id))
+	if variant_id == "warehouse_grocery":
+		_add_box(Vector3(width * 0.42, 0.38, center_z - depth * 0.42), Vector3(0.46, 0.52, 0.06), _make_material("4d5962", 0.86), main_root)
+		_add_box(Vector3(width * 0.42, 0.7, center_z - depth * 0.42), Vector3(0.52, 0.055, 0.075), accent_material, main_root)
+	if variant_id == "organic_market":
+		_add_box(Vector3(0.0, 0.9, front_z + 0.12), Vector3(width * 0.7, 0.06, 0.06), _make_material("9f7b56", 0.78), main_root)
+		for crate_x in [-width * 0.34, width * 0.34]:
+			_add_box(Vector3(crate_x, 0.18, front_z + 0.18), Vector3(0.28, 0.14, 0.18), _make_material("9f7b56", 0.82), main_root)
 	if _commercial_int(profile, "wing", 0) >= 1:
 		_add_soft_block(Vector3(-width * 0.38, 0.56, center_z - depth * 0.42), Vector3(width * 0.34, 0.9, depth * 0.68), _make_material_from_color(palette["wall"].darkened(0.03), 0.9), upgrade_root, 0.12)
 		_add_box(Vector3(-width * 0.38, 0.58, center_z - depth * 0.08), Vector3(0.32, 0.36, 0.055), _window_material, upgrade_root)
@@ -5451,11 +5903,13 @@ func _build_grocery_architecture(main_root: Node, signage_root: Node, upgrade_ro
 
 
 func _build_restaurant_architecture(main_root: Node, signage_root: Node, upgrade_root: Node, profile: Dictionary, palette: Dictionary, variant: int) -> void:
+	var variant_id := str(profile.get("variant_id", "diner"))
 	var width := _commercial_float(profile, "width", 2.6)
 	var depth := _commercial_float(profile, "depth", 1.6)
 	var height := _commercial_float(profile, "height", 1.0)
 	var center_z := _commercial_float(profile, "center_z", -0.58)
 	var front_z := _commercial_float(profile, "front_z", 0.3)
+	var awning_style := str(profile.get("awning", "stripe"))
 	var wall_material := _make_material_from_color(palette["wall"], 0.9)
 	var roof_material := _make_material_from_color(palette["roof"], 0.74)
 	var trim_material := _make_material_from_color(palette["trim"], 0.82)
@@ -5464,8 +5918,19 @@ func _build_restaurant_architecture(main_root: Node, signage_root: Node, upgrade
 	create_modular_roof(main_root, Vector3(0.0, height + 0.22, center_z), Vector3(width + 0.24, 0.18, depth + 0.22), roof_material, str(profile.get("roof", "gabled")))
 	create_trim_layer(main_root, width, height, front_z, palette, "")
 	create_storefront(main_root, width * 0.92, front_z + 0.04, palette, "", 3)
-	create_awning(main_root, Vector3(0.0, 0.72, front_z + 0.16), width * 0.94, accent_material, trim_material, "stripe")
-	create_sign(signage_root, Vector3(0.0, height + 0.34, front_z + 0.16), Vector2(width * 0.5, 0.22), palette["accent"], "restaurant")
+	create_awning(main_root, Vector3(0.0, 0.72, front_z + 0.16), width * 0.94, accent_material, trim_material, awning_style)
+	create_sign(signage_root, Vector3(0.0, height + 0.34, front_z + 0.16), Vector2(width * 0.5, 0.22), palette["accent"], _variant_sign_kind(BUILD_TOOL_RESTAURANT, variant_id))
+	match variant_id:
+		"diner":
+			_add_box(Vector3(0.0, height + 0.5, front_z + 0.18), Vector3(width * 0.62, 0.08, 0.08), _make_material("f4ecda", 0.78), main_root)
+			_add_box(Vector3(-width * 0.46, 0.5, front_z + 0.12), Vector3(0.12, 0.38, 0.05), accent_material, main_root)
+		"cafe_bistro":
+			create_awning(main_root, Vector3(-width * 0.34, 0.82, front_z + 0.16), width * 0.28, accent_material, trim_material, "round")
+			create_awning(main_root, Vector3(width * 0.34, 0.82, front_z + 0.16), width * 0.28, accent_material, trim_material, "round")
+		"family_restaurant":
+			_add_box(Vector3(0.0, height + 0.48, front_z + 0.18), Vector3(width * 0.78, 0.12, 0.1), accent_material, main_root)
+		"upscale_patio_restaurant":
+			create_awning(main_root, Vector3(0.0, 0.84, front_z + 0.2), width * 0.74, accent_material, trim_material, "pergola")
 	if _commercial_int(profile, "wing", 0) >= 1:
 		_add_soft_block(Vector3(-width * 0.38, 0.56, center_z - depth * 0.4), Vector3(width * 0.34, 0.9, depth * 0.72), _make_material_from_color(palette["wall"].darkened(0.03), 0.9), upgrade_root, 0.12)
 		_add_box(Vector3(-width * 0.38, 0.58, center_z - depth * 0.08), Vector3(0.3, 0.36, 0.055), _window_material, upgrade_root)
@@ -5483,22 +5948,33 @@ func _build_restaurant_architecture(main_root: Node, signage_root: Node, upgrade
 
 
 func _build_corner_store_architecture(main_root: Node, signage_root: Node, upgrade_root: Node, profile: Dictionary, palette: Dictionary, variant: int) -> void:
+	var variant_id := str(profile.get("variant_id", "small_quick_mart"))
 	var width := _commercial_float(profile, "width", 2.4)
 	var depth := _commercial_float(profile, "depth", 1.5)
 	var height := _commercial_float(profile, "height", 0.96)
 	var center_z := _commercial_float(profile, "center_z", -0.58)
 	var front_z := _commercial_float(profile, "front_z", 0.24)
+	var roof_style := str(profile.get("roof", "flat"))
+	var awning_style := str(profile.get("awning", "bold"))
 	var wall_material := _make_material_from_color(palette["wall"], 0.9)
 	var roof_material := _make_material_from_color(palette["roof"], 0.74)
 	var trim_material := _make_material_from_color(palette["trim"], 0.82)
 	var accent_material := _make_material_from_color(palette["accent"], 0.48)
 	_add_soft_block(Vector3(0.0, height * 0.5 + 0.05, center_z), Vector3(width, height, depth), wall_material, main_root, 0.16)
-	create_modular_roof(main_root, Vector3(0.0, height + 0.2, center_z), Vector3(width + 0.2, 0.18, depth + 0.2), roof_material, "flat")
+	create_modular_roof(main_root, Vector3(0.0, height + 0.2, center_z), Vector3(width + 0.2, 0.18, depth + 0.2), roof_material, roof_style)
 	create_trim_layer(main_root, width, height, front_z, palette, "")
 	create_glass_frontage(main_root, width * (0.76 if _commercial_bool(profile, "glass") else 0.62), 0.45, front_z + 0.04, 3)
 	_add_restaurant_front_door_local(Vector3(0.0, 0.0, front_z + 0.08), main_root, palette["accent"])
-	create_awning(main_root, Vector3(0.0, 0.68, front_z + 0.16), width * 0.92, accent_material, trim_material, "bold")
-	create_sign(signage_root, Vector3(0.0, height + 0.34, front_z + 0.16), Vector2(width * 0.58, 0.22), palette["accent"], "quick_mart")
+	create_awning(main_root, Vector3(0.0, 0.68, front_z + 0.16), width * 0.92, accent_material, trim_material, awning_style)
+	create_sign(signage_root, Vector3(0.0, height + 0.34, front_z + 0.16), Vector2(width * 0.58, 0.22), palette["accent"], _variant_sign_kind(BUILD_TOOL_CORNER_STORE, variant_id))
+	if variant_id == "convenience_store_no_pumps":
+		_add_box(Vector3(0.0, 0.9, front_z + 0.32), Vector3(width * 0.96, 0.12, 0.34), accent_material, main_root)
+		for post_x in [-width * 0.42, width * 0.42]:
+			_add_local_cylinder(Vector3(post_x, 0.5, front_z + 0.34), 0.035, 0.035, 0.78, trim_material, main_root)
+	if variant_id == "urban_corner_shop":
+		_add_box(Vector3(-width * 0.48, 0.72, front_z - 0.1), Vector3(0.08, 0.66, 0.42), accent_material, main_root)
+	if variant_id == "modern_mini_mart":
+		_add_box(Vector3(0.0, height + 0.5, front_z + 0.18), Vector3(width * 0.68, 0.1, 0.08), accent_material, main_root)
 	if _commercial_int(profile, "wing", 0) >= 1:
 		_add_soft_block(Vector3(width * 0.36, 0.52, center_z - depth * 0.42), Vector3(width * 0.34, 0.84, depth * 0.66), _make_material_from_color(palette["trim"].darkened(0.02), 0.9), upgrade_root, 0.1)
 		_add_box(Vector3(width * 0.36, 0.56, center_z - depth * 0.1), Vector3(0.26, 0.34, 0.055), _window_material, upgrade_root)
@@ -5516,7 +5992,7 @@ func _build_corner_store_architecture(main_root: Node, signage_root: Node, upgra
 		_add_lantern_glow_local(Vector3(width * 0.46, 0.86, front_z + 0.14), upgrade_root)
 
 
-func _add_commercial_dynamic_lot_details(parent: Node, tool: String, profile: Dictionary, palette: Dictionary, tier: int, variant: int) -> void:
+func _add_commercial_dynamic_lot_details(parent: Node, tool: String, profile: Dictionary, palette: Dictionary, tier: int, variant: int, variant_id: String = "") -> void:
 	var preset := _property_visual_preset(tool)
 	var parking_position: Vector3 = preset.get("parking_position", Vector3(0.0, 0.0, LOT_PARKING_Z))
 	var parking_size: Vector3 = preset.get("parking_size", Vector3(3.0, 1.0, PARKING_DEPTH))
@@ -5535,36 +6011,144 @@ func _add_commercial_dynamic_lot_details(parent: Node, tool: String, profile: Di
 		_add_small_parked_car_local(parent, parking_position + Vector3(parking_size.x * 0.22, 0.04, -parking_size.z * 0.05), 0.0, accent)
 	match tool:
 		BUILD_TOOL_FIRE:
+			_add_fire_variant_lot_details(parent, parking_position, parking_size, palette, tier, variant_id)
 			if tier >= 2:
 				create_bollards(parent, parking_position.z + parking_size.z * 0.5 + 0.02, parking_size.x * 0.78, 5 if tier < 4 else 7, accent)
 			if tier >= 4:
 				_add_fire_truck_local(parking_position + Vector3(parking_size.x * 0.26, 0.03, -parking_size.z * 0.12), 0.0, parent)
 		BUILD_TOOL_BANK:
+			_add_bank_variant_lot_details(parent, parking_position, parking_size, palette, tier, variant_id)
 			if tier >= 2:
 				_add_atm_local(parent, parking_position + Vector3(-parking_size.x * 0.44, 0.04, parking_size.z * 0.44), palette["roof"])
 			if tier >= 4:
 				_add_box(parking_position + Vector3(0.0, 0.13, parking_size.z * 0.42), Vector3(parking_size.x * 0.6, 0.045, 0.18), _make_material("d8d2c8", 0.9), parent)
 		BUILD_TOOL_GROCERY:
+			_add_grocery_variant_lot_details(parent, parking_position, parking_size, palette, tier, variant_id)
 			if tier >= 2:
 				create_cart_rack(parent, parking_position + Vector3(parking_size.x * 0.42, 0.08, parking_size.z * 0.32), deg_to_rad(90.0))
 			if tier >= 4:
 				_add_box(parking_position + Vector3(-parking_size.x * 0.42, 0.16, parking_size.z * 0.38), Vector3(0.72, 0.12, 0.24), _make_material("9f7b56", 0.82), parent)
 		BUILD_TOOL_RESTAURANT:
+			_add_restaurant_variant_lot_details(parent, parking_position, parking_size, palette, tier, variant_id)
 			if tier >= 2:
 				for table_x in [-0.42, 0.42]:
 					_add_outdoor_table_local(parent, parking_position + Vector3(table_x, 0.05, parking_size.z * 0.44), accent)
 			if tier >= 4:
 				_add_box(parking_position + Vector3(0.0, 0.13, parking_size.z * 0.5), Vector3(parking_size.x * 0.62, 0.06, 0.12), _make_material("8d543c", 0.78), parent)
 		BUILD_TOOL_CORNER_STORE:
+			_add_corner_store_variant_lot_details(parent, parking_position, parking_size, palette, tier, variant_id)
 			if tier >= 2:
 				_add_ice_box_local(parent, parking_position + Vector3(parking_size.x * 0.42, 0.04, parking_size.z * 0.36), palette["roof"])
 			if tier >= 3:
 				_add_trash_can_local(parent, parking_position + Vector3(-parking_size.x * 0.44, 0.04, parking_size.z * 0.36), palette["roof"])
 
 
-func _apply_service_tier_visuals(root: Node3D, tool: String, tier: int, variant: int, profile: Dictionary) -> void:
-	var palette: Dictionary = _cozy_palette(tool, variant)
-	_rebuild_commercial_tier_visuals(root, tool, tier, variant, palette)
+func _add_fire_variant_lot_details(parent: Node, parking_position: Vector3, parking_size: Vector3, palette: Dictionary, tier: int, variant_id: String) -> void:
+	var accent: Color = palette["accent"]
+	var trim: Color = palette["trim"]
+	match variant_id:
+		"modern_civic_station":
+			_add_box(parking_position + Vector3(-parking_size.x * 0.36, 0.13, parking_size.z * 0.36), Vector3(0.38, 0.035, 0.08), _make_material_from_color(trim, 0.84), parent)
+			if tier >= 3:
+				create_landscape_island(parent, parking_position + Vector3(parking_size.x * 0.36, 0.12, parking_size.z * 0.18), Vector3(0.34, 0.08, 0.2), accent, 2)
+		"volunteer_station":
+			_add_box(parking_position + Vector3(-parking_size.x * 0.4, 0.14, parking_size.z * 0.42), Vector3(0.24, 0.08, 0.12), _make_material_from_color(accent, 0.78), parent)
+			if tier >= 3:
+				_add_hydrant_local(parking_position + Vector3(parking_size.x * 0.42, 0.04, parking_size.z * 0.36), parent)
+		"industrial_emergency_station":
+			for x in [-parking_size.x * 0.28, parking_size.x * 0.28]:
+				_add_box(parking_position + Vector3(x, 0.14, -parking_size.z * 0.42), Vector3(0.34, 0.05, 0.08), _make_material_from_color(trim.darkened(0.16), 0.86), parent)
+			if tier >= 4:
+				_add_box(parking_position + Vector3(0.0, 0.15, parking_size.z * 0.4), Vector3(parking_size.x * 0.54, 0.06, 0.1), _make_material_from_color(accent.darkened(0.1), 0.82), parent)
+		_:
+			if tier >= 3:
+				_add_box(parking_position + Vector3(0.0, 0.13, parking_size.z * 0.44), Vector3(parking_size.x * 0.42, 0.04, 0.09), _make_material_from_color(accent, 0.82), parent)
+
+
+func _add_grocery_variant_lot_details(parent: Node, parking_position: Vector3, parking_size: Vector3, palette: Dictionary, tier: int, variant_id: String) -> void:
+	var accent: Color = palette["accent"]
+	var trim: Color = palette["trim"]
+	match variant_id:
+		"local_market":
+			_add_box(parking_position + Vector3(-parking_size.x * 0.38, 0.15, parking_size.z * 0.38), Vector3(0.46, 0.16, 0.2), _make_material("9f7b56", 0.82), parent)
+			if tier >= 3:
+				_add_crate_stack_local(parking_position + Vector3(parking_size.x * 0.34, 0.12, parking_size.z * 0.4), accent, parent)
+		"green_supermarket":
+			if tier >= 2:
+				create_landscape_island(parent, parking_position + Vector3(0.0, 0.12, parking_size.z * 0.36), Vector3(0.48, 0.08, 0.2), accent, 3)
+		"warehouse_grocery":
+			_add_box(parking_position + Vector3(parking_size.x * 0.42, 0.13, -parking_size.z * 0.34), Vector3(0.34, 0.05, 0.08), _make_material_from_color(trim.darkened(0.2), 0.86), parent)
+			if tier >= 3:
+				_add_small_parked_car_local(parent, parking_position + Vector3(-parking_size.x * 0.24, 0.04, -parking_size.z * 0.16), 0.0, accent)
+		"organic_market":
+			for x in [-parking_size.x * 0.32, parking_size.x * 0.32]:
+				_add_box(parking_position + Vector3(x, 0.15, parking_size.z * 0.42), Vector3(0.34, 0.14, 0.18), _make_material("9f7b56", 0.82), parent)
+			if tier >= 3:
+				create_landscape_island(parent, parking_position + Vector3(0.0, 0.12, -parking_size.z * 0.32), Vector3(parking_size.x * 0.46, 0.08, 0.18), accent, 4)
+
+
+func _add_restaurant_variant_lot_details(parent: Node, parking_position: Vector3, parking_size: Vector3, palette: Dictionary, tier: int, variant_id: String) -> void:
+	var accent: Color = palette["accent"]
+	var trim: Color = palette["trim"]
+	match variant_id:
+		"diner":
+			_add_box(parking_position + Vector3(-parking_size.x * 0.42, 0.13, parking_size.z * 0.42), Vector3(0.34, 0.06, 0.08), _make_material_from_color(accent, 0.78), parent)
+			if tier >= 3:
+				_add_box(parking_position + Vector3(parking_size.x * 0.42, 0.16, parking_size.z * 0.36), Vector3(0.16, 0.18, 0.08), _make_material_from_color(trim, 0.82), parent)
+		"cafe_bistro":
+			for x in [-0.32, 0.32]:
+				_add_planter_box_local(parent, parking_position + Vector3(x, 0.12, parking_size.z * 0.44), accent, 0.26)
+		"family_restaurant":
+			if tier >= 3:
+				_add_box(parking_position + Vector3(0.0, 0.14, parking_size.z * 0.46), Vector3(parking_size.x * 0.58, 0.055, 0.1), _make_material_from_color(trim, 0.84), parent)
+		"upscale_patio_restaurant":
+			create_landscape_island(parent, parking_position + Vector3(-parking_size.x * 0.38, 0.12, parking_size.z * 0.26), Vector3(0.3, 0.08, 0.24), accent, 3)
+			create_landscape_island(parent, parking_position + Vector3(parking_size.x * 0.38, 0.12, parking_size.z * 0.26), Vector3(0.3, 0.08, 0.24), trim, 3)
+
+
+func _add_corner_store_variant_lot_details(parent: Node, parking_position: Vector3, parking_size: Vector3, palette: Dictionary, tier: int, variant_id: String) -> void:
+	var accent: Color = palette["accent"]
+	var trim: Color = palette["trim"]
+	match variant_id:
+		"convenience_store_no_pumps":
+			_add_box(parking_position + Vector3(0.0, 0.14, parking_size.z * 0.42), Vector3(parking_size.x * 0.52, 0.05, 0.1), _make_material_from_color(accent, 0.78), parent)
+		"urban_corner_shop":
+			_add_box(parking_position + Vector3(-parking_size.x * 0.42, 0.2, parking_size.z * 0.34), Vector3(0.18, 0.26, 0.08), _make_material_from_color(trim, 0.78), parent)
+			if tier >= 3:
+				_add_box(parking_position + Vector3(parking_size.x * 0.4, 0.14, parking_size.z * 0.38), Vector3(0.22, 0.1, 0.08), _make_material_from_color(accent, 0.82), parent)
+		"modern_mini_mart":
+			create_landscape_island(parent, parking_position + Vector3(parking_size.x * 0.36, 0.12, parking_size.z * 0.24), Vector3(0.32, 0.08, 0.2), accent, 2)
+		_:
+			if tier >= 3:
+				_add_box(parking_position + Vector3(parking_size.x * 0.34, 0.14, parking_size.z * 0.4), Vector3(0.24, 0.08, 0.1), _make_material_from_color(accent, 0.82), parent)
+
+
+func _add_bank_variant_lot_details(parent: Node, parking_position: Vector3, parking_size: Vector3, palette: Dictionary, tier: int, variant_id: String) -> void:
+	var accent: Color = palette["accent"]
+	var trim: Color = palette["trim"]
+	match variant_id:
+		"modern_glass_bank":
+			_add_box(parking_position + Vector3(0.0, 0.125, parking_size.z * 0.42), Vector3(parking_size.x * 0.54, 0.035, 0.1), _make_material_from_color(accent.lightened(0.18), 0.82), parent)
+			if tier >= 3:
+				create_landscape_island(parent, parking_position + Vector3(parking_size.x * 0.34, 0.12, parking_size.z * 0.2), Vector3(0.42, 0.08, 0.22), accent, 2)
+		"small_town_brick_bank":
+			_add_box(parking_position + Vector3(-parking_size.x * 0.36, 0.13, parking_size.z * 0.44), Vector3(0.42, 0.04, 0.1), _make_material_from_color(trim.darkened(0.08), 0.86), parent)
+			if tier >= 3:
+				_add_box(parking_position + Vector3(parking_size.x * 0.36, 0.13, parking_size.z * 0.44), Vector3(0.42, 0.04, 0.1), _make_material_from_color(trim.darkened(0.08), 0.86), parent)
+		"premium_financial_center":
+			create_landscape_island(parent, parking_position + Vector3(-parking_size.x * 0.36, 0.12, parking_size.z * 0.32), Vector3(0.38, 0.08, 0.24), accent, 3)
+			create_landscape_island(parent, parking_position + Vector3(parking_size.x * 0.36, 0.12, parking_size.z * 0.32), Vector3(0.38, 0.08, 0.24), trim, 3)
+			if tier >= 4:
+				_add_box(parking_position + Vector3(0.0, 0.14, -parking_size.z * 0.44), Vector3(parking_size.x * 0.62, 0.04, 0.08), _make_material_from_color(accent, 0.78), parent)
+		_:
+			if tier >= 3:
+				_add_box(parking_position + Vector3(0.0, 0.13, parking_size.z * 0.44), Vector3(parking_size.x * 0.44, 0.04, 0.1), _make_material_from_color(trim, 0.86), parent)
+
+
+func _apply_service_tier_visuals(root: Node3D, tool: String, tier: int, variant: int, profile: Dictionary, variant_id: String = "") -> void:
+	var resolved_variant_id := _resolve_property_variant_id(tool, variant, variant_id)
+	var palette: Dictionary = _palette_for_property_variant(tool, variant, resolved_variant_id)
+	_rebuild_commercial_tier_visuals(root, tool, tier, variant, palette, resolved_variant_id)
 
 
 func _apply_fire_station_tier_visuals(lot_root: Node3D, structure_root: Node3D, tier: int, variant: int, profile: Dictionary, palette: Dictionary, accent: Color, trim: Color) -> void:
@@ -6802,6 +7386,52 @@ func _add_corner_store_parking_lot(center: Vector3, size: Vector3, parent: Node,
 	_add_box(Vector3(size.x * 0.44, 0.1, size.z * 0.32), Vector3(0.16, 0.1, 0.22), planter_material, lot_root)
 
 
+func _variant_sign_kind(tool: String, variant_id: String) -> String:
+	match tool:
+		BUILD_TOOL_FIRE:
+			match variant_id:
+				"modern_civic_station":
+					return "fire_civic"
+				"volunteer_station":
+					return "fire_volunteer"
+				"industrial_emergency_station":
+					return "fire_rescue"
+				_:
+					return "fire"
+		BUILD_TOOL_GROCERY:
+			match variant_id:
+				"local_market":
+					return "local_market"
+				"warehouse_grocery":
+					return "warehouse_market"
+				"organic_market":
+					return "organic_market"
+				_:
+					return "grocer"
+		BUILD_TOOL_RESTAURANT:
+			match variant_id:
+				"cafe_bistro":
+					return "cafe"
+				"family_restaurant":
+					return "grill"
+				"upscale_patio_restaurant":
+					return "bistro"
+				_:
+					return "diner"
+		BUILD_TOOL_CORNER_STORE:
+			match variant_id:
+				"convenience_store_no_pumps":
+					return "corner_canopy"
+				"urban_corner_shop":
+					return "corner_shop"
+				"modern_mini_mart":
+					return "mini_mart"
+				_:
+					return "quick_mart"
+		_:
+			return ""
+
+
 func _add_signboard_local(position_3d: Vector3, size: Vector2, accent: Color, kind: String, parent: Node) -> void:
 	var sign_material := _make_material_from_color(accent.darkened(0.25), 0.5)
 	var trim_material := _make_material("f4ecda", 0.84)
@@ -6859,12 +7489,40 @@ func _sign_text_for_kind(kind: String) -> String:
 	match kind:
 		"fire":
 			return "FIRE DEPT"
+		"fire_civic":
+			return "CIVIC FIRE"
+		"fire_volunteer":
+			return "VOL. FIRE"
+		"fire_rescue":
+			return "RESCUE"
 		"vault", "bank":
 			return "BANK"
 		"grocer", "grocery":
 			return "GROCERY"
-		"bistro", "diner", "cafe", "pizza", "grill", "restaurant":
+		"local_market":
+			return "LOCAL MARKET"
+		"warehouse_market":
+			return "FOOD DEPOT"
+		"organic_market":
+			return "ORGANIC"
+		"restaurant":
 			return "TASTY BITES"
+		"diner":
+			return "DINER"
+		"cafe":
+			return "COZY CAFE"
+		"grill":
+			return "FAMILY GRILL"
+		"bistro":
+			return "BISTRO"
+		"pizza":
+			return "PIZZA"
+		"corner_canopy":
+			return "MART EXPRESS"
+		"corner_shop":
+			return "CORNER SHOP"
+		"mini_mart":
+			return "MINI MART"
 		"corner", "quick_mart":
 			return "QUICK MART"
 		_:
