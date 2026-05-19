@@ -16,9 +16,9 @@ func _ready() -> void:
 
 func _setup_camera() -> void:
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = 7.2
-	camera.position = Vector3(5.8, 3.05, 5.8)
-	camera.look_at(Vector3(0.0, 1.22, 0.72), Vector3.UP)
+	camera.size = 6.4
+	camera.position = Vector3(5.2, 3.2, 5.2)
+	camera.look_at(Vector3(0.0, 1.48, 0.72), Vector3.UP)
 
 
 func _setup_lighting() -> void:
@@ -33,27 +33,27 @@ func _setup_lighting() -> void:
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = 3
-	env.ambient_light_color = Color(0.8, 0.84, 0.74)
-	env.ambient_light_energy = 0.82
+	env.ambient_light_color = Color(0.86, 0.86, 0.76)
+	env.ambient_light_energy = 0.9
 	env.fog_enabled = false
 	env.fog_light_energy = 0.0
 	env.fog_density = 0.0
 	env.glow_enabled = true
-	env.glow_bloom = 0.014
-	env.glow_intensity = 0.075
+	env.glow_bloom = 0.018
+	env.glow_intensity = 0.085
 	env.adjustment_enabled = true
 	env.adjustment_brightness = 1.0
-	env.adjustment_contrast = 1.08
-	env.adjustment_saturation = 1.07
+	env.adjustment_contrast = 1.1
+	env.adjustment_saturation = 1.08
 	world_environment.environment = env
-	sun.rotation_degrees = Vector3(-54.0, 30.0, 0.0)
-	sun.light_color = Color(1.0, 0.86, 0.62)
-	sun.light_energy = 1.42
+	sun.rotation_degrees = Vector3(-50.0, 32.0, 0.0)
+	sun.light_color = Color(1.0, 0.84, 0.58)
+	sun.light_energy = 1.58
 	sun.shadow_enabled = true
-	sun.shadow_blur = 2.35
+	sun.shadow_blur = 2.7
 	fill_light.rotation_degrees = Vector3(-20.0, 150.0, 0.0)
-	fill_light.light_color = Color(0.62, 0.74, 1.0)
-	fill_light.light_energy = 0.2
+	fill_light.light_color = Color(0.66, 0.76, 1.0)
+	fill_light.light_energy = 0.17
 	fill_light.shadow_enabled = false
 
 

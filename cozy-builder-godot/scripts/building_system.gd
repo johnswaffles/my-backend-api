@@ -4,9 +4,9 @@ const GRID_SIZE := 64
 const TILE_SIZE := 1.0
 const PAN_SPEED := 0.018
 const STARTING_MONEY := 500000
-const DEFAULT_ZOOM := 16.5
-const MIN_ZOOM := 7.0
-const MAX_ZOOM := 48.0
+const DEFAULT_ZOOM := 13.6
+const MIN_ZOOM := 6.0
+const MAX_ZOOM := 38.0
 const BUILD_TOOL_ROAD := "road"
 const BUILD_TOOL_HOUSE := "house"
 const BUILD_TOOL_FIRE := "fire"
@@ -143,9 +143,9 @@ const PROPERTY_BUFFER_BY_TOOL := {
 	BUILD_TOOL_CORNER_STORE: 1,
 	BUILD_TOOL_PARK: 1,
 }
-const ROAD_WIDTH := 1.96
+const ROAD_WIDTH := 1.72
 const CURB_WIDTH := 0.16
-const SIDEWALK_WIDTH := 0.96
+const SIDEWALK_WIDTH := 1.08
 const FRONT_BUFFER := 0.32
 const PARKING_DEPTH := 1.22
 const BUILDING_SETBACK := 0.72
@@ -389,29 +389,41 @@ const PROPERTY_VARIANTS := {
 		}},
 	},
 	BUILD_TOOL_RESTAURANT: {
-		"diner": {"variant_name": "Diner", "style_notes": "compact diner, bright awning, nostalgic sign", "wall_color": "f7d9bf", "roof_color": "c96b5f", "trim_color": "fff4df", "accent_color": "ffc064", "tiers": {
-			1: {"width": 2.34, "depth": 1.42, "height": 0.92, "center_z": -0.52, "front_z": 0.22, "wing": 0, "upper": false, "signature": false, "roof": "flat", "awning": "stripe"},
-			2: {"width": 2.72, "depth": 1.62, "height": 1.0, "center_z": -0.6, "front_z": 0.3, "wing": 0, "upper": false, "signature": false, "roof": "flat", "awning": "stripe"},
-			3: {"width": 3.08, "depth": 1.86, "height": 1.08, "center_z": -0.68, "front_z": 0.36, "wing": 1, "upper": false, "signature": true, "roof": "flat", "awning": "stripe"},
-			4: {"width": 3.38, "depth": 2.0, "height": 1.16, "center_z": -0.74, "front_z": 0.42, "wing": 2, "upper": false, "signature": true, "roof": "flat", "awning": "stripe"},
+		"classic_diner": {"variant_name": "Classic Diner", "style_notes": "low wide roadside diner family with trailer proportions, front parking strip, neon pylon, and horizontal glass", "wall_color": "f8dcc8", "roof_color": "c96058", "trim_color": "fff4df", "accent_color": "ffc45f", "tiers": {
+			1: {"width": 4.24, "depth": 0.74, "height": 0.52, "center_z": -0.46, "front_z": 0.34, "roof": "diner_capsule", "service_loop": false, "signature": false},
+			2: {"width": 4.58, "depth": 0.78, "height": 0.56, "center_z": -0.48, "front_z": 0.36, "roof": "diner_capsule", "service_loop": true, "signature": false},
+			3: {"width": 4.92, "depth": 0.82, "height": 0.6, "center_z": -0.5, "front_z": 0.38, "roof": "diner_capsule", "service_loop": true, "signature": true},
+			4: {"width": 5.2, "depth": 0.86, "height": 0.64, "center_z": -0.52, "front_z": 0.4, "roof": "diner_capsule", "service_loop": true, "signature": true, "corner_patio": true},
 		}},
-		"cafe_bistro": {"variant_name": "Cafe Bistro", "style_notes": "small cafe facade, patio tables, delicate trim", "wall_color": "ffe4d2", "roof_color": "d77758", "trim_color": "fff4df", "accent_color": "65d8c0", "tiers": {
-			1: {"width": 2.24, "depth": 1.48, "height": 0.96, "center_z": -0.54, "front_z": 0.24, "wing": 0, "upper": false, "signature": false, "roof": "gabled", "awning": "round"},
-			2: {"width": 2.68, "depth": 1.7, "height": 1.04, "center_z": -0.62, "front_z": 0.32, "wing": 1, "upper": false, "signature": false, "roof": "gabled", "awning": "round"},
-			3: {"width": 3.02, "depth": 1.94, "height": 1.14, "center_z": -0.7, "front_z": 0.38, "wing": 1, "upper": false, "signature": true, "roof": "gabled", "awning": "round"},
-			4: {"width": 3.3, "depth": 2.08, "height": 1.22, "center_z": -0.76, "front_z": 0.44, "wing": 2, "upper": true, "signature": true, "roof": "gabled", "awning": "round"},
+			"fast_food_drive_through": {"variant_name": "Fast Food Drive-Through", "style_notes": "compact square kitchen core, tall branded sign tower, pickup window, and intentional side/back drive-through loop", "wall_color": "f5dfc4", "roof_color": "d85b4d", "trim_color": "fff4df", "accent_color": "ffd24e", "tiers": {
+				1: {"width": 1.58, "depth": 1.42, "height": 1.08, "center_z": -0.9, "front_z": 0.12, "roof": "flat", "drive_through": true, "drive_lanes": 1, "tower": true},
+				2: {"width": 1.78, "depth": 1.58, "height": 1.18, "center_z": -0.96, "front_z": 0.12, "roof": "flat", "drive_through": true, "drive_lanes": 1, "tower": true},
+				3: {"width": 1.98, "depth": 1.76, "height": 1.3, "center_z": -1.04, "front_z": 0.14, "roof": "flat", "drive_through": true, "drive_lanes": 2, "tower": true, "signature": true},
+				4: {"width": 2.18, "depth": 1.92, "height": 1.42, "center_z": -1.12, "front_z": 0.16, "roof": "flat", "drive_through": true, "drive_lanes": 2, "tower": true, "signature": true},
+			}},
+			"modern_cafe": {"variant_name": "Modern Cafe", "style_notes": "small asymmetrical glass pavilion with patio-first lot, planters, umbrellas, and optional roof deck", "wall_color": "efe4d2", "roof_color": "5f8990", "trim_color": "fff4df", "accent_color": "6ed0b5", "tiers": {
+				1: {"width": 1.52, "depth": 1.18, "height": 0.88, "center_z": -0.72, "front_z": 0.18, "roof": "flat_modern", "glass": true, "patio": true, "rooftop": false},
+				2: {"width": 1.72, "depth": 1.3, "height": 0.94, "center_z": -0.76, "front_z": 0.2, "roof": "flat_modern", "glass": true, "patio": true, "rooftop": false},
+				3: {"width": 1.92, "depth": 1.44, "height": 1.02, "center_z": -0.82, "front_z": 0.22, "roof": "flat_modern", "glass": true, "patio": true, "rooftop": false, "signature": true},
+				4: {"width": 2.12, "depth": 1.58, "height": 1.08, "center_z": -0.88, "front_z": 0.24, "roof": "flat_modern", "glass": true, "patio": true, "rooftop": true, "signature": true},
+			}},
+			"family_restaurant": {"variant_name": "Family Restaurant", "style_notes": "broad suburban sit-down restaurant family with centered entry, dining wings, layered roofline, and larger parking field", "wall_color": "f0dac0", "roof_color": "b85b4f", "trim_color": "fff4df", "accent_color": "f1ac5f", "tiers": {
+				1: {"width": 3.42, "depth": 1.7, "height": 0.88, "center_z": -0.82, "front_z": 0.28, "roof": "compound_gabled", "wing": 0, "entry_bay": true},
+				2: {"width": 3.86, "depth": 1.92, "height": 0.96, "center_z": -0.9, "front_z": 0.32, "roof": "compound_gabled", "wing": 1, "entry_bay": true},
+				3: {"width": 4.32, "depth": 2.12, "height": 1.04, "center_z": -1.0, "front_z": 0.36, "roof": "compound_gabled", "wing": 2, "entry_bay": true, "signature": true},
+				4: {"width": 4.74, "depth": 2.3, "height": 1.12, "center_z": -1.08, "front_z": 0.4, "roof": "compound_gabled", "wing": 2, "entry_bay": true, "signature": true, "upper": true},
+			}},
+		"upscale_restaurant": {"variant_name": "Upscale Restaurant", "style_notes": "premium layered facade, valet court, elegant patio, accent lighting", "wall_color": "e7d8ca", "roof_color": "8c5d52", "trim_color": "fff0d8", "accent_color": "ef8170", "tiers": {
+			1: {"width": 2.5, "depth": 1.9, "height": 1.16, "center_z": -0.86, "front_z": 0.22, "roof": "layered_flat", "patio": true, "layered": true},
+			2: {"width": 2.96, "depth": 2.18, "height": 1.3, "center_z": -0.98, "front_z": 0.26, "roof": "layered_flat", "patio": true, "layered": true, "wing": 1},
+			3: {"width": 3.38, "depth": 2.46, "height": 1.44, "center_z": -1.1, "front_z": 0.3, "roof": "layered_flat", "patio": true, "layered": true, "wing": 2, "signature": true},
+			4: {"width": 3.74, "depth": 2.72, "height": 1.58, "center_z": -1.22, "front_z": 0.34, "roof": "layered_flat", "patio": true, "layered": true, "wing": 2, "upper": true, "signature": true},
 		}},
-		"family_restaurant": {"variant_name": "Family Restaurant", "style_notes": "wider family dining building, warm roof, larger sign", "wall_color": "f3ddc8", "roof_color": "b85b4f", "trim_color": "fff4df", "accent_color": "f2b35f", "tiers": {
-			1: {"width": 2.62, "depth": 1.54, "height": 0.96, "center_z": -0.56, "front_z": 0.26, "wing": 0, "upper": false, "signature": false, "roof": "gabled", "awning": "bold"},
-			2: {"width": 3.08, "depth": 1.8, "height": 1.06, "center_z": -0.66, "front_z": 0.34, "wing": 1, "upper": false, "signature": false, "roof": "gabled", "awning": "bold"},
-			3: {"width": 3.42, "depth": 2.02, "height": 1.18, "center_z": -0.74, "front_z": 0.4, "wing": 2, "upper": false, "signature": true, "roof": "gabled", "awning": "bold"},
-			4: {"width": 3.72, "depth": 2.18, "height": 1.28, "center_z": -0.82, "front_z": 0.46, "wing": 2, "upper": true, "signature": true, "roof": "gabled", "awning": "bold"},
-		}},
-		"upscale_patio_restaurant": {"variant_name": "Upscale Patio Restaurant", "style_notes": "premium patio, elegant entry, stronger facade depth", "wall_color": "ead8c9", "roof_color": "d96f4f", "trim_color": "fff4df", "accent_color": "ef7178", "tiers": {
-			1: {"width": 2.5, "depth": 1.56, "height": 1.02, "center_z": -0.58, "front_z": 0.28, "wing": 0, "upper": false, "signature": false, "roof": "shed", "awning": "round"},
-			2: {"width": 2.96, "depth": 1.82, "height": 1.12, "center_z": -0.68, "front_z": 0.36, "wing": 1, "upper": false, "signature": true, "roof": "shed", "awning": "round"},
-			3: {"width": 3.34, "depth": 2.06, "height": 1.24, "center_z": -0.76, "front_z": 0.42, "wing": 2, "upper": false, "signature": true, "roof": "shed", "awning": "round"},
-			4: {"width": 3.66, "depth": 2.24, "height": 1.34, "center_z": -0.84, "front_z": 0.48, "wing": 2, "upper": true, "signature": true, "roof": "shed", "awning": "round"},
+		"food_truck_court": {"variant_name": "Food Truck Court", "style_notes": "open-air plaza with food trucks, central seating, string lights, and vendor stalls", "wall_color": "ead6bd", "roof_color": "5f7d78", "trim_color": "fff4df", "accent_color": "ffba68", "tiers": {
+			1: {"width": 3.0, "depth": 1.68, "height": 0.72, "center_z": -0.66, "front_z": 0.38, "roof": "open_plaza", "vendor_count": 1, "plaza": true},
+			2: {"width": 3.42, "depth": 1.92, "height": 0.82, "center_z": -0.76, "front_z": 0.4, "roof": "open_plaza", "vendor_count": 2, "plaza": true},
+			3: {"width": 3.84, "depth": 2.18, "height": 0.92, "center_z": -0.88, "front_z": 0.42, "roof": "open_plaza", "vendor_count": 3, "plaza": true, "signature": true},
+			4: {"width": 4.2, "depth": 2.42, "height": 1.02, "center_z": -1.0, "front_z": 0.44, "roof": "open_plaza", "vendor_count": 4, "plaza": true, "signature": true},
 		}},
 	},
 	BUILD_TOOL_CORNER_STORE: {
@@ -446,10 +458,48 @@ const PROPERTY_VARIANT_ORDER := {
 	BUILD_TOOL_FIRE: ["classic_brick_station", "modern_civic_station", "volunteer_station", "industrial_emergency_station"],
 	BUILD_TOOL_BANK: ["traditional_column_bank", "modern_glass_bank", "small_town_brick_bank", "premium_financial_center"],
 	BUILD_TOOL_GROCERY: ["local_market", "green_supermarket", "warehouse_grocery", "organic_market"],
-	BUILD_TOOL_RESTAURANT: ["diner", "cafe_bistro", "family_restaurant", "upscale_patio_restaurant"],
+	BUILD_TOOL_RESTAURANT: ["classic_diner", "fast_food_drive_through", "modern_cafe", "family_restaurant", "upscale_restaurant", "food_truck_court"],
 	BUILD_TOOL_CORNER_STORE: ["small_quick_mart", "convenience_store_no_pumps", "urban_corner_shop", "modern_mini_mart"],
 }
-const PROPERTY_VARIANT_ARCHITECTURE_VERSION := 2
+const PROPERTY_VARIANT_ARCHITECTURE_VERSION := 3
+const RESTAURANT_VARIANT_DEFINITIONS := {
+	"classic_diner": {
+		"style": "classic_diner",
+		"sign_kind": "diner",
+		"supports_drive_through": true,
+		"lot_preset": {"parking": "none", "building_z_offset": -BUILDING_SETBACK * 0.88, "lot_size": Vector2(5.18, LOT_DEPTH - 0.34), "sidewalk": {"width": 1.18, "z": LOT_FRONT_SIDEWALK_Z - 0.08, "depth": SIDEWALK_WIDTH}, "hedges": {"width": 4.84, "depth": LOT_DEPTH - 0.72}},
+	},
+	"fast_food_drive_through": {
+		"style": "fast_food_drive_through",
+		"sign_kind": "fast_food",
+		"supports_drive_through": true,
+		"lot_preset": {"parking": "none", "building_z_offset": -BUILDING_SETBACK * 1.04, "lot_size": Vector2(5.08, LOT_DEPTH - 0.12), "sidewalk": {"width": 0.9, "z": LOT_FRONT_SIDEWALK_Z - 0.1, "depth": SIDEWALK_WIDTH}, "hedges": {"width": 4.66, "depth": LOT_DEPTH - 0.58}},
+	},
+	"modern_cafe": {
+		"style": "modern_cafe",
+		"sign_kind": "cafe",
+		"supports_drive_through": false,
+		"lot_preset": {"parking": "none", "building_z_offset": -BUILDING_SETBACK * 1.14, "lot_size": Vector2(4.64, LOT_DEPTH - 0.18), "sidewalk": {"width": 1.28, "z": LOT_FRONT_SIDEWALK_Z - 0.1, "depth": SIDEWALK_WIDTH}, "hedges": {"width": 4.18, "depth": LOT_DEPTH - 0.7}},
+	},
+	"family_restaurant": {
+		"style": "family_restaurant",
+		"sign_kind": "grill",
+		"supports_drive_through": false,
+		"lot_preset": {"parking": "none", "building_z_offset": -BUILDING_SETBACK * 1.24, "lot_size": Vector2(5.34, LOT_DEPTH + 0.06), "sidewalk": {"width": 1.08, "z": LOT_FRONT_SIDEWALK_Z - 0.08, "depth": SIDEWALK_WIDTH}, "hedges": {"width": 4.96, "depth": LOT_DEPTH - 0.42}},
+	},
+	"upscale_restaurant": {
+		"style": "upscale_restaurant",
+		"sign_kind": "fine_dining",
+		"supports_drive_through": false,
+		"lot_preset": {"parking": "none", "building_z_offset": -BUILDING_SETBACK * 1.34, "lot_size": Vector2(5.28, LOT_DEPTH + 0.22), "sidewalk": {"width": 1.04, "z": LOT_FRONT_SIDEWALK_Z - 0.06, "depth": SIDEWALK_WIDTH}, "hedges": {"width": 4.78, "depth": LOT_DEPTH - 0.28}},
+	},
+	"food_truck_court": {
+		"style": "food_truck_court",
+		"sign_kind": "food_court",
+		"supports_drive_through": false,
+		"lot_preset": {"parking": "none", "building_z_offset": -BUILDING_SETBACK * 0.92, "lot_size": Vector2(5.14, LOT_DEPTH - 0.12), "sidewalk": {"width": 1.34, "z": LOT_FRONT_SIDEWALK_Z - 0.1, "depth": SIDEWALK_WIDTH}, "hedges": {}},
+	},
+}
 const COMMERCIAL_TIER_ARCHITECTURE := {
 	BUILD_TOOL_FIRE: {
 		1: {"width": 2.58, "depth": 1.72, "height": 1.04, "center_z": -0.64, "front_z": 0.28, "bays": 1, "columns": 0, "upper": false, "tower": false, "wing": 0, "sign": "fire", "roof": "flat"},
@@ -741,19 +791,19 @@ func _input(event: InputEvent) -> void:
 
 
 func _build_materials() -> void:
-	_ground_material_a = _make_material("8fcf78", 0.94)
-	_ground_material_b = _make_material("78b965", 0.96)
-	_ground_material_c = _make_material("a7d989", 0.93)
+	_ground_material_a = _make_material("8cc775", 0.94)
+	_ground_material_b = _make_material("76b15f", 0.96)
+	_ground_material_c = _make_material("a9d986", 0.93)
 	_soil_material = _make_material("6b5137", 0.98)
-	_stone_material = _make_material("e2d2ba", 0.9)
+	_stone_material = _make_material("d8c9b3", 0.9)
 	_water_material = _make_material("349ab4", 0.24, 0.0, true, "bceff5", 0.1)
 	_water_highlight_material = _make_transparent_material(Color("effffb"), 0.26, 0.42)
-	_road_material = _make_material("2f3438", 0.98)
-	_road_top_detail_material = _make_material("3a4146", 0.97)
-	_road_edge_highlight_material = _make_material("d9d1c2", 0.92)
-	_crosswalk_material = _make_material("e7dece", 0.9)
-	_road_mark_material = _make_material("f0c94f", 0.78)
-	_sidewalk_material = _make_material("cec6b8", 0.94)
+	_road_material = _make_material("272d31", 0.98)
+	_road_top_detail_material = _make_material("333a3f", 0.97)
+	_road_edge_highlight_material = _make_material("b8c1bd", 0.92)
+	_crosswalk_material = _make_material("ddd8cb", 0.92)
+	_road_mark_material = _make_material("e8c64f", 0.8)
+	_sidewalk_material = _make_material("d9d1c2", 0.94)
 	_window_material = _make_material("ffc15e", 0.12, 0.0, true, "ffe09a", 0.38)
 	_window_frame_material = _make_material("f6ecd8", 0.82)
 	_roof_fascia_material = _make_material("5f412b", 0.84)
@@ -1614,7 +1664,8 @@ func _next_variant_for_tool(tool: String) -> int:
 	if tool == BUILD_TOOL_ROAD or not BUILDING_MAX_TIERS.has(tool):
 		return -1
 	var next_variant := int(_variant_cycle.get(tool, 0))
-	_variant_cycle[tool] = posmod(next_variant + 1, 10)
+	var variant_count := maxi(1, _property_variant_ids(tool).size())
+	_variant_cycle[tool] = posmod(next_variant + 1, variant_count)
 	return next_variant
 
 
@@ -2771,6 +2822,18 @@ func _property_visual_preset(tool: String) -> Dictionary:
 	return PROPERTY_VISUAL_PRESETS.get(tool, {})
 
 
+func _property_visual_preset_for_variant(tool: String, variant: int, variant_id: String = "") -> Dictionary:
+	var preset := _property_visual_preset(tool).duplicate(true)
+	if tool != BUILD_TOOL_RESTAURANT:
+		return preset
+	var resolved_variant_id := _resolve_property_variant_id(tool, variant, variant_id)
+	var definition: Dictionary = RESTAURANT_VARIANT_DEFINITIONS.get(resolved_variant_id, {})
+	var lot_preset: Dictionary = definition.get("lot_preset", {})
+	for key in lot_preset.keys():
+		preset[key] = lot_preset[key]
+	return preset
+
+
 func _apply_property_structure_setback(structure_root: Node3D, preset: Dictionary) -> void:
 	var setback_z := float(preset.get("building_z_offset", 0.0))
 	structure_root.position.z = setback_z
@@ -3262,6 +3325,28 @@ func _add_property_ground_variation(parent: Node, preset: Dictionary, variant: i
 		_add_local_sphere(Vector3(x, 0.072, z), 0.08, 0.045, _stone_material, parent)
 
 
+func _add_sidewalk_scene_cluster(parent: Node, center: Vector3, palette: Dictionary, variant: int, mood: String) -> void:
+	var accent: Color = palette["accent"]
+	var trim: Color = palette["trim"]
+	var planter_offset := 0.32 if posmod(variant, 2) == 0 else -0.32
+	create_planters(parent, [
+		center + Vector3(planter_offset, 0.07, -0.04),
+		center + Vector3(planter_offset * -0.55, 0.07, 0.12),
+	], accent)
+	match mood:
+		"residential":
+			_add_bench_local(center + Vector3(0.0, 0.0, 0.18), deg_to_rad(0.0), parent)
+		"civic":
+			_add_hydrant_local(center + Vector3(-0.36, 0.02, 0.08), parent)
+			_add_sidewalk_banner_local(parent, center + Vector3(0.36, 0.0, 0.04), accent)
+		"restaurant":
+			_add_bench_local(center + Vector3(-0.26, 0.0, 0.16), deg_to_rad(0.0), parent)
+			_add_menu_board_local(parent, center + Vector3(0.34, 0.0, 0.08), accent)
+		_:
+			_add_bench_local(center + Vector3(-0.24, 0.0, 0.14), deg_to_rad(0.0), parent)
+			_add_trash_can_local(parent, center + Vector3(0.38, 0.02, 0.1), trim)
+
+
 func _add_property_composed_lot_details(tool: String, sections: Dictionary, preset: Dictionary, palette: Dictionary, variant: int) -> void:
 	var props_root := sections["props"] as Node3D
 	var landscaping_root := sections["landscaping"] as Node3D
@@ -3285,23 +3370,28 @@ func _add_property_composed_lot_details(tool: String, sections: Dictionary, pres
 		create_bush_cluster(landscaping_root, Vector3(lot_size.x * 0.34, 0.08, -lot_size.y * 0.34), 5, Color("6fa85b"))
 		_add_flower_bed_local(landscaping_root, Vector3(-lot_size.x * 0.2, 0.09, frontage_z - 0.08), lot_size.x * 0.28, accent)
 		create_street_sign(props_root, Vector3(lot_size.x * 0.4, 0.02, sidewalk_back_z + 0.06), accent)
+		_add_sidewalk_scene_cluster(props_root, Vector3(-lot_size.x * 0.36, 0.02, sidewalk_back_z + 0.06), palette, variant, "residential")
 	elif tool == BUILD_TOOL_FIRE:
 		_add_flower_bed_local(landscaping_root, Vector3(-lot_size.x * 0.38, 0.09, frontage_z), 0.7, accent)
 		create_bush_cluster(landscaping_root, Vector3(lot_size.x * 0.38, 0.08, -lot_size.y * 0.36), 4, Color("778f68"))
 		create_tree(landscaping_root, Vector3(-lot_size.x * 0.45, 0.0, -lot_size.y * 0.3))
 		create_street_sign(props_root, Vector3(-lot_size.x * 0.42, 0.02, sidewalk_back_z + 0.06), accent, "fire")
+		_add_sidewalk_scene_cluster(props_root, Vector3(lot_size.x * 0.34, 0.02, sidewalk_back_z + 0.06), palette, variant, "civic")
 	elif lot_type == "commercial":
+		if tool == BUILD_TOOL_RESTAURANT:
+			# Restaurant archetypes own their full lot composition so they do not
+			# inherit the same generic bench/banner/planter pattern.
+			_add_sidewalk_scene_cluster(props_root, Vector3(-lot_size.x * 0.38, 0.02, sidewalk_back_z + 0.06), palette, variant, "restaurant")
+			return
 		_add_flower_bed_local(landscaping_root, Vector3(-lot_size.x * 0.38, 0.09, frontage_z), 0.66, accent)
 		_add_flower_bed_local(landscaping_root, Vector3(lot_size.x * 0.38, 0.09, frontage_z), 0.66, trim)
 		create_bush_cluster(landscaping_root, Vector3(-lot_size.x * 0.43, 0.08, -lot_size.y * 0.34), 4, Color("6fa85b"))
 		create_bush_cluster(landscaping_root, Vector3(lot_size.x * 0.43, 0.08, -lot_size.y * 0.28), 4, Color("86bd69"))
 		create_tree(landscaping_root, Vector3(lot_size.x * 0.44, 0.0, -lot_size.y * 0.43))
 		create_streetlamp(props_root, Vector3(lot_size.x * 0.46, 0.0, sidewalk_back_z + 0.08))
+		_add_sidewalk_scene_cluster(props_root, Vector3(-lot_size.x * 0.34, 0.02, sidewalk_back_z + 0.06), palette, variant, "commercial")
 		if tool == BUILD_TOOL_BANK or tool == BUILD_TOOL_GROCERY:
 			_add_bench_local(Vector3(-lot_size.x * 0.34, 0.02, sidewalk_back_z + 0.04), deg_to_rad(0.0), props_root)
-		if tool == BUILD_TOOL_RESTAURANT:
-			_add_sidewalk_banner_local(props_root, Vector3(lot_size.x * 0.42, 0.02, sidewalk_back_z + 0.04), accent)
-			_add_bench_local(Vector3(-lot_size.x * 0.38, 0.02, sidewalk_back_z + 0.02), deg_to_rad(0.0), props_root)
 		if tool == BUILD_TOOL_CORNER_STORE:
 			_add_compact_vending_machine_local(props_root, Vector3(-lot_size.x * 0.36, 0.03, frontage_z), accent)
 			_add_trash_can_local(props_root, Vector3(lot_size.x * 0.38, 0.03, sidewalk_back_z + 0.04), palette["roof"])
@@ -3371,8 +3461,7 @@ func _add_property_identity_props(tool: String, sections: Dictionary, preset: Di
 			_add_crate_stack_local(Vector3(-1.32, 0.12, 1.18), trim, props_root)
 			create_planters(landscaping_root, [Vector3(1.86, 0.09, 1.34)], accent)
 		BUILD_TOOL_RESTAURANT:
-			_add_menu_board_local(props_root, Vector3(-1.56, 0.0, 1.1), accent)
-			create_planters(landscaping_root, [Vector3(-1.44, 0.09, 1.32), Vector3(1.44, 0.09, 1.32)], accent)
+			pass
 		BUILD_TOOL_CORNER_STORE:
 			_add_ice_box_local(props_root, Vector3(1.52, 0.02, 1.0), palette["roof"])
 			_add_newspaper_box_local(props_root, Vector3(-1.42, 0.02, 1.08), accent)
@@ -3426,7 +3515,7 @@ func _add_newspaper_box_local(parent: Node, position_3d: Vector3, accent: Color)
 
 
 func create_property_visual_framework(root: Node3D, lot_root: Node3D, structure_root: Node3D, tool: String, variant: int, include_parking: bool = true, rebuild_lot_layout: bool = true) -> Dictionary:
-	var preset := _property_visual_preset(tool)
+	var preset := _property_visual_preset_for_variant(tool, variant)
 	var sections := _property_visual_sections(root, lot_root, structure_root)
 	if preset.is_empty():
 		return sections
@@ -3705,7 +3794,10 @@ func _try_load_game(force_feedback: bool = false) -> void:
 			var variant := int(entry.get("variant", randi() % 10))
 			var saved_variant_id := str(entry.get("variant_id", ""))
 			var variant_architecture_version := int(entry.get("variant_architecture_version", 0))
-			if variant_architecture_version < PROPERTY_VARIANT_ARCHITECTURE_VERSION and not _property_variant_ids(tool).is_empty():
+			var needs_variant_remap := variant_architecture_version < PROPERTY_VARIANT_ARCHITECTURE_VERSION and not _property_variant_ids(tool).is_empty()
+			if tool != BUILD_TOOL_RESTAURANT and variant_architecture_version >= 2:
+				needs_variant_remap = false
+			if needs_variant_remap:
 				variant = _legacy_variant_seed_for_loaded_placement(tool, anchor, variant)
 				saved_variant_id = ""
 			var variant_id := _resolve_property_variant_id(tool, variant, saved_variant_id)
@@ -5361,43 +5453,9 @@ func _restaurant_variant_profile(variant: int) -> Dictionary:
 
 
 func _populate_restaurant_variant(root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int, rebuild_lot_layout: bool = true) -> void:
-	var palette := _cozy_palette("restaurant", variant)
-	var restaurant_profile := _restaurant_variant_profile(variant)
-	var width := float(restaurant_profile["width"])
-	var depth := float(restaurant_profile["depth"])
-	var height := float(restaurant_profile["height"])
-	var roof_style := str(restaurant_profile["roof"])
-	var canopy_style := str(restaurant_profile["canopy"])
-	var sign_kind := str(restaurant_profile["sign"])
-	var columns := int(restaurant_profile["columns"])
-	var wall_material := _make_material_from_color(palette.wall, 0.88)
-	var roof_material := _make_material_from_color(palette.roof, 0.74)
-	var trim_material := _make_material_from_color(palette.trim, 0.76)
-	var accent_material := _make_material_from_color(palette.accent, 0.5)
 	if rebuild_lot_layout:
 		_add_parcel_shadow(root, Vector2(4.1, 3.0), 0.22)
-
-	var sections := create_property_visual_framework(root, lot_root, structure_root, BUILD_TOOL_RESTAURANT, variant, true, rebuild_lot_layout)
-	var props_root := sections["props"] as Node3D
-	var signage_root := sections["signage"] as Node3D
-	structure_root = sections["main_building"] as Node3D
-	_add_soft_block(Vector3(0.0, height * 0.5 + 0.05, -0.28), Vector3(width, height, depth), wall_material, structure_root, 0.18)
-	_add_restaurant_roof_local(Vector3(0.0, height + 0.18, -0.28), Vector3(width + 0.18, 0.2, depth + 0.2), roof_material, roof_style, structure_root)
-	_add_storefront_depth_package(BUILD_TOOL_RESTAURANT, structure_root, width, depth, height, 0.62, palette, variant)
-	create_awning(structure_root, Vector3(0.0, 0.42, 0.66), width, accent_material, trim_material, canopy_style)
-	_add_facade_trim_package(structure_root, width, height, 0.62, palette, sign_kind)
-	_add_restaurant_front_door_local(Vector3(0.0, 0.0, 0.68), structure_root, palette.accent)
-	create_storefront_windows(structure_root, width * 0.72, 0.56, 0.64, columns)
-	create_hvac_units(structure_root, width, depth, height + 0.34, -0.28, variant)
-	_add_box(Vector3(0.0, 0.82, 0.62), Vector3(width * 0.58, 0.1, 0.05), trim_material, structure_root)
-	create_sign(signage_root, Vector3(0.0, height + 0.08, 0.66), Vector2(width * 0.44, 0.2), palette.accent, sign_kind)
-	if roof_style == "flat":
-		_add_box(Vector3(0.0, height + 0.36, -0.28), Vector3(width * 0.82, 0.08, depth * 0.72), _make_material_from_color(palette.roof.darkened(0.05), 0.78), structure_root)
-	else:
-		_add_box(Vector3(width * 0.28, height + 0.42, -0.46), Vector3(0.12, 0.4, 0.12), _stone_material, structure_root)
-	_add_front_lanterns(structure_root, 0.72, width * 0.74)
-	var signature_props: Node = null
-	_add_restaurant_signature_upgrade(structure_root, signature_props, width, depth, height, palette, canopy_style)
+	create_property_visual_framework(root, lot_root, structure_root, BUILD_TOOL_RESTAURANT, variant, true, rebuild_lot_layout)
 
 
 func _add_restaurant_roof_local(center: Vector3, size: Vector3, material: Material, style: String, parent: Node) -> void:
@@ -5687,7 +5745,28 @@ func _rebuild_commercial_tier_visuals(root: Node3D, tool: String, tier: int, var
 			_build_restaurant_architecture(main_root, signage_root, upgrade_root, architecture, palette, variant)
 		BUILD_TOOL_CORNER_STORE:
 			_build_corner_store_architecture(main_root, signage_root, upgrade_root, architecture, palette, variant)
+	if tool != BUILD_TOOL_RESTAURANT:
+		_add_commercial_architecture_depth_polish(main_root, architecture, palette)
 	_add_commercial_dynamic_lot_details(dynamic_root, tool, architecture, palette, tier, variant, resolved_variant_id)
+
+
+func _add_commercial_architecture_depth_polish(parent: Node, profile: Dictionary, palette: Dictionary) -> void:
+	var width := _commercial_float(profile, "width", 2.8)
+	var depth := _commercial_float(profile, "depth", 1.7)
+	var height := _commercial_float(profile, "height", 0.96)
+	var center_z := _commercial_float(profile, "center_z", -0.55)
+	var front_z := _commercial_float(profile, "front_z", 0.42)
+	var trim_material := _make_material_from_color(palette["trim"], 0.8)
+	var roof_shadow := _make_material_from_color(palette["roof"].darkened(0.22), 0.86)
+	var warm_glass := _make_transparent_material(Color("fff0c4"), 0.18, 0.18)
+	_add_box(Vector3(0.0, 0.17, front_z + 0.07), Vector3(width * 0.92, 0.06, 0.08), roof_shadow, parent)
+	_add_box(Vector3(0.0, height + 0.18, front_z + 0.06), Vector3(width * 0.96, 0.06, 0.09), roof_shadow, parent)
+	for side_x in [-width * 0.52, width * 0.52]:
+		_add_box(Vector3(side_x, height * 0.5, center_z + depth * 0.06), Vector3(0.05, height * 0.78, depth * 0.62), trim_material, parent)
+		_add_box(Vector3(side_x * 0.98, minf(0.68, height * 0.62), center_z - depth * 0.18), Vector3(0.032, 0.22, 0.24), warm_glass, parent)
+	if width > 2.6:
+		create_rooftop_detail(parent, Vector3(width * 0.32, height + 0.44, center_z - depth * 0.22), palette["roof"])
+	_add_box(Vector3(0.0, 0.1, center_z - depth * 0.54), Vector3(width * 0.78, 0.05, 0.05), roof_shadow, parent)
 
 
 func _commercial_float(profile: Dictionary, key: String, fallback: float) -> float:
@@ -5955,48 +6034,461 @@ func _build_grocery_architecture(main_root: Node, signage_root: Node, upgrade_ro
 
 
 func _build_restaurant_architecture(main_root: Node, signage_root: Node, upgrade_root: Node, profile: Dictionary, palette: Dictionary, variant: int) -> void:
-	var variant_id := str(profile.get("variant_id", "diner"))
-	var width := _commercial_float(profile, "width", 2.6)
-	var depth := _commercial_float(profile, "depth", 1.6)
-	var height := _commercial_float(profile, "height", 1.0)
-	var center_z := _commercial_float(profile, "center_z", -0.58)
-	var front_z := _commercial_float(profile, "front_z", 0.3)
-	var awning_style := str(profile.get("awning", "stripe"))
+	var variant_id := str(profile.get("variant_id", "classic_diner"))
+	var definition: Dictionary = RESTAURANT_VARIANT_DEFINITIONS.get(variant_id, RESTAURANT_VARIANT_DEFINITIONS.get("classic_diner", {}))
+	var style := str(definition.get("style", variant_id))
+	match style:
+		"fast_food_drive_through":
+			_build_fast_food_drive_through_architecture(main_root, signage_root, upgrade_root, profile, palette, variant)
+		"modern_cafe":
+			_build_modern_cafe_architecture(main_root, signage_root, upgrade_root, profile, palette, variant)
+		"family_restaurant":
+			_build_family_restaurant_architecture(main_root, signage_root, upgrade_root, profile, palette, variant)
+		"upscale_restaurant":
+			_build_upscale_restaurant_architecture(main_root, signage_root, upgrade_root, profile, palette, variant)
+		"food_truck_court":
+			_build_food_truck_court_architecture(main_root, signage_root, upgrade_root, profile, palette, variant)
+		_:
+			_build_classic_diner_architecture(main_root, signage_root, upgrade_root, profile, palette, variant)
+
+
+func create_restaurant_base(parent: Node, center: Vector3, size: Vector3, palette: Dictionary, roof_style: String, corner_radius: float = 0.14) -> void:
 	var wall_material := _make_material_from_color(palette["wall"], 0.9)
 	var roof_material := _make_material_from_color(palette["roof"], 0.74)
-	var trim_material := _make_material_from_color(palette["trim"], 0.82)
+	_add_soft_block(center, size, wall_material, parent, corner_radius)
+	create_modular_roof(parent, Vector3(center.x, center.y + size.y * 0.5 + 0.16, center.z), Vector3(size.x + 0.2, 0.18, size.z + 0.2), roof_material, roof_style)
+
+
+func create_modular_signage(parent: Node, position_3d: Vector3, size: Vector2, palette: Dictionary, kind: String) -> void:
+	create_sign(parent, position_3d, size, palette["accent"], kind)
+
+
+func create_drive_through_window(parent: Node, position_3d: Vector3, palette: Dictionary, side: float = 1.0) -> void:
+	var frame_material := _make_material_from_color(palette["trim"], 0.82)
+	var counter_material := _make_material_from_color(palette["accent"].darkened(0.08), 0.74)
+	_add_box(position_3d, Vector3(0.05, 0.34, 0.32), frame_material, parent)
+	_add_house_side_window_local(position_3d + Vector3(0.012 * side, 0.02, 0.0), Vector3(0.05, 0.25, 0.22), parent, side)
+	_add_box(position_3d + Vector3(0.02 * side, -0.22, 0.0), Vector3(0.08, 0.06, 0.38), counter_material, parent)
+
+
+func create_menu_board(parent: Node, position_3d: Vector3, palette: Dictionary, large: bool = false) -> void:
+	var root := Node3D.new()
+	root.position = position_3d
+	parent.add_child(root)
+	var post_material := _make_material("4b3a34", 0.86)
+	var board_material := _make_material_from_color(palette["accent"].darkened(0.22), 0.72)
+	var panel_material := _make_material("f7ecd7", 0.84)
+	var board_size := Vector3(0.44 if large else 0.34, 0.32 if large else 0.24, 0.04)
+	_add_local_cylinder(Vector3(0.0, 0.22, 0.0), 0.025, 0.025, 0.44, post_material, root)
+	_add_box(Vector3(0.0, 0.5, 0.0), board_size, board_material, root)
+	for line_y in [-0.06, 0.02, 0.1]:
+		_add_box(Vector3(0.0, 0.5 + line_y, 0.025), Vector3(board_size.x * 0.66, 0.018, 0.012), panel_material, root)
+
+
+func create_drive_through_lane(parent: Node, center: Vector3, size: Vector3, palette: Dictionary, lane_count: int = 1) -> void:
+	var root := Node3D.new()
+	root.name = "DriveThroughLane"
+	root.position = center
+	parent.add_child(root)
+	var asphalt := _make_material("555f63", 0.98)
+	var curb := _make_material("eee8dc", 0.92)
+	var paint := _make_material("f7f2df", 0.92)
+	var arrow := _make_material_from_color(palette["accent"].lightened(0.1), 0.82)
+	var lane_width := size.x / float(maxi(1, lane_count))
+	_add_shadow_disc_local(Vector3(0.0, 0.0, -0.02), Vector2(size.x * 1.05, size.z * 1.0), 0.08, root)
+	_add_box(Vector3(0.0, 0.055, 0.0), Vector3(size.x, 0.035, size.z), asphalt, root)
+	_add_box(Vector3(0.0, 0.083, size.z * 0.5), Vector3(size.x, 0.016, 0.05), curb, root)
+	_add_box(Vector3(0.0, 0.083, -size.z * 0.5), Vector3(size.x, 0.016, 0.05), curb, root)
+	for lane_index in range(lane_count + 1):
+		var x := -size.x * 0.5 + float(lane_index) * lane_width
+		_add_box(Vector3(x, 0.096, 0.0), Vector3(0.026, 0.01, size.z * 0.88), paint, root)
+	for arrow_z in [size.z * 0.22, -size.z * 0.2]:
+		_add_box(Vector3(0.0, 0.104, arrow_z), Vector3(size.x * 0.3, 0.01, 0.035), arrow, root)
+		var left := _add_box(Vector3(size.x * 0.1, 0.105, arrow_z - 0.04), Vector3(size.x * 0.12, 0.01, 0.035), arrow, root)
+		left.rotation_degrees.y = 28.0
+		var right := _add_box(Vector3(-size.x * 0.1, 0.105, arrow_z - 0.04), Vector3(size.x * 0.12, 0.01, 0.035), arrow, root)
+		right.rotation_degrees.y = -28.0
+	create_menu_board(root, Vector3(-size.x * 0.36, 0.05, size.z * 0.24), palette, lane_count > 1)
+
+
+func create_patio(parent: Node, center: Vector3, size: Vector3, palette: Dictionary, table_count: int = 2, fenced: bool = true) -> void:
+	var root := Node3D.new()
+	root.name = "RestaurantPatio"
+	root.position = center
+	parent.add_child(root)
+	var patio_material := _make_material("d7c5ac", 0.92)
+	var curb_material := _make_material("eee8dc", 0.92)
+	var rail_material := _make_material_from_color(palette["trim"].darkened(0.1), 0.84)
+	_add_box(Vector3(0.0, 0.052, 0.0), Vector3(size.x, 0.035, size.z), patio_material, root)
+	_add_paved_stone_variation_local(root, Vector2(size.x * 0.86, size.z * 0.72), 0.07)
+	if fenced:
+		_add_box(Vector3(-size.x * 0.5, 0.16, 0.0), Vector3(0.045, 0.22, size.z), rail_material, root)
+		_add_box(Vector3(size.x * 0.5, 0.16, 0.0), Vector3(0.045, 0.22, size.z), rail_material, root)
+		_add_box(Vector3(0.0, 0.16, size.z * 0.5), Vector3(size.x, 0.22, 0.045), rail_material, root)
+		_add_box(Vector3(0.0, 0.08, -size.z * 0.5), Vector3(size.x, 0.04, 0.05), curb_material, root)
+	for index in range(table_count):
+		var t := 0.5 if table_count <= 1 else float(index) / float(table_count - 1)
+		var x := lerpf(-size.x * 0.28, size.x * 0.28, t)
+		_add_outdoor_table_local(root, Vector3(x, 0.05, 0.0), palette["accent"])
+
+
+func create_rooftop_seating(parent: Node, center: Vector3, size: Vector3, palette: Dictionary) -> void:
+	var deck_material := _make_material("c4a784", 0.86)
+	var rail_material := _make_material_from_color(palette["trim"].darkened(0.14), 0.82)
+	_add_box(center, Vector3(size.x, 0.05, size.z), deck_material, parent)
+	_add_box(center + Vector3(0.0, 0.12, size.z * 0.5), Vector3(size.x, 0.16, 0.04), rail_material, parent)
+	_add_box(center + Vector3(-size.x * 0.5, 0.12, 0.0), Vector3(0.04, 0.16, size.z), rail_material, parent)
+	_add_box(center + Vector3(size.x * 0.5, 0.12, 0.0), Vector3(0.04, 0.16, size.z), rail_material, parent)
+	_add_outdoor_table_local(parent, center + Vector3(-size.x * 0.18, 0.06, 0.0), palette["accent"])
+	_add_outdoor_table_local(parent, center + Vector3(size.x * 0.18, 0.06, 0.0), palette["accent"])
+
+
+func create_food_truck_stall(parent: Node, position_3d: Vector3, rotation_y: float, palette: Dictionary, index: int) -> void:
+	var root := Node3D.new()
+	root.position = position_3d
+	root.rotation.y = rotation_y
+	parent.add_child(root)
+	var body_color: Color = palette["accent"] if index % 2 == 0 else palette["roof"]
+	var body_material := _make_material_from_color(body_color, 0.72)
+	var trim_material := _make_material_from_color(palette["trim"], 0.84)
+	var tire_material := _make_material("26252b", 0.98)
+	_add_soft_block(Vector3(0.0, 0.2, 0.0), Vector3(0.64, 0.34, 0.34), body_material, root, 0.06)
+	_add_box(Vector3(0.08, 0.25, 0.2), Vector3(0.28, 0.18, 0.045), _window_material, root)
+	_add_box(Vector3(-0.16, 0.42, 0.2), Vector3(0.32, 0.08, 0.08), trim_material, root)
+	_add_box(Vector3(0.0, 0.08, 0.0), Vector3(0.72, 0.035, 0.42), _make_material("5f676c", 0.92), root)
+	for x in [-0.24, 0.24]:
+		for z in [-0.14, 0.14]:
+			var wheel := _add_local_cylinder(Vector3(x, 0.08, z), 0.045, 0.045, 0.035, tire_material, root)
+			wheel.rotation_degrees.z = 90.0
+
+
+func create_string_lights(parent: Node, left: Vector3, right: Vector3, palette: Dictionary, bulb_count: int = 5) -> void:
+	var pole_material := _make_material("4b3a34", 0.86)
+	var cable_material := _make_material("2f2c28", 0.9)
+	var bulb_material := _make_material("fff0a8", 0.46, 0.0, true, "ffe19a", 0.5)
+	_add_local_cylinder(left + Vector3(0.0, 0.48, 0.0), 0.025, 0.025, 0.96, pole_material, parent)
+	_add_local_cylinder(right + Vector3(0.0, 0.48, 0.0), 0.025, 0.025, 0.96, pole_material, parent)
+	var mid := (left + right) * 0.5 + Vector3(0.0, 0.96, 0.0)
+	_add_box(mid, Vector3(abs(right.x - left.x) + 0.05, 0.018, 0.018), cable_material, parent)
+	for index in range(bulb_count):
+		var t := 0.5 if bulb_count <= 1 else float(index) / float(bulb_count - 1)
+		var pos := left.lerp(right, t) + Vector3(0.0, 0.9 - 0.06 * sin(t * PI), 0.0)
+		_add_local_sphere(pos, 0.045, 0.035, bulb_material, parent)
+
+
+func _add_restaurant_window_wall(parent: Node, center: Vector3, size: Vector2, columns: int, glass_color: Color = Color("bfe6ff")) -> void:
+	var frame_material := _make_material("f4ecda", 0.84)
+	var glass_material := _make_transparent_material(glass_color, 0.2, 0.24)
+	_add_box(center, Vector3(size.x + 0.12, size.y + 0.1, 0.055), frame_material, parent)
+	var usable_width := size.x * 0.86
+	for index in range(maxi(1, columns)):
+		var t := 0.5 if columns <= 1 else float(index) / float(columns - 1)
+		var x := center.x + lerpf(-usable_width * 0.5, usable_width * 0.5, t)
+		_add_box(Vector3(x, center.y, center.z + 0.028), Vector3(usable_width / maxf(1.0, float(columns)) * 0.72, size.y * 0.82, 0.035), glass_material, parent)
+		if index > 0:
+			var mullion_x := center.x + lerpf(-usable_width * 0.5, usable_width * 0.5, t - 0.5 / float(columns - 1))
+			_add_box(Vector3(mullion_x, center.y, center.z + 0.04), Vector3(0.03, size.y * 0.92, 0.035), _window_frame_material, parent)
+	_add_box(center + Vector3(0.0, -size.y * 0.58, 0.04), Vector3(size.x + 0.22, 0.055, 0.075), _roof_fascia_material, parent)
+
+
+func _add_vertical_window_stack(parent: Node, x: float, base_y: float, z: float, count: int, glass_color: Color = Color("ffe6cc")) -> void:
+	for index in range(count):
+		_add_restaurant_window_wall(parent, Vector3(x, base_y + float(index) * 0.28, z), Vector2(0.28, 0.2), 1, glass_color)
+
+
+func _add_restaurant_pylon_sign(parent: Node, position_3d: Vector3, palette: Dictionary, kind: String, height: float = 1.4, wide: bool = false) -> void:
+	var pole_material := _make_material("3d4144", 0.86)
+	var cap_material := _make_material_from_color(palette["trim"], 0.82)
+	var sign_width := 0.72 if wide else 0.46
+	_add_local_cylinder(position_3d + Vector3(0.0, height * 0.5, 0.0), 0.03, 0.035, height, pole_material, parent)
+	_add_box(position_3d + Vector3(0.0, height + 0.08, 0.0), Vector3(sign_width + 0.1, 0.36, 0.06), cap_material, parent)
+	_add_signboard_local(position_3d + Vector3(0.0, height + 0.08, 0.045), Vector2(sign_width, 0.24), palette["accent"], kind, parent)
+
+
+func _add_restaurant_arrow(parent: Node, position_3d: Vector3, material: Material, rotation_y: float = 0.0) -> void:
+	var shaft := _add_box(position_3d, Vector3(0.36, 0.012, 0.045), material, parent)
+	shaft.rotation_degrees.y = rotation_y
+	var left := _add_box(position_3d + Vector3(0.13, 0.002, -0.055), Vector3(0.14, 0.012, 0.045), material, parent)
+	left.rotation_degrees.y = rotation_y + 35.0
+	var right := _add_box(position_3d + Vector3(0.13, 0.002, 0.055), Vector3(0.14, 0.012, 0.045), material, parent)
+	right.rotation_degrees.y = rotation_y - 35.0
+
+
+func _add_restaurant_parking_pad(parent: Node, center: Vector3, size: Vector3, spaces: int, palette: Dictionary, rotation_y: float = 0.0, handicap: bool = false) -> void:
+	var root := Node3D.new()
+	root.name = "ArchetypeParking"
+	root.position = center
+	root.rotation_degrees.y = rotation_y
+	parent.add_child(root)
+	var curb_material := _make_material("eee8dc", 0.92)
+	var asphalt_material := _make_material("525b61", 0.98)
+	var paint_material := _make_material("f7f2df", 0.92)
+	var stop_material := _make_material_from_color(palette["accent"].lightened(0.12), 0.84)
+	_add_shadow_disc_local(Vector3(0.0, 0.0, 0.0), Vector2(size.x * 1.02, size.z * 0.95), 0.08, root)
+	_add_box(Vector3(0.0, 0.052, 0.0), Vector3(size.x + 0.12, 0.03, size.z + 0.12), curb_material, root)
+	_add_box(Vector3(0.0, 0.078, 0.0), Vector3(size.x, 0.035, size.z), asphalt_material, root)
+	_add_parking_surface_polish_local(root, size, "small_lot")
+	for line_index in range(spaces + 1):
+		var t := 0.5 if spaces <= 0 else float(line_index) / float(spaces)
+		var x := lerpf(-size.x * 0.42, size.x * 0.42, t)
+		_add_box(Vector3(x, 0.108, -size.z * 0.08), Vector3(0.032, 0.012, size.z * 0.62), paint_material, root)
+	for stop_index in range(spaces):
+		var t := (float(stop_index) + 0.5) / float(maxi(1, spaces))
+		var x := lerpf(-size.x * 0.42, size.x * 0.42, t)
+		_add_box(Vector3(x, 0.124, -size.z * 0.32), Vector3(0.3, 0.032, 0.05), stop_material, root)
+	if handicap:
+		_add_box(Vector3(-size.x * 0.34, 0.116, 0.06), Vector3(0.42, 0.012, size.z * 0.42), _make_material("577da7", 0.82), root)
+		_add_box(Vector3(-size.x * 0.34, 0.13, 0.06), Vector3(0.24, 0.012, 0.035), paint_material, root)
+		_add_box(Vector3(-size.x * 0.34, 0.13, 0.06), Vector3(0.035, 0.012, 0.24), paint_material, root)
+
+
+func _add_drive_through_loop(parent: Node, palette: Dictionary, visual_tier: int) -> void:
+	var asphalt_material := _make_material("4f595e", 0.98)
+	var curb_material := _make_material("eee8dc", 0.92)
+	var paint_material := _make_material("f7f2df", 0.92)
+	var lane_width := 0.62 if visual_tier < 3 else 0.86
+	for segment in [
+		{"center": Vector3(1.46, 0.07, -0.18), "size": Vector3(lane_width, 0.035, 2.78)},
+		{"center": Vector3(0.46, 0.071, -1.48), "size": Vector3(2.2, 0.035, lane_width)},
+		{"center": Vector3(0.28, 0.072, 0.92), "size": Vector3(1.6, 0.035, lane_width * 0.78)},
+	]:
+		var center: Vector3 = segment["center"]
+		var size: Vector3 = segment["size"]
+		_add_box(center, size + Vector3(0.12, 0.012, 0.12), curb_material, parent)
+		_add_box(center + Vector3(0.0, 0.024, 0.0), size, asphalt_material, parent)
+	_add_box(Vector3(1.46, 0.106, -0.18), Vector3(0.035, 0.012, 2.36), paint_material, parent)
+	_add_box(Vector3(0.46, 0.106, -1.48), Vector3(1.78, 0.012, 0.035), paint_material, parent)
+	_add_restaurant_arrow(parent, Vector3(1.46, 0.122, 0.54), paint_material, -90.0)
+	_add_restaurant_arrow(parent, Vector3(0.54, 0.122, -1.48), paint_material, 180.0)
+	create_menu_board(parent, Vector3(1.06, 0.04, 0.82), palette, visual_tier >= 3)
+	_add_box(Vector3(1.12, 0.17, 0.5), Vector3(0.42, 0.2, 0.08), _make_material_from_color(palette["accent"], 0.78), parent)
+
+
+func _add_umbrella_table(parent: Node, position_3d: Vector3, palette: Dictionary) -> void:
+	_add_outdoor_table_local(parent, position_3d, palette["accent"])
+	var pole_material := _make_material("f4ecda", 0.82)
+	var canopy_material := _make_material_from_color(palette["accent"].lightened(0.06), 0.72)
+	_add_local_cylinder(position_3d + Vector3(0.0, 0.42, 0.0), 0.018, 0.018, 0.48, pole_material, parent)
+	var canopy := _add_local_sphere(position_3d + Vector3(0.0, 0.68, 0.0), 0.22, 0.12, canopy_material, parent)
+	canopy.scale.x = 1.18
+	canopy.scale.z = 1.18
+
+
+func _add_retro_diner_window_band(parent: Node, center: Vector3, width: float, trim_material: Material) -> void:
+	var glass_material := _make_transparent_material(Color("bfe6ff"), 0.18, 0.22)
+	_add_box(center, Vector3(width, 0.28, 0.055), trim_material, parent)
+	_add_box(center + Vector3(0.0, 0.0, 0.035), Vector3(width * 0.9, 0.2, 0.035), glass_material, parent)
+	for mullion_x in [-width * 0.36, -width * 0.18, 0.0, width * 0.18, width * 0.36]:
+		_add_box(center + Vector3(mullion_x, 0.0, 0.062), Vector3(0.026, 0.25, 0.03), trim_material, parent)
+	_add_box(center + Vector3(0.0, -0.18, 0.06), Vector3(width * 0.96, 0.04, 0.05), _roof_fascia_material, parent)
+
+
+func _add_retro_diner_roofline(parent: Node, width: float, depth: float, height: float, center_z: float, palette: Dictionary) -> void:
+	var roof_material := _make_material_from_color(palette["roof"], 0.72)
+	var trim_material := _make_material_from_color(palette["trim"], 0.78)
+	var chrome_material := _make_material("dfe7e6", 0.54)
+	_add_soft_block(Vector3(0.0, height + 0.18, center_z), Vector3(width + 0.34, 0.16, depth + 0.3), roof_material, parent, 0.24)
+	_add_box(Vector3(0.0, height + 0.32, center_z + depth * 0.03), Vector3(width * 0.86, 0.07, depth * 0.34), trim_material, parent)
+	_add_box(Vector3(0.0, height + 0.04, center_z + depth * 0.5 + 0.02), Vector3(width + 0.48, 0.055, 0.06), chrome_material, parent)
+	_add_box(Vector3(0.0, height + 0.04, center_z - depth * 0.5 - 0.02), Vector3(width + 0.32, 0.045, 0.045), chrome_material, parent)
+
+
+func _add_retro_diner_front_canopy(parent: Node, width: float, front_z: float, palette: Dictionary) -> void:
+	var accent_material := _make_material_from_color(palette["accent"], 0.48)
+	var trim_material := _make_material_from_color(palette["trim"], 0.78)
+	var canopy_width := width * 0.72
+	_add_round_canopy(Vector3(0.24, 0.7, front_z + 0.18), Vector3(canopy_width, 0.065, 0.14), accent_material, parent)
+	for stripe_x in [-canopy_width * 0.38, -canopy_width * 0.16, canopy_width * 0.08, canopy_width * 0.32]:
+		_add_box(Vector3(0.24 + stripe_x, 0.735, front_z + 0.29), Vector3(canopy_width * 0.075, 0.032, 0.11), trim_material, parent)
+	for post_x in [-canopy_width * 0.43, canopy_width * 0.43]:
+		_add_local_cylinder(Vector3(0.24 + post_x, 0.36, front_z + 0.28), 0.024, 0.026, 0.62, trim_material, parent)
+
+
+func _add_retro_diner_counter_side(parent: Node, x_side: float, center_z: float, depth: float, palette: Dictionary) -> void:
+	var trim_material := _make_material_from_color(palette["trim"], 0.78)
 	var accent_material := _make_material_from_color(palette["accent"], 0.5)
-	_add_soft_block(Vector3(0.0, height * 0.5 + 0.05, center_z), Vector3(width, height, depth), wall_material, main_root, 0.16)
-	create_modular_roof(main_root, Vector3(0.0, height + 0.22, center_z), Vector3(width + 0.24, 0.18, depth + 0.22), roof_material, str(profile.get("roof", "gabled")))
-	create_trim_layer(main_root, width, height, front_z, palette, "")
-	create_storefront(main_root, width * 0.92, front_z + 0.04, palette, "", 3)
-	create_awning(main_root, Vector3(0.0, 0.72, front_z + 0.16), width * 0.94, accent_material, trim_material, awning_style)
-	create_sign(signage_root, Vector3(0.0, height + 0.34, front_z + 0.16), Vector2(width * 0.5, 0.22), palette["accent"], _variant_sign_kind(BUILD_TOOL_RESTAURANT, variant_id))
-	match variant_id:
-		"diner":
-			_add_box(Vector3(0.0, height + 0.5, front_z + 0.18), Vector3(width * 0.62, 0.08, 0.08), _make_material("f4ecda", 0.78), main_root)
-			_add_box(Vector3(-width * 0.46, 0.5, front_z + 0.12), Vector3(0.12, 0.38, 0.05), accent_material, main_root)
-		"cafe_bistro":
-			create_awning(main_root, Vector3(-width * 0.34, 0.82, front_z + 0.16), width * 0.28, accent_material, trim_material, "round")
-			create_awning(main_root, Vector3(width * 0.34, 0.82, front_z + 0.16), width * 0.28, accent_material, trim_material, "round")
-		"family_restaurant":
-			_add_box(Vector3(0.0, height + 0.48, front_z + 0.18), Vector3(width * 0.78, 0.12, 0.1), accent_material, main_root)
-		"upscale_patio_restaurant":
-			create_awning(main_root, Vector3(0.0, 0.84, front_z + 0.2), width * 0.74, accent_material, trim_material, "pergola")
-	if _commercial_int(profile, "wing", 0) >= 1:
-		_add_soft_block(Vector3(-width * 0.38, 0.56, center_z - depth * 0.4), Vector3(width * 0.34, 0.9, depth * 0.72), _make_material_from_color(palette["wall"].darkened(0.03), 0.9), upgrade_root, 0.12)
-		_add_box(Vector3(-width * 0.38, 0.58, center_z - depth * 0.08), Vector3(0.3, 0.36, 0.055), _window_material, upgrade_root)
-	if _commercial_int(profile, "wing", 0) >= 2:
-		_add_soft_block(Vector3(width * 0.38, 0.6, center_z - depth * 0.4), Vector3(width * 0.34, 0.98, depth * 0.72), _make_material_from_color(palette["wall"].lightened(0.04), 0.92), upgrade_root, 0.12)
-		_add_box(Vector3(width * 0.38, 0.62, center_z - depth * 0.08), Vector3(0.3, 0.38, 0.055), _window_material, upgrade_root)
-	if _commercial_bool(profile, "upper"):
-		_add_soft_block(Vector3(0.0, height + 0.48, center_z - 0.06), Vector3(width * 0.86, 0.78, depth * 0.74), _make_material_from_color(palette["wall"].lightened(0.06), 0.92), upgrade_root, 0.12)
-		create_modular_roof(upgrade_root, Vector3(0.0, height + 1.0, center_z - 0.06), Vector3(width * 0.98, 0.14, depth * 0.84), roof_material, str(profile.get("roof", "gabled")))
-		for window_x in [-width * 0.24, 0.0, width * 0.24]:
-			_add_window_band_local(Vector3(window_x, height + 0.42, front_z), Vector3(0.24, 0.28, 0.05), upgrade_root)
+	var glass_material := _make_transparent_material(Color("bfe6ff"), 0.18, 0.22)
+	_add_box(Vector3(x_side, 0.44, center_z), Vector3(0.052, 0.24, depth * 0.5), trim_material, parent)
+	_add_box(Vector3(x_side, 0.44, center_z), Vector3(0.032, 0.18, depth * 0.38), glass_material, parent)
+	_add_box(Vector3(x_side, 0.25, center_z), Vector3(0.07, 0.08, depth * 0.58), accent_material, parent)
+
+
+func _add_retro_diner_rooftop_neon(parent: Node, width: float, height: float, front_z: float, palette: Dictionary, visual_tier: int) -> void:
+	var trim_material := _make_material_from_color(palette["trim"], 0.78)
+	var neon_material := _make_material("fff0a8", 0.44, 0.0, true, "ffd86c", 0.65)
+	var sign_width := width * (0.32 if visual_tier < 3 else 0.44)
+	_add_box(Vector3(0.0, height + 0.48, front_z + 0.16), Vector3(sign_width + 0.18, 0.18, 0.08), trim_material, parent)
+	_add_signboard_local(Vector3(0.0, height + 0.48, front_z + 0.21), Vector2(sign_width, 0.14), palette["accent"], "diner", parent)
+	_add_box(Vector3(0.0, height + 0.64, front_z + 0.16), Vector3(sign_width * 0.74, 0.035, 0.045), neon_material, parent)
+
+
+func _build_classic_diner_architecture(main_root: Node, signage_root: Node, upgrade_root: Node, profile: Dictionary, palette: Dictionary, variant: int) -> void:
+	var width := _commercial_float(profile, "width", 4.6)
+	var depth := _commercial_float(profile, "depth", 0.78)
+	var height := _commercial_float(profile, "height", 0.58)
+	var center_z := _commercial_float(profile, "center_z", -0.48)
+	var front_z := _commercial_float(profile, "front_z", 0.36)
+	var visual_tier := int(profile.get("tier", 1))
+	var wall_material := _make_material_from_color(palette["wall"], 0.9)
+	var trim_material := _make_material_from_color(palette["trim"], 0.78)
+	var accent_material := _make_material_from_color(palette["accent"], 0.48)
+	var chrome_material := _make_material("dfe7e6", 0.54)
+	var rear_material := _make_material_from_color(palette["wall"].darkened(0.05), 0.9)
+	var shadow_width := width + 0.42
+	_add_shadow_disc_local(Vector3(0.0, 0.0, center_z + 0.02), Vector2(shadow_width, depth * 1.28), 0.18, main_root)
+	_add_soft_block(Vector3(0.0, height * 0.5 + 0.06, center_z), Vector3(width, height, depth), wall_material, main_root, 0.28)
+	_add_soft_block(Vector3(-width * 0.42, height * 0.5 + 0.06, center_z), Vector3(width * 0.18, height * 0.94, depth * 0.96), rear_material, main_root, 0.22)
+	_add_soft_block(Vector3(width * 0.42, height * 0.5 + 0.06, center_z), Vector3(width * 0.18, height * 0.94, depth * 0.96), rear_material, main_root, 0.22)
+	_add_box(Vector3(0.0, 0.22, center_z + depth * 0.49), Vector3(width * 0.96, 0.09, 0.055), accent_material, main_root)
+	_add_box(Vector3(0.0, 0.16, center_z - depth * 0.49), Vector3(width * 0.9, 0.06, 0.045), chrome_material, main_root)
+	_add_retro_diner_roofline(main_root, width, depth, height, center_z, palette)
+	_add_retro_diner_window_band(main_root, Vector3(0.32, 0.45, front_z + 0.08), width * 0.68, trim_material)
+	_add_retro_diner_counter_side(main_root, -width * 0.52, center_z, depth, palette)
+	_add_retro_diner_counter_side(main_root, width * 0.52, center_z, depth, palette)
+	_add_restaurant_front_door_local(Vector3(-width * 0.38, 0.0, front_z + 0.11), main_root, palette["accent"])
+	_add_retro_diner_front_canopy(main_root, width, front_z, palette)
+	_add_retro_diner_rooftop_neon(signage_root, width, height, front_z, palette, visual_tier)
+	if _commercial_bool(profile, "service_loop"):
+		create_drive_through_window(main_root, Vector3(width * 0.52, 0.38, center_z - depth * 0.06), palette, 1.0)
+		_add_box(Vector3(width * 0.48, 0.2, center_z - depth * 0.48), Vector3(0.42, 0.18, 0.18), accent_material, upgrade_root)
+		_add_box(Vector3(width * 0.48, 0.34, center_z - depth * 0.48), Vector3(0.3, 0.035, 0.2), chrome_material, upgrade_root)
 	if _commercial_bool(profile, "signature"):
-		_add_lantern_glow_local(Vector3(-width * 0.44, 0.9, front_z + 0.14), upgrade_root)
-		_add_lantern_glow_local(Vector3(width * 0.44, 0.9, front_z + 0.14), upgrade_root)
+		for vent_x in [-width * 0.28, width * 0.18]:
+			_add_local_cylinder(Vector3(vent_x, height + 0.42, center_z - depth * 0.22), 0.065, 0.065, 0.14, accent_material, upgrade_root)
+			_add_box(Vector3(vent_x, height + 0.5, center_z - depth * 0.22), Vector3(0.16, 0.035, 0.16), trim_material, upgrade_root)
+		_add_box(Vector3(-width * 0.02, height + 0.42, center_z - depth * 0.34), Vector3(width * 0.46, 0.055, 0.16), chrome_material, upgrade_root)
+	if bool(profile.get("corner_patio", false)):
+		create_patio(upgrade_root, Vector3(width * 0.25, 0.04, front_z + 0.44), Vector3(width * 0.34, 0.05, 0.46), palette, 1, true)
+		_add_box(Vector3(width * 0.02, 0.14, front_z + 0.64), Vector3(width * 0.7, 0.05, 0.08), chrome_material, upgrade_root)
+	_add_front_lanterns(main_root, front_z + 0.16, width * 0.86)
+
+
+func _build_fast_food_drive_through_architecture(main_root: Node, signage_root: Node, upgrade_root: Node, profile: Dictionary, palette: Dictionary, variant: int) -> void:
+	var width := _commercial_float(profile, "width", 1.78)
+	var depth := _commercial_float(profile, "depth", 1.58)
+	var height := _commercial_float(profile, "height", 1.18)
+	var center_z := _commercial_float(profile, "center_z", -0.96)
+	var front_z := _commercial_float(profile, "front_z", 0.12)
+	var visual_tier := int(profile.get("tier", 1))
+	var wall_material := _make_material_from_color(palette["wall"], 0.9)
+	var glass_material := _make_transparent_material(Color("bfe6ff"), 0.16, 0.2)
+	var accent_material := _make_material_from_color(palette["accent"], 0.5)
+	_add_shadow_disc_local(Vector3(0.1, 0.0, center_z), Vector2(width * 1.34, depth * 1.18), 0.17, main_root)
+	_add_soft_block(Vector3(0.22, height * 0.5 + 0.06, center_z), Vector3(width * 0.72, height, depth * 0.78), wall_material, main_root, 0.06)
+	_add_soft_block(Vector3(-width * 0.28, height * 0.38 + 0.05, center_z + depth * 0.16), Vector3(width * 0.58, height * 0.62, depth * 0.5), glass_material, main_root, 0.04)
+	_add_soft_block(Vector3(width * 0.48, height * 0.48 + 0.05, center_z - depth * 0.26), Vector3(width * 0.38, height * 0.82, depth * 0.46), _make_material_from_color(palette["wall"].lightened(0.07), 0.9), main_root, 0.05)
+	_add_fast_food_roof_canopy(main_root, width, depth, height, center_z, front_z, palette, visual_tier)
+	_add_fast_food_frontage(main_root, width, height, front_z, palette)
+	_add_fast_food_pickup_side(main_root, width * 0.72, center_z, depth, palette)
+	create_modular_signage(signage_root, Vector3(-0.18, height + 0.58, front_z + 0.18), Vector2(width * 0.48, 0.18), palette, "fast_food")
+	if bool(profile.get("tower", false)):
+		_add_fast_food_sign_tower(main_root, signage_root, width, height, center_z, front_z, palette, visual_tier)
+	if _commercial_int(profile, "drive_lanes", 1) >= 2:
+		_add_box(Vector3(0.18, height + 0.48, front_z + 0.04), Vector3(width * 0.62, 0.1, 0.14), accent_material, upgrade_root)
+		_add_box(Vector3(width * 0.62, 0.17, center_z + depth * 0.38), Vector3(0.62, 0.08, 0.18), _make_material("555f63", 0.96), upgrade_root)
+	if _commercial_bool(profile, "signature"):
+		_add_lantern_glow_local(Vector3(-width * 0.48, 0.88, front_z + 0.12), upgrade_root)
+		_add_lantern_glow_local(Vector3(width * 0.46, 0.92, front_z + 0.12), upgrade_root)
+		_add_box(Vector3(0.18, height + 0.56, center_z - depth * 0.34), Vector3(width * 0.46, 0.08, 0.16), accent_material, upgrade_root)
+
+
+func _build_modern_cafe_architecture(main_root: Node, signage_root: Node, upgrade_root: Node, profile: Dictionary, palette: Dictionary, variant: int) -> void:
+	var width := _commercial_float(profile, "width", 1.72)
+	var depth := _commercial_float(profile, "depth", 1.3)
+	var height := _commercial_float(profile, "height", 0.94)
+	var center_z := _commercial_float(profile, "center_z", -0.76)
+	var front_z := _commercial_float(profile, "front_z", 0.2)
+	var visual_tier := int(profile.get("tier", 1))
+	var accent_material := _make_material_from_color(palette["accent"], 0.48)
+	_add_shadow_disc_local(Vector3(-0.02, 0.0, center_z + 0.04), Vector2(width * 1.28, depth * 1.12), 0.16, main_root)
+	_add_modern_cafe_glass_pavilion(main_root, width, depth, height, center_z, front_z, palette)
+	_add_modern_cafe_roof(main_root, width, depth, height, center_z, front_z, palette, visual_tier)
+	_add_modern_cafe_sign(signage_root, width, height, front_z, palette)
+	if _commercial_bool(profile, "signature"):
+		_add_box(Vector3(-width * 0.56, 0.82, center_z - depth * 0.22), Vector3(0.12, 0.62, 0.54), accent_material, upgrade_root)
+		create_planters(upgrade_root, [Vector3(width * 0.48, 0.08, front_z + 0.22), Vector3(-width * 0.58, 0.08, front_z + 0.18)], palette["accent"])
+	if bool(profile.get("rooftop", false)):
+		create_rooftop_seating(upgrade_root, Vector3(-0.08, height + 0.36, center_z), Vector3(width * 0.68, 0.05, depth * 0.5), palette)
+
+
+func _build_family_restaurant_architecture(main_root: Node, signage_root: Node, upgrade_root: Node, profile: Dictionary, palette: Dictionary, variant: int) -> void:
+	var width := _commercial_float(profile, "width", 3.86)
+	var depth := _commercial_float(profile, "depth", 1.92)
+	var height := _commercial_float(profile, "height", 0.96)
+	var center_z := _commercial_float(profile, "center_z", -0.9)
+	var front_z := _commercial_float(profile, "front_z", 0.32)
+	var visual_tier := int(profile.get("tier", 1))
+	_add_shadow_disc_local(Vector3(0.0, 0.0, center_z + 0.02), Vector2(width * 1.02, depth * 1.04), 0.18, main_root)
+	_add_family_restaurant_main_hall(main_root, width, depth, height, center_z, palette, visual_tier)
+	_add_family_restaurant_roofline(main_root, width, depth, height, center_z, front_z, palette, visual_tier)
+	_add_family_restaurant_frontage(main_root, signage_root, width, height, front_z, palette, visual_tier)
+	_add_family_restaurant_upgrade_massing(upgrade_root, width, depth, height, center_z, front_z, palette, profile)
+	if _commercial_bool(profile, "signature"):
+		_add_front_lanterns(upgrade_root, front_z + 0.18, width * 0.92)
+
+
+func _build_upscale_restaurant_architecture(main_root: Node, signage_root: Node, upgrade_root: Node, profile: Dictionary, palette: Dictionary, variant: int) -> void:
+	var width := _commercial_float(profile, "width", 3.0)
+	var depth := _commercial_float(profile, "depth", 1.9)
+	var height := _commercial_float(profile, "height", 1.2)
+	var center_z := _commercial_float(profile, "center_z", -0.78)
+	var front_z := _commercial_float(profile, "front_z", 0.38)
+	var roof_material := _make_material_from_color(palette["roof"], 0.72)
+	var trim_material := _make_material_from_color(palette["trim"], 0.82)
+	var accent_material := _make_material_from_color(palette["accent"], 0.46)
+	_add_soft_block(Vector3(-width * 0.22, height * 0.5 + 0.05, center_z), Vector3(width * 0.54, height, depth * 0.88), _make_material_from_color(palette["wall"], 0.9), main_root, 0.06)
+	_add_soft_block(Vector3(width * 0.24, height * 0.58 + 0.05, center_z - depth * 0.18), Vector3(width * 0.4, height * 1.14, depth * 0.74), _make_transparent_material(Color("ffe6cc"), 0.16, 0.2), main_root, 0.04)
+	_add_soft_block(Vector3(-width * 0.46, 0.56, center_z + depth * 0.18), Vector3(width * 0.22, height * 0.7, depth * 0.54), _make_material_from_color(palette["wall"].darkened(0.06), 0.9), main_root, 0.08)
+	create_modular_roof(main_root, Vector3(-width * 0.22, height + 0.28, center_z), Vector3(width * 0.64, 0.14, depth + 0.2), roof_material, "flat")
+	create_modular_roof(main_root, Vector3(width * 0.24, height * 1.16 + 0.18, center_z - depth * 0.18), Vector3(width * 0.48, 0.12, depth * 0.86), roof_material, "flat")
+	create_modular_roof(main_root, Vector3(-width * 0.46, 0.98, center_z + depth * 0.18), Vector3(width * 0.28, 0.1, depth * 0.6), roof_material, "flat")
+	_add_restaurant_window_wall(main_root, Vector3(-width * 0.14, 0.66, front_z + 0.1), Vector2(width * 0.42, 0.46), 2, Color("ffe6cc"))
+	_add_vertical_window_stack(main_root, width * 0.28, 0.5, front_z + 0.02, 3, Color("ffe6cc"))
+	_add_restaurant_front_door_local(Vector3(-width * 0.34, 0.0, front_z + 0.14), main_root, palette["accent"])
+	_add_box(Vector3(-width * 0.26, 0.96, front_z + 0.2), Vector3(width * 0.34, 0.08, 0.2), accent_material, main_root)
+	create_modular_signage(signage_root, Vector3(0.0, height + 0.58, front_z + 0.18), Vector2(width * 0.42, 0.2), palette, "fine_dining")
+	if _commercial_int(profile, "wing", 0) >= 1:
+		_add_soft_block(Vector3(-width * 0.44, 0.62, center_z - depth * 0.5), Vector3(width * 0.28, 0.98, depth * 0.58), _make_material_from_color(palette["wall"].darkened(0.06), 0.9), upgrade_root, 0.08)
+	if _commercial_int(profile, "wing", 0) >= 2:
+		_add_soft_block(Vector3(width * 0.44, 0.68, center_z - depth * 0.48), Vector3(width * 0.3, 1.08, depth * 0.62), _make_material_from_color(palette["wall"].lightened(0.06), 0.9), upgrade_root, 0.08)
+	if _commercial_bool(profile, "upper"):
+		_add_soft_block(Vector3(0.0, height + 0.5, center_z - 0.1), Vector3(width * 0.68, 0.78, depth * 0.58), _make_material_from_color(palette["wall"].lightened(0.08), 0.9), upgrade_root, 0.09)
+		create_modular_roof(upgrade_root, Vector3(0.0, height + 1.04, center_z - 0.1), Vector3(width * 0.76, 0.12, depth * 0.66), roof_material, "flat")
+	if _commercial_bool(profile, "signature"):
+		_add_box(Vector3(0.0, height + 0.66, front_z + 0.18), Vector3(width * 0.6, 0.08, 0.1), accent_material, upgrade_root)
+		_add_lantern_glow_local(Vector3(-width * 0.46, 0.96, front_z + 0.14), upgrade_root)
+		_add_lantern_glow_local(Vector3(width * 0.46, 0.96, front_z + 0.14), upgrade_root)
+
+
+func _build_food_truck_court_architecture(main_root: Node, signage_root: Node, upgrade_root: Node, profile: Dictionary, palette: Dictionary, variant: int) -> void:
+	var width := _commercial_float(profile, "width", 3.0)
+	var depth := _commercial_float(profile, "depth", 1.7)
+	var center_z := _commercial_float(profile, "center_z", -0.68)
+	var front_z := _commercial_float(profile, "front_z", 0.42)
+	var vendor_count := _commercial_int(profile, "vendor_count", 2)
+	var plaza_material := _make_material("d7c5ac", 0.92)
+	var curb_material := _make_material("eee8dc", 0.92)
+	_add_box(Vector3(0.0, 0.05, center_z), Vector3(width, 0.04, depth), plaza_material, main_root)
+	_add_box(Vector3(0.0, 0.08, center_z + depth * 0.5), Vector3(width, 0.035, 0.06), curb_material, main_root)
+	_add_box(Vector3(-width * 0.5, 0.08, center_z), Vector3(0.06, 0.035, depth), curb_material, main_root)
+	_add_box(Vector3(width * 0.5, 0.08, center_z), Vector3(0.06, 0.035, depth), curb_material, main_root)
+	_add_box(Vector3(0.0, 0.12, front_z + 0.1), Vector3(width * 0.82, 0.05, 0.18), _make_material_from_color(palette["accent"].darkened(0.12), 0.82), main_root)
+	_add_restaurant_pylon_sign(signage_root, Vector3(0.0, 0.0, front_z + 0.2), palette, "food_court", 0.72, true)
+	var vendor_positions := [
+		Vector3(-width * 0.28, 0.06, center_z - depth * 0.28),
+		Vector3(width * 0.28, 0.06, center_z - depth * 0.18),
+		Vector3(-width * 0.32, 0.06, center_z + depth * 0.14),
+		Vector3(width * 0.32, 0.06, center_z + depth * 0.18),
+	]
+	for index in range(mini(vendor_count, vendor_positions.size())):
+		create_food_truck_stall(main_root, vendor_positions[index], deg_to_rad(90.0 if index % 2 == 0 else -90.0), palette, index)
+	for table_pos in [Vector3(0.0, 0.06, center_z), Vector3(-width * 0.16, 0.06, center_z + depth * 0.24), Vector3(width * 0.16, 0.06, center_z + depth * 0.22)]:
+		_add_outdoor_table_local(main_root, table_pos, palette["accent"])
+	create_string_lights(main_root, Vector3(-width * 0.46, 0.0, center_z + depth * 0.44), Vector3(width * 0.46, 0.0, center_z + depth * 0.44), palette, 5)
+	if vendor_count >= 3:
+		create_string_lights(upgrade_root, Vector3(-width * 0.46, 0.0, center_z - depth * 0.1), Vector3(width * 0.46, 0.0, center_z - depth * 0.1), palette, 6)
+	if _commercial_bool(profile, "signature"):
+		create_landscape_island(upgrade_root, Vector3(0.0, 0.11, center_z - depth * 0.48), Vector3(width * 0.6, 0.08, 0.18), palette["accent"], 5)
 
 
 func _build_corner_store_architecture(main_root: Node, signage_root: Node, upgrade_root: Node, profile: Dictionary, palette: Dictionary, variant: int) -> void:
@@ -6045,11 +6537,14 @@ func _build_corner_store_architecture(main_root: Node, signage_root: Node, upgra
 
 
 func _add_commercial_dynamic_lot_details(parent: Node, tool: String, profile: Dictionary, palette: Dictionary, tier: int, variant: int, variant_id: String = "") -> void:
-	var preset := _property_visual_preset(tool)
+	var preset := _property_visual_preset_for_variant(tool, variant, variant_id)
 	var parking_position: Vector3 = preset.get("parking_position", Vector3(0.0, 0.0, LOT_PARKING_Z))
 	var parking_size: Vector3 = preset.get("parking_size", Vector3(3.0, 1.0, PARKING_DEPTH))
 	var accent: Color = palette["accent"]
 	var trim: Color = palette["trim"]
+	if tool == BUILD_TOOL_RESTAURANT:
+		_add_restaurant_variant_lot_details(parent, parking_position, parking_size, palette, tier, variant_id)
+		return
 	if tier >= 2:
 		for x in [-parking_size.x * 0.28, 0.0, parking_size.x * 0.28]:
 			_add_box(parking_position + Vector3(x, 0.13, -parking_size.z * 0.32), Vector3(0.32, 0.035, 0.055), _make_material_from_color(accent.lightened(0.12), 0.84), parent)
@@ -6080,13 +6575,6 @@ func _add_commercial_dynamic_lot_details(parent: Node, tool: String, profile: Di
 				create_cart_rack(parent, parking_position + Vector3(parking_size.x * 0.42, 0.08, parking_size.z * 0.32), deg_to_rad(90.0))
 			if tier >= 4:
 				_add_box(parking_position + Vector3(-parking_size.x * 0.42, 0.16, parking_size.z * 0.38), Vector3(0.72, 0.12, 0.24), _make_material("9f7b56", 0.82), parent)
-		BUILD_TOOL_RESTAURANT:
-			_add_restaurant_variant_lot_details(parent, parking_position, parking_size, palette, tier, variant_id)
-			if tier >= 2:
-				for table_x in [-0.42, 0.42]:
-					_add_outdoor_table_local(parent, parking_position + Vector3(table_x, 0.05, parking_size.z * 0.44), accent)
-			if tier >= 4:
-				_add_box(parking_position + Vector3(0.0, 0.13, parking_size.z * 0.5), Vector3(parking_size.x * 0.62, 0.06, 0.12), _make_material("8d543c", 0.78), parent)
 		BUILD_TOOL_CORNER_STORE:
 			_add_corner_store_variant_lot_details(parent, parking_position, parking_size, palette, tier, variant_id)
 			if tier >= 2:
@@ -6139,23 +6627,303 @@ func _add_grocery_variant_lot_details(parent: Node, parking_position: Vector3, p
 				create_landscape_island(parent, parking_position + Vector3(0.0, 0.12, -parking_size.z * 0.32), Vector3(parking_size.x * 0.46, 0.08, 0.18), accent, 4)
 
 
+func create_restaurant_parking_layout(parent: Node, parking_position: Vector3, parking_size: Vector3, palette: Dictionary, layout: String, spaces: int = 3) -> void:
+	var paint := _make_material("f7f2df", 0.92)
+	var accent_paint := _make_material_from_color(palette["accent"].lightened(0.12), 0.84)
+	var curb := _make_material("eee8dc", 0.92)
+	match layout:
+		"diner_front":
+			_add_box(parking_position + Vector3(0.0, 0.125, parking_size.z * 0.42), Vector3(parking_size.x * 0.72, 0.035, 0.08), accent_paint, parent)
+			for x in [-parking_size.x * 0.3, -parking_size.x * 0.1, parking_size.x * 0.1, parking_size.x * 0.3]:
+				_add_box(parking_position + Vector3(x, 0.13, -parking_size.z * 0.3), Vector3(0.28, 0.034, 0.052), accent_paint, parent)
+		"fast_food_front":
+			_add_box(parking_position + Vector3(0.0, 0.126, parking_size.z * 0.36), Vector3(parking_size.x * 0.56, 0.04, 0.09), accent_paint, parent)
+			_add_box(parking_position + Vector3(parking_size.x * 0.44, 0.12, -parking_size.z * 0.08), Vector3(0.16, 0.1, parking_size.z * 0.46), curb, parent)
+		"family_parking":
+			for x in [-parking_size.x * 0.36, parking_size.x * 0.36]:
+				create_landscape_island(parent, parking_position + Vector3(x, 0.12, parking_size.z * 0.28), Vector3(0.28, 0.08, 0.22), palette["accent"], 3)
+			_add_box(parking_position + Vector3(0.0, 0.124, parking_size.z * 0.44), Vector3(parking_size.x * 0.58, 0.04, 0.08), paint, parent)
+		_:
+			if spaces > 0:
+				for index in range(spaces):
+					var t := (float(index) + 0.5) / float(spaces)
+					var x := lerpf(-parking_size.x * 0.36, parking_size.x * 0.36, t)
+					_add_box(parking_position + Vector3(x, 0.126, -parking_size.z * 0.3), Vector3(0.28, 0.034, 0.052), accent_paint, parent)
+
+
+func _add_retro_diner_front_lot(parent: Node, palette: Dictionary, visual_tier: int) -> void:
+	var asphalt := _make_material("51585d", 0.98)
+	var curb := _make_material("eee8dc", 0.92)
+	var paint := _make_material("f7f2df", 0.92)
+	var accent_paint := _make_material_from_color(palette["accent"].lightened(0.08), 0.82)
+	_add_shadow_disc_local(Vector3(0.0, 0.0, 1.0), Vector2(5.26, 0.9), 0.08, parent)
+	_add_box(Vector3(0.0, 0.052, 0.98), Vector3(5.16, 0.035, 0.82), curb, parent)
+	_add_box(Vector3(0.0, 0.078, 0.98), Vector3(4.96, 0.035, 0.66), asphalt, parent)
+	_add_parking_surface_polish_local(parent, Vector3(4.96, 1.0, 0.66), "diner_front")
+	for index in range(6):
+		var x := lerpf(-2.05, 2.05, float(index) / 5.0)
+		var stall_line := _add_box(Vector3(x, 0.112, 0.98), Vector3(0.028, 0.012, 0.48), paint, parent)
+		stall_line.rotation_degrees.y = -9.0
+	for stop_index in range(5):
+		var x := lerpf(-1.62, 1.62, float(stop_index) / 4.0)
+		_add_box(Vector3(x, 0.128, 0.7), Vector3(0.3, 0.035, 0.052), accent_paint, parent)
+	_add_box(Vector3(0.0, 0.13, 1.4), Vector3(4.72, 0.045, 0.08), accent_paint, parent)
+	if visual_tier >= 3:
+		_add_small_parked_car_local(parent, Vector3(-1.34, 0.04, 0.94), 0.0, palette["accent"])
+	if visual_tier >= 4:
+		_add_small_parked_car_local(parent, Vector3(0.78, 0.04, 0.92), 0.0, palette["trim"])
+
+
+func _add_retro_diner_service_lane(parent: Node, palette: Dictionary, visual_tier: int) -> void:
+	var asphalt := _make_material("4e575c", 0.98)
+	var curb := _make_material("eee8dc", 0.92)
+	var paint := _make_material_from_color(palette["accent"].lightened(0.08), 0.82)
+	_add_box(Vector3(2.32, 0.06, -0.28), Vector3(0.72, 0.034, 1.86), curb, parent)
+	_add_box(Vector3(2.32, 0.088, -0.28), Vector3(0.58, 0.034, 1.72), asphalt, parent)
+	_add_box(Vector3(2.32, 0.118, 0.38), Vector3(0.32, 0.012, 0.04), paint, parent)
+	_add_restaurant_arrow(parent, Vector3(2.32, 0.128, -0.1), paint, -90.0)
+	_add_box(Vector3(2.04, 0.16, 0.48), Vector3(0.36, 0.18, 0.08), _make_material_from_color(palette["accent"], 0.72), parent)
+	if visual_tier >= 4:
+		_add_box(Vector3(2.32, 0.13, -1.1), Vector3(0.44, 0.04, 0.08), _make_material_from_color(palette["trim"], 0.82), parent)
+
+
+func _add_fast_food_roof_canopy(parent: Node, width: float, depth: float, height: float, center_z: float, front_z: float, palette: Dictionary, visual_tier: int) -> void:
+	var roof_material := _make_material_from_color(palette["roof"], 0.72)
+	var accent_material := _make_material_from_color(palette["accent"], 0.5)
+	var trim_material := _make_material_from_color(palette["trim"], 0.82)
+	_add_box(Vector3(0.18, height + 0.18, center_z), Vector3(width * 0.92, 0.16, depth * 0.88), roof_material, parent)
+	_add_box(Vector3(-0.18, height + 0.31, front_z + 0.02), Vector3(width * 1.18, 0.12, 0.2), accent_material, parent)
+	_add_box(Vector3(-0.18, height + 0.39, front_z + 0.02), Vector3(width * 0.72, 0.045, 0.22), trim_material, parent)
+	if visual_tier >= 3:
+		_add_box(Vector3(0.38, height + 0.44, center_z - depth * 0.26), Vector3(width * 0.46, 0.1, depth * 0.44), accent_material, parent)
+
+
+func _add_fast_food_frontage(parent: Node, width: float, height: float, front_z: float, palette: Dictionary) -> void:
+	var trim_material := _make_material_from_color(palette["trim"], 0.82)
+	var accent_material := _make_material_from_color(palette["accent"], 0.5)
+	_add_restaurant_window_wall(parent, Vector3(-width * 0.22, 0.58, front_z + 0.06), Vector2(width * 0.5, 0.34), 2, Color("bfe6ff"))
+	_add_restaurant_front_door_local(Vector3(width * 0.18, 0.0, front_z + 0.1), parent, palette["accent"])
+	_add_box(Vector3(-width * 0.08, 0.87, front_z + 0.16), Vector3(width * 0.82, 0.09, 0.12), accent_material, parent)
+	_add_box(Vector3(-width * 0.48, 0.36, front_z + 0.14), Vector3(0.08, 0.62, 0.08), trim_material, parent)
+
+
+func _add_fast_food_sign_tower(main_root: Node, signage_root: Node, width: float, height: float, center_z: float, front_z: float, palette: Dictionary, visual_tier: int) -> void:
+	var accent_material := _make_material_from_color(palette["accent"], 0.46)
+	var trim_material := _make_material_from_color(palette["trim"], 0.82)
+	var tower_height := 1.56 + float(visual_tier) * 0.16
+	var tower_x := -width * 0.68
+	var tower_z := center_z - 0.04
+	_add_soft_block(Vector3(tower_x, tower_height * 0.5 + 0.08, tower_z), Vector3(0.34, tower_height, 0.34), accent_material, main_root, 0.05)
+	_add_box(Vector3(tower_x, tower_height + 0.18, tower_z), Vector3(0.58, 0.18, 0.58), trim_material, main_root)
+	_add_signboard_local(Vector3(tower_x, tower_height + 0.2, front_z + 0.1), Vector2(0.44, 0.22), palette["accent"], "fast_food", signage_root)
+	if visual_tier >= 4:
+		_add_box(Vector3(tower_x, tower_height + 0.42, tower_z), Vector3(0.28, 0.09, 0.28), _make_material("fff0a8", 0.44, 0.0, true, "ffd86c", 0.55), main_root)
+
+
+func _add_fast_food_pickup_side(parent: Node, x_side: float, center_z: float, depth: float, palette: Dictionary) -> void:
+	create_drive_through_window(parent, Vector3(x_side, 0.56, center_z + depth * 0.12), palette, 1.0)
+	_add_box(Vector3(x_side + 0.02, 0.24, center_z + depth * 0.12), Vector3(0.08, 0.08, 0.48), _make_material_from_color(palette["accent"], 0.72), parent)
+	_add_box(Vector3(x_side + 0.02, 0.78, center_z + depth * 0.12), Vector3(0.08, 0.08, 0.56), _make_material_from_color(palette["trim"], 0.82), parent)
+
+
+func _add_fast_food_drive_through_site(parent: Node, palette: Dictionary, visual_tier: int) -> void:
+	var asphalt := _make_material("4f595e", 0.98)
+	var curb := _make_material("eee8dc", 0.92)
+	var paint := _make_material("f7f2df", 0.92)
+	var accent_paint := _make_material_from_color(palette["accent"].lightened(0.08), 0.82)
+	var lane_width := 0.62 if visual_tier < 3 else 0.84
+	_add_restaurant_parking_pad(parent, Vector3(-1.12, 0.0, 0.94), Vector3(1.52, 1.0, 0.68), 2, palette, 0.0, false)
+	for segment in [
+		{"center": Vector3(1.64, 0.06, 0.18), "size": Vector3(lane_width, 0.035, 2.34)},
+		{"center": Vector3(0.64, 0.062, -1.14), "size": Vector3(2.24, 0.035, lane_width)},
+		{"center": Vector3(0.22, 0.064, 1.08), "size": Vector3(2.2, 0.035, lane_width * 0.78)},
+	]:
+		var center: Vector3 = segment["center"]
+		var size: Vector3 = segment["size"]
+		_add_box(center, size + Vector3(0.12, 0.012, 0.12), curb, parent)
+		_add_box(center + Vector3(0.0, 0.024, 0.0), size, asphalt, parent)
+	_add_restaurant_arrow(parent, Vector3(1.64, 0.128, 0.56), accent_paint, -90.0)
+	_add_restaurant_arrow(parent, Vector3(0.72, 0.128, -1.14), accent_paint, 180.0)
+	_add_box(Vector3(1.64, 0.112, -0.08), Vector3(0.035, 0.012, 1.74), paint, parent)
+	_add_box(Vector3(0.62, 0.114, -1.14), Vector3(1.58, 0.012, 0.035), paint, parent)
+	create_menu_board(parent, Vector3(1.15, 0.04, 0.68), palette, visual_tier >= 3)
+	_add_box(Vector3(1.16, 0.18, 0.42), Vector3(0.4, 0.2, 0.08), _make_material_from_color(palette["accent"], 0.72), parent)
+	if visual_tier >= 3:
+		_add_box(Vector3(1.22, 0.116, 0.0), Vector3(0.032, 0.012, 1.36), paint, parent)
+	if visual_tier >= 4:
+		_add_small_parked_car_local(parent, Vector3(-1.12, 0.04, 0.92), 0.0, palette["trim"])
+		create_landscape_island(parent, Vector3(-0.1, 0.12, 0.72), Vector3(0.5, 0.08, 0.2), palette["accent"], 3)
+
+
+func _add_modern_cafe_glass_pavilion(parent: Node, width: float, depth: float, height: float, center_z: float, front_z: float, palette: Dictionary) -> void:
+	var wall_material := _make_material_from_color(palette["wall"], 0.9)
+	var glass_material := _make_transparent_material(Color("bfe6ff"), 0.14, 0.18)
+	var trim_material := _make_material_from_color(palette["trim"], 0.82)
+	var accent_material := _make_material_from_color(palette["accent"], 0.48)
+	_add_soft_block(Vector3(-width * 0.28, height * 0.5 + 0.05, center_z - depth * 0.12), Vector3(width * 0.48, height, depth * 0.82), wall_material, parent, 0.05)
+	_add_soft_block(Vector3(width * 0.16, height * 0.47 + 0.05, center_z + depth * 0.04), Vector3(width * 0.72, height * 0.86, depth), glass_material, parent, 0.04)
+	_add_box(Vector3(width * 0.22, 0.54, front_z + 0.08), Vector3(width * 0.62, 0.38, 0.055), trim_material, parent)
+	_add_box(Vector3(width * 0.22, 0.54, front_z + 0.115), Vector3(width * 0.52, 0.3, 0.035), glass_material, parent)
+	for mullion_x in [-width * 0.02, width * 0.22, width * 0.46]:
+		_add_box(Vector3(mullion_x, 0.55, front_z + 0.14), Vector3(0.024, 0.34, 0.03), trim_material, parent)
+	_add_restaurant_front_door_local(Vector3(width * 0.52, 0.0, front_z + 0.12), parent, palette["accent"])
+	_add_box(Vector3(-width * 0.5, 0.58, center_z + depth * 0.08), Vector3(0.07, 0.74, depth * 0.62), accent_material, parent)
+
+
+func _add_modern_cafe_roof(parent: Node, width: float, depth: float, height: float, center_z: float, front_z: float, palette: Dictionary, visual_tier: int) -> void:
+	var roof_material := _make_material_from_color(palette["roof"], 0.74)
+	var trim_material := _make_material_from_color(palette["trim"], 0.82)
+	var accent_material := _make_material_from_color(palette["accent"], 0.48)
+	var roof := _add_box(Vector3(0.0, height + 0.18, center_z - 0.02), Vector3(width + 0.42, 0.12, depth + 0.3), roof_material, parent)
+	roof.rotation_degrees.x = -4.0
+	roof.rotation_degrees.z = 5.0
+	_add_box(Vector3(-width * 0.08, height + 0.31, front_z + 0.12), Vector3(width * 0.9, 0.055, 0.28), accent_material, parent)
+	for post_x in [-width * 0.42, width * 0.18]:
+		_add_local_cylinder(Vector3(post_x, 0.42, front_z + 0.22), 0.022, 0.024, 0.68, trim_material, parent)
+	if visual_tier >= 3:
+		_add_box(Vector3(-width * 0.36, height + 0.42, center_z - depth * 0.28), Vector3(0.1, 0.62, 0.52), accent_material, parent)
+
+
+func _add_modern_cafe_sign(parent: Node, width: float, height: float, front_z: float, palette: Dictionary) -> void:
+	var accent_material := _make_material_from_color(palette["accent"], 0.48)
+	_add_box(Vector3(-width * 0.3, height + 0.46, front_z + 0.18), Vector3(width * 0.42, 0.08, 0.08), accent_material, parent)
+	_add_signboard_local(Vector3(-width * 0.3, height + 0.47, front_z + 0.23), Vector2(width * 0.3, 0.14), palette["accent"], "cafe", parent)
+
+
+func _add_modern_cafe_patio_site(parent: Node, palette: Dictionary, visual_tier: int) -> void:
+	var patio_size := Vector3(2.36 + float(visual_tier) * 0.18, 0.05, 1.08 + float(visual_tier) * 0.08)
+	create_patio(parent, Vector3(-0.82, 0.04, 1.02), patio_size, palette, 2, true)
+	_add_umbrella_table(parent, Vector3(-1.42, 0.06, 1.02), palette)
+	_add_umbrella_table(parent, Vector3(-0.58, 0.06, 1.1), palette)
+	if visual_tier >= 2:
+		_add_umbrella_table(parent, Vector3(0.18, 0.06, 0.88), palette)
+	create_planters(parent, [Vector3(-1.94, 0.1, 1.36), Vector3(0.54, 0.1, 1.42), Vector3(1.26, 0.1, 0.76)], palette["accent"])
+	if visual_tier >= 3:
+		create_string_lights(parent, Vector3(-1.92, 0.0, 1.5), Vector3(0.72, 0.0, 1.5), palette, 6)
+		create_landscape_island(parent, Vector3(1.2, 0.12, 0.18), Vector3(0.44, 0.08, 0.32), palette["accent"], 4)
+	if visual_tier >= 4:
+		_add_restaurant_parking_pad(parent, Vector3(1.48, 0.0, 0.72), Vector3(0.94, 1.0, 0.62), 1, palette, 90.0, false)
+
+
+func _add_family_restaurant_main_hall(parent: Node, width: float, depth: float, height: float, center_z: float, palette: Dictionary, visual_tier: int) -> void:
+	var wall_material := _make_material_from_color(palette["wall"], 0.9)
+	var left_material := _make_material_from_color(palette["wall"].lightened(0.04), 0.9)
+	var right_material := _make_material_from_color(palette["wall"].darkened(0.035), 0.9)
+	_add_soft_block(Vector3(0.0, height * 0.5 + 0.05, center_z), Vector3(width * 0.66, height, depth), wall_material, parent, 0.12)
+	_add_soft_block(Vector3(-width * 0.39, height * 0.45 + 0.05, center_z + depth * 0.05), Vector3(width * 0.24, height * 0.78, depth * 0.72), left_material, parent, 0.1)
+	_add_soft_block(Vector3(width * 0.39, height * 0.45 + 0.05, center_z + depth * 0.05), Vector3(width * 0.24, height * 0.78, depth * 0.72), right_material, parent, 0.1)
+	if visual_tier >= 3:
+		_add_soft_block(Vector3(0.0, height * 0.5 + 0.07, center_z - depth * 0.52), Vector3(width * 0.48, height * 0.82, depth * 0.38), _make_material_from_color(palette["wall"].lightened(0.03), 0.9), parent, 0.1)
+
+
+func _add_family_restaurant_roofline(parent: Node, width: float, depth: float, height: float, center_z: float, front_z: float, palette: Dictionary, visual_tier: int) -> void:
+	var roof_material := _make_material_from_color(palette["roof"], 0.74)
+	var trim_material := _make_material_from_color(palette["trim"], 0.82)
+	var accent_material := _make_material_from_color(palette["accent"], 0.48)
+	_add_gabled_roof(Vector3(0.0, height + 0.22, center_z), Vector3(width * 0.78, 0.2, depth + 0.26), roof_material, parent, 13.0)
+	_add_gabled_roof(Vector3(-width * 0.39, height * 0.78 + 0.18, center_z + depth * 0.04), Vector3(width * 0.3, 0.15, depth * 0.82), roof_material, parent, 10.0)
+	_add_gabled_roof(Vector3(width * 0.39, height * 0.78 + 0.18, center_z + depth * 0.04), Vector3(width * 0.3, 0.15, depth * 0.82), roof_material, parent, 10.0)
+	_add_gabled_roof(Vector3(0.0, height + 0.36, front_z + 0.02), Vector3(width * 0.34, 0.16, 0.5), accent_material, parent, 15.0)
+	_add_box(Vector3(0.0, height + 0.08, front_z + 0.24), Vector3(width * 0.42, 0.06, 0.08), trim_material, parent)
+	if visual_tier >= 4:
+		_add_box(Vector3(0.0, height + 0.56, center_z - depth * 0.16), Vector3(width * 0.42, 0.08, depth * 0.42), trim_material, parent)
+
+
+func _add_family_restaurant_frontage(parent: Node, signage_root: Node, width: float, height: float, front_z: float, palette: Dictionary, visual_tier: int) -> void:
+	var trim_material := _make_material_from_color(palette["trim"], 0.82)
+	var accent_material := _make_material_from_color(palette["accent"], 0.48)
+	_add_soft_block(Vector3(0.0, 0.58, front_z + 0.08), Vector3(width * 0.34, 0.94, 0.34), _make_material_from_color(palette["wall"].lightened(0.08), 0.9), parent, 0.08)
+	_add_restaurant_front_door_local(Vector3(0.0, 0.0, front_z + 0.16), parent, palette["accent"])
+	for window_x in [-width * 0.28, width * 0.28]:
+		_add_restaurant_window_wall(parent, Vector3(window_x, 0.54, front_z + 0.14), Vector2(width * 0.22, 0.34), 1, Color("ffe6cc"))
+	for window_x in [-width * 0.44, width * 0.44]:
+		_add_restaurant_window_wall(parent, Vector3(window_x, 0.5, front_z + 0.08), Vector2(width * 0.16, 0.28), 1, Color("ffe6cc"))
+	_add_box(Vector3(0.0, 0.92, front_z + 0.24), Vector3(width * 0.52, 0.11, 0.16), accent_material, parent)
+	_add_box(Vector3(0.0, 0.99, front_z + 0.28), Vector3(width * 0.38, 0.04, 0.18), trim_material, parent)
+	create_modular_signage(signage_root, Vector3(0.0, height + 0.48, front_z + 0.22), Vector2(width * 0.46, 0.22), palette, "grill")
+	if visual_tier >= 3:
+		_add_front_lanterns(parent, front_z + 0.2, width * 0.86)
+
+
+func _add_family_restaurant_upgrade_massing(parent: Node, width: float, depth: float, height: float, center_z: float, front_z: float, palette: Dictionary, profile: Dictionary) -> void:
+	var wing_count := _commercial_int(profile, "wing", 0)
+	var roof_material := _make_material_from_color(palette["roof"], 0.74)
+	if wing_count >= 1:
+		_add_soft_block(Vector3(-width * 0.48, 0.54, center_z - depth * 0.38), Vector3(width * 0.24, 0.82, depth * 0.58), _make_material_from_color(palette["wall"].darkened(0.03), 0.9), parent, 0.1)
+		_add_gabled_roof(Vector3(-width * 0.48, 1.1, center_z - depth * 0.38), Vector3(width * 0.3, 0.13, depth * 0.68), roof_material, parent, 10.0)
+		_add_house_side_window_local(Vector3(-width * 0.59, 0.62, center_z - depth * 0.1), Vector3(0.05, 0.32, 0.26), parent, -1.0)
+	if wing_count >= 2:
+		_add_soft_block(Vector3(width * 0.48, 0.58, center_z - depth * 0.42), Vector3(width * 0.24, 0.9, depth * 0.64), _make_material_from_color(palette["wall"].lightened(0.04), 0.9), parent, 0.1)
+		_add_gabled_roof(Vector3(width * 0.48, 1.18, center_z - depth * 0.42), Vector3(width * 0.3, 0.13, depth * 0.74), roof_material, parent, 10.0)
+		_add_house_side_window_local(Vector3(width * 0.59, 0.66, center_z - depth * 0.12), Vector3(0.05, 0.34, 0.26), parent, 1.0)
+	if _commercial_bool(profile, "upper"):
+		_add_soft_block(Vector3(0.0, height + 0.42, center_z - 0.08), Vector3(width * 0.6, 0.64, depth * 0.52), _make_material_from_color(palette["wall"].lightened(0.08), 0.92), parent, 0.11)
+		create_modular_roof(parent, Vector3(0.0, height + 0.9, center_z - 0.08), Vector3(width * 0.68, 0.13, depth * 0.62), roof_material, "gabled")
+		for x in [-width * 0.18, width * 0.18]:
+			_add_window_band_local(Vector3(x, height + 0.38, front_z + 0.02), Vector3(0.24, 0.26, 0.05), parent)
+
+
+func _add_family_restaurant_parking_field(parent: Node, palette: Dictionary, visual_tier: int) -> void:
+	var spaces := 4 + int(visual_tier >= 3)
+	_add_restaurant_parking_pad(parent, Vector3(0.0, 0.0, 0.98), Vector3(4.62, 1.0, 1.04), spaces, palette, 0.0, true)
+	create_landscape_island(parent, Vector3(-2.12, 0.12, 0.72), Vector3(0.28, 0.08, 0.58), palette["accent"], 3)
+	create_landscape_island(parent, Vector3(2.12, 0.12, 0.72), Vector3(0.28, 0.08, 0.58), palette["trim"], 3)
+	_add_box(Vector3(0.0, 0.14, 1.48), Vector3(3.3, 0.055, 0.1), _make_material_from_color(palette["trim"], 0.84), parent)
+	if visual_tier >= 2:
+		_add_small_parked_car_local(parent, Vector3(-0.72, 0.04, 0.88), 0.0, palette["accent"])
+	if visual_tier >= 3:
+		create_landscape_island(parent, Vector3(0.0, 0.12, 0.26), Vector3(2.6, 0.08, 0.18), palette["accent"], 5)
+	if visual_tier >= 4:
+		_add_small_parked_car_local(parent, Vector3(0.88, 0.04, 0.9), 0.0, palette["roof"])
+
+
 func _add_restaurant_variant_lot_details(parent: Node, parking_position: Vector3, parking_size: Vector3, palette: Dictionary, tier: int, variant_id: String) -> void:
 	var accent: Color = palette["accent"]
 	var trim: Color = palette["trim"]
+	var visual_tier := _property_visual_tier(tier)
 	match variant_id:
-		"diner":
-			_add_box(parking_position + Vector3(-parking_size.x * 0.42, 0.13, parking_size.z * 0.42), Vector3(0.34, 0.06, 0.08), _make_material_from_color(accent, 0.78), parent)
-			if tier >= 3:
-				_add_box(parking_position + Vector3(parking_size.x * 0.42, 0.16, parking_size.z * 0.36), Vector3(0.16, 0.18, 0.08), _make_material_from_color(trim, 0.82), parent)
-		"cafe_bistro":
-			for x in [-0.32, 0.32]:
-				_add_planter_box_local(parent, parking_position + Vector3(x, 0.12, parking_size.z * 0.44), accent, 0.26)
+		"classic_diner":
+			_add_retro_diner_front_lot(parent, palette, visual_tier)
+			_add_restaurant_pylon_sign(parent, Vector3(-2.32, 0.02, 1.08), palette, "diner", 1.38 if visual_tier >= 3 else 1.1, true)
+			create_planters(parent, [Vector3(-2.08, 0.1, 0.38), Vector3(2.08, 0.1, 0.38)], accent)
+			if visual_tier >= 2:
+				_add_retro_diner_service_lane(parent, palette, visual_tier)
+			if visual_tier >= 4:
+				create_patio(parent, Vector3(1.28, 0.04, 1.48), Vector3(1.04, 0.05, 0.42), palette, 1, true)
+		"fast_food_drive_through":
+			_add_fast_food_drive_through_site(parent, palette, visual_tier)
+			_add_restaurant_pylon_sign(parent, Vector3(-2.1, 0.02, 0.86), palette, "fast_food", 1.52 if visual_tier >= 3 else 1.18, false)
+			if visual_tier >= 2:
+				_add_box(Vector3(1.38, 0.13, -1.12), Vector3(0.78, 0.04, 0.08), _make_material_from_color(accent, 0.82), parent)
+			if visual_tier >= 4:
+				_add_box(Vector3(-1.62, 0.14, 1.38), Vector3(0.72, 0.06, 0.1), _make_material_from_color(trim, 0.84), parent)
+		"modern_cafe":
+			_add_modern_cafe_patio_site(parent, palette, visual_tier)
 		"family_restaurant":
-			if tier >= 3:
-				_add_box(parking_position + Vector3(0.0, 0.14, parking_size.z * 0.46), Vector3(parking_size.x * 0.58, 0.055, 0.1), _make_material_from_color(trim, 0.84), parent)
-		"upscale_patio_restaurant":
-			create_landscape_island(parent, parking_position + Vector3(-parking_size.x * 0.38, 0.12, parking_size.z * 0.26), Vector3(0.3, 0.08, 0.24), accent, 3)
-			create_landscape_island(parent, parking_position + Vector3(parking_size.x * 0.38, 0.12, parking_size.z * 0.26), Vector3(0.3, 0.08, 0.24), trim, 3)
+			_add_family_restaurant_parking_field(parent, palette, visual_tier)
+		"upscale_restaurant":
+			_add_box(Vector3(0.0, 0.05, 0.9), Vector3(2.42, 0.04, 0.84), _make_material("d8c7ab", 0.92), parent)
+			create_patio(parent, Vector3(-0.86, 0.06, 0.98), Vector3(1.38, 0.05, 0.82), palette, 2 + int(visual_tier >= 3), true)
+			create_landscape_island(parent, Vector3(0.88, 0.12, 0.9), Vector3(0.66, 0.08, 0.42), accent, 5)
+			_add_box(Vector3(0.34, 0.08, 1.48), Vector3(1.42, 0.035, 0.24), _make_material("c7bca8", 0.92), parent)
+			_add_restaurant_pylon_sign(parent, Vector3(1.72, 0.02, 1.16), palette, "fine_dining", 0.92, false)
+			if visual_tier >= 3:
+				_add_local_sphere(Vector3(0.78, 0.18, 0.82), 0.2, 0.04, _make_transparent_material(Color("aee0eb"), 0.24, 0.34), parent)
+				create_string_lights(parent, Vector3(-1.38, 0.0, 1.24), Vector3(1.24, 0.0, 1.24), palette, 6)
+			if visual_tier >= 4:
+				_add_lantern_glow_local(Vector3(-1.16, 0.56, 0.48), parent)
+				_add_lantern_glow_local(Vector3(1.16, 0.56, 0.48), parent)
+		"food_truck_court":
+			_add_box(Vector3(0.0, 0.048, 0.24), Vector3(3.72, 0.04, 1.56), _make_material("d7c5ac", 0.92), parent)
+			for table in [Vector3(-1.0, 0.05, 0.74), Vector3(-0.24, 0.05, 0.94), Vector3(0.58, 0.05, 0.76), Vector3(1.18, 0.05, 0.24)]:
+				_add_umbrella_table(parent, table, palette)
+			create_string_lights(parent, Vector3(-1.78, 0.0, 1.18), Vector3(1.78, 0.0, 1.18), palette, 7)
+			create_landscape_island(parent, Vector3(-1.74, 0.12, -0.46), Vector3(0.36, 0.08, 0.66), accent, 5)
+			create_landscape_island(parent, Vector3(1.74, 0.12, -0.46), Vector3(0.36, 0.08, 0.66), trim, 5)
+			if visual_tier >= 3:
+				create_landscape_island(parent, Vector3(0.0, 0.12, -0.84), Vector3(2.0, 0.08, 0.2), accent, 5)
+		_:
+			_add_restaurant_parking_pad(parent, parking_position, parking_size, 3, palette, 0.0, false)
 
 
 func _add_corner_store_variant_lot_details(parent: Node, parking_position: Vector3, parking_size: Vector3, palette: Dictionary, tier: int, variant_id: String) -> void:
@@ -6591,9 +7359,9 @@ func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = [
 	var road_top_material: Material = _ghost_accent_material if preview else _road_top_detail_material
 	var lane_material: Material = _ghost_base_material if preview else _road_mark_material
 	var road_width := ROAD_WIDTH
-	var road_top_width := maxf(1.72, road_width - 0.3)
+	var road_top_width := maxf(1.42, road_width - 0.26)
 	var road_connector_width := road_width + 0.1
-	var road_connector_top_width := maxf(1.56, road_width - 0.12)
+	var road_connector_top_width := maxf(1.36, road_width - 0.1)
 	var source := road_source if road_source.size() > 0 else [cell]
 	var north := _road_in_source(Vector2i(cell.x, cell.y - 1), source)
 	var east := _road_in_source(Vector2i(cell.x + 1, cell.y), source)
@@ -6602,28 +7370,28 @@ func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = [
 
 	_add_box(Vector3(0.0, 0.004, 0.0), Vector3(5.18, 0.022, 5.18), verge_material, root)
 	_add_box(Vector3(0.0, 0.026, 0.0), Vector3(5.02, 0.042, 5.02), sidewalk_material, root)
-	_add_box(Vector3(0.0, 0.052, 0.0), Vector3(3.62, 0.026, 3.62), curb_material, root)
+	_add_box(Vector3(0.0, 0.052, 0.0), Vector3(3.38, 0.026, 3.38), curb_material, root)
 	_add_box(Vector3(0.0, 0.078, 0.0), Vector3(road_width, 0.06, road_width), road_material, root)
 	_add_box(Vector3(0.0, 0.096, 0.0), Vector3(road_top_width, 0.022, road_top_width), road_top_material, root)
 
 	if north:
 		_add_box(Vector3(0.0, 0.026, -1.28), Vector3(5.74, 0.042, 2.74), sidewalk_material, root)
-		_add_box(Vector3(0.0, 0.052, -1.28), Vector3(4.58, 0.026, 2.28), curb_material, root)
+		_add_box(Vector3(0.0, 0.052, -1.28), Vector3(4.34, 0.026, 2.08), curb_material, root)
 		_add_box(Vector3(0.0, 0.08, -1.28), Vector3(road_connector_width, 0.064, 1.72), road_material, root)
 		_add_box(Vector3(0.0, 0.1, -1.28), Vector3(road_connector_top_width, 0.024, 1.48), road_top_material, root)
 	if south:
 		_add_box(Vector3(0.0, 0.026, 1.28), Vector3(5.74, 0.042, 2.74), sidewalk_material, root)
-		_add_box(Vector3(0.0, 0.052, 1.28), Vector3(4.58, 0.026, 2.28), curb_material, root)
+		_add_box(Vector3(0.0, 0.052, 1.28), Vector3(4.34, 0.026, 2.08), curb_material, root)
 		_add_box(Vector3(0.0, 0.08, 1.28), Vector3(road_connector_width, 0.064, 1.72), road_material, root)
 		_add_box(Vector3(0.0, 0.1, 1.28), Vector3(road_connector_top_width, 0.024, 1.48), road_top_material, root)
 	if east:
 		_add_box(Vector3(1.28, 0.026, 0.0), Vector3(2.74, 0.042, 5.74), sidewalk_material, root)
-		_add_box(Vector3(1.28, 0.052, 0.0), Vector3(2.28, 0.026, 4.58), curb_material, root)
+		_add_box(Vector3(1.28, 0.052, 0.0), Vector3(2.08, 0.026, 4.34), curb_material, root)
 		_add_box(Vector3(1.28, 0.08, 0.0), Vector3(1.72, 0.064, road_connector_width), road_material, root)
 		_add_box(Vector3(1.28, 0.1, 0.0), Vector3(1.48, 0.024, road_connector_top_width), road_top_material, root)
 	if west:
 		_add_box(Vector3(-1.28, 0.026, 0.0), Vector3(2.74, 0.042, 5.74), sidewalk_material, root)
-		_add_box(Vector3(-1.28, 0.052, 0.0), Vector3(2.28, 0.026, 4.58), curb_material, root)
+		_add_box(Vector3(-1.28, 0.052, 0.0), Vector3(2.08, 0.026, 4.34), curb_material, root)
 		_add_box(Vector3(-1.28, 0.08, 0.0), Vector3(1.72, 0.064, road_connector_width), road_material, root)
 		_add_box(Vector3(-1.28, 0.1, 0.0), Vector3(1.48, 0.024, road_connector_top_width), road_top_material, root)
 	if not north and not south and not east and not west:
@@ -6661,9 +7429,9 @@ func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = [
 func _add_lane_dashes_local(root: Node3D, vertical: bool, material: Material) -> void:
 	for offset in [-0.68, 0.0, 0.68]:
 		if vertical:
-			_add_box(Vector3(0.0, 0.148, offset), Vector3(0.078, 0.018, 0.24), material, root)
+			_add_box(Vector3(0.0, 0.148, offset), Vector3(0.064, 0.018, 0.22), material, root)
 		else:
-			_add_box(Vector3(offset, 0.148, 0.0), Vector3(0.24, 0.018, 0.078), material, root)
+			_add_box(Vector3(offset, 0.148, 0.0), Vector3(0.22, 0.018, 0.064), material, root)
 
 
 func _add_road_edge_lines_local(root: Node3D, vertical: bool) -> void:
@@ -7462,10 +8230,16 @@ func _variant_sign_kind(tool: String, variant_id: String) -> String:
 					return "grocer"
 		BUILD_TOOL_RESTAURANT:
 			match variant_id:
-				"cafe_bistro":
+				"fast_food_drive_through":
+					return "fast_food"
+				"modern_cafe":
 					return "cafe"
 				"family_restaurant":
 					return "grill"
+				"upscale_restaurant":
+					return "fine_dining"
+				"food_truck_court":
+					return "food_court"
 				"upscale_patio_restaurant":
 					return "bistro"
 				_:
@@ -7505,6 +8279,9 @@ func _add_signboard_local(position_3d: Vector3, size: Vector2, accent: Color, ki
 		"diner":
 			_add_box(position_3d + Vector3(-0.08, 0.0, 0.05), Vector3(0.06, 0.1, 0.02), trim_material, parent)
 			_add_box(position_3d + Vector3(0.04, 0.0, 0.05), Vector3(0.16, 0.05, 0.02), trim_material, parent)
+		"fast_food":
+			_add_local_sphere(position_3d + Vector3(-0.07, 0.0, 0.05), 0.05, 0.025, _make_material("f1d072", 0.7), parent)
+			_add_box(position_3d + Vector3(0.06, 0.0, 0.05), Vector3(0.14, 0.045, 0.02), trim_material, parent)
 		"cafe":
 			_add_local_cylinder(position_3d + Vector3(-0.04, 0.0, 0.05), 0.055, 0.055, 0.025, trim_material, parent)
 			_add_box(position_3d + Vector3(0.06, -0.01, 0.05), Vector3(0.06, 0.035, 0.02), trim_material, parent)
@@ -7515,6 +8292,12 @@ func _add_signboard_local(position_3d: Vector3, size: Vector2, accent: Color, ki
 			_add_box(position_3d + Vector3(0.0, 0.0, 0.05), Vector3(0.18, 0.035, 0.02), trim_material, parent)
 			_add_box(position_3d + Vector3(-0.06, 0.04, 0.05), Vector3(0.025, 0.08, 0.02), trim_material, parent)
 			_add_box(position_3d + Vector3(0.06, 0.04, 0.05), Vector3(0.025, 0.08, 0.02), trim_material, parent)
+		"fine_dining":
+			_add_local_sphere(position_3d + Vector3(0.0, 0.0, 0.05), 0.065, 0.026, trim_material, parent)
+			_add_box(position_3d + Vector3(0.0, -0.045, 0.055), Vector3(0.12, 0.028, 0.02), _make_material("f1d072", 0.7), parent)
+		"food_court":
+			for x in [-0.09, 0.0, 0.09]:
+				_add_box(position_3d + Vector3(x, 0.0, 0.05), Vector3(0.045, 0.08, 0.02), trim_material, parent)
 		"corner":
 			_add_box(position_3d + Vector3(0.0, 0.0, 0.05), Vector3(0.14, 0.08, 0.02), trim_material, parent)
 
@@ -7561,10 +8344,16 @@ func _sign_text_for_kind(kind: String) -> String:
 			return "TASTY BITES"
 		"diner":
 			return "DINER"
+		"fast_food":
+			return "BURGER LOOP"
 		"cafe":
 			return "COZY CAFE"
 		"grill":
 			return "FAMILY GRILL"
+		"fine_dining":
+			return "SAGE TABLE"
+		"food_court":
+			return "FOOD COURT"
 		"bistro":
 			return "BISTRO"
 		"pizza":
@@ -8299,10 +9088,11 @@ func _polished_albedo_color(color: Color, roughness: float) -> Color:
 	var luminance := color.r * 0.299 + color.g * 0.587 + color.b * 0.114
 	var adjusted := color
 	if luminance > 0.78:
-		adjusted = adjusted.darkened(0.025)
+		adjusted = adjusted.darkened(0.04)
 	elif luminance < 0.2:
-		adjusted = adjusted.lightened(0.018)
-	adjusted = adjusted.lerp(Color(1.0, 0.93, 0.82), clampf((roughness - 0.65) * 0.055, 0.0, 0.025))
+		adjusted = adjusted.lightened(0.026)
+	var warm_amount := clampf((roughness - 0.55) * 0.07, 0.0, 0.038)
+	adjusted = adjusted.lerp(Color(1.0, 0.94, 0.82), warm_amount)
 	return adjusted
 
 
@@ -8311,7 +9101,7 @@ func _make_material(color_hex: String, roughness: float, metallic: float = 0.0, 
 	material.albedo_color = _polished_albedo_color(Color(color_hex), roughness)
 	material.roughness = roughness
 	material.metallic = metallic
-	material.metallic_specular = 0.11
+	material.metallic_specular = 0.08
 	material.emission_enabled = emission_enabled
 	if emission_enabled:
 		material.emission = Color(emission_color_hex)
@@ -8323,7 +9113,7 @@ func _make_material_from_color(color: Color, roughness: float) -> StandardMateri
 	var material := StandardMaterial3D.new()
 	material.albedo_color = _polished_albedo_color(color, roughness)
 	material.roughness = roughness
-	material.metallic_specular = 0.11
+	material.metallic_specular = 0.08
 	return material
 
 
