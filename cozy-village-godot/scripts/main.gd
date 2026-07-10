@@ -21,6 +21,11 @@ var camera: Camera3D
 var camera_yaw := -0.72
 var residents: Array[Resident] = []
 var elapsed := 0.0
+var placement_mode := ""
+var placement_marker: MeshInstance3D
+var placement_status: Label
+var placed_count := 0
+var ambient_music: AmbientMusic
 
 
 func _ready() -> void:
@@ -29,6 +34,8 @@ func _ready() -> void:
 	_build_neighborhood()
 	_build_residents()
 	_build_ui()
+	_build_placement_marker()
+	_build_music()
 
 
 func _process(delta: float) -> void:
@@ -38,6 +45,31 @@ func _process(delta: float) -> void:
 	if Input.is_action_pressed("orbit_right"):
 		camera_yaw += delta * 0.55
 	_update_camera()
+	_update_placement_marker()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		if placement_mode == "":
+			return
+		var hovered := get_viewport().gui_get_hovered_control()
+		if hovered != null:
+			return
+		var ground_point: Variant = _mouse_ground_point(event.position)
+		if ground_point == null:
+			return
+		var at: Vector3 = ground_point
+		if abs(at.x) > 14.5 or abs(at.z) > 12.5 or at.x > 12.0:
+			_set_status("Choose a quiet patch of grass inside the village.")
+			return
+		if placement_mode == "cottage":
+			_build_cottage(at + Vector3(0, 0.35, 0), camera_yaw + PI, PALETTE.cream, PALETTE.roof_red)
+			placed_count += 1
+			_set_status("Cottage placed · the village feels a little warmer.")
+		elif placement_mode == "tree":
+			_build_tree(at, 0.85 + fmod(float(placed_count) * 0.13, 0.35))
+			placed_count += 1
+			_set_status("Tree planted · no timer, no pressure.")
 
 
 func _build_environment() -> void:
@@ -211,6 +243,113 @@ func _build_ui() -> void:
 	stack.add_child(subtitle)
 	panel.add_child(stack)
 	layer.add_child(panel)
+
+	var toolbar := PanelContainer.new()
+	toolbar.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	toolbar.position = Vector2(-205, -92)
+	toolbar.custom_minimum_size = Vector2(410, 64)
+	var toolbar_style := StyleBoxFlat.new()
+	toolbar_style.bg_color = Color(0.09, 0.12, 0.1, 0.9)
+	toolbar_style.corner_radius_top_left = 22
+	toolbar_style.corner_radius_top_right = 22
+	toolbar_style.corner_radius_bottom_left = 22
+	toolbar_style.corner_radius_bottom_right = 22
+	toolbar_style.content_margin_left = 14
+	toolbar_style.content_margin_right = 14
+	toolbar_style.content_margin_top = 10
+	toolbar_style.content_margin_bottom = 10
+	toolbar.add_theme_stylebox_override("panel", toolbar_style)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	for data in [["Cottage", "cottage"], ["Tree", "tree"], ["Look", ""]]:
+		var button := Button.new()
+		button.text = data[0]
+		button.custom_minimum_size = Vector2(92, 42)
+		button.add_theme_font_size_override("font_size", 14)
+		button.pressed.connect(_select_placement_mode.bind(data[1]))
+		row.add_child(button)
+	placement_status = Label.new()
+	placement_status.text = "Choose one thing, then click the grass."
+	placement_status.custom_minimum_size = Vector2(0, 42)
+	placement_status.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	placement_status.add_theme_font_size_override("font_size", 11)
+	placement_status.add_theme_color_override("font_color", Color("bdcbbd"))
+	row.add_child(placement_status)
+	var music_button := Button.new()
+	music_button.text = "Music on"
+	music_button.custom_minimum_size = Vector2(82, 42)
+	music_button.add_theme_font_size_override("font_size", 12)
+	music_button.pressed.connect(_toggle_music.bind(music_button))
+	row.add_child(music_button)
+	toolbar.add_child(row)
+	layer.add_child(toolbar)
+
+
+func _select_placement_mode(mode: String) -> void:
+	placement_mode = mode
+	if placement_marker:
+		placement_marker.visible = mode != ""
+	match mode:
+		"cottage": _set_status("Cottage selected · click a patch of grass.")
+		"tree": _set_status("Tree selected · click where the village needs shade.")
+		_: _set_status("Just looking · Q / E rotates the view.")
+
+
+func _set_status(message: String) -> void:
+	if placement_status:
+		placement_status.text = message
+
+
+func _build_music() -> void:
+	ambient_music = AmbientMusic.new()
+	add_child(ambient_music)
+	ambient_music.start_pad()
+
+
+func _toggle_music(button: Button) -> void:
+	if not ambient_music:
+		return
+	ambient_music.stream_paused = not ambient_music.stream_paused
+	button.text = "Music off" if ambient_music.stream_paused else "Music on"
+
+
+func _build_placement_marker() -> void:
+	placement_marker = MeshInstance3D.new()
+	placement_marker.name = "Placement marker"
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = 1.45
+	mesh.bottom_radius = 1.45
+	mesh.height = 0.04
+	placement_marker.mesh = mesh
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.92, 0.78, 0.42, 0.38)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	placement_marker.material_override = mat
+	placement_marker.visible = false
+	add_child(placement_marker)
+
+
+func _update_placement_marker() -> void:
+	if not placement_marker or placement_mode == "":
+		return
+	var point: Variant = _mouse_ground_point(get_viewport().get_mouse_position())
+	if point != null:
+		placement_marker.position = point + Vector3(0, 0.12, 0)
+		placement_marker.scale = Vector3(1.8, 1, 1.5) if placement_mode == "cottage" else Vector3(0.7, 1, 0.7)
+
+
+func _mouse_ground_point(screen_position: Vector2) -> Variant:
+	if not camera:
+		return null
+	var origin := camera.project_ray_origin(screen_position)
+	var direction := camera.project_ray_normal(screen_position)
+	if abs(direction.y) < 0.0001:
+		return null
+	var distance := -origin.y / direction.y
+	if distance < 0:
+		return null
+	return origin + direction * distance
 
 
 func _add_path(points: Array, width: float, color: Color) -> void:
@@ -423,3 +562,45 @@ class Resident extends Node3D:
 		capsule.height = 0.72 if leg else 0.62
 		part(pivot, capsule, Vector3(0, -0.28, 0), Vector3.ONE, color)
 		return pivot
+
+
+class AmbientMusic extends AudioStreamPlayer:
+	var generator: AudioStreamGenerator
+	var playback: AudioStreamGeneratorPlayback
+	var sample_rate := 22050.0
+	var sample_clock := 0.0
+	var music_time := 0.0
+	var chords := [
+		[130.81, 164.81, 196.00, 261.63],
+		[110.00, 146.83, 174.61, 220.00],
+		[98.00, 130.81, 164.81, 196.00],
+		[116.54, 146.83, 196.00, 233.08],
+	]
+
+	func start_pad() -> void:
+		generator = AudioStreamGenerator.new()
+		generator.mix_rate = sample_rate
+		generator.buffer_length = 0.5
+		stream = generator
+		volume_db = -23.0
+		play()
+		playback = get_stream_playback()
+
+	func _process(delta: float) -> void:
+		music_time += delta
+		if not playback:
+			return
+		var frames := playback.get_frames_available()
+		var chord_index := int(music_time / 9.0) % chords.size()
+		var next_index := (chord_index + 1) % chords.size()
+		var blend := smoothstep(0.72, 1.0, fmod(music_time, 9.0) / 9.0)
+		for _i in frames:
+			var value := 0.0
+			for voice in chords[chord_index].size():
+				var hz: float = lerp(float(chords[chord_index][voice]), float(chords[next_index][voice]), blend)
+				value += sin(TAU * hz * sample_clock) * (0.014 / float(voice + 1))
+				value += sin(TAU * hz * 0.501 * sample_clock) * (0.006 / float(voice + 1))
+			var breath := 0.78 + sin(TAU * 0.055 * sample_clock) * 0.16
+			var sample := value * breath
+			playback.push_frame(Vector2(sample, sample * 0.96))
+			sample_clock += 1.0 / sample_rate
