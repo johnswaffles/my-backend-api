@@ -1,4 +1,6 @@
 .godot/
+*.import
+*.uid
 cozy-village-preview.png
 build/
 exports/
