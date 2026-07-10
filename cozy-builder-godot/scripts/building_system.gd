@@ -4,7 +4,7 @@ const GRID_SIZE := 64
 const TILE_SIZE := 1.0
 const PAN_SPEED := 0.018
 const STARTING_MONEY := 500000
-const DEFAULT_ZOOM := 13.6
+const DEFAULT_ZOOM := 17.4
 const MIN_ZOOM := 6.0
 const MAX_ZOOM := 38.0
 const BUILD_TOOL_ROAD := "road"
@@ -143,7 +143,7 @@ const PROPERTY_BUFFER_BY_TOOL := {
 	BUILD_TOOL_CORNER_STORE: 1,
 	BUILD_TOOL_PARK: 1,
 }
-const ROAD_WIDTH := 1.72
+const ROAD_WIDTH := 2.08
 const CURB_WIDTH := 0.16
 const SIDEWALK_WIDTH := 1.08
 const FRONT_BUFFER := 0.32
@@ -540,6 +540,9 @@ const COMMERCIAL_TIER_ARCHITECTURE := {
 const SIDEWALK_ROUTE_OFFSET := 1.96
 const HOUSE_FRONT_BUFFER_CELLS := 1
 const PropertyUpgradeData = preload("res://scripts/property_upgrade_data.gd")
+const GRASS_MEADOW_ALBEDO = preload("res://assets/textures/grass_meadow_albedo-v1.png")
+const ASPHALT_ALBEDO = preload("res://assets/textures/asphalt_albedo-v1.png")
+const CEDAR_SHINGLES_ALBEDO = preload("res://assets/textures/cedar_shingles_albedo-v1.png")
 const DEBUG_UPGRADES := false
 
 @onready var grid_root: Node3D = $GridRoot
@@ -677,6 +680,8 @@ func _ready() -> void:
 	_create_runtime_helpers()
 	_build_hud()
 	_try_load_game()
+	if not _loaded_save:
+		_build_starter_neighborhood()
 	_recalculate_cashflow()
 	_refresh_tool_ui()
 	_update_hover_from_mouse()
@@ -792,6 +797,10 @@ func _input(event: InputEvent) -> void:
 
 func _build_materials() -> void:
 	_ground_material_a = _make_material("8cc775", 0.94)
+	# A calm matte field reads better at the isometric camera distance than the
+	# previous high-frequency grass texture. Small plants and dressed lots provide
+	# detail without turning the whole island into visual noise.
+	_ground_material_a.albedo_color = Color("70975f")
 	_ground_material_b = _make_material("76b15f", 0.96)
 	_ground_material_c = _make_material("a9d986", 0.93)
 	_soil_material = _make_material("6b5137", 0.98)
@@ -799,11 +808,21 @@ func _build_materials() -> void:
 	_water_material = _make_material("349ab4", 0.24, 0.0, true, "bceff5", 0.1)
 	_water_highlight_material = _make_transparent_material(Color("effffb"), 0.26, 0.42)
 	_road_material = _make_material("272d31", 0.98)
+	_road_material.albedo_texture = ASPHALT_ALBEDO
+	_road_material.albedo_color = Color(0.82, 0.84, 0.86)
+	_road_material.uv1_scale = Vector3(2.5, 2.5, 2.5)
+	_road_material.texture_repeat = true
+	_road_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	_road_top_detail_material = _make_material("333a3f", 0.97)
+	_road_top_detail_material.albedo_texture = ASPHALT_ALBEDO
+	_road_top_detail_material.albedo_color = Color(0.9, 0.92, 0.94)
+	_road_top_detail_material.uv1_scale = Vector3(2.5, 2.5, 2.5)
+	_road_top_detail_material.texture_repeat = true
+	_road_top_detail_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	_road_edge_highlight_material = _make_material("b8c1bd", 0.92)
 	_crosswalk_material = _make_material("ddd8cb", 0.92)
 	_road_mark_material = _make_material("e8c64f", 0.8)
-	_sidewalk_material = _make_material("d9d1c2", 0.94)
+	_sidewalk_material = _make_material("b9b09f", 0.94)
 	_window_material = _make_material("ffc15e", 0.12, 0.0, true, "ffe09a", 0.38)
 	_window_frame_material = _make_material("f6ecd8", 0.82)
 	_roof_fascia_material = _make_material("5f412b", 0.84)
@@ -811,6 +830,9 @@ func _build_materials() -> void:
 	_leaf_material = _make_material("5b8d4b", 0.93)
 	_leaf_material_light = _make_material("83b765", 0.91)
 	_leaf_material_dark = _make_material("38683a", 0.95)
+	_configure_foliage_material(_leaf_material, Color("91a979"))
+	_configure_foliage_material(_leaf_material_light, Color("b3c994"))
+	_configure_foliage_material(_leaf_material_dark, Color("657d5c"))
 	_trunk_material = _make_material("7a5336", 0.94)
 	_flower_material_pink = _make_material("ef93b5", 0.7)
 	_flower_material_blue = _make_material("8fc6ef", 0.7)
@@ -972,24 +994,28 @@ func _build_hud() -> void:
 
 	_rotate_left_button = Button.new()
 	_rotate_left_button.text = "L"
+	_rotate_left_button.tooltip_text = "Rotate view left (Q)"
 	_rotate_left_button.custom_minimum_size = Vector2(38, 0)
 	_rotate_left_button.pressed.connect(_rotate_camera.bind(-PI * 0.5))
 	top_row.add_child(_rotate_left_button)
 
 	_rotate_right_button = Button.new()
 	_rotate_right_button.text = "R"
+	_rotate_right_button.tooltip_text = "Rotate view right (E)"
 	_rotate_right_button.custom_minimum_size = Vector2(38, 0)
 	_rotate_right_button.pressed.connect(_rotate_camera.bind(PI * 0.5))
 	top_row.add_child(_rotate_right_button)
 
 	_zoom_out_button = Button.new()
-	_zoom_out_button.text = "-"
+	_zoom_out_button.text = "−"
+	_zoom_out_button.tooltip_text = "Zoom out"
 	_zoom_out_button.custom_minimum_size = Vector2(38, 0)
 	_zoom_out_button.pressed.connect(_adjust_zoom.bind(1.6))
 	top_row.add_child(_zoom_out_button)
 
 	_zoom_in_button = Button.new()
 	_zoom_in_button.text = "+"
+	_zoom_in_button.tooltip_text = "Zoom in"
 	_zoom_in_button.custom_minimum_size = Vector2(38, 0)
 	_zoom_in_button.pressed.connect(_adjust_zoom.bind(-1.6))
 	top_row.add_child(_zoom_in_button)
@@ -1004,6 +1030,7 @@ func _build_hud() -> void:
 	_tool_status_label.add_theme_color_override("font_color", Color("d3ebe4"))
 	_tool_status_label.add_theme_font_size_override("font_size", 12)
 	stack.add_child(_tool_status_label)
+	_tool_status_label.visible = false
 
 	_stats_label = Label.new()
 	_stats_label.add_theme_color_override("font_color", Color("f7f2e6"))
@@ -1022,7 +1049,7 @@ func _build_hud() -> void:
 	_hint_label.custom_minimum_size = Vector2(320, 0)
 	_hint_label.add_theme_color_override("font_color", Color("a9bec5"))
 	_hint_label.add_theme_font_size_override("font_size", 11)
-	_hint_label.text = "Use the build menu or hotkeys. Q/E rotates. Cmd/Ctrl+Z undoes. Right drag pans."
+	_hint_label.text = "Choose a build tool, then place it in the world. Right drag pans; Q/E rotates."
 	stack.add_child(_hint_label)
 
 
@@ -1097,6 +1124,7 @@ func _refresh_tool_ui() -> void:
 		_style_tool_button(_clear_button, false)
 	if _selection_label:
 		_selection_label.text = _selection_text()
+		_selection_label.visible = _selected_anchor_key != "" or _selected_tile.x >= 0
 	_apply_hud_layout()
 	if _ghost_root:
 		for tool in _ghost_nodes.keys():
@@ -1283,7 +1311,7 @@ func _apply_hud_layout() -> void:
 	if _stats_label:
 		_stats_label.add_theme_font_size_override("font_size", 10 if compact else 12)
 	if _selection_label:
-		_selection_label.visible = not compact
+		_selection_label.visible = not compact and (_selected_anchor_key != "" or _selected_tile.x >= 0)
 		_selection_label.add_theme_font_size_override("font_size", 10 if compact else 11)
 	if _hint_label:
 		_hint_label.add_theme_font_size_override("font_size", 10 if compact else 11)
@@ -3833,6 +3861,7 @@ func _new_map() -> void:
 	_set_ambient_light_scale(1.0)
 	_variant_cycle.clear()
 	_loaded_save = false
+	_build_starter_neighborhood()
 	_reset_camera_view()
 	_recalculate_cashflow()
 	_rebuild_ambient_life()
@@ -3840,7 +3869,59 @@ func _new_map() -> void:
 	_refresh_tool_ui()
 	_update_hover_from_mouse()
 	if _hint_label:
-		_hint_label.text = "Fresh map ready. Start with roads, then place homes and town buildings."
+		_hint_label.text = "Starter neighborhood ready. Select a build tool to expand the town."
+
+
+func _build_starter_neighborhood() -> void:
+	# A new player should arrive in a place worth caring about, not an empty test
+	# field. This small neighborhood also establishes the scale and visual quality
+	# that future construction is meant to continue.
+	var road_cells: Array[Vector2i] = []
+	for x in range(20, 49):
+		road_cells.append(Vector2i(x, 31))
+	for y in range(28, 36):
+		road_cells.append(Vector2i(40, y))
+
+	for cell in road_cells:
+		if not _road_cells.has(_cell_key(cell)):
+			_mark_road_cell(cell)
+			_clear_nature_for_cells([cell])
+	for cell in road_cells:
+		_rebuild_road_at(cell)
+		_register_placement(cell, [cell], BUILD_TOOL_ROAD, _road_nodes.get(_cell_key(cell)), int(BUILD_TOOL_COSTS[BUILD_TOOL_ROAD]), 1, -1)
+		if not _action_history.is_empty():
+			_action_history.pop_back()
+
+	var properties := [
+		{"tool": BUILD_TOOL_HOUSE, "anchor": Vector2i(22, 25), "frontage": "south", "tier": 2, "variant": 0},
+		{"tool": BUILD_TOOL_HOUSE, "anchor": Vector2i(28, 25), "frontage": "south", "tier": 1, "variant": 3},
+		{"tool": BUILD_TOOL_HOUSE, "anchor": Vector2i(34, 25), "frontage": "south", "tier": 2, "variant": 5},
+		{"tool": BUILD_TOOL_HOUSE, "anchor": Vector2i(23, 33), "frontage": "north", "tier": 1, "variant": 2},
+		{"tool": BUILD_TOOL_HOUSE, "anchor": Vector2i(30, 33), "frontage": "north", "tier": 2, "variant": 7},
+		{"tool": BUILD_TOOL_PARK, "anchor": Vector2i(42, 34), "frontage": "south", "tier": 2, "variant": 2},
+	]
+	for spec_variant in properties:
+		var spec: Dictionary = spec_variant
+		var tool := str(spec["tool"])
+		var anchor: Vector2i = spec["anchor"]
+		var footprint := _tool_footprint_for_anchor(tool, anchor)
+		var cells := _cells_for_anchor(anchor, footprint)
+		var frontage := str(spec["frontage"])
+		var tier := int(spec["tier"])
+		var variant := int(spec["variant"])
+		_clear_nature_for_cells(cells)
+		var node := _spawn_building_for_tool(tool, _anchor_to_world(anchor, footprint), _tool_rotation_y(tool, anchor, footprint, frontage), tier, variant)
+		_register_placement(anchor, cells, tool, node, int(BUILD_TOOL_COSTS.get(tool, 0)), tier, variant, frontage)
+		if not _action_history.is_empty():
+			_action_history.pop_back()
+
+	_action_history.clear()
+	_clear_selected_anchor()
+	_build_tool = BUILD_TOOL_INSPECT
+	_rebuild_ambient_life()
+	_refresh_road_lights()
+	if _hint_label:
+		_hint_label.text = "Welcome to the neighborhood. Select a build tool to expand the town."
 
 
 func _clear_map_data() -> void:
@@ -4655,7 +4736,10 @@ func _build_island_base() -> void:
 
 	var lip := MeshInstance3D.new()
 	var lip_mesh := BoxMesh.new()
-	lip_mesh.size = Vector3(GRID_SIZE + 1.4, 0.28, GRID_SIZE + 1.4)
+	# Keep the stone support clearly below the meadow surface. Its previous top
+	# face landed at the exact same y as MeadowSurface, which caused WebGL
+	# z-fighting stripes across the entire island.
+	lip_mesh.size = Vector3(GRID_SIZE + 1.4, 0.2, GRID_SIZE + 1.4)
 	lip.mesh = lip_mesh
 	lip.material_override = _make_material("9b8b72", 0.95)
 	lip.position = Vector3(0.0, -0.11, 0.0)
@@ -4663,10 +4747,12 @@ func _build_island_base() -> void:
 
 	var turf := MeshInstance3D.new()
 	var turf_mesh := BoxMesh.new()
-	turf_mesh.size = Vector3(GRID_SIZE + 0.8, 0.14, GRID_SIZE + 0.8)
+	# Keep the structural island cap below the authored meadow. Previously its top
+	# sat at y=0.06, hiding both the detailed ground and the lower sidewalk layers.
+	turf_mesh.size = Vector3(GRID_SIZE + 0.8, 0.08, GRID_SIZE + 0.8)
 	turf.mesh = turf_mesh
 	turf.material_override = _make_material("8fa369", 0.98)
-	turf.position = Vector3(0.0, -0.01, 0.0)
+	turf.position = Vector3(0.0, -0.07, 0.0)
 	grid_root.add_child(turf)
 	_add_island_edge_layers()
 
@@ -4738,21 +4824,19 @@ func _build_diorama_backdrop() -> void:
 func _build_ground_tiles() -> void:
 	var half := (GRID_SIZE - 1) * TILE_SIZE * 0.5
 
-	for z in range(GRID_SIZE):
-		for x in range(GRID_SIZE):
-			var tile := MeshInstance3D.new()
-			var mesh := BoxMesh.new()
-			var height_variation := 0.1 + sin(float(x) * 0.35) * 0.012 + cos(float(z) * 0.27) * 0.01
-			mesh.size = Vector3(1.04, height_variation, 1.04)
-			tile.mesh = mesh
-			var material := _ground_material_a
-			if (x + z) % 3 == 0:
-				material = _ground_material_b
-			elif (x * 3 + z * 5) % 4 == 0:
-				material = _ground_material_c
-			tile.material_override = material
-			tile.position = Vector3(x - half, -0.02, z - half)
-			grid_root.add_child(tile)
+	# The old terrain used 4,096 individual box meshes. Besides being expensive on
+	# the web renderer, their alternating flat colors made the island read as a
+	# checkerboard. A single textured surface gives the town a continuous,
+	# handcrafted meadow while the existing polish patches add large-scale breakup.
+	var ground := MeshInstance3D.new()
+	ground.name = "MeadowSurface"
+	var ground_mesh := BoxMesh.new()
+	ground_mesh.size = Vector3(float(GRID_SIZE) + 0.08, 0.1, float(GRID_SIZE) + 0.08)
+	ground.mesh = ground_mesh
+	ground.material_override = _ground_material_a
+	ground.position = Vector3(0.0, -0.02, 0.0)
+	ground.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	grid_root.add_child(ground)
 
 	for edge in range(GRID_SIZE):
 		_add_edge_post(Vector3(-half - 0.9, 0.12, edge - half))
@@ -4784,32 +4868,19 @@ func _build_ground_tiles() -> void:
 
 
 func _build_meadow() -> void:
-	var edge_ring := float(GRID_SIZE) * 0.5 - 6.0
-	var near_ring := float(GRID_SIZE) * 0.32
-	for patch in [
-		{"center": Vector3(-edge_ring, 0.02, -near_ring), "size": Vector2(5.8, 3.4), "clumps": 8},
-		{"center": Vector3(edge_ring, 0.02, -near_ring), "size": Vector2(5.2, 3.0), "clumps": 7},
-		{"center": Vector3(-edge_ring, 0.02, near_ring), "size": Vector2(5.5, 3.8), "clumps": 8},
-		{"center": Vector3(edge_ring, 0.02, near_ring), "size": Vector2(5.0, 3.2), "clumps": 7},
-		{"center": Vector3(-near_ring, 0.02, edge_ring), "size": Vector2(4.6, 3.0), "clumps": 6},
-		{"center": Vector3(near_ring, 0.02, edge_ring), "size": Vector2(4.2, 2.8), "clumps": 6},
-		{"center": Vector3(-near_ring * 0.8, 0.02, -edge_ring), "size": Vector2(4.4, 2.8), "clumps": 6},
-		{"center": Vector3(near_ring * 0.7, 0.02, -edge_ring), "size": Vector2(4.0, 2.6), "clumps": 6}
-	]:
-		_add_meadow_patch(patch.center, patch.size, patch.clumps)
-	_build_ground_surface_polish()
-
+	# Avoid large flat discs and high-frequency wallpaper. Sparse vegetation makes
+	# the playable field feel tended while leaving buildings and roads legible.
 	for tuft in [
-		Vector3(-8.8, 0.06, 2.35),
-		Vector3(-6.9, 0.06, 6.55),
-		Vector3(-4.25, 0.06, 8.75),
-		Vector3(4.75, 0.06, 9.45),
-		Vector3(8.8, 0.06, 4.45),
-		Vector3(9.4, 0.06, -3.2),
-		Vector3(-9.2, 0.06, -5.35),
-		Vector3(2.6, 0.06, -9.55),
+		Vector3(-11.8, 0.06, 7.4),
+		Vector3(-9.2, 0.06, -8.1),
+		Vector3(-3.4, 0.06, 10.6),
+		Vector3(5.7, 0.06, 10.2),
+		Vector3(10.8, 0.06, 5.6),
+		Vector3(11.4, 0.06, -6.8),
+		Vector3(-11.0, 0.06, -3.4),
+		Vector3(4.4, 0.06, -10.6),
 	]:
-		_add_grass_clump(tuft, 1.12)
+		_add_grass_clump(tuft, 0.88)
 
 
 func _build_ground_surface_polish() -> void:
@@ -4952,7 +5023,7 @@ func _populate_village_house_variant(root: Node3D, lot_root: Node3D, structure_r
 	var plaster := _make_material_from_color(palette.wall.lightened(0.02), 0.95)
 	var timber := _make_material("8d6848", 0.88)
 	var porch_wood := _make_material("976f49", 0.84)
-	var roof_material := _make_material_from_color(palette.roof, 0.74)
+	var roof_material := _make_house_roof_material(palette.roof)
 
 	var house_z := -1.18
 	_add_soft_block(Vector3(0.0, height * 0.5 + 0.06, house_z), Vector3(width, height, depth), plaster, structure_root, 0.22)
@@ -4971,9 +5042,9 @@ func _populate_village_house_variant(root: Node3D, lot_root: Node3D, structure_r
 
 	_add_gabled_roof(Vector3(0.0, height + roof_lift, house_z), Vector3(width + roof_overhang, 0.34, depth + roof_overhang), roof_material, structure_root, roof_tilt)
 	if has_wing:
-		_add_gabled_roof(Vector3(-0.96, height * 0.78 + 0.26, house_z + 0.34), Vector3(width * 0.56, 0.24, depth * 0.92), _make_material_from_color(palette.roof.lightened(0.04), 0.74), structure_root, roof_tilt - 2.0)
+		_add_gabled_roof(Vector3(-0.96, height * 0.78 + 0.26, house_z + 0.34), Vector3(width * 0.56, 0.24, depth * 0.92), _make_house_roof_material(palette.roof.lightened(0.04)), structure_root, roof_tilt - 2.0)
 	if has_garage:
-		_add_gabled_roof(Vector3(garage_side * 1.22, 0.84, house_z + 0.3), Vector3(1.44, 0.18, 1.92), _make_material_from_color(palette.roof.darkened(0.05), 0.74), structure_root, max(12.0, roof_tilt - 5.0))
+		_add_gabled_roof(Vector3(garage_side * 1.22, 0.84, house_z + 0.3), Vector3(1.44, 0.18, 1.92), _make_house_roof_material(palette.roof.darkened(0.05)), structure_root, max(12.0, roof_tilt - 5.0))
 
 	for timber_x in [-0.58, 0.0, 0.58]:
 		_add_box(Vector3(timber_x, 0.54, house_z + 0.88), Vector3(0.12, 0.9, 0.1), timber, structure_root)
@@ -7253,29 +7324,10 @@ func _add_town_path(center: Vector3, size: Vector2, parent: Node = null) -> void
 
 
 func _build_clouds() -> void:
-	for i in range(4):
-		var cloud := Node3D.new()
-		cloud.position = Vector3(-9.5 + i * 5.5, 6.4 + float(i % 2) * 0.4, -7.5 + i * 1.3)
-		cloud.set_meta("speed", 0.12 + float(i) * 0.03)
-		cloud.set_meta("base_z", cloud.position.z)
-		building_root.add_child(cloud)
-		_clouds.append(cloud)
-
-		_add_shadow_disc_local(Vector3(0.58, -5.88, 0.08), Vector2(1.45, 0.42), 0.05, cloud)
-		for puff_index in range(5):
-			var puff := MeshInstance3D.new()
-			var puff_mesh := SphereMesh.new()
-			puff_mesh.radius = 0.38 + float(puff_index % 3) * 0.1
-			puff_mesh.height = 0.48 + float(puff_index % 2) * 0.12
-			puff.mesh = puff_mesh
-			var puff_material := _make_material("ffffff", 0.08)
-			puff_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-			puff_material.albedo_color.a = 0.78
-			puff.material_override = puff_material
-			puff.position = Vector3(float(puff_index) * 0.38, 0.0 if puff_index % 2 == 0 else 0.16, randf_range(-0.16, 0.16))
-			puff.scale = Vector3(1.2, 0.7, 0.82)
-			cloud.add_child(puff)
-		_add_box(Vector3(0.76, -0.18, 0.0), Vector3(1.42, 0.045, 0.2), _make_transparent_material(Color("d5e4ef"), 0.2, 0.24), cloud)
+	# Clouds floating between an orthographic camera and the build surface read as
+	# white blobs that hide the town. The procedural sky provides atmosphere
+	# without obscuring player-created work.
+	return
 
 
 func _add_meadow_patch(center: Vector3, size: Vector2, clump_count: int) -> void:
@@ -7359,39 +7411,39 @@ func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = [
 	var road_top_material: Material = _ghost_accent_material if preview else _road_top_detail_material
 	var lane_material: Material = _ghost_base_material if preview else _road_mark_material
 	var road_width := ROAD_WIDTH
-	var road_top_width := maxf(1.42, road_width - 0.26)
-	var road_connector_width := road_width + 0.1
-	var road_connector_top_width := maxf(1.36, road_width - 0.1)
+	var road_top_width := maxf(1.76, road_width - 0.18)
+	var road_connector_width := road_width
+	var road_connector_top_width := road_top_width
 	var source := road_source if road_source.size() > 0 else [cell]
 	var north := _road_in_source(Vector2i(cell.x, cell.y - 1), source)
 	var east := _road_in_source(Vector2i(cell.x + 1, cell.y), source)
 	var south := _road_in_source(Vector2i(cell.x, cell.y + 1), source)
 	var west := _road_in_source(Vector2i(cell.x - 1, cell.y), source)
 
-	_add_box(Vector3(0.0, 0.004, 0.0), Vector3(5.18, 0.022, 5.18), verge_material, root)
-	_add_box(Vector3(0.0, 0.026, 0.0), Vector3(5.02, 0.042, 5.02), sidewalk_material, root)
-	_add_box(Vector3(0.0, 0.052, 0.0), Vector3(3.38, 0.026, 3.38), curb_material, root)
+	_add_box(Vector3(0.0, 0.004, 0.0), Vector3(3.52, 0.022, 3.52), verge_material, root)
+	_add_box(Vector3(0.0, 0.026, 0.0), Vector3(3.28, 0.042, 3.28), sidewalk_material, root)
+	_add_box(Vector3(0.0, 0.052, 0.0), Vector3(2.5, 0.026, 2.5), curb_material, root)
 	_add_box(Vector3(0.0, 0.078, 0.0), Vector3(road_width, 0.06, road_width), road_material, root)
 	_add_box(Vector3(0.0, 0.096, 0.0), Vector3(road_top_width, 0.022, road_top_width), road_top_material, root)
 
 	if north:
-		_add_box(Vector3(0.0, 0.026, -1.28), Vector3(5.74, 0.042, 2.74), sidewalk_material, root)
-		_add_box(Vector3(0.0, 0.052, -1.28), Vector3(4.34, 0.026, 2.08), curb_material, root)
+		_add_box(Vector3(0.0, 0.026, -1.28), Vector3(3.52, 0.042, 2.2), sidewalk_material, root)
+		_add_box(Vector3(0.0, 0.052, -1.28), Vector3(2.6, 0.026, 1.86), curb_material, root)
 		_add_box(Vector3(0.0, 0.08, -1.28), Vector3(road_connector_width, 0.064, 1.72), road_material, root)
 		_add_box(Vector3(0.0, 0.1, -1.28), Vector3(road_connector_top_width, 0.024, 1.48), road_top_material, root)
 	if south:
-		_add_box(Vector3(0.0, 0.026, 1.28), Vector3(5.74, 0.042, 2.74), sidewalk_material, root)
-		_add_box(Vector3(0.0, 0.052, 1.28), Vector3(4.34, 0.026, 2.08), curb_material, root)
+		_add_box(Vector3(0.0, 0.026, 1.28), Vector3(3.52, 0.042, 2.2), sidewalk_material, root)
+		_add_box(Vector3(0.0, 0.052, 1.28), Vector3(2.6, 0.026, 1.86), curb_material, root)
 		_add_box(Vector3(0.0, 0.08, 1.28), Vector3(road_connector_width, 0.064, 1.72), road_material, root)
 		_add_box(Vector3(0.0, 0.1, 1.28), Vector3(road_connector_top_width, 0.024, 1.48), road_top_material, root)
 	if east:
-		_add_box(Vector3(1.28, 0.026, 0.0), Vector3(2.74, 0.042, 5.74), sidewalk_material, root)
-		_add_box(Vector3(1.28, 0.052, 0.0), Vector3(2.08, 0.026, 4.34), curb_material, root)
+		_add_box(Vector3(1.28, 0.026, 0.0), Vector3(2.2, 0.042, 3.52), sidewalk_material, root)
+		_add_box(Vector3(1.28, 0.052, 0.0), Vector3(1.86, 0.026, 2.6), curb_material, root)
 		_add_box(Vector3(1.28, 0.08, 0.0), Vector3(1.72, 0.064, road_connector_width), road_material, root)
 		_add_box(Vector3(1.28, 0.1, 0.0), Vector3(1.48, 0.024, road_connector_top_width), road_top_material, root)
 	if west:
-		_add_box(Vector3(-1.28, 0.026, 0.0), Vector3(2.74, 0.042, 5.74), sidewalk_material, root)
-		_add_box(Vector3(-1.28, 0.052, 0.0), Vector3(2.08, 0.026, 4.34), curb_material, root)
+		_add_box(Vector3(-1.28, 0.026, 0.0), Vector3(2.2, 0.042, 3.52), sidewalk_material, root)
+		_add_box(Vector3(-1.28, 0.052, 0.0), Vector3(1.86, 0.026, 2.6), curb_material, root)
 		_add_box(Vector3(-1.28, 0.08, 0.0), Vector3(1.72, 0.064, road_connector_width), road_material, root)
 		_add_box(Vector3(-1.28, 0.1, 0.0), Vector3(1.48, 0.024, road_connector_top_width), road_top_material, root)
 	if not north and not south and not east and not west:
@@ -7403,10 +7455,8 @@ func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = [
 	var intersection := (north or south) and (east or west)
 	if vertical_straight:
 		_add_lane_dashes_local(root, true, lane_material)
-		_add_road_edge_lines_local(root, true)
 	elif horizontal_straight:
 		_add_lane_dashes_local(root, false, lane_material)
-		_add_road_edge_lines_local(root, false)
 	elif intersection:
 		_add_box(Vector3(0.0, 0.08, 0.0), Vector3(road_width + 0.26, 0.064, road_width + 0.26), road_material, root)
 		_add_box(Vector3(0.0, 0.1, 0.0), Vector3(road_top_width + 0.18, 0.024, road_top_width + 0.18), road_top_material, root)
@@ -7414,10 +7464,8 @@ func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = [
 	else:
 		if north or south:
 			_add_lane_dashes_local(root, true, lane_material)
-			_add_road_edge_lines_local(root, true)
 		else:
 			_add_lane_dashes_local(root, false, lane_material)
-			_add_road_edge_lines_local(root, false)
 
 	if not preview:
 		_add_road_finish_details(root, vertical_straight, horizontal_straight, intersection, north, east, south, west)
@@ -7435,14 +7483,7 @@ func _add_lane_dashes_local(root: Node3D, vertical: bool, material: Material) ->
 
 
 func _add_road_edge_lines_local(root: Node3D, vertical: bool) -> void:
-	var edge_offset := ROAD_WIDTH * 0.45
-	var line_length := ROAD_WIDTH + 0.02
-	if vertical:
-		for x in [-edge_offset, edge_offset]:
-			_add_box(Vector3(x, 0.146, 0.0), Vector3(0.024, 0.018, line_length), _road_edge_highlight_material, root)
-	else:
-		for z in [-edge_offset, edge_offset]:
-			_add_box(Vector3(0.0, 0.146, z), Vector3(line_length, 0.018, 0.024), _road_edge_highlight_material, root)
+	pass
 
 
 func _add_intersection_center_mark_local(root: Node3D, material: Material) -> void:
@@ -7485,37 +7526,7 @@ func _add_crosswalk_local(root: Node3D, center: Vector3, horizontal: bool) -> vo
 
 
 func _add_road_surface_polish_local(root: Node3D, vertical_straight: bool, horizontal_straight: bool, intersection: bool, north: bool, east: bool, south: bool, west: bool) -> void:
-	var seam_material := _make_material("333a42", 0.98)
-	var grate_material := _make_material("2d3034", 0.96)
-	var curb_cap_material := _make_material("f0eadc", 0.9)
-	_add_sidewalk_paver_detail_local(root, vertical_straight, horizontal_straight, intersection)
-	_add_asphalt_surface_variation_local(root, Vector2(ROAD_WIDTH * 0.88, ROAD_WIDTH * 0.88), 0.135)
-	if vertical_straight:
-		for z in [-1.6, 1.6]:
-			_add_box(Vector3(-1.78, 0.156, z), Vector3(0.16, 0.014, 0.08), curb_cap_material, root)
-			_add_box(Vector3(1.78, 0.156, z), Vector3(0.16, 0.014, 0.08), curb_cap_material, root)
-		_add_box(Vector3(-0.86, 0.13, 0.0), Vector3(0.025, 0.012, 3.28), seam_material, root)
-		_add_box(Vector3(0.86, 0.13, 0.0), Vector3(0.025, 0.012, 3.28), seam_material, root)
-		_add_drain_grate_local(root, Vector3(-1.48, 0.16, -1.18), true, grate_material)
-		_add_drain_grate_local(root, Vector3(1.48, 0.16, 1.18), true, grate_material)
-	elif horizontal_straight:
-		for x in [-1.6, 1.6]:
-			_add_box(Vector3(x, 0.156, -1.78), Vector3(0.08, 0.014, 0.16), curb_cap_material, root)
-			_add_box(Vector3(x, 0.156, 1.78), Vector3(0.08, 0.014, 0.16), curb_cap_material, root)
-		_add_box(Vector3(0.0, 0.13, -0.86), Vector3(3.28, 0.012, 0.025), seam_material, root)
-		_add_box(Vector3(0.0, 0.13, 0.86), Vector3(3.28, 0.012, 0.025), seam_material, root)
-		_add_drain_grate_local(root, Vector3(-1.18, 0.16, -1.48), false, grate_material)
-		_add_drain_grate_local(root, Vector3(1.18, 0.16, 1.48), false, grate_material)
-	elif intersection:
-		_add_ellipse_disc_local(Vector3(0.0, 0.158, 0.0), Vector2(0.32, 0.32), 0.012, seam_material, root, 0.0)
-		if north:
-			_add_drain_grate_local(root, Vector3(-1.42, 0.16, -1.44), true, grate_material)
-		if south:
-			_add_drain_grate_local(root, Vector3(1.42, 0.16, 1.44), true, grate_material)
-		if east:
-			_add_drain_grate_local(root, Vector3(1.44, 0.16, -1.42), false, grate_material)
-		if west:
-			_add_drain_grate_local(root, Vector3(-1.44, 0.16, 1.42), false, grate_material)
+	pass
 
 
 func _add_asphalt_surface_variation_local(parent: Node, size: Vector2, y_position: float) -> void:
@@ -7558,20 +7569,7 @@ func _add_drain_grate_local(root: Node3D, center: Vector3, vertical: bool, mater
 
 
 func _add_sidewalk_paver_detail_local(root: Node3D, vertical_straight: bool, horizontal_straight: bool, intersection: bool) -> void:
-	var paver_material := _make_material("c9bea9", 0.92)
-	if vertical_straight:
-		for x in [-2.18, 2.18]:
-			for z in [-1.35, -0.45, 0.45, 1.35]:
-				_add_box(Vector3(x, 0.151, z), Vector3(0.46, 0.01, 0.028), paver_material, root)
-	elif horizontal_straight:
-		for z in [-2.18, 2.18]:
-			for x in [-1.35, -0.45, 0.45, 1.35]:
-				_add_box(Vector3(x, 0.151, z), Vector3(0.028, 0.01, 0.46), paver_material, root)
-	elif intersection:
-		for x in [-2.08, 2.08]:
-			for z in [-2.08, 2.08]:
-				_add_box(Vector3(x, 0.151, z), Vector3(0.42, 0.01, 0.03), paver_material, root)
-				_add_box(Vector3(x, 0.151, z), Vector3(0.03, 0.01, 0.42), paver_material, root)
+	pass
 
 
 func _road_in_source(cell: Vector2i, road_source: Array) -> bool:
@@ -8752,7 +8750,6 @@ func _ensure_lamp_glow_texture(glow_color: Color, alpha: float) -> Texture2D:
 	if _lamp_glow_texture == null:
 		var size := 64
 		var image := Image.create(size, size, false, Image.FORMAT_RGBA8)
-		image.lock()
 		var center := Vector2((size - 1) * 0.5, (size - 1) * 0.5)
 		for y in range(size):
 			for x in range(size):
@@ -8761,7 +8758,6 @@ func _ensure_lamp_glow_texture(glow_color: Color, alpha: float) -> Texture2D:
 				falloff = pow(falloff, 1.9)
 				var glow_alpha := alpha * maxf(falloff, clampf(1.0 - dist * 1.1, 0.0, 1.0) * 0.4)
 				image.set_pixel(x, y, Color(glow_color.r, glow_color.g, glow_color.b, glow_alpha))
-		image.unlock()
 		_lamp_glow_texture = ImageTexture.create_from_image(image)
 	return _lamp_glow_texture
 
@@ -9088,7 +9084,7 @@ func _polished_albedo_color(color: Color, roughness: float) -> Color:
 	var luminance := color.r * 0.299 + color.g * 0.587 + color.b * 0.114
 	var adjusted := color
 	if luminance > 0.78:
-		adjusted = adjusted.darkened(0.04)
+		adjusted = adjusted.darkened(0.12)
 	elif luminance < 0.2:
 		adjusted = adjusted.lightened(0.026)
 	var warm_amount := clampf((roughness - 0.55) * 0.07, 0.0, 0.038)
@@ -9115,6 +9111,23 @@ func _make_material_from_color(color: Color, roughness: float) -> StandardMateri
 	material.roughness = roughness
 	material.metallic_specular = 0.08
 	return material
+
+
+func _make_house_roof_material(color: Color) -> StandardMaterial3D:
+	var material := _make_material_from_color(color, 0.78)
+	# Preserve the broader color palette, but give the signature warm-roof houses
+	# authored shingle detail in the first visual slice.
+	if color.r > color.g * 1.12 and color.r > color.b * 1.12:
+		material.albedo_texture = CEDAR_SHINGLES_ALBEDO
+		material.albedo_color = Color(0.94, 0.88, 0.82)
+		material.uv1_scale = Vector3(2.0, 2.0, 2.0)
+		material.texture_repeat = true
+		material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	return material
+
+
+func _configure_foliage_material(material: StandardMaterial3D, tint: Color) -> void:
+	material.albedo_color = tint
 
 
 func _make_transparent_material(color: Color, roughness: float, alpha: float) -> StandardMaterial3D:
