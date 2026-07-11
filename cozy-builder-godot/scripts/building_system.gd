@@ -637,6 +637,9 @@ var _meadow_patches: Array[MeshInstance3D] = []
 var _ambient_cars: Array[Node3D] = []
 var _ambient_trolleys: Array[Node3D] = []
 var _ambient_people: Array[Node3D] = []
+var _ambient_social_point := Vector3.ZERO
+var _ambient_park_seats: Array[Vector3] = []
+var _ambient_life_clock := 0.0
 var _hover_root: Node3D
 var _ghost_root: Node3D
 var _ghost_nodes: Dictionary = {}
@@ -4030,10 +4033,13 @@ func _clear_ambient_life() -> void:
 		if is_instance_valid(person):
 			person.queue_free()
 	_ambient_people.clear()
+	_ambient_park_seats.clear()
+	_ambient_social_point = Vector3.ZERO
 
 
 func _rebuild_ambient_life() -> void:
 	_clear_ambient_life()
+	_ambient_life_clock = 0.0
 	if _road_cells.is_empty():
 		return
 	var road_keys: Array = _road_cells.keys()
@@ -4053,6 +4059,7 @@ func _rebuild_ambient_life() -> void:
 		_ambient_trolleys.append(trolley)
 
 	var anchors: Array = _placements.keys()
+	_prepare_resident_activity_points(anchors)
 	var person_count := mini(8, anchors.size())
 	var spawned_people := 0
 	for anchor_key_variant in anchors:
@@ -4069,6 +4076,39 @@ func _rebuild_ambient_life() -> void:
 		_life_root.add_child(person)
 		_ambient_people.append(person)
 		spawned_people += 1
+	if _ambient_people.size() >= 2:
+		_ambient_people[0].set_meta("conversation_partner", _ambient_people[1])
+		_ambient_people[1].set_meta("conversation_partner", _ambient_people[0])
+
+
+func _prepare_resident_activity_points(anchors: Array) -> void:
+	# Parks become genuine destinations: two people can rest while another pair
+	# meets nearby. If a town has no park yet, use the first developed lot as a
+	# modest social point so residents still feel connected.
+	var park_center := Vector3.ZERO
+	var found_park := false
+	for anchor_key_variant in anchors:
+		var anchor_key := str(anchor_key_variant)
+		if not _placements.has(anchor_key):
+			continue
+		var placement: Dictionary = _placements[anchor_key]
+		if str(placement.get("tool", "")) != BUILD_TOOL_PARK:
+			continue
+		var anchor: Vector2i = placement["anchor"]
+		var footprint := _footprint_from_cells(placement["cells"])
+		park_center = _anchor_to_world(anchor, footprint)
+		found_park = true
+		break
+	if not found_park and not anchors.is_empty():
+		var first_key := str(anchors[0])
+		if _placements.has(first_key):
+			var first_placement: Dictionary = _placements[first_key]
+			park_center = _anchor_to_world(first_placement["anchor"], _footprint_from_cells(first_placement["cells"]))
+	_ambient_social_point = park_center + Vector3(0.0, 0.03, -0.25)
+	_ambient_park_seats = [
+		park_center + Vector3(-0.78, 0.03, 0.0),
+		park_center + Vector3(0.78, 0.03, 0.0),
+	]
 
 
 func _spawn_ambient_car(road_cell: Vector2i, index: int) -> Node3D:
@@ -4230,14 +4270,21 @@ func _spawn_ambient_person(anchor_key: String, index: int) -> Node3D:
 			frontage + side * stride + Vector3(0.0, 0.03, 0.0),
 		]
 	var start := sidewalk_route[0]
-	var finish := sidewalk_route[sidewalk_route.size() - 1]
 	root.position = start
 	root.set_meta("mode", "person")
-	root.set_meta("route_points", sidewalk_route)
-	root.set_meta("route_length", _route_length(sidewalk_route))
-	root.set_meta("route_progress", randf_range(0.0, maxf(_route_length(sidewalk_route) * 2.0, 0.01)))
 	root.set_meta("speed", randf_range(0.75, 1.15))
+	root.set_meta("home_point", start)
+	root.set_meta("activity_point", _resident_activity_point(index))
+	root.set_meta("walk_target", _resident_activity_point(index))
+	root.set_meta("routine", "walking")
+	root.set_meta("arrival_routine", _resident_arrival_routine(index))
+	root.set_meta("routine_timer", 0.0)
+	root.set_meta("walk_phase", randf() * TAU)
 	_add_shadow_disc_local(Vector3(0.0, 0.005, 0.0), Vector2(0.18, 0.18), 0.16, root)
+	var visual := Node3D.new()
+	visual.name = "Resident visual"
+	root.add_child(visual)
+	root.set_meta("visual", visual)
 
 	var coat_palette := [
 		Color("5b7db0"),
@@ -4253,27 +4300,42 @@ func _spawn_ambient_person(anchor_key: String, index: int) -> Node3D:
 	var hair_material := _make_material(str(hair_colors[index % hair_colors.size()]), 0.84)
 	var shoe_material := _make_material("2b2929", 0.98)
 	var bag_material := _make_material("b88955", 0.82)
-	_add_soft_block(Vector3(0.0, 0.2, 0.0), Vector3(0.12, 0.2, 0.1), coat_material, root, 0.04)
-	_add_local_sphere(Vector3(0.0, 0.34, 0.0), 0.06, 0.08, skin_material, root)
-	_add_local_sphere(Vector3(0.0, 0.385, -0.005), 0.062, 0.04, hair_material, root)
+	_add_soft_block(Vector3(0.0, 0.2, 0.0), Vector3(0.12, 0.2, 0.1), coat_material, visual, 0.04)
+	_add_local_sphere(Vector3(0.0, 0.34, 0.0), 0.06, 0.08, skin_material, visual)
+	_add_local_sphere(Vector3(0.0, 0.385, -0.005), 0.062, 0.04, hair_material, visual)
 	if index % 3 == 0:
-		_add_box(Vector3(0.0, 0.42, 0.0), Vector3(0.15, 0.025, 0.12), hair_material, root)
-		_add_box(Vector3(0.0, 0.44, 0.0), Vector3(0.09, 0.035, 0.08), hair_material, root)
-	var left_arm := _add_box(Vector3(-0.085, 0.2, 0.0), Vector3(0.025, 0.16, 0.025), skin_material, root)
-	left_arm.rotation_degrees.z = -10.0
-	var right_arm := _add_box(Vector3(0.085, 0.2, 0.0), Vector3(0.025, 0.16, 0.025), skin_material, root)
-	right_arm.rotation_degrees.z = 10.0
-	_add_box(Vector3(-0.03, 0.07, 0.0), Vector3(0.03, 0.14, 0.03), pant_material, root)
-	_add_box(Vector3(0.03, 0.07, 0.0), Vector3(0.03, 0.14, 0.03), pant_material, root)
-	_add_box(Vector3(-0.035, 0.01, 0.02), Vector3(0.055, 0.025, 0.04), shoe_material, root)
-	_add_box(Vector3(0.035, 0.01, 0.02), Vector3(0.055, 0.025, 0.04), shoe_material, root)
-	_add_box(Vector3(0.0, 0.23, -0.07), Vector3(0.12, 0.03, 0.03), _make_material("f5efe4", 0.86), root)
+		_add_box(Vector3(0.0, 0.42, 0.0), Vector3(0.15, 0.025, 0.12), hair_material, visual)
+		_add_box(Vector3(0.0, 0.44, 0.0), Vector3(0.09, 0.035, 0.08), hair_material, visual)
+	var left_arm_pivot := Node3D.new()
+	left_arm_pivot.position = Vector3(-0.075, 0.27, 0.0)
+	visual.add_child(left_arm_pivot)
+	_add_box(Vector3(0.0, -0.07, 0.0), Vector3(0.025, 0.16, 0.025), skin_material, left_arm_pivot)
+	var right_arm_pivot := Node3D.new()
+	right_arm_pivot.position = Vector3(0.075, 0.27, 0.0)
+	visual.add_child(right_arm_pivot)
+	_add_box(Vector3(0.0, -0.07, 0.0), Vector3(0.025, 0.16, 0.025), skin_material, right_arm_pivot)
+	var left_leg_pivot := Node3D.new()
+	left_leg_pivot.position = Vector3(-0.03, 0.13, 0.0)
+	visual.add_child(left_leg_pivot)
+	_add_box(Vector3(0.0, -0.06, 0.0), Vector3(0.03, 0.14, 0.03), pant_material, left_leg_pivot)
+	_add_box(Vector3(0.0, -0.135, 0.02), Vector3(0.055, 0.025, 0.04), shoe_material, left_leg_pivot)
+	var right_leg_pivot := Node3D.new()
+	right_leg_pivot.position = Vector3(0.03, 0.13, 0.0)
+	visual.add_child(right_leg_pivot)
+	_add_box(Vector3(0.0, -0.06, 0.0), Vector3(0.03, 0.14, 0.03), pant_material, right_leg_pivot)
+	_add_box(Vector3(0.0, -0.135, 0.02), Vector3(0.055, 0.025, 0.04), shoe_material, right_leg_pivot)
+	_add_box(Vector3(0.0, 0.23, -0.07), Vector3(0.12, 0.03, 0.03), _make_material("f5efe4", 0.86), visual)
 	if index % 2 == 1:
-		_add_box(Vector3(-0.085, 0.2, -0.045), Vector3(0.04, 0.12, 0.035), bag_material, root)
+		_add_box(Vector3(-0.085, 0.2, -0.045), Vector3(0.04, 0.12, 0.035), bag_material, visual)
+	root.set_meta("left_arm", left_arm_pivot)
+	root.set_meta("right_arm", right_arm_pivot)
+	root.set_meta("left_leg", left_leg_pivot)
+	root.set_meta("right_leg", right_leg_pivot)
 	return root
 
 
 func _animate_life(delta: float) -> void:
+	_ambient_life_clock += delta
 	for car in _ambient_cars:
 		if not is_instance_valid(car):
 			continue
@@ -4303,17 +4365,99 @@ func _animate_life(delta: float) -> void:
 	for person in _ambient_people:
 		if not is_instance_valid(person):
 			continue
-		var route_points: Array = person.get_meta("route_points", [])
-		var route_length: float = float(person.get_meta("route_length", 0.0))
-		if route_points.size() < 2 or route_length <= 0.01:
-			continue
-		var progress: float = float(person.get_meta("route_progress", 0.0)) + delta * float(person.get_meta("speed", 0.9))
-		person.set_meta("route_progress", progress)
-		var sample := _sample_ping_pong_route(route_points, route_length, progress)
-		var next_position: Vector3 = sample["position"]
-		next_position.y += abs(sin(progress * 6.0)) * 0.018
-		person.position = next_position
-		person.rotation.y = lerp_angle(person.rotation.y, float(sample["heading"]), min(1.0, delta * 12.0))
+		_animate_resident_routine(person, delta)
+
+
+func _resident_activity_point(index: int) -> Vector3:
+	if index < 2:
+		return _ambient_social_point + Vector3(-0.16 if index == 0 else 0.16, 0.03, 0.0)
+	if index < 4 and _ambient_park_seats.size() >= 2:
+		return _ambient_park_seats[index - 2]
+	return _ambient_social_point + Vector3(cos(float(index) * 2.1) * 0.7, 0.03, sin(float(index) * 2.1) * 0.7)
+
+
+func _resident_arrival_routine(index: int) -> String:
+	if index < 2:
+		return "talking"
+	if index < 4:
+		return "sitting"
+	return "talking" if index % 2 == 0 else "sitting"
+
+
+func _animate_resident_routine(person: Node3D, delta: float) -> void:
+	var routine := str(person.get_meta("routine", "walking"))
+	var visual := person.get_meta("visual", null) as Node3D
+	var left_arm := person.get_meta("left_arm", null) as Node3D
+	var right_arm := person.get_meta("right_arm", null) as Node3D
+	var left_leg := person.get_meta("left_leg", null) as Node3D
+	var right_leg := person.get_meta("right_leg", null) as Node3D
+	if visual == null:
+		return
+	var phase := float(person.get_meta("walk_phase", 0.0)) + delta * float(person.get_meta("speed", 0.9)) * 8.0
+	person.set_meta("walk_phase", phase)
+	if routine == "walking":
+		visual.visible = true
+		var target: Vector3 = person.get_meta("walk_target", person.get_meta("activity_point", person.position))
+		var flat_delta := target - person.position
+		flat_delta.y = 0.0
+		if flat_delta.length() <= 0.055:
+			person.position = target
+			var arrival := str(person.get_meta("arrival_routine", "talking"))
+			_set_resident_routine(person, arrival, 7.0 + fmod(phase, 5.0))
+			return
+		var direction := flat_delta.normalized()
+		person.position += direction * float(person.get_meta("speed", 0.9)) * delta
+		person.rotation.y = lerp_angle(person.rotation.y, atan2(direction.x, direction.z), min(1.0, delta * 9.0))
+		visual.position.y = abs(sin(phase)) * 0.018
+		visual.rotation.z = sin(phase * 0.5) * 0.035
+		var stride := sin(phase) * 0.52
+		if left_arm: left_arm.rotation.x = -stride * 0.72
+		if right_arm: right_arm.rotation.x = stride * 0.72
+		if left_leg: left_leg.rotation.x = stride
+		if right_leg: right_leg.rotation.x = -stride
+		return
+
+	var timer := float(person.get_meta("routine_timer", 0.0)) - delta
+	person.set_meta("routine_timer", timer)
+	if routine == "inside":
+		visual.visible = false
+		if timer <= 0.0:
+			person.set_meta("walk_target", person.get_meta("activity_point", person.position))
+			person.set_meta("arrival_routine", person.get_meta("next_activity", "talking"))
+			_set_resident_routine(person, "walking", 0.0)
+		return
+
+	visual.visible = true
+	visual.position.y = 0.0
+	visual.rotation.z = sin(_ambient_life_clock * 1.7 + phase) * 0.012
+	if routine == "talking":
+		var partner: Node3D = person.get_meta("conversation_partner") as Node3D if person.has_meta("conversation_partner") else null
+		if is_instance_valid(partner):
+			var toward_partner := partner.position - person.position
+			toward_partner.y = 0.0
+			if toward_partner.length() > 0.01:
+				person.rotation.y = lerp_angle(person.rotation.y, atan2(toward_partner.x, toward_partner.z), min(1.0, delta * 6.0))
+		if left_arm: left_arm.rotation.x = sin(_ambient_life_clock * 2.6 + phase) * 0.28
+		if right_arm: right_arm.rotation.x = -sin(_ambient_life_clock * 2.1 + phase) * 0.22
+	if routine == "sitting":
+		visual.position.y = -0.055
+		visual.rotation.x = -0.18
+		if left_leg: left_leg.rotation.x = -1.18
+		if right_leg: right_leg.rotation.x = -1.18
+		if left_arm: left_arm.rotation.x = -0.32
+		if right_arm: right_arm.rotation.x = -0.32
+	if timer <= 0.0:
+		person.set_meta("walk_target", person.get_meta("home_point", person.position))
+		person.set_meta("arrival_routine", "inside")
+		person.set_meta("next_activity", "sitting" if routine == "talking" else "talking")
+		_set_resident_routine(person, "walking", 0.0)
+
+
+func _set_resident_routine(person: Node3D, routine: String, duration: float) -> void:
+	person.set_meta("routine", routine)
+	person.set_meta("routine_timer", duration)
+	if routine == "inside":
+		person.set_meta("routine_timer", 5.0 + fmod(float(person.get_meta("walk_phase", 0.0)), 5.0))
 
 
 func _build_car_route(start_cell: Vector2i, index: int) -> Array[Vector3]:
