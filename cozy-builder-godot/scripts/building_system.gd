@@ -2763,7 +2763,7 @@ func _spawn_building_for_tool(tool: String, world_position: Vector3, rotation_y:
 	var node: Node3D
 	match tool:
 		BUILD_TOOL_HOUSE:
-			node = _add_village_house_variant(world_position, variant)
+			node = _add_village_house_variant(world_position, variant, resolved_variant_id)
 		BUILD_TOOL_FIRE:
 			node = _add_fire_station_variant(world_position, variant)
 		BUILD_TOOL_BANK:
@@ -3685,7 +3685,7 @@ func _rebuild_house_visuals_in_place(root: Node3D, tier: int, variant: int, vari
 	_clear_property_building_visuals(root)
 	var lot_root := _property_lot_root(root)
 	var structure_root := _property_structure_root(root)
-	_populate_village_house_variant(root, lot_root, structure_root, variant, false)
+	_populate_village_house_variant(root, lot_root, structure_root, variant, false, variant_id)
 	var resolved_variant_id := _resolve_property_variant_id(BUILD_TOOL_HOUSE, variant, variant_id)
 	_apply_property_tier_visuals(root, BUILD_TOOL_HOUSE, tier, variant, resolved_variant_id)
 	root.set_meta("tier", tier)
@@ -5218,7 +5218,7 @@ func _house_variant_profile(variant: int) -> Dictionary:
 	return profiles[posmod(variant, profiles.size())]
 
 
-func _populate_village_house_variant(root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int, rebuild_lot_layout: bool = true) -> void:
+func _populate_village_house_variant(root: Node3D, lot_root: Node3D, structure_root: Node3D, variant: int, rebuild_lot_layout: bool = true, variant_id: String = "") -> void:
 	var palette := _cozy_palette("house", variant)
 	var profile := _house_variant_profile(variant)
 	var width: float = float(profile["width"])
@@ -5234,6 +5234,7 @@ func _populate_village_house_variant(root: Node3D, lot_root: Node3D, structure_r
 	var has_wing: bool = bool(profile["wing"])
 	var has_garage: bool = bool(profile["garage"])
 	var has_bay: bool = bool(profile["bay"])
+	var resolved_variant_id := _resolve_property_variant_id(BUILD_TOOL_HOUSE, variant, variant_id)
 	var fence_width: float = max(4.8, float(profile["fence_width"]) + 0.9)
 	if rebuild_lot_layout:
 		_add_parcel_shadow(root, Vector2(5.7, 5.7), 0.26)
@@ -5252,6 +5253,16 @@ func _populate_village_house_variant(root: Node3D, lot_root: Node3D, structure_r
 	var timber := _make_material("8d6848", 0.88)
 	var porch_wood := _make_material("976f49", 0.84)
 	var roof_material := _make_house_roof_material(palette.roof)
+	match resolved_variant_id:
+		"modern_boxy_house":
+			_build_modern_residential_home(structure_root, profile, palette, variant)
+			return
+		"farmhouse_style":
+			_build_farmhouse_residential_home(structure_root, profile, palette, variant)
+			return
+		"compact_townhome":
+			_build_townhome_residential_home(structure_root, profile, palette, variant)
+			return
 
 	var house_z := -1.18
 	_add_soft_block(Vector3(0.0, height * 0.5 + 0.06, house_z), Vector3(width, height, depth), plaster, structure_root, 0.22)
@@ -5344,12 +5355,76 @@ func _add_house_character_details(parent: Node3D, profile: Dictionary, palette: 
 		_add_box(Vector3(chimney_x, height + roof_lift + 0.75, house_z - depth * 0.22), Vector3(0.22, 0.06, 0.22), trim_material, parent)
 
 
-func _add_village_house_variant(position_3d: Vector3, variant: int) -> Node3D:
+func _build_modern_residential_home(parent: Node3D, profile: Dictionary, palette: Dictionary, variant: int) -> void:
+	var wall := _make_material_from_color(palette.wall.lightened(0.04), 0.86)
+	var charcoal := _make_house_roof_material(palette.roof.darkened(0.22))
+	var cedar := _make_material("8b6849", 0.84)
+	var glass := _make_transparent_material(Color("c6e8ef"), 0.18, 0.2)
+	# Deliberately horizontal, layered massing: an actual modern home rather than
+	# the old gable house recolored gray.
+	_add_soft_block(Vector3(-0.28, 0.62, -1.05), Vector3(2.5, 1.18, 1.84), wall, parent, 0.1)
+	_add_soft_block(Vector3(0.82, 0.86, -1.38), Vector3(1.1, 1.66, 1.16), _make_material_from_color(palette.wall.darkened(0.06), 0.9), parent, 0.08)
+	_add_box(Vector3(-0.28, 1.25, -1.05), Vector3(2.68, 0.12, 2.02), charcoal, parent)
+	_add_box(Vector3(0.82, 1.74, -1.38), Vector3(1.26, 0.12, 1.32), charcoal, parent)
+	_add_box(Vector3(-0.36, 0.68, -0.1), Vector3(1.35, 0.62, 0.05), glass, parent)
+	_add_box(Vector3(0.68, 0.88, -0.78), Vector3(0.05, 0.94, 0.72), glass, parent)
+	_add_box(Vector3(-0.82, 0.36, -0.04), Vector3(0.52, 0.72, 0.1), cedar, parent)
+	_add_house_front_door_local(Vector3(-0.82, 0.0, -0.0), parent, false)
+	_add_box(Vector3(-0.82, 0.08, 0.28), Vector3(0.82, 0.06, 0.54), _make_material("bcb09c", 0.9), parent)
+	for x in [-1.14, -0.48, 0.34]:
+		_add_box(Vector3(x, 1.34, -0.06), Vector3(0.36, 0.035, 0.07), cedar, parent)
+	_add_local_sphere(Vector3(1.25, 0.12, -0.28), 0.18, 0.14, _make_material_from_color(palette.accent, 0.82), parent)
+
+
+func _build_farmhouse_residential_home(parent: Node3D, profile: Dictionary, palette: Dictionary, variant: int) -> void:
+	var wall := _make_material_from_color(palette.wall.lightened(0.06), 0.94)
+	var roof := _make_house_roof_material(palette.roof.darkened(0.06))
+	var trim := _make_material_from_color(palette.trim, 0.88)
+	var barn_red := _make_material_from_color(palette.accent.darkened(0.18), 0.84)
+	_add_soft_block(Vector3(0.0, 0.74, -1.14), Vector3(2.72, 1.42, 2.02), wall, parent, 0.14)
+	_add_soft_block(Vector3(-1.34, 0.48, -0.88), Vector3(0.86, 0.88, 1.36), barn_red, parent, 0.1)
+	_add_gabled_roof(Vector3(0.0, 1.64, -1.14), Vector3(3.04, 0.3, 2.28), roof, parent, 24.0)
+	_add_gabled_roof(Vector3(-1.34, 1.1, -0.88), Vector3(1.04, 0.2, 1.54), _make_house_roof_material(palette.roof.darkened(0.12)), parent, 20.0)
+	# Wide wraparound porch with a row of posts and a railing.
+	_add_box(Vector3(0.16, 0.11, 0.06), Vector3(2.78, 0.08, 0.72), _make_material("9c7652", 0.84), parent)
+	for x in [-1.05, -0.52, 0.0, 0.52, 1.05]:
+		_add_box(Vector3(x, 0.46, 0.22), Vector3(0.055, 0.72, 0.055), trim, parent)
+		_add_box(Vector3(x, 0.23, 0.34), Vector3(0.03, 0.24, 0.03), trim, parent)
+	_add_box(Vector3(0.16, 0.55, 0.22), Vector3(2.28, 0.055, 0.055), trim, parent)
+	_add_house_front_door_local(Vector3(0.16, 0.0, 0.06), parent, false)
+	for x in [-0.74, 0.96]:
+		_add_house_wall_window_local(Vector3(x, 0.76, -0.1), Vector3(0.34, 0.42, 0.05), parent)
+		_add_window_planter_local(parent, Vector3(x, 0.5, -0.04), 0.42, palette.accent)
+	_add_dormer(Vector3(0.62, 1.72, -0.44), palette.wall, palette.roof, parent)
+	_add_box(Vector3(-0.82, 1.9, -1.42), Vector3(0.18, 0.72, 0.18), _make_material("9c856f", 0.94), parent)
+	_add_box(Vector3(-0.82, 2.28, -1.42), Vector3(0.24, 0.07, 0.24), trim, parent)
+
+
+func _build_townhome_residential_home(parent: Node3D, profile: Dictionary, palette: Dictionary, variant: int) -> void:
+	var brick := _make_material_from_color(palette.wall.darkened(0.1), 0.94)
+	var trim := _make_material_from_color(palette.trim, 0.9)
+	var roof := _make_house_roof_material(palette.roof.darkened(0.12))
+	_add_soft_block(Vector3(0.0, 1.0, -1.14), Vector3(1.88, 1.94, 1.68), brick, parent, 0.1)
+	_add_soft_block(Vector3(0.66, 1.18, -0.78), Vector3(0.62, 2.3, 0.96), _make_material_from_color(palette.wall.lightened(0.04), 0.92), parent, 0.08)
+	_add_gabled_roof(Vector3(0.0, 2.18, -1.14), Vector3(2.12, 0.24, 1.9), roof, parent, 27.0)
+	_add_gabled_roof(Vector3(0.66, 2.48, -0.78), Vector3(0.78, 0.18, 1.12), _make_house_roof_material(palette.roof.lightened(0.04)), parent, 24.0)
+	_add_house_front_door_local(Vector3(-0.36, 0.0, -0.2), parent, false)
+	_add_house_entry_steps_local(Vector3(-0.36, 0.0, 0.08), parent, false, 0.62)
+	for y in [0.72, 1.38]:
+		_add_house_wall_window_local(Vector3(-0.46, y, -0.28), Vector3(0.28, 0.36, 0.05), parent)
+		_add_house_wall_window_local(Vector3(0.44, y, -0.28), Vector3(0.26, 0.36, 0.05), parent)
+	_add_house_side_window_local(Vector3(0.98, 1.32, -1.02), Vector3(0.22, 0.42, 0.05), parent, 1.0)
+	for y in [0.5, 1.05, 1.6]:
+		_add_box(Vector3(-0.98, y, -1.14), Vector3(0.04, 0.035, 1.45), trim, parent)
+	_add_box(Vector3(0.0, 2.44, -1.58), Vector3(0.16, 0.66, 0.16), _make_material("8b7460", 0.94), parent)
+
+
+func _add_village_house_variant(position_3d: Vector3, variant: int, variant_id: String = "") -> Node3D:
 	var property_roots := _create_property_roots(position_3d)
 	var root := property_roots["root"] as Node3D
 	var lot_root := property_roots["lot"] as Node3D
 	var structure_root := property_roots["structure"] as Node3D
-	_populate_village_house_variant(root, lot_root, structure_root, variant)
+	_populate_village_house_variant(root, lot_root, structure_root, variant, true, variant_id)
 	return root
 
 
@@ -5917,17 +5992,20 @@ func _apply_property_tier_visuals(root: Node3D, tool: String, tier: int, variant
 	_upgrade_debug("apply tier visuals profile=%s" % [str(profile)])
 	match tool:
 		BUILD_TOOL_HOUSE:
-			_apply_house_tier_visuals(root, tier, variant, profile)
+			_apply_house_tier_visuals(root, tier, variant, profile, resolved_variant_id)
 		BUILD_TOOL_FIRE, BUILD_TOOL_BANK, BUILD_TOOL_GROCERY, BUILD_TOOL_RESTAURANT, BUILD_TOOL_CORNER_STORE:
 			_apply_service_tier_visuals(root, tool, tier, variant, profile, resolved_variant_id)
 		BUILD_TOOL_PARK:
 			_apply_park_tier_visuals(root, tier, variant, profile)
 
 
-func _apply_house_tier_visuals(root: Node3D, tier: int, variant: int, profile: Dictionary) -> void:
+func _apply_house_tier_visuals(root: Node3D, tier: int, variant: int, profile: Dictionary, variant_id: String = "") -> void:
 	_upgrade_debug("apply house tier visuals tier=%d variant=%d profile=%s" % [tier, variant, str(profile)])
 	var palette := _cozy_palette("house", variant)
 	var structure_root := _property_upgrade_visual_root(root)
+	if variant_id != "" and variant_id != "suburban_cottage":
+		_apply_variant_house_upgrades(structure_root, tier, palette, variant_id)
+		return
 	var roof_trim := _make_material_from_color(palette.trim.lightened(0.04), 0.88)
 	var roof_detail := _make_material_from_color(palette.roof.darkened(0.03), 0.74)
 	var second_story_wall := _make_material_from_color(palette.wall.lightened(0.06), 0.94)
@@ -6015,6 +6093,54 @@ func _apply_house_tier_visuals(root: Node3D, tier: int, variant: int, profile: D
 			_add_window_band_local(Vector3(0.0, upper_y + 0.34, upper_z - 0.56), Vector3(0.38, 0.22, 0.05), structure_root)
 			_add_box(Vector3(-0.92, upper_y + 0.04, 0.08), Vector3(0.08, 0.38, 0.08), roof_trim, structure_root)
 			_add_box(Vector3(0.92, upper_y + 0.04, 0.08), Vector3(0.08, 0.38, 0.08), roof_trim, structure_root)
+
+
+func _apply_variant_house_upgrades(parent: Node3D, tier: int, palette: Dictionary, variant_id: String) -> void:
+	var wall := _make_material_from_color(palette.wall.lightened(0.05), 0.92)
+	var roof := _make_house_roof_material(palette.roof.darkened(0.08))
+	var trim := _make_material_from_color(palette.trim, 0.88)
+	var accent := _make_material_from_color(palette.accent, 0.78)
+	match variant_id:
+		"modern_boxy_house":
+			if tier >= 2:
+				_add_box(Vector3(-0.28, 1.42, -1.05), Vector3(2.86, 0.08, 2.14), trim, parent)
+				_add_box(Vector3(-1.12, 0.62, 0.08), Vector3(0.82, 0.88, 0.12), _make_transparent_material(Color("c6e8ef"), 0.18, 0.2), parent)
+			if tier >= 3:
+				_add_soft_block(Vector3(1.46, 0.58, -0.64), Vector3(0.92, 1.04, 1.34), wall, parent, 0.08)
+				_add_box(Vector3(1.46, 1.14, -0.64), Vector3(1.08, 0.1, 1.5), roof, parent)
+				_add_box(Vector3(1.46, 0.48, 0.08), Vector3(0.62, 0.46, 0.06), trim, parent)
+			if tier >= 4:
+				_add_soft_block(Vector3(-0.54, 1.72, -1.16), Vector3(1.34, 0.7, 1.08), wall, parent, 0.08)
+				_add_box(Vector3(-0.54, 2.1, -1.16), Vector3(1.52, 0.1, 1.26), roof, parent)
+				_add_box(Vector3(-0.54, 1.82, -0.56), Vector3(0.88, 0.36, 0.05), _window_material, parent)
+		"farmhouse_style":
+			if tier >= 2:
+				_add_box(Vector3(0.18, 0.18, 0.5), Vector3(3.1, 0.08, 0.74), _make_material("9c7652", 0.84), parent)
+				for x in [-1.22, -0.62, 0.0, 0.62, 1.22]:
+					_add_box(Vector3(x, 0.48, 0.68), Vector3(0.05, 0.78, 0.05), trim, parent)
+			if tier >= 3:
+				_add_soft_block(Vector3(1.48, 0.58, -0.98), Vector3(1.02, 1.04, 1.48), wall, parent, 0.1)
+				_add_gabled_roof(Vector3(1.48, 1.28, -0.98), Vector3(1.22, 0.18, 1.68), roof, parent, 19.0)
+				_add_house_wall_window_local(Vector3(1.48, 0.62, -0.2), Vector3(0.3, 0.36, 0.05), parent)
+			if tier >= 4:
+				_add_soft_block(Vector3(0.0, 1.88, -1.18), Vector3(1.92, 0.8, 1.44), wall, parent, 0.1)
+				_add_gabled_roof(Vector3(0.0, 2.42, -1.18), Vector3(2.14, 0.18, 1.64), roof, parent, 22.0)
+				_add_dormer(Vector3(-0.48, 2.1, -0.68), palette.wall, palette.roof, parent)
+				_add_dormer(Vector3(0.48, 2.1, -0.68), palette.wall, palette.roof, parent)
+		"compact_townhome":
+			if tier >= 2:
+				_add_soft_block(Vector3(-0.68, 0.72, -0.42), Vector3(0.72, 1.3, 0.94), wall, parent, 0.07)
+				_add_gabled_roof(Vector3(-0.68, 1.52, -0.42), Vector3(0.88, 0.14, 1.1), roof, parent, 22.0)
+				_add_house_wall_window_local(Vector3(-0.68, 0.82, 0.08), Vector3(0.24, 0.34, 0.05), parent)
+			if tier >= 3:
+				_add_soft_block(Vector3(1.12, 0.72, -1.28), Vector3(0.72, 1.34, 1.18), wall, parent, 0.08)
+				_add_gabled_roof(Vector3(1.12, 1.54, -1.28), Vector3(0.9, 0.14, 1.36), roof, parent, 20.0)
+				_add_house_side_window_local(Vector3(1.48, 0.88, -1.2), Vector3(0.22, 0.38, 0.05), parent, 1.0)
+			if tier >= 4:
+				_add_soft_block(Vector3(0.0, 2.38, -1.14), Vector3(1.56, 0.86, 1.32), wall, parent, 0.08)
+				_add_gabled_roof(Vector3(0.0, 2.96, -1.14), Vector3(1.76, 0.16, 1.52), roof, parent, 25.0)
+				_add_box(Vector3(0.0, 2.48, -0.46), Vector3(0.72, 0.38, 0.05), _window_material, parent)
+				_add_box(Vector3(-0.62, 2.78, -1.48), Vector3(0.16, 0.64, 0.16), accent, parent)
 
 
 func _is_commercial_property_tool(tool: String) -> bool:
