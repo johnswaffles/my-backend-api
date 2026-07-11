@@ -3396,10 +3396,7 @@ func _add_property_composed_lot_details(tool: String, sections: Dictionary, pres
 	for paver_x in [-lot_size.x * 0.32, 0.0, lot_size.x * 0.32]:
 		_add_box(Vector3(paver_x, 0.126, front_z - 0.46), Vector3(0.04, 0.012, 0.42), _make_material("c9bea9", 0.92), sidewalk_root)
 	if lot_type == "residential":
-		create_tree(landscaping_root, Vector3(-lot_size.x * 0.36, 0.0, -lot_size.y * 0.28))
-		create_tree(landscaping_root, Vector3(lot_size.x * 0.38, 0.0, -lot_size.y * 0.06))
-		create_bush_cluster(landscaping_root, Vector3(lot_size.x * 0.34, 0.08, -lot_size.y * 0.34), 5, Color("6fa85b"))
-		_add_flower_bed_local(landscaping_root, Vector3(-lot_size.x * 0.2, 0.09, frontage_z - 0.08), lot_size.x * 0.28, accent)
+		_add_residential_yard_life(landscaping_root, props_root, lot_size, frontage_z, sidewalk_back_z, accent, trim, variant)
 		create_street_sign(props_root, Vector3(lot_size.x * 0.4, 0.02, sidewalk_back_z + 0.06), accent)
 		_add_sidewalk_scene_cluster(props_root, Vector3(-lot_size.x * 0.36, 0.02, sidewalk_back_z + 0.06), palette, variant, "residential")
 	elif tool == BUILD_TOOL_FIRE:
@@ -3437,6 +3434,93 @@ func _add_flower_bed_local(parent: Node, center: Vector3, width: float, accent: 
 		var x := lerpf(-width * 0.42, width * 0.42, float(index) / 4.0)
 		_add_box(center + Vector3(x, 0.08, -0.025), Vector3(0.025, 0.1, 0.025), leaf_material, parent)
 		_add_box(center + Vector3(x, 0.14, 0.025), Vector3(0.065, 0.035, 0.065), bloom_material, parent)
+
+
+func _add_residential_yard_life(landscaping_root: Node3D, props_root: Node3D, lot_size: Vector2, frontage_z: float, sidewalk_back_z: float, accent: Color, trim: Color, variant: int) -> void:
+	# Residential lots need a point of view. These are deliberately small, lived-in
+	# compositions rather than more copies of the same hedge/tree strip.
+	var left_edge := -lot_size.x * 0.42
+	var right_edge := lot_size.x * 0.42
+	var back_z := -lot_size.y * 0.38
+	var front_z := frontage_z - 0.08
+	var soil := _make_material("78563d", 0.94)
+	var stone := _make_material("c8b9a0", 0.9)
+	var grass_dark := _make_material("6f9d5d", 0.96)
+	# Soft, irregular-looking planted edges break up the rectangular lot boundary.
+	create_landscape_island(landscaping_root, Vector3(left_edge, 0.1, back_z), Vector3(0.34, 0.08, 0.64), accent, 4)
+	create_landscape_island(landscaping_root, Vector3(right_edge, 0.1, back_z + 0.12), Vector3(0.32, 0.08, 0.52), trim, 3)
+	for stone_index in range(4):
+		var t := float(stone_index) / 3.0
+		var x := lerpf(-0.22, 0.22, t)
+		var z := lerpf(front_z - 0.06, 0.32, t)
+		var paver := _add_box(Vector3(x, 0.112, z), Vector3(0.18, 0.025, 0.12), stone, landscaping_root)
+		paver.rotation_degrees.y = float((stone_index % 2) * 12 - 6)
+	match posmod(variant, 5):
+		0:
+			# Cottage garden: layered blooms, a low fence, and a bird bath.
+			_add_flower_bed_local(landscaping_root, Vector3(-0.36, 0.1, front_z), lot_size.x * 0.34, accent)
+			_add_flower_bed_local(landscaping_root, Vector3(0.64, 0.1, front_z - 0.14), lot_size.x * 0.22, trim)
+			_add_picket_fence(props_root, Vector3(-lot_size.x * 0.27, 0.02, sidewalk_back_z - 0.02), lot_size.x * 0.34)
+			_add_picket_fence(props_root, Vector3(lot_size.x * 0.31, 0.02, sidewalk_back_z - 0.02), lot_size.x * 0.26)
+			_add_bird_bath_local(landscaping_root, Vector3(right_edge * 0.55, 0.04, back_z + 0.08), accent)
+			create_tree(landscaping_root, Vector3(left_edge * 0.88, 0.0, back_z + 0.08))
+		1:
+			# Patio yard: a small evening table, herbs, and a shade tree.
+			_add_box(Vector3(right_edge * 0.56, 0.09, back_z + 0.08), Vector3(0.9, 0.025, 0.72), _make_material("bba990", 0.9), landscaping_root)
+			_add_outdoor_table_local(props_root, Vector3(right_edge * 0.56, 0.04, back_z + 0.08), accent)
+			create_planters(landscaping_root, [Vector3(-0.72, 0.09, front_z), Vector3(-0.42, 0.09, front_z - 0.18)], trim)
+			create_tree(landscaping_root, Vector3(left_edge * 0.92, 0.0, back_z - 0.04))
+			_add_hanging_lights_local(props_root, Vector3(0.15, 0.0, back_z + 0.18), accent)
+		2:
+			# Kitchen garden: raised beds, crops, a little shed-like tool box.
+			for row in [-0.28, 0.28]:
+				_add_box(Vector3(right_edge * 0.52, 0.095, back_z + row), Vector3(0.7, 0.09, 0.2), soil, landscaping_root)
+				for plant_index in range(4):
+					_add_local_sphere(Vector3(right_edge * 0.52 - 0.24 + plant_index * 0.16, 0.18, back_z + row), 0.07, 0.1, _leaf_material_light, landscaping_root)
+			_add_box(Vector3(left_edge * 0.7, 0.2, back_z + 0.1), Vector3(0.34, 0.32, 0.26), _make_material("9b7652", 0.86), props_root)
+			_add_box(Vector3(left_edge * 0.7, 0.38, back_z + 0.1), Vector3(0.4, 0.06, 0.32), _make_material_from_color(trim.darkened(0.18), 0.8), props_root)
+			_add_flower_bed_local(landscaping_root, Vector3(0.0, 0.1, front_z), lot_size.x * 0.42, accent)
+		3:
+			# Family yard: open grass, a tree swing and scattered play stones.
+			_add_box(Vector3(0.0, 0.084, back_z + 0.08), Vector3(1.35, 0.012, 0.88), grass_dark, landscaping_root)
+			create_tree(landscaping_root, Vector3(left_edge * 0.84, 0.0, back_z - 0.08))
+			_add_tree_swing_local(props_root, Vector3(left_edge * 0.84, 0.0, back_z - 0.08), trim)
+			_add_local_sphere(Vector3(0.35, 0.115, back_z + 0.2), 0.11, 0.09, _make_material_from_color(accent, 0.72), props_root)
+			_add_flower_bed_local(landscaping_root, Vector3(right_edge * 0.52, 0.1, front_z), 0.56, trim)
+		_:
+			# Wildflower retreat: a denser, softer planting with a reading bench.
+			for cluster_index in range(3):
+				var cluster_x := -0.56 + float(cluster_index) * 0.56
+				_add_wildflower_cluster(Vector3(cluster_x, 0.08, back_z + 0.12), 6, _flower_material_pink if cluster_index % 2 == 0 else _flower_material_blue, landscaping_root, 0.16)
+			create_bush_cluster(landscaping_root, Vector3(right_edge * 0.62, 0.08, back_z - 0.04), 5, Color("6d9b59"))
+			_add_bench_local(Vector3(left_edge * 0.48, 0.02, back_z + 0.16), deg_to_rad(18.0), props_root)
+			create_tree(landscaping_root, Vector3(right_edge * 0.86, 0.0, back_z - 0.1))
+
+
+func _add_bird_bath_local(parent: Node3D, position_3d: Vector3, accent: Color) -> void:
+	var stone := _make_material("d8d0c3", 0.9)
+	_add_local_cylinder(position_3d + Vector3(0.0, 0.18, 0.0), 0.045, 0.06, 0.34, stone, parent)
+	_add_local_cylinder(position_3d + Vector3(0.0, 0.37, 0.0), 0.16, 0.12, 0.05, stone, parent)
+	_add_local_cylinder(position_3d + Vector3(0.0, 0.405, 0.0), 0.115, 0.11, 0.015, _make_material_from_color(accent.lightened(0.24), 0.28), parent)
+
+
+func _add_tree_swing_local(parent: Node3D, position_3d: Vector3, accent: Color) -> void:
+	var rope := _make_material("7f694e", 0.9)
+	var seat := _make_material_from_color(accent.darkened(0.12), 0.82)
+	for x in [-0.16, 0.16]:
+		_add_local_cylinder(position_3d + Vector3(x, 0.46, 0.04), 0.008, 0.008, 0.5, rope, parent)
+	_add_box(position_3d + Vector3(0.0, 0.21, 0.04), Vector3(0.34, 0.045, 0.13), seat, parent)
+
+
+func _add_hanging_lights_local(parent: Node3D, position_3d: Vector3, accent: Color) -> void:
+	var cord := _make_material("54483d", 0.92)
+	var glow := _make_material_from_color(accent.lightened(0.3), 0.28)
+	glow.emission_enabled = true
+	glow.emission = Color("fff0b5")
+	glow.emission_energy_multiplier = 0.22
+	for x in [-0.42, 0.0, 0.42]:
+		_add_local_cylinder(position_3d + Vector3(x, 0.52, 0.0), 0.008, 0.008, 0.5, cord, parent)
+		_add_local_sphere(position_3d + Vector3(x, 0.26, 0.0), 0.035, 0.045, glow, parent)
 
 
 func _add_decorative_pedestrian_local(parent: Node, position_3d: Vector3, coat: Color, rotation_y: float) -> void:
