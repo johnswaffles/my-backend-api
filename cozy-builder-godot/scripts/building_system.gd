@@ -461,6 +461,14 @@ const PROPERTY_VARIANT_ORDER := {
 	BUILD_TOOL_RESTAURANT: ["classic_diner", "fast_food_drive_through", "modern_cafe", "family_restaurant", "upscale_restaurant", "food_truck_court"],
 	BUILD_TOOL_CORNER_STORE: ["small_quick_mart", "convenience_store_no_pumps", "urban_corner_shop", "modern_mini_mart"],
 }
+const HOUSE_VARIANT_PALETTES := {
+	# These are deliberately family palettes, not tiny hue shifts of one beige house.
+	# A placed home's seed still gives each family a subtle light/dark variation.
+	"suburban_cottage": {"wall": "f2dfc4", "roof": "b65d43", "trim": "fff7e8", "accent": "6ca486"},
+	"modern_boxy_house": {"wall": "d7e2df", "roof": "3f5059", "trim": "fbf7ec", "accent": "bd8b55"},
+	"farmhouse_style": {"wall": "f0e7d4", "roof": "5c7164", "trim": "fffaf0", "accent": "a95849"},
+	"compact_townhome": {"wall": "b96f60", "roof": "3d4857", "trim": "f5ead9", "accent": "7e9eaf"},
+}
 const PROPERTY_VARIANT_ARCHITECTURE_VERSION := 3
 const RESTAURANT_VARIANT_DEFINITIONS := {
 	"classic_diner": {
@@ -5202,6 +5210,19 @@ func _cozy_palette(kind: String, variant: int) -> Dictionary:
 	}
 
 
+func _house_palette(variant: int, variant_id: String) -> Dictionary:
+	var palette_definition: Dictionary = HOUSE_VARIANT_PALETTES.get(variant_id, {})
+	if palette_definition.is_empty():
+		return _cozy_palette("house", variant)
+	var shade := 0.018 if posmod(variant, 2) == 0 else -0.018
+	return {
+		"wall": Color(str(palette_definition["wall"])).lightened(shade) if shade > 0.0 else Color(str(palette_definition["wall"])).darkened(-shade),
+		"roof": Color(str(palette_definition["roof"])).lightened(shade * 0.6) if shade > 0.0 else Color(str(palette_definition["roof"])).darkened(-shade * 0.6),
+		"trim": Color(str(palette_definition["trim"])),
+		"accent": Color(str(palette_definition["accent"])),
+	}
+
+
 func _house_variant_profile(variant: int) -> Dictionary:
 	var profiles := [
 		{"width": 2.34, "depth": 1.88, "height": 1.16, "roof_tilt": 22.0, "roof_lift": 0.32, "roof_overhang": 0.52, "wing": false, "garage": false, "garage_side": 1.0, "dormers": 1, "pool": false, "porch_depth": 0.44, "porch_width": 0.66, "entry_offset": 0.0, "bay": false, "shed": false, "trellis": false, "fence_width": 3.9},
@@ -5235,6 +5256,7 @@ func _populate_village_house_variant(root: Node3D, lot_root: Node3D, structure_r
 	var has_garage: bool = bool(profile["garage"])
 	var has_bay: bool = bool(profile["bay"])
 	var resolved_variant_id := _resolve_property_variant_id(BUILD_TOOL_HOUSE, variant, variant_id)
+	palette = _house_palette(variant, resolved_variant_id)
 	var fence_width: float = max(4.8, float(profile["fence_width"]) + 0.9)
 	if rebuild_lot_layout:
 		_add_parcel_shadow(root, Vector2(5.7, 5.7), 0.26)
@@ -6001,11 +6023,14 @@ func _apply_property_tier_visuals(root: Node3D, tool: String, tier: int, variant
 
 func _apply_house_tier_visuals(root: Node3D, tier: int, variant: int, profile: Dictionary, variant_id: String = "") -> void:
 	_upgrade_debug("apply house tier visuals tier=%d variant=%d profile=%s" % [tier, variant, str(profile)])
-	var palette := _cozy_palette("house", variant)
+	var resolved_variant_id := _resolve_property_variant_id(BUILD_TOOL_HOUSE, variant, variant_id)
+	var palette := _house_palette(variant, resolved_variant_id)
 	var structure_root := _property_upgrade_visual_root(root)
-	if variant_id != "" and variant_id != "suburban_cottage":
-		_apply_variant_house_upgrades(structure_root, tier, palette, variant_id)
-		return
+	# House upgrades are a single coherent pass per family.  The old generic pass
+	# built a second roof on top of an already-complete house, which is why roofs,
+	# doors and windows could collide at higher tiers.
+	_apply_house_family_upgrades(structure_root, tier, palette, resolved_variant_id)
+	return
 	var roof_trim := _make_material_from_color(palette.trim.lightened(0.04), 0.88)
 	var roof_detail := _make_material_from_color(palette.roof.darkened(0.03), 0.74)
 	var second_story_wall := _make_material_from_color(palette.wall.lightened(0.06), 0.94)
@@ -6093,6 +6118,97 @@ func _apply_house_tier_visuals(root: Node3D, tier: int, variant: int, profile: D
 			_add_window_band_local(Vector3(0.0, upper_y + 0.34, upper_z - 0.56), Vector3(0.38, 0.22, 0.05), structure_root)
 			_add_box(Vector3(-0.92, upper_y + 0.04, 0.08), Vector3(0.08, 0.38, 0.08), roof_trim, structure_root)
 			_add_box(Vector3(0.92, upper_y + 0.04, 0.08), Vector3(0.08, 0.38, 0.08), roof_trim, structure_root)
+
+
+func _apply_house_family_upgrades(parent: Node3D, tier: int, palette: Dictionary, variant_id: String) -> void:
+	var wall := _make_material_from_color(palette.wall.lightened(0.045), 0.92)
+	var roof := _make_house_roof_material(palette.roof.darkened(0.06))
+	var trim := _make_material_from_color(palette.trim, 0.88)
+	var accent := _make_material_from_color(palette.accent, 0.8)
+	var glass := _make_transparent_material(Color("c6e8ef"), 0.18, 0.2)
+	match variant_id:
+		"modern_boxy_house":
+			# Tier 2: a proper entry terrace and picture window.
+			if tier >= 2:
+				_add_box(Vector3(-0.76, 0.1, 0.34), Vector3(1.12, 0.08, 0.62), trim, parent)
+				_add_box(Vector3(-1.12, 0.62, 0.08), Vector3(0.78, 0.86, 0.05), glass, parent)
+			# Tier 3: a low side studio under one flat roof.
+			if tier >= 3:
+				_add_soft_block(Vector3(1.46, 0.5, -0.64), Vector3(0.84, 0.88, 1.22), wall, parent, 0.08)
+				_add_box(Vector3(1.46, 0.98, -0.64), Vector3(0.98, 0.09, 1.36), roof, parent)
+				_add_box(Vector3(1.46, 0.5, 0.0), Vector3(0.5, 0.42, 0.05), glass, parent)
+			# Tier 4: a deliberately stepped upper lounge, aligned with the tower.
+			if tier >= 4:
+				_add_soft_block(Vector3(0.8, 2.04, -1.38), Vector3(0.82, 0.46, 0.82), wall, parent, 0.06)
+				_add_box(Vector3(0.8, 2.31, -1.38), Vector3(0.96, 0.08, 0.96), roof, parent)
+				_add_box(Vector3(0.8, 2.08, -0.94), Vector3(0.48, 0.24, 0.04), glass, parent)
+			# Tier 5: roof garden rails and planters, not another roof.
+			if tier >= 5:
+				for x in [0.42, 0.8, 1.18]:
+					_add_box(Vector3(x, 2.46, -1.0), Vector3(0.035, 0.26, 0.035), trim, parent)
+				_add_box(Vector3(0.8, 2.57, -1.0), Vector3(0.82, 0.035, 0.035), trim, parent)
+				_add_box(Vector3(0.8, 2.38, -1.72), Vector3(0.54, 0.12, 0.18), accent, parent)
+		"farmhouse_style":
+			# Tier 2: the porch becomes a true gathering place.
+			if tier >= 2:
+				_add_box(Vector3(0.16, 0.14, 0.52), Vector3(3.18, 0.08, 0.72), _make_material("9c7652", 0.84), parent)
+				for x in [-1.25, -0.62, 0.0, 0.62, 1.25]:
+					_add_box(Vector3(x, 0.48, 0.72), Vector3(0.05, 0.74, 0.05), trim, parent)
+			# Tier 3: a practical, low barn-room wing off the right side.
+			if tier >= 3:
+				_add_soft_block(Vector3(1.5, 0.48, -1.0), Vector3(0.86, 0.86, 1.28), wall, parent, 0.09)
+				_add_gabled_roof(Vector3(1.5, 1.05, -1.0), Vector3(1.04, 0.16, 1.46), roof, parent, 19.0)
+				_add_house_wall_window_local(Vector3(1.5, 0.56, -0.3), Vector3(0.26, 0.32, 0.05), parent)
+			# Tier 4: a rear conservatory; it sits beside the main roof, never through it.
+			if tier >= 4:
+				_add_soft_block(Vector3(0.54, 0.5, -2.05), Vector3(1.16, 0.88, 0.68), wall, parent, 0.07)
+				_add_gabled_roof(Vector3(0.54, 1.08, -2.05), Vector3(1.34, 0.14, 0.84), roof, parent, 16.0)
+				_add_box(Vector3(0.54, 0.56, -1.68), Vector3(0.72, 0.42, 0.04), glass, parent)
+			# Tier 5: porch lighting and window boxes give the finished home warmth.
+			if tier >= 5:
+				for x in [-0.92, -0.3, 0.32, 0.94]:
+					_add_local_sphere(Vector3(x, 0.88, 0.66), 0.055, 0.055, accent, parent)
+				_add_window_planter_local(parent, Vector3(0.94, 0.48, -0.04), 0.42, palette.accent)
+		"compact_townhome":
+			# Tier 2: a tidy front bay, clear of the existing front door.
+			if tier >= 2:
+				_add_soft_block(Vector3(-0.68, 0.62, -0.36), Vector3(0.62, 1.12, 0.72), wall, parent, 0.07)
+				_add_gabled_roof(Vector3(-0.68, 1.34, -0.36), Vector3(0.76, 0.13, 0.88), roof, parent, 22.0)
+				_add_house_wall_window_local(Vector3(-0.68, 0.72, 0.04), Vector3(0.2, 0.3, 0.05), parent)
+			# Tier 3: a rear reading room rather than a competing front volume.
+			if tier >= 3:
+				_add_soft_block(Vector3(-0.58, 0.56, -2.0), Vector3(0.94, 0.96, 0.62), wall, parent, 0.07)
+				_add_gabled_roof(Vector3(-0.58, 1.18, -2.0), Vector3(1.1, 0.14, 0.78), roof, parent, 20.0)
+				_add_box(Vector3(-0.58, 0.62, -1.68), Vector3(0.54, 0.4, 0.04), glass, parent)
+			# Tier 4: a small side balcony reads as an upgrade without changing the roofline.
+			if tier >= 4:
+				_add_box(Vector3(1.08, 1.62, -0.62), Vector3(0.44, 0.07, 0.66), trim, parent)
+				for z in [-0.86, -0.62, -0.38]:
+					_add_box(Vector3(1.28, 1.82, z), Vector3(0.035, 0.36, 0.035), trim, parent)
+				_add_house_side_window_local(Vector3(0.98, 1.66, -0.62), Vector3(0.2, 0.3, 0.05), parent, 1.0)
+			# Tier 5: a finished stoop and flower-filled rail planters.
+			if tier >= 5:
+				_add_box(Vector3(-0.36, 0.16, 0.26), Vector3(0.92, 0.1, 0.5), trim, parent)
+				_add_box(Vector3(1.14, 1.65, -0.62), Vector3(0.18, 0.12, 0.38), accent, parent)
+		_:
+			# Cottage progression: porch -> garden room -> bay -> finished garden details.
+			if tier >= 2:
+				_add_box(Vector3(0.0, 0.12, 0.28), Vector3(1.52, 0.08, 0.58), trim, parent)
+				for x in [-0.56, 0.56]:
+					_add_box(Vector3(x, 0.42, 0.46), Vector3(0.05, 0.64, 0.05), trim, parent)
+			if tier >= 3:
+				_add_soft_block(Vector3(1.48, 0.45, -0.96), Vector3(0.78, 0.8, 1.12), wall, parent, 0.08)
+				_add_gabled_roof(Vector3(1.48, 0.98, -0.96), Vector3(0.94, 0.14, 1.3), roof, parent, 18.0)
+				_add_box(Vector3(1.48, 0.5, -0.4), Vector3(0.44, 0.38, 0.04), glass, parent)
+			if tier >= 4:
+				_add_soft_block(Vector3(-1.44, 0.46, -1.0), Vector3(0.72, 0.82, 1.06), wall, parent, 0.08)
+				_add_gabled_roof(Vector3(-1.44, 1.0, -1.0), Vector3(0.88, 0.14, 1.22), roof, parent, 18.0)
+				_add_house_wall_window_local(Vector3(-1.44, 0.54, -0.42), Vector3(0.22, 0.3, 0.05), parent)
+			if tier >= 5:
+				_add_window_planter_local(parent, Vector3(-0.68, 0.34, -0.24), 0.4, palette.accent)
+				_add_window_planter_local(parent, Vector3(0.68, 0.34, -0.24), 0.4, palette.accent)
+				for x in [-0.52, 0.0, 0.52]:
+					_add_local_sphere(Vector3(x, 0.18, 0.58), 0.07, 0.07, accent, parent)
 
 
 func _apply_variant_house_upgrades(parent: Node3D, tier: int, palette: Dictionary, variant_id: String) -> void:
