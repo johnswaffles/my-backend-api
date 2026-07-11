@@ -5294,6 +5294,7 @@ func _populate_village_house_variant(root: Node3D, lot_root: Node3D, structure_r
 		_add_window_band_local(Vector3(garage_side * 1.22, 0.54, house_z + 0.84), Vector3(0.22, 0.28, 0.05), structure_root)
 	if has_bay:
 		_add_window_band_local(Vector3(0.74, 0.54, house_z + 0.86), Vector3(0.34, 0.3, 0.05), structure_root)
+	_add_house_character_details(structure_root, profile, palette, width, depth, height, house_z, roof_lift, entry_offset, has_bay, variant)
 
 	if rebuild_lot_layout and not has_garage:
 		_add_garden_path(lot_root, width * 0.24, 1.52)
@@ -5304,6 +5305,43 @@ func _populate_village_house_variant(root: Node3D, lot_root: Node3D, structure_r
 	if int(variant) % 2 == 0:
 		_add_box(Vector3(0.9, height + roof_lift + 0.2, house_z - 0.34), Vector3(0.16, 0.5, 0.16), _stone_material, structure_root)
 		_add_box(Vector3(0.9, height + roof_lift + 0.48, house_z - 0.34), Vector3(0.2, 0.08, 0.2), _make_material("efe3cf", 0.92), structure_root)
+
+
+func _add_house_character_details(parent: Node3D, profile: Dictionary, palette: Dictionary, width: float, depth: float, height: float, house_z: float, roof_lift: float, entry_offset: float, has_bay: bool, variant: int) -> void:
+	# The structural massing is intentionally simple for readability. These layers
+	# make each house feel built, maintained and loved rather than like a roof on a box.
+	var trim_material := _make_material_from_color(palette.trim, 0.86)
+	var timber_material := _make_material_from_color(palette.roof.darkened(0.3), 0.88)
+	var shutter_material := _make_material_from_color(palette.accent.darkened(0.12), 0.8)
+	var porch_width := maxf(0.72, float(profile.get("porch_width", 0.62)) * width)
+	var porch_z := house_z + depth * 0.56
+	_add_house_entry_canopy_local(Vector3(entry_offset, 0.0, porch_z + 0.04), parent, false, porch_width)
+	_add_house_entry_steps_local(Vector3(entry_offset, 0.0, porch_z + 0.16), parent, false, porch_width * 0.72)
+	# A little porch architecture gives the front door a true destination.
+	for side in [-1.0, 1.0]:
+		var post_x: float = entry_offset + float(side) * porch_width * 0.34
+		_add_box(Vector3(post_x, 0.42, porch_z + 0.15), Vector3(0.055, 0.72, 0.055), trim_material, parent)
+		_add_box(Vector3(post_x, 0.18, porch_z + 0.24), Vector3(0.04, 0.24, 0.04), timber_material, parent)
+	_add_box(Vector3(entry_offset, 0.5, porch_z + 0.15), Vector3(porch_width * 0.76, 0.05, 0.05), trim_material, parent)
+	for shutter_x in [-0.68, 0.68]:
+		_add_box(Vector3(shutter_x - 0.2, 0.56, house_z + 0.81), Vector3(0.055, 0.38, 0.035), shutter_material, parent)
+		_add_box(Vector3(shutter_x + 0.2, 0.56, house_z + 0.81), Vector3(0.055, 0.38, 0.035), shutter_material, parent)
+	# Boards and trim visually split the façade into materials instead of a single slab.
+	for board_x in [-width * 0.34, -width * 0.12, width * 0.12, width * 0.34]:
+		_add_box(Vector3(board_x, height * 0.52, house_z + depth * 0.515), Vector3(0.025, height * 0.62, 0.025), trim_material, parent)
+	var dormer_count := int(profile.get("dormers", 0))
+	for dormer_index in range(dormer_count):
+		var t := 0.5 if dormer_count == 1 else float(dormer_index) / float(dormer_count - 1)
+		var dormer_x := lerpf(-width * 0.28, width * 0.28, t)
+		_add_dormer(Vector3(dormer_x, height + roof_lift + 0.13, house_z + depth * 0.28), palette.wall.lightened(0.04), palette.roof.darkened(0.05), parent)
+	if has_bay:
+		_add_gabled_roof(Vector3(0.74, 0.92, house_z + 0.66), Vector3(0.7, 0.1, 0.68), _make_house_roof_material(palette.roof.darkened(0.06)), parent, 12.0)
+	# A chimney on most homes adds a strong silhouette at the current camera scale.
+	if posmod(variant, 3) != 1:
+		var chimney_x := -width * 0.3 if posmod(variant, 2) == 0 else width * 0.3
+		var chimney_material := _make_material("9c856f", 0.94)
+		_add_box(Vector3(chimney_x, height + roof_lift + 0.42, house_z - depth * 0.22), Vector3(0.16, 0.62, 0.16), chimney_material, parent)
+		_add_box(Vector3(chimney_x, height + roof_lift + 0.75, house_z - depth * 0.22), Vector3(0.22, 0.06, 0.22), trim_material, parent)
 
 
 func _add_village_house_variant(position_3d: Vector3, variant: int) -> Node3D:
