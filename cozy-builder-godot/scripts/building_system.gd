@@ -3108,26 +3108,18 @@ func create_parking_lot(parent: Node, preset: Dictionary, accent: Color = Color(
 
 func _add_lot_surface_polish_local(parent: Node, lot_size: Vector2, lot_type: String, sidewalk_back_z: float) -> void:
 	var seam_material := _make_material("c7bca8", 0.95)
-	var warm_patch := _make_material("9acb7a", 0.96)
-	var cool_patch := _make_material("78b462", 0.96)
+	if lot_type == "residential":
+		# Keep home lawns visually quiet. Paths, gardens and identity pieces are
+		# composed later; generic seams and square color patches made every front
+		# yard look littered before its actual vignette was even added.
+		return
 	var slab_z := sidewalk_back_z - 0.34
 	for x in [-lot_size.x * 0.34, -lot_size.x * 0.12, lot_size.x * 0.12, lot_size.x * 0.34]:
 		_add_box(Vector3(x, 0.104, slab_z), Vector3(0.026, 0.01, 0.48), seam_material, parent)
 	for z in [lot_size.y * 0.26, -lot_size.y * 0.28]:
 		_add_box(Vector3(0.0, 0.088, z), Vector3(lot_size.x * 0.7, 0.01, 0.022), seam_material, parent)
-	if lot_type == "residential":
-		for patch in [
-			{"pos": Vector3(-lot_size.x * 0.32, 0.088, -lot_size.y * 0.18), "size": Vector3(0.56, 0.012, 0.28), "rot": -8.0, "mat": warm_patch},
-			{"pos": Vector3(lot_size.x * 0.28, 0.088, -lot_size.y * 0.05), "size": Vector3(0.48, 0.012, 0.24), "rot": 11.0, "mat": cool_patch},
-		]:
-			var patch_pos: Vector3 = patch["pos"]
-			var patch_size: Vector3 = patch["size"]
-			var patch_material: Material = patch["mat"]
-			var patch_node := _add_box(patch_pos, patch_size, patch_material, parent)
-			patch_node.rotation_degrees.y = float(patch["rot"])
-	else:
-		for x in [-lot_size.x * 0.42, lot_size.x * 0.42]:
-			create_landscape_island(parent, Vector3(x, 0.1, -lot_size.y * 0.42), Vector3(0.32, 0.08, 0.22), Color("6fa85b"), 3)
+	for x in [-lot_size.x * 0.42, lot_size.x * 0.42]:
+		create_landscape_island(parent, Vector3(x, 0.1, -lot_size.y * 0.42), Vector3(0.32, 0.08, 0.22), Color("6fa85b"), 3)
 
 
 func _add_parking_surface_polish_local(parent: Node, size: Vector3, parking_kind: String) -> void:
@@ -3411,8 +3403,6 @@ func _add_property_composed_lot_details(tool: String, sections: Dictionary, pres
 		_add_box(Vector3(paver_x, 0.126, front_z - 0.46), Vector3(0.04, 0.012, 0.42), _make_material("c9bea9", 0.92), sidewalk_root)
 	if lot_type == "residential":
 		_add_residential_yard_life(landscaping_root, props_root, lot_size, frontage_z, sidewalk_back_z, accent, trim, variant)
-		create_street_sign(props_root, Vector3(lot_size.x * 0.4, 0.02, sidewalk_back_z + 0.06), accent)
-		_add_sidewalk_scene_cluster(props_root, Vector3(-lot_size.x * 0.36, 0.02, sidewalk_back_z + 0.06), palette, variant, "residential")
 	elif tool == BUILD_TOOL_FIRE:
 		_add_flower_bed_local(landscaping_root, Vector3(-lot_size.x * 0.38, 0.09, frontage_z), 0.7, accent)
 		create_bush_cluster(landscaping_root, Vector3(lot_size.x * 0.38, 0.08, -lot_size.y * 0.36), 4, Color("778f68"))
@@ -3451,64 +3441,41 @@ func _add_flower_bed_local(parent: Node, center: Vector3, width: float, accent: 
 
 
 func _add_residential_yard_life(landscaping_root: Node3D, props_root: Node3D, lot_size: Vector2, frontage_z: float, sidewalk_back_z: float, accent: Color, trim: Color, variant: int) -> void:
-	# Residential lots need a point of view. These are deliberately small, lived-in
-	# compositions rather than more copies of the same hedge/tree strip.
-	var left_edge := -lot_size.x * 0.42
-	var right_edge := lot_size.x * 0.42
-	var back_z := -lot_size.y * 0.38
-	var front_z := frontage_z - 0.08
+	# One legible front-yard story per home. The old composition mixed a generic
+	# bench, street sign, boundary planting, stepping stones and a full backyard
+	# vignette. Some of those props also occupied the building's own depth. These
+	# zones stay beside the approach and safely in front of the house massing.
+	var left_edge := -lot_size.x * 0.35
+	var right_edge := lot_size.x * 0.35
+	var feature_z := minf(frontage_z - 0.42, 1.08)
 	var soil := _make_material("78563d", 0.94)
 	var stone := _make_material("c8b9a0", 0.9)
-	var grass_dark := _make_material("6f9d5d", 0.96)
-	# Soft, irregular-looking planted edges break up the rectangular lot boundary.
-	create_landscape_island(landscaping_root, Vector3(left_edge, 0.1, back_z), Vector3(0.34, 0.08, 0.64), accent, 4)
-	create_landscape_island(landscaping_root, Vector3(right_edge, 0.1, back_z + 0.12), Vector3(0.32, 0.08, 0.52), trim, 3)
-	for stone_index in range(4):
-		var t := float(stone_index) / 3.0
-		var x := lerpf(-0.22, 0.22, t)
-		var z := lerpf(front_z - 0.06, 0.32, t)
-		var paver := _add_box(Vector3(x, 0.112, z), Vector3(0.18, 0.025, 0.12), stone, landscaping_root)
-		paver.rotation_degrees.y = float((stone_index % 2) * 12 - 6)
 	match posmod(variant, 5):
 		0:
-			# Cottage garden: layered blooms, a low fence, and a bird bath.
-			_add_flower_bed_local(landscaping_root, Vector3(-0.36, 0.1, front_z), lot_size.x * 0.34, accent)
-			_add_flower_bed_local(landscaping_root, Vector3(0.64, 0.1, front_z - 0.14), lot_size.x * 0.22, trim)
-			_add_picket_fence(props_root, Vector3(-lot_size.x * 0.27, 0.02, sidewalk_back_z - 0.02), lot_size.x * 0.34)
-			_add_picket_fence(props_root, Vector3(lot_size.x * 0.31, 0.02, sidewalk_back_z - 0.02), lot_size.x * 0.26)
-			_add_bird_bath_local(landscaping_root, Vector3(right_edge * 0.55, 0.04, back_z + 0.08), accent)
-			create_tree(landscaping_root, Vector3(left_edge * 0.88, 0.0, back_z + 0.08))
+			# Cottage garden: one curved bed and one focal ornament.
+			_add_flower_bed_local(landscaping_root, Vector3(left_edge * 0.58, 0.1, feature_z), lot_size.x * 0.25, accent)
+			_add_bird_bath_local(landscaping_root, Vector3(right_edge * 0.62, 0.04, feature_z - 0.18), trim)
 		1:
-			# Patio yard: a small evening table, herbs, and a shade tree.
-			_add_box(Vector3(right_edge * 0.56, 0.09, back_z + 0.08), Vector3(0.9, 0.025, 0.72), _make_material("bba990", 0.9), landscaping_root)
-			_add_outdoor_table_local(props_root, Vector3(right_edge * 0.56, 0.04, back_z + 0.08), accent)
-			create_planters(landscaping_root, [Vector3(-0.72, 0.09, front_z), Vector3(-0.42, 0.09, front_z - 0.18)], trim)
-			create_tree(landscaping_root, Vector3(left_edge * 0.92, 0.0, back_z - 0.04))
-			_add_hanging_lights_local(props_root, Vector3(0.15, 0.0, back_z + 0.18), accent)
+			# A compact side patio, clear of the front walk and façade.
+			_add_box(Vector3(right_edge * 0.72, 0.09, feature_z - 0.14), Vector3(0.86, 0.025, 0.66), stone, landscaping_root)
+			_add_outdoor_table_local(props_root, Vector3(right_edge * 0.72, 0.04, feature_z - 0.14), accent)
+			create_planters(landscaping_root, [Vector3(left_edge * 0.7, 0.09, feature_z)], trim)
 		2:
-			# Kitchen garden: raised beds, crops, a little shed-like tool box.
-			for row in [-0.28, 0.28]:
-				_add_box(Vector3(right_edge * 0.52, 0.095, back_z + row), Vector3(0.7, 0.09, 0.2), soil, landscaping_root)
-				for plant_index in range(4):
-					_add_local_sphere(Vector3(right_edge * 0.52 - 0.24 + plant_index * 0.16, 0.18, back_z + row), 0.07, 0.1, _leaf_material_light, landscaping_root)
-			_add_box(Vector3(left_edge * 0.7, 0.2, back_z + 0.1), Vector3(0.34, 0.32, 0.26), _make_material("9b7652", 0.86), props_root)
-			_add_box(Vector3(left_edge * 0.7, 0.38, back_z + 0.1), Vector3(0.4, 0.06, 0.32), _make_material_from_color(trim.darkened(0.18), 0.8), props_root)
-			_add_flower_bed_local(landscaping_root, Vector3(0.0, 0.1, front_z), lot_size.x * 0.42, accent)
+			# Kitchen garden: one readable raised herb bed, not a miniature farm.
+			_add_box(Vector3(right_edge * 0.72, 0.095, feature_z - 0.12), Vector3(0.86, 0.09, 0.28), soil, landscaping_root)
+			for plant_index in range(5):
+				_add_local_sphere(Vector3(right_edge * 0.72 - 0.32 + plant_index * 0.16, 0.18, feature_z - 0.12), 0.065, 0.09, _leaf_material_light, landscaping_root)
+			_add_flower_bed_local(landscaping_root, Vector3(left_edge * 0.5, 0.1, feature_z), lot_size.x * 0.22, accent)
 		3:
-			# Family yard: open grass, a tree swing and scattered play stones.
-			_add_box(Vector3(0.0, 0.084, back_z + 0.08), Vector3(1.35, 0.012, 0.88), grass_dark, landscaping_root)
-			create_tree(landscaping_root, Vector3(left_edge * 0.84, 0.0, back_z - 0.08))
-			_add_tree_swing_local(props_root, Vector3(left_edge * 0.84, 0.0, back_z - 0.08), trim)
-			_add_local_sphere(Vector3(0.35, 0.115, back_z + 0.2), 0.11, 0.09, _make_material_from_color(accent, 0.72), props_root)
-			_add_flower_bed_local(landscaping_root, Vector3(right_edge * 0.52, 0.1, front_z), 0.56, trim)
+			# Family yard: intentionally open, with one shade tree and one toy.
+			create_tree(landscaping_root, Vector3(left_edge * 0.94, 0.0, -0.76))
+			_add_local_sphere(Vector3(right_edge * 0.52, 0.115, feature_z - 0.18), 0.11, 0.09, _make_material_from_color(accent, 0.72), props_root)
 		_:
-			# Wildflower retreat: a denser, softer planting with a reading bench.
-			for cluster_index in range(3):
-				var cluster_x := -0.56 + float(cluster_index) * 0.56
-				_add_wildflower_cluster(Vector3(cluster_x, 0.08, back_z + 0.12), 6, _flower_material_pink if cluster_index % 2 == 0 else _flower_material_blue, landscaping_root, 0.16)
-			create_bush_cluster(landscaping_root, Vector3(right_edge * 0.62, 0.08, back_z - 0.04), 5, Color("6d9b59"))
-			_add_bench_local(Vector3(left_edge * 0.48, 0.02, back_z + 0.16), deg_to_rad(18.0), props_root)
-			create_tree(landscaping_root, Vector3(right_edge * 0.86, 0.0, back_z - 0.1))
+			# Wildflower retreat: one soft planted edge and a side reading bench.
+			for cluster_index in range(2):
+				var cluster_x := left_edge * 0.66 + float(cluster_index) * 0.34
+				_add_wildflower_cluster(Vector3(cluster_x, 0.08, feature_z - 0.08), 5, _flower_material_pink if cluster_index == 0 else _flower_material_blue, landscaping_root, 0.14)
+			_add_bench_local(Vector3(right_edge * 0.62, 0.02, feature_z - 0.2), deg_to_rad(-10.0), props_root)
 
 
 func _add_bird_bath_local(parent: Node3D, position_3d: Vector3, accent: Color) -> void:
@@ -3577,7 +3544,6 @@ func _add_property_identity_props(tool: String, sections: Dictionary, preset: Di
 	match tool:
 		BUILD_TOOL_HOUSE:
 			_add_mailbox_local(props_root, Vector3(-1.84, 0.0, 1.68), accent)
-			create_planters(props_root, [Vector3(-0.94, 0.08, 1.48), Vector3(0.94, 0.08, 1.48)], accent)
 		BUILD_TOOL_FIRE:
 			_add_flag_local(props_root, Vector3(-1.84, 0.0, 1.1), accent)
 			_add_hydrant_local(Vector3(1.88, 0.08, 1.38), props_root)
@@ -3661,8 +3627,9 @@ func create_property_visual_framework(root: Node3D, lot_root: Node3D, structure_
 		root.set_meta("visual_layout_version", 2)
 		create_lot_base(sections["lot_base"], preset)
 		create_sidewalk_connection(sections["sidewalk"], preset)
-		_add_property_ground_variation(sections["landscaping"], preset, variant)
-		create_bush_row(sections["landscaping"], preset, Color("6fa85b"))
+		if str(preset.get("lot_type", "commercial")) != "residential":
+			_add_property_ground_variation(sections["landscaping"], preset, variant)
+			create_bush_row(sections["landscaping"], preset, Color("6fa85b"))
 		if include_parking:
 			create_parking_lot(sections["parking"], preset, palette["accent"], palette["trim"])
 		_add_property_composed_lot_details(tool, sections, preset, palette, variant)
@@ -4385,47 +4352,71 @@ func _spawn_ambient_person(anchor_key: String, index: int) -> Node3D:
 	root.add_child(visual)
 	root.set_meta("visual", visual)
 
-	var coat_palette := [
-		Color("5b7db0"),
-		Color("b86a58"),
-		Color("728e57"),
-		Color("8b6da8"),
-		Color("cb9a5a"),
-	]
-	var coat_material := _make_material_from_color(coat_palette[index % coat_palette.size()], 0.74)
-	var pant_material := _make_material("4a4748", 0.96)
-	var skin_material := _make_material("e7c8a8", 0.86)
-	var hair_colors := ["6a4632", "2d2522", "b6814d", "8c5a3c"]
-	var hair_material := _make_material(str(hair_colors[index % hair_colors.size()]), 0.84)
-	var shoe_material := _make_material("2b2929", 0.98)
-	var bag_material := _make_material("b88955", 0.82)
-	_add_soft_block(Vector3(0.0, 0.2, 0.0), Vector3(0.12, 0.2, 0.1), coat_material, visual, 0.04)
-	_add_local_sphere(Vector3(0.0, 0.34, 0.0), 0.06, 0.08, skin_material, visual)
-	_add_local_sphere(Vector3(0.0, 0.385, -0.005), 0.062, 0.04, hair_material, visual)
-	if index % 3 == 0:
-		_add_box(Vector3(0.0, 0.42, 0.0), Vector3(0.15, 0.025, 0.12), hair_material, visual)
-		_add_box(Vector3(0.0, 0.44, 0.0), Vector3(0.09, 0.035, 0.08), hair_material, visual)
+	var coat_palette := [Color("5079a8"), Color("b85f50"), Color("66884f"), Color("8267a4"), Color("c68d47"), Color("3f8b83")]
+	var trouser_palette := [Color("373b45"), Color("4c443f"), Color("35475b"), Color("57504a")]
+	var skin_palette := [Color("f0c8a1"), Color("dca77f"), Color("bd7e5b"), Color("8f583f"), Color("f2d2b5")]
+	var coat_material := _make_material_from_color(coat_palette[index % coat_palette.size()], 0.76)
+	var coat_shadow := _make_material_from_color(coat_palette[index % coat_palette.size()].darkened(0.18), 0.84)
+	var pant_material := _make_material_from_color(trouser_palette[index % trouser_palette.size()], 0.94)
+	var skin_material := _make_material_from_color(skin_palette[index % skin_palette.size()], 0.82)
+	var hair_colors := ["5b3828", "272326", "bd8250", "7e4d34", "d0ae76"]
+	var hair_material := _make_material(str(hair_colors[index % hair_colors.size()]), 0.86)
+	var shoe_material := _make_material("24262b", 0.96)
+	var bag_material := _make_material("a46f42", 0.82)
+	var face_material := _make_material("2d2928", 0.88)
+
+	# Micro-block residents: separate chest, waist, neck, face and layered hair
+	# replace the old single torso/sphere silhouette while staying true to the
+	# miniature construction language of the town.
+	_add_soft_block(Vector3(0.0, 0.37, 0.0), Vector3(0.18, 0.19, 0.115), coat_material, visual, 0.028)
+	_add_box(Vector3(0.0, 0.265, 0.0), Vector3(0.135, 0.065, 0.1), coat_shadow, visual)
+	_add_box(Vector3(0.0, 0.475, 0.0), Vector3(0.052, 0.045, 0.05), skin_material, visual)
+	_add_soft_block(Vector3(0.0, 0.535, 0.0), Vector3(0.125, 0.13, 0.11), skin_material, visual, 0.025)
+	_add_box(Vector3(0.0, 0.602, -0.005), Vector3(0.132, 0.035, 0.116), hair_material, visual)
+	_add_box(Vector3(-0.052, 0.555, -0.01), Vector3(0.025, 0.075, 0.105), hair_material, visual)
+	if index % 2 == 0:
+		_add_box(Vector3(0.045, 0.574, 0.038), Vector3(0.045, 0.04, 0.035), hair_material, visual)
+	else:
+		_add_box(Vector3(0.052, 0.548, -0.018), Vector3(0.022, 0.105, 0.1), hair_material, visual)
+	# Eyes and a tiny nose make close views readable without turning the faces into icons.
+	for eye_x in [-0.028, 0.028]:
+		_add_box(Vector3(eye_x, 0.548, 0.058), Vector3(0.012, 0.014, 0.008), face_material, visual)
+	_add_box(Vector3(0.0, 0.525, 0.061), Vector3(0.012, 0.014, 0.008), skin_material, visual)
+	if index % 4 == 0:
+		_add_box(Vector3(0.0, 0.63, 0.0), Vector3(0.17, 0.025, 0.14), coat_shadow, visual)
+		_add_box(Vector3(0.0, 0.652, -0.006), Vector3(0.105, 0.04, 0.09), coat_material, visual)
 	var left_arm_pivot := Node3D.new()
-	left_arm_pivot.position = Vector3(-0.075, 0.27, 0.0)
+	left_arm_pivot.name = "Left arm"
+	left_arm_pivot.position = Vector3(-0.115, 0.435, 0.0)
 	visual.add_child(left_arm_pivot)
-	_add_box(Vector3(0.0, -0.07, 0.0), Vector3(0.025, 0.16, 0.025), skin_material, left_arm_pivot)
+	_add_soft_block(Vector3(0.0, -0.055, 0.0), Vector3(0.052, 0.12, 0.058), coat_material, left_arm_pivot, 0.014)
+	_add_box(Vector3(0.0, -0.142, 0.004), Vector3(0.044, 0.075, 0.046), coat_shadow, left_arm_pivot)
+	_add_soft_block(Vector3(0.0, -0.19, 0.012), Vector3(0.047, 0.045, 0.048), skin_material, left_arm_pivot, 0.012)
 	var right_arm_pivot := Node3D.new()
-	right_arm_pivot.position = Vector3(0.075, 0.27, 0.0)
+	right_arm_pivot.name = "Right arm"
+	right_arm_pivot.position = Vector3(0.115, 0.435, 0.0)
 	visual.add_child(right_arm_pivot)
-	_add_box(Vector3(0.0, -0.07, 0.0), Vector3(0.025, 0.16, 0.025), skin_material, right_arm_pivot)
+	_add_soft_block(Vector3(0.0, -0.055, 0.0), Vector3(0.052, 0.12, 0.058), coat_material, right_arm_pivot, 0.014)
+	_add_box(Vector3(0.0, -0.142, 0.004), Vector3(0.044, 0.075, 0.046), coat_shadow, right_arm_pivot)
+	_add_soft_block(Vector3(0.0, -0.19, 0.012), Vector3(0.047, 0.045, 0.048), skin_material, right_arm_pivot, 0.012)
 	var left_leg_pivot := Node3D.new()
-	left_leg_pivot.position = Vector3(-0.03, 0.13, 0.0)
+	left_leg_pivot.name = "Left leg"
+	left_leg_pivot.position = Vector3(-0.044, 0.23, 0.0)
 	visual.add_child(left_leg_pivot)
-	_add_box(Vector3(0.0, -0.06, 0.0), Vector3(0.03, 0.14, 0.03), pant_material, left_leg_pivot)
-	_add_box(Vector3(0.0, -0.135, 0.02), Vector3(0.055, 0.025, 0.04), shoe_material, left_leg_pivot)
+	_add_box(Vector3(0.0, -0.055, 0.0), Vector3(0.06, 0.13, 0.065), pant_material, left_leg_pivot)
+	_add_box(Vector3(0.0, -0.155, 0.004), Vector3(0.052, 0.11, 0.056), pant_material, left_leg_pivot)
+	_add_soft_block(Vector3(0.0, -0.215, 0.025), Vector3(0.068, 0.035, 0.105), shoe_material, left_leg_pivot, 0.01)
 	var right_leg_pivot := Node3D.new()
-	right_leg_pivot.position = Vector3(0.03, 0.13, 0.0)
+	right_leg_pivot.name = "Right leg"
+	right_leg_pivot.position = Vector3(0.044, 0.23, 0.0)
 	visual.add_child(right_leg_pivot)
-	_add_box(Vector3(0.0, -0.06, 0.0), Vector3(0.03, 0.14, 0.03), pant_material, right_leg_pivot)
-	_add_box(Vector3(0.0, -0.135, 0.02), Vector3(0.055, 0.025, 0.04), shoe_material, right_leg_pivot)
-	_add_box(Vector3(0.0, 0.23, -0.07), Vector3(0.12, 0.03, 0.03), _make_material("f5efe4", 0.86), visual)
+	_add_box(Vector3(0.0, -0.055, 0.0), Vector3(0.06, 0.13, 0.065), pant_material, right_leg_pivot)
+	_add_box(Vector3(0.0, -0.155, 0.004), Vector3(0.052, 0.11, 0.056), pant_material, right_leg_pivot)
+	_add_soft_block(Vector3(0.0, -0.215, 0.025), Vector3(0.068, 0.035, 0.105), shoe_material, right_leg_pivot, 0.01)
+	_add_box(Vector3(0.0, 0.4, -0.067), Vector3(0.135, 0.035, 0.025), _make_material("f5efe4", 0.86), visual)
 	if index % 2 == 1:
-		_add_box(Vector3(-0.085, 0.2, -0.045), Vector3(0.04, 0.12, 0.035), bag_material, visual)
+		_add_soft_block(Vector3(-0.135, 0.315, -0.055), Vector3(0.075, 0.14, 0.07), bag_material, visual, 0.018)
+		_add_box(Vector3(-0.11, 0.41, -0.045), Vector3(0.025, 0.1, 0.025), coat_shadow, visual)
 	root.set_meta("left_arm", left_arm_pivot)
 	root.set_meta("right_arm", right_arm_pivot)
 	root.set_meta("left_leg", left_leg_pivot)
@@ -5284,7 +5275,6 @@ func _populate_village_house_variant(root: Node3D, lot_root: Node3D, structure_r
 	var has_bay: bool = bool(profile["bay"])
 	var resolved_variant_id := _resolve_property_variant_id(BUILD_TOOL_HOUSE, variant, variant_id)
 	palette = _house_palette(variant, resolved_variant_id)
-	var fence_width: float = max(4.8, float(profile["fence_width"]) + 0.9)
 	if rebuild_lot_layout:
 		_add_parcel_shadow(root, Vector2(5.7, 5.7), 0.26)
 	var sections := create_property_visual_framework(root, lot_root, structure_root, BUILD_TOOL_HOUSE, variant, false, rebuild_lot_layout)
@@ -5358,10 +5348,6 @@ func _populate_village_house_variant(root: Node3D, lot_root: Node3D, structure_r
 
 	if rebuild_lot_layout and not has_garage:
 		_add_garden_path(lot_root, width * 0.24, 1.52)
-	if rebuild_lot_layout:
-		create_fence(props_root, Vector3(0.0, 0.0, 1.56), fence_width)
-		create_streetlamp(props_root, Vector3(1.18, 0.0, 1.5))
-		create_tree(landscaping_root, Vector3(-2.0, 0.0, -1.64))
 	if int(variant) % 2 == 0:
 		_add_box(Vector3(0.9, height + roof_lift + 0.2, house_z - 0.34), Vector3(0.16, 0.5, 0.16), _stone_material, structure_root)
 		_add_box(Vector3(0.9, height + roof_lift + 0.48, house_z - 0.34), Vector3(0.2, 0.08, 0.2), _make_material("efe3cf", 0.92), structure_root)
@@ -5402,6 +5388,46 @@ func _add_house_character_details(parent: Node3D, profile: Dictionary, palette: 
 		var chimney_material := _make_material("9c856f", 0.94)
 		_add_box(Vector3(chimney_x, height + roof_lift + 0.42, house_z - depth * 0.22), Vector3(0.16, 0.62, 0.16), chimney_material, parent)
 		_add_box(Vector3(chimney_x, height + roof_lift + 0.75, house_z - depth * 0.22), Vector3(0.22, 0.06, 0.22), trim_material, parent)
+	_add_residential_closeup_finish(parent, width, depth, house_z, height + roof_lift - 0.12, palette, "classic")
+
+
+func _add_residential_closeup_finish(parent: Node3D, width: float, depth: float, center_z: float, eave_y: float, palette: Dictionary, style: String) -> void:
+	var foundation := _make_material("9c968b", 0.94)
+	var foundation_cap := _make_material("d7cdbc", 0.9)
+	var drainage := _make_material_from_color(palette["roof"].darkened(0.34), 0.82)
+	var utility := _make_material("8f999d", 0.82)
+	var utility_dark := _make_material("515b60", 0.88)
+	var front_z := center_z + depth * 0.5 + 0.032
+	# A continuous foundation and side returns ground the walls, especially at the
+	# close camera sizes where the old wall slabs appeared to float above the lot.
+	_add_box(Vector3(0.0, 0.115, front_z), Vector3(width * 0.94, 0.16, 0.07), foundation, parent)
+	_add_box(Vector3(0.0, 0.205, front_z + 0.008), Vector3(width * 0.98, 0.035, 0.085), foundation_cap, parent)
+	for side in [-1.0, 1.0]:
+		var side_x := float(side) * width * 0.505
+		_add_box(Vector3(side_x, 0.115, center_z), Vector3(0.065, 0.16, depth * 0.82), foundation, parent)
+
+	if style == "modern":
+		# Modern homes use crisp reveals and compact scuppers instead of cottage gutters.
+		for reveal_y in [0.34, 0.68, 1.02]:
+			if reveal_y < eave_y - 0.08:
+				_add_box(Vector3(0.0, reveal_y, front_z + 0.02), Vector3(width * 0.84, 0.018, 0.025), drainage, parent)
+		_add_box(Vector3(width * 0.42, eave_y, front_z + 0.05), Vector3(0.22, 0.055, 0.11), drainage, parent)
+		_add_box(Vector3(width * 0.48, eave_y * 0.52, front_z + 0.055), Vector3(0.045, maxf(0.34, eave_y - 0.2), 0.05), drainage, parent)
+	else:
+		# Full gutters and paired downspouts make the gabled homes feel assembled,
+		# not merely stacked from large primitive blocks.
+		_add_box(Vector3(0.0, eave_y, front_z + 0.055), Vector3(width + 0.16, 0.055, 0.095), drainage, parent)
+		for side in [-1.0, 1.0]:
+			var pipe_x := float(side) * (width * 0.5 + 0.035)
+			_add_box(Vector3(pipe_x, eave_y * 0.52, front_z + 0.058), Vector3(0.045, maxf(0.34, eave_y - 0.2), 0.05), drainage, parent)
+			_add_box(Vector3(pipe_x - float(side) * 0.045, 0.095, front_z + 0.095), Vector3(0.13, 0.045, 0.05), drainage, parent)
+
+	# A small side meter/conduit cluster adds believable scale while staying on the
+	# building envelope rather than becoming another loose yard prop.
+	var meter_x := -width * 0.515
+	var meter := _add_local_cylinder(Vector3(meter_x, 0.48, center_z - depth * 0.08), 0.075, 0.075, 0.045, utility, parent)
+	meter.rotation_degrees.z = 90.0
+	_add_local_cylinder(Vector3(meter_x, 0.27, center_z - depth * 0.08), 0.018, 0.018, 0.34, utility_dark, parent)
 
 
 func _build_modern_residential_home(parent: Node3D, profile: Dictionary, palette: Dictionary, variant: int) -> void:
@@ -5423,6 +5449,7 @@ func _build_modern_residential_home(parent: Node3D, profile: Dictionary, palette
 	for x in [-1.14, -0.48, 0.34]:
 		_add_box(Vector3(x, 1.34, -0.06), Vector3(0.36, 0.035, 0.07), cedar, parent)
 	_add_local_sphere(Vector3(1.25, 0.12, -0.28), 0.18, 0.14, _make_material_from_color(palette.accent, 0.82), parent)
+	_add_residential_closeup_finish(parent, 2.5, 1.84, -1.05, 1.28, palette, "modern")
 
 
 func _build_farmhouse_residential_home(parent: Node3D, profile: Dictionary, palette: Dictionary, variant: int) -> void:
@@ -5447,6 +5474,7 @@ func _build_farmhouse_residential_home(parent: Node3D, profile: Dictionary, pale
 	_add_dormer(Vector3(0.62, 1.72, -0.44), palette.wall, palette.roof, parent)
 	_add_box(Vector3(-0.82, 1.9, -1.42), Vector3(0.18, 0.72, 0.18), _make_material("9c856f", 0.94), parent)
 	_add_box(Vector3(-0.82, 2.28, -1.42), Vector3(0.24, 0.07, 0.24), trim, parent)
+	_add_residential_closeup_finish(parent, 2.72, 2.02, -1.14, 1.5, palette, "classic")
 
 
 func _build_townhome_residential_home(parent: Node3D, profile: Dictionary, palette: Dictionary, variant: int) -> void:
@@ -5466,6 +5494,7 @@ func _build_townhome_residential_home(parent: Node3D, profile: Dictionary, palet
 	for y in [0.5, 1.05, 1.6]:
 		_add_box(Vector3(-0.98, y, -1.14), Vector3(0.04, 0.035, 1.45), trim, parent)
 	_add_box(Vector3(0.0, 2.44, -1.58), Vector3(0.16, 0.66, 0.16), _make_material("8b7460", 0.94), parent)
+	_add_residential_closeup_finish(parent, 1.88, 1.68, -1.14, 2.08, palette, "classic")
 
 
 func _add_village_house_variant(position_3d: Vector3, variant: int, variant_id: String = "") -> Node3D:
@@ -8004,7 +8033,7 @@ func _build_road_tile_mesh(cell: Vector2i, preview: bool, road_source: Array = [
 
 	if not preview:
 		_add_road_finish_details(root, vertical_straight, horizontal_straight, intersection, north, east, south, west)
-		_add_road_surface_polish_local(root, vertical_straight, horizontal_straight, intersection, north, east, south, west)
+		_add_road_surface_polish_local(root, vertical_straight, horizontal_straight, intersection, north, east, south, west, cell)
 
 	return root
 
@@ -8018,7 +8047,13 @@ func _add_lane_dashes_local(root: Node3D, vertical: bool, material: Material) ->
 
 
 func _add_road_edge_lines_local(root: Node3D, vertical: bool) -> void:
-	pass
+	var edge_material := _make_material("879096", 0.96)
+	if vertical:
+		for x in [-0.93, 0.93]:
+			_add_box(Vector3(x, 0.146, 0.0), Vector3(0.024, 0.008, 2.42), edge_material, root)
+	else:
+		for z in [-0.93, 0.93]:
+			_add_box(Vector3(0.0, 0.146, z), Vector3(2.42, 0.008, 0.024), edge_material, root)
 
 
 func _add_intersection_center_mark_local(root: Node3D, material: Material) -> void:
@@ -8060,8 +8095,44 @@ func _add_crosswalk_local(root: Node3D, center: Vector3, horizontal: bool) -> vo
 			_add_box(center + Vector3(0.0, 0.0, offset), Vector3(0.42, 0.018, 0.075), _crosswalk_material, root)
 
 
-func _add_road_surface_polish_local(root: Node3D, vertical_straight: bool, horizontal_straight: bool, intersection: bool, north: bool, east: bool, south: bool, west: bool) -> void:
-	pass
+func _add_road_surface_polish_local(root: Node3D, vertical_straight: bool, horizontal_straight: bool, intersection: bool, north: bool, east: bool, south: bool, west: bool, cell: Vector2i) -> void:
+	var repair_material := _make_material("4b5256", 0.99)
+	var repair_dark := _make_material("353b3f", 0.99)
+	var grate_material := _make_material("242a2e", 0.92)
+	var manhole_material := _make_material("596167", 0.88)
+	var detail_seed := absi(cell.x * 31 + cell.y * 17)
+	if vertical_straight:
+		_add_road_edge_lines_local(root, true)
+		if posmod(detail_seed, 4) == 0:
+			var repair := _add_box(Vector3(0.34, 0.143, -0.34), Vector3(0.34, 0.008, 0.62), repair_material, root)
+			repair.rotation_degrees.y = -7.0
+			_add_box(Vector3(-0.28, 0.144, 0.62), Vector3(0.025, 0.009, 0.46), repair_dark, root).rotation_degrees.y = 8.0
+		if posmod(detail_seed, 5) == 1:
+			var drain_side := -1.0 if posmod(detail_seed, 2) == 0 else 1.0
+			_add_drain_grate_local(root, Vector3(drain_side * 1.02, 0.151, 0.42), true, grate_material)
+	elif horizontal_straight:
+		_add_road_edge_lines_local(root, false)
+		if posmod(detail_seed, 4) == 0:
+			var repair := _add_box(Vector3(-0.34, 0.143, 0.3), Vector3(0.62, 0.008, 0.34), repair_material, root)
+			repair.rotation_degrees.y = 7.0
+			_add_box(Vector3(0.62, 0.144, -0.28), Vector3(0.46, 0.009, 0.025), repair_dark, root).rotation_degrees.y = -8.0
+		if posmod(detail_seed, 5) == 1:
+			var drain_side := -1.0 if posmod(detail_seed, 2) == 0 else 1.0
+			_add_drain_grate_local(root, Vector3(0.42, 0.151, drain_side * 1.02), false, grate_material)
+	elif intersection:
+		# A readable civic center detail gives junctions a visual anchor without
+		# adding more painted symbols to the already busy crosswalk area.
+		_add_local_cylinder(Vector3(0.34, 0.148, 0.3), 0.17, 0.17, 0.012, manhole_material, root)
+		_add_local_cylinder(Vector3(0.34, 0.157, 0.3), 0.105, 0.105, 0.008, repair_dark, root)
+		for corner in [Vector3(-1.02, 0.151, -0.74), Vector3(1.02, 0.151, 0.74)]:
+			_add_drain_grate_local(root, corner, true, grate_material)
+	else:
+		# End and corner tiles still get one subtle maintenance mark so the road
+		# surface does not revert to a perfectly blank slab.
+		if posmod(detail_seed, 3) == 0:
+			var mark := _add_box(Vector3(0.28, 0.143, -0.24), Vector3(0.36, 0.008, 0.045), repair_material, root)
+			mark.rotation_degrees.y = 18.0
+	_add_sidewalk_paver_detail_local(root, vertical_straight, horizontal_straight, intersection)
 
 
 func _add_asphalt_surface_variation_local(parent: Node, size: Vector2, y_position: float) -> void:
@@ -8104,7 +8175,19 @@ func _add_drain_grate_local(root: Node3D, center: Vector3, vertical: bool, mater
 
 
 func _add_sidewalk_paver_detail_local(root: Node3D, vertical_straight: bool, horizontal_straight: bool, intersection: bool) -> void:
-	pass
+	var joint_material := _make_material("c9c8bd", 0.96)
+	if vertical_straight:
+		for z in [-1.02, -0.34, 0.34, 1.02]:
+			for x in [-1.47, 1.47]:
+				_add_box(Vector3(x, 0.05, z), Vector3(0.32, 0.007, 0.018), joint_material, root)
+	elif horizontal_straight:
+		for x in [-1.02, -0.34, 0.34, 1.02]:
+			for z in [-1.47, 1.47]:
+				_add_box(Vector3(x, 0.05, z), Vector3(0.018, 0.007, 0.32), joint_material, root)
+	elif intersection:
+		for corner in [Vector2(-1.46, -1.46), Vector2(1.46, -1.46), Vector2(-1.46, 1.46), Vector2(1.46, 1.46)]:
+			_add_box(Vector3(corner.x, 0.05, corner.y), Vector3(0.3, 0.007, 0.018), joint_material, root)
+			_add_box(Vector3(corner.x, 0.05, corner.y), Vector3(0.018, 0.007, 0.3), joint_material, root)
 
 
 func _road_in_source(cell: Vector2i, road_source: Array) -> bool:
