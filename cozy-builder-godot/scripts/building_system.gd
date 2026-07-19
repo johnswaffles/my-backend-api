@@ -4346,82 +4346,147 @@ func _spawn_ambient_person(anchor_key: String, index: int) -> Node3D:
 	root.set_meta("arrival_routine", _resident_arrival_routine(index))
 	root.set_meta("routine_timer", 0.0)
 	root.set_meta("walk_phase", randf() * TAU)
-	_add_shadow_disc_local(Vector3(0.0, 0.005, 0.0), Vector2(0.18, 0.18), 0.16, root)
+	_add_shadow_disc_local(Vector3(0.0, 0.005, 0.0), Vector2(0.22, 0.22), 0.16, root)
 	var visual := Node3D.new()
 	visual.name = "Resident visual"
 	root.add_child(visual)
 	root.set_meta("visual", visual)
+	var resident_parts := _build_extra_small_block_resident(visual, index)
+	root.set_meta("left_arm", resident_parts["left_arm"])
+	root.set_meta("right_arm", resident_parts["right_arm"])
+	root.set_meta("left_leg", resident_parts["left_leg"])
+	root.set_meta("right_leg", resident_parts["right_leg"])
+	return root
 
+
+func _build_extra_small_block_resident(visual: Node3D, index: int) -> Dictionary:
 	var coat_palette := [Color("5079a8"), Color("b85f50"), Color("66884f"), Color("8267a4"), Color("c68d47"), Color("3f8b83")]
 	var trouser_palette := [Color("373b45"), Color("4c443f"), Color("35475b"), Color("57504a")]
 	var skin_palette := [Color("f0c8a1"), Color("dca77f"), Color("bd7e5b"), Color("8f583f"), Color("f2d2b5")]
-	var coat_material := _make_material_from_color(coat_palette[index % coat_palette.size()], 0.76)
-	var coat_shadow := _make_material_from_color(coat_palette[index % coat_palette.size()].darkened(0.18), 0.84)
+	var coat_color: Color = coat_palette[index % coat_palette.size()]
+	var coat_material := _make_material_from_color(coat_color, 0.76)
+	var coat_light := _make_material_from_color(coat_color.lightened(0.13), 0.78)
+	var coat_shadow := _make_material_from_color(coat_color.darkened(0.2), 0.86)
 	var pant_material := _make_material_from_color(trouser_palette[index % trouser_palette.size()], 0.94)
+	var pant_light := _make_material_from_color(trouser_palette[index % trouser_palette.size()].lightened(0.12), 0.9)
 	var skin_material := _make_material_from_color(skin_palette[index % skin_palette.size()], 0.82)
+	var skin_shadow := _make_material_from_color(skin_palette[index % skin_palette.size()].darkened(0.1), 0.84)
 	var hair_colors := ["5b3828", "272326", "bd8250", "7e4d34", "d0ae76"]
 	var hair_material := _make_material(str(hair_colors[index % hair_colors.size()]), 0.86)
 	var shoe_material := _make_material("24262b", 0.96)
+	var shoe_highlight := _make_material("4b5056", 0.9)
 	var bag_material := _make_material("a46f42", 0.82)
 	var face_material := _make_material("2d2928", 0.88)
+	var shirt_material := _make_material("f5efe4", 0.86)
 
-	# Micro-block residents: separate chest, waist, neck, face and layered hair
-	# replace the old single torso/sphere silhouette while staying true to the
-	# miniature construction language of the town.
-	_add_soft_block(Vector3(0.0, 0.37, 0.0), Vector3(0.18, 0.19, 0.115), coat_material, visual, 0.028)
-	_add_box(Vector3(0.0, 0.265, 0.0), Vector3(0.135, 0.065, 0.1), coat_shadow, visual)
-	_add_box(Vector3(0.0, 0.475, 0.0), Vector3(0.052, 0.045, 0.05), skin_material, visual)
-	_add_soft_block(Vector3(0.0, 0.535, 0.0), Vector3(0.125, 0.13, 0.11), skin_material, visual, 0.025)
-	_add_box(Vector3(0.0, 0.602, -0.005), Vector3(0.132, 0.035, 0.116), hair_material, visual)
-	_add_box(Vector3(-0.052, 0.555, -0.01), Vector3(0.025, 0.075, 0.105), hair_material, visual)
-	if index % 2 == 0:
-		_add_box(Vector3(0.045, 0.574, 0.038), Vector3(0.045, 0.04, 0.035), hair_material, visual)
-	else:
-		_add_box(Vector3(0.052, 0.548, -0.018), Vector3(0.022, 0.105, 0.1), hair_material, visual)
-	# Eyes and a tiny nose make close views readable without turning the faces into icons.
-	for eye_x in [-0.028, 0.028]:
-		_add_box(Vector3(eye_x, 0.548, 0.058), Vector3(0.012, 0.014, 0.008), face_material, visual)
-	_add_box(Vector3(0.0, 0.525, 0.061), Vector3(0.012, 0.014, 0.008), skin_material, visual)
-	if index % 4 == 0:
-		_add_box(Vector3(0.0, 0.63, 0.0), Vector3(0.17, 0.025, 0.14), coat_shadow, visual)
-		_add_box(Vector3(0.0, 0.652, -0.006), Vector3(0.105, 0.04, 0.09), coat_material, visual)
-	var left_arm_pivot := Node3D.new()
-	left_arm_pivot.name = "Left arm"
-	left_arm_pivot.position = Vector3(-0.115, 0.435, 0.0)
-	visual.add_child(left_arm_pivot)
-	_add_soft_block(Vector3(0.0, -0.055, 0.0), Vector3(0.052, 0.12, 0.058), coat_material, left_arm_pivot, 0.014)
-	_add_box(Vector3(0.0, -0.142, 0.004), Vector3(0.044, 0.075, 0.046), coat_shadow, left_arm_pivot)
-	_add_soft_block(Vector3(0.0, -0.19, 0.012), Vector3(0.047, 0.045, 0.048), skin_material, left_arm_pivot, 0.012)
-	var right_arm_pivot := Node3D.new()
-	right_arm_pivot.name = "Right arm"
-	right_arm_pivot.position = Vector3(0.115, 0.435, 0.0)
-	visual.add_child(right_arm_pivot)
-	_add_soft_block(Vector3(0.0, -0.055, 0.0), Vector3(0.052, 0.12, 0.058), coat_material, right_arm_pivot, 0.014)
-	_add_box(Vector3(0.0, -0.142, 0.004), Vector3(0.044, 0.075, 0.046), coat_shadow, right_arm_pivot)
-	_add_soft_block(Vector3(0.0, -0.19, 0.012), Vector3(0.047, 0.045, 0.048), skin_material, right_arm_pivot, 0.012)
-	var left_leg_pivot := Node3D.new()
-	left_leg_pivot.name = "Left leg"
-	left_leg_pivot.position = Vector3(-0.044, 0.23, 0.0)
-	visual.add_child(left_leg_pivot)
-	_add_box(Vector3(0.0, -0.055, 0.0), Vector3(0.06, 0.13, 0.065), pant_material, left_leg_pivot)
-	_add_box(Vector3(0.0, -0.155, 0.004), Vector3(0.052, 0.11, 0.056), pant_material, left_leg_pivot)
-	_add_soft_block(Vector3(0.0, -0.215, 0.025), Vector3(0.068, 0.035, 0.105), shoe_material, left_leg_pivot, 0.01)
-	var right_leg_pivot := Node3D.new()
-	right_leg_pivot.name = "Right leg"
-	right_leg_pivot.position = Vector3(0.044, 0.23, 0.0)
-	visual.add_child(right_leg_pivot)
-	_add_box(Vector3(0.0, -0.055, 0.0), Vector3(0.06, 0.13, 0.065), pant_material, right_leg_pivot)
-	_add_box(Vector3(0.0, -0.155, 0.004), Vector3(0.052, 0.11, 0.056), pant_material, right_leg_pivot)
-	_add_soft_block(Vector3(0.0, -0.215, 0.025), Vector3(0.068, 0.035, 0.105), shoe_material, right_leg_pivot, 0.01)
-	_add_box(Vector3(0.0, 0.4, -0.067), Vector3(0.135, 0.035, 0.025), _make_material("f5efe4", 0.86), visual)
+	# Torso: twelve small blocks form shoulders, chest panels, waist and hem. No
+	# single torso shell remains, so close views show an actually constructed body.
+	for side in [-1.0, 1.0]:
+		var chest_x := float(side) * 0.044
+		_add_box(Vector3(chest_x, 0.39, 0.0), Vector3(0.082, 0.09, 0.098), coat_material, visual)
+		_add_box(Vector3(chest_x, 0.325, 0.002), Vector3(0.076, 0.045, 0.094), coat_shadow, visual)
+		_add_box(Vector3(float(side) * 0.062, 0.445, -0.002), Vector3(0.068, 0.035, 0.096), coat_light, visual)
+		_add_box(Vector3(float(side) * 0.044, 0.288, 0.0), Vector3(0.074, 0.032, 0.09), coat_shadow, visual)
+	var zipper_material := shirt_material if index % 2 == 0 else coat_light
+	_add_box(Vector3(0.0, 0.37, 0.052), Vector3(0.012, 0.145, 0.01), zipper_material, visual)
+	_add_box(Vector3(-0.025, 0.438, 0.055), Vector3(0.048, 0.035, 0.012), shirt_material, visual).rotation_degrees.z = -22.0
+	_add_box(Vector3(0.025, 0.438, 0.055), Vector3(0.048, 0.035, 0.012), shirt_material, visual).rotation_degrees.z = 22.0
+	for pocket_x in [-0.045, 0.045]:
+		_add_box(Vector3(pocket_x, 0.327, 0.052), Vector3(0.046, 0.027, 0.01), coat_light, visual)
 	if index % 2 == 1:
-		_add_soft_block(Vector3(-0.135, 0.315, -0.055), Vector3(0.075, 0.14, 0.07), bag_material, visual, 0.018)
-		_add_box(Vector3(-0.11, 0.41, -0.045), Vector3(0.025, 0.1, 0.025), coat_shadow, visual)
-	root.set_meta("left_arm", left_arm_pivot)
-	root.set_meta("right_arm", right_arm_pivot)
-	root.set_meta("left_leg", left_leg_pivot)
-	root.set_meta("right_leg", right_leg_pivot)
-	return root
+		for button_y in [0.345, 0.38, 0.415]:
+			_add_box(Vector3(0.0, button_y, 0.06), Vector3(0.011, 0.011, 0.009), shirt_material, visual)
+
+	# Head: stacked jaw, cheek and brow blocks replace the old rounded head shell.
+	_add_box(Vector3(0.0, 0.478, 0.0), Vector3(0.046, 0.038, 0.046), skin_shadow, visual)
+	_add_box(Vector3(0.0, 0.505, 0.003), Vector3(0.078, 0.034, 0.086), skin_shadow, visual)
+	_add_box(Vector3(0.0, 0.542, 0.004), Vector3(0.108, 0.046, 0.094), skin_material, visual)
+	_add_box(Vector3(0.0, 0.582, 0.0), Vector3(0.116, 0.036, 0.098), skin_material, visual)
+	for ear_x in [-0.063, 0.063]:
+		_add_box(Vector3(ear_x, 0.554, 0.0), Vector3(0.018, 0.03, 0.026), skin_shadow, visual)
+	for eye_x in [-0.028, 0.028]:
+		_add_box(Vector3(eye_x, 0.568, 0.053), Vector3(0.011, 0.013, 0.008), face_material, visual)
+		_add_box(Vector3(eye_x, 0.584, 0.053), Vector3(0.025, 0.007, 0.008), hair_material, visual)
+	_add_box(Vector3(0.0, 0.548, 0.055), Vector3(0.011, 0.016, 0.009), skin_shadow, visual)
+	_add_box(Vector3(0.0, 0.526, 0.054), Vector3(0.028, 0.008, 0.008), face_material, visual)
+	for smile_x in [-0.017, 0.017]:
+		var smile_corner := _add_box(Vector3(smile_x, 0.53, 0.054), Vector3(0.009, 0.007, 0.008), face_material, visual)
+		smile_corner.rotation_degrees.z = float(smile_x) * 420.0
+
+	# Hair is a cap assembled from small tiles, plus variant-specific fringe/length.
+	for hair_x in [-0.042, 0.0, 0.042]:
+		_add_box(Vector3(hair_x, 0.616, -0.004), Vector3(0.045, 0.028, 0.096), hair_material, visual)
+	for fringe_x in [-0.038, 0.0, 0.038]:
+		var fringe_height := 0.034 if posmod(index + int(round(fringe_x * 100.0)), 2) == 0 else 0.025
+		_add_box(Vector3(fringe_x, 0.596, 0.045), Vector3(0.032, fringe_height, 0.022), hair_material, visual)
+	if index % 2 == 0:
+		_add_box(Vector3(-0.055, 0.58, -0.012), Vector3(0.022, 0.065, 0.08), hair_material, visual)
+	else:
+		for side in [-1.0, 1.0]:
+			_add_box(Vector3(float(side) * 0.057, 0.565, -0.01), Vector3(0.018, 0.09, 0.08), hair_material, visual)
+		_add_box(Vector3(0.0, 0.535, -0.052), Vector3(0.07, 0.055, 0.025), hair_material, visual)
+
+	if index % 4 == 0:
+		# Five-piece cap with a small brim instead of two oversized hat slabs.
+		for cap_x in [-0.04, 0.0, 0.04]:
+			_add_box(Vector3(cap_x, 0.648, -0.004), Vector3(0.044, 0.026, 0.082), coat_material, visual)
+		_add_box(Vector3(0.0, 0.636, 0.055), Vector3(0.15, 0.018, 0.045), coat_shadow, visual)
+		_add_box(Vector3(0.0, 0.668, -0.012), Vector3(0.078, 0.02, 0.06), coat_light, visual)
+	elif index % 3 == 1:
+		# A tiled scarf gives another readable silhouette without enlarging the body.
+		_add_box(Vector3(0.0, 0.468, 0.035), Vector3(0.12, 0.025, 0.04), coat_light, visual)
+		_add_box(Vector3(0.045, 0.445, 0.045), Vector3(0.032, 0.06, 0.025), coat_light, visual)
+
+	var left_arm_pivot := _build_extra_small_block_arm(visual, -1.0, coat_material, coat_light, coat_shadow, skin_material)
+	var right_arm_pivot := _build_extra_small_block_arm(visual, 1.0, coat_material, coat_light, coat_shadow, skin_material)
+	var left_leg_pivot := _build_extra_small_block_leg(visual, -1.0, pant_material, pant_light, shoe_material, shoe_highlight)
+	var right_leg_pivot := _build_extra_small_block_leg(visual, 1.0, pant_material, pant_light, shoe_material, shoe_highlight)
+
+	if index % 2 == 1:
+		# Shoulder bag assembled from a body, flap, clasp, side gussets and strap.
+		_add_box(Vector3(-0.14, 0.335, -0.052), Vector3(0.065, 0.085, 0.06), bag_material, visual)
+		_add_box(Vector3(-0.14, 0.375, -0.018), Vector3(0.06, 0.025, 0.012), coat_shadow, visual)
+		_add_box(Vector3(-0.14, 0.36, -0.01), Vector3(0.012, 0.016, 0.01), shirt_material, visual)
+		_add_box(Vector3(-0.105, 0.335, -0.052), Vector3(0.012, 0.075, 0.05), coat_shadow, visual)
+		_add_box(Vector3(-0.108, 0.43, -0.045), Vector3(0.02, 0.105, 0.02), bag_material, visual).rotation_degrees.z = -12.0
+
+	return {
+		"left_arm": left_arm_pivot,
+		"right_arm": right_arm_pivot,
+		"left_leg": left_leg_pivot,
+		"right_leg": right_leg_pivot,
+	}
+
+
+func _build_extra_small_block_arm(visual: Node3D, side: float, coat_material: Material, coat_light: Material, coat_shadow: Material, skin_material: Material) -> Node3D:
+	var pivot := Node3D.new()
+	pivot.name = "Left arm" if side < 0.0 else "Right arm"
+	pivot.position = Vector3(side * 0.12, 0.445, 0.0)
+	visual.add_child(pivot)
+	_add_box(Vector3(0.0, -0.025, 0.0), Vector3(0.058, 0.052, 0.062), coat_light, pivot)
+	_add_box(Vector3(0.0, -0.07, 0.0), Vector3(0.05, 0.048, 0.056), coat_material, pivot)
+	_add_box(Vector3(0.0, -0.105, 0.002), Vector3(0.052, 0.026, 0.055), coat_shadow, pivot)
+	_add_box(Vector3(0.0, -0.135, 0.006), Vector3(0.044, 0.038, 0.048), coat_material, pivot)
+	_add_box(Vector3(0.0, -0.166, 0.01), Vector3(0.042, 0.03, 0.045), coat_shadow, pivot)
+	_add_box(Vector3(0.0, -0.191, 0.012), Vector3(0.045, 0.028, 0.046), skin_material, pivot)
+	_add_box(Vector3(side * 0.01, -0.211, 0.018), Vector3(0.026, 0.022, 0.035), skin_material, pivot)
+	return pivot
+
+
+func _build_extra_small_block_leg(visual: Node3D, side: float, pant_material: Material, pant_light: Material, shoe_material: Material, shoe_highlight: Material) -> Node3D:
+	var pivot := Node3D.new()
+	pivot.name = "Left leg" if side < 0.0 else "Right leg"
+	pivot.position = Vector3(side * 0.044, 0.278, 0.0)
+	visual.add_child(pivot)
+	_add_box(Vector3(0.0, -0.025, 0.0), Vector3(0.064, 0.046, 0.068), pant_light, pivot)
+	_add_box(Vector3(0.0, -0.066, 0.0), Vector3(0.057, 0.044, 0.062), pant_material, pivot)
+	_add_box(Vector3(0.0, -0.101, 0.002), Vector3(0.055, 0.028, 0.06), pant_light, pivot)
+	_add_box(Vector3(0.0, -0.134, 0.004), Vector3(0.05, 0.04, 0.056), pant_material, pivot)
+	_add_box(Vector3(0.0, -0.17, 0.006), Vector3(0.048, 0.035, 0.052), pant_material, pivot)
+	_add_box(Vector3(0.0, -0.196, 0.012), Vector3(0.05, 0.022, 0.05), shoe_highlight, pivot)
+	_add_box(Vector3(0.0, -0.215, 0.034), Vector3(0.066, 0.028, 0.092), shoe_material, pivot)
+	_add_box(Vector3(0.0, -0.231, 0.05), Vector3(0.07, 0.012, 0.098), shoe_highlight, pivot)
+	return pivot
 
 
 func _animate_life(delta: float) -> void:
