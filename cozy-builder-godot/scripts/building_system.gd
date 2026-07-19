@@ -2,9 +2,10 @@ extends Node3D
 
 const GRID_SIZE := 64
 const TILE_SIZE := 1.0
+const SCENIC_MARGIN := 8.0
 const PAN_SPEED := 0.018
 const STARTING_MONEY := 500000
-const DEFAULT_ZOOM := 17.4
+const DEFAULT_ZOOM := 15.2
 const MIN_ZOOM := 6.0
 const MAX_ZOOM := 38.0
 const BUILD_TOOL_ROAD := "road"
@@ -161,7 +162,7 @@ const PROPERTY_VISUAL_PRESETS := {
 		"trim_color": "fff4df",
 		"accent_color": "e1b672",
 		"lot_type": "residential",
-		"lot_color": "8da56b",
+		"lot_color": "71845b",
 		"lot_size": Vector2(5.9, LOT_DEPTH + 1.34),
 		"building_z_offset": -BUILDING_SETBACK * 1.05,
 		"parking": "driveway",
@@ -562,8 +563,8 @@ const DEBUG_UPGRADES := false
 @onready var sun: DirectionalLight3D = $LightingController/Sun
 @onready var fill_light: DirectionalLight3D = $LightingController/FillLight
 
-var _focus := Vector3(0.0, 0.0, 0.0)
-var _target_focus := Vector3(0.0, 0.0, 0.0)
+var _focus := Vector3(1.2, 0.0, 0.2)
+var _target_focus := Vector3(1.2, 0.0, 0.2)
 var _zoom := DEFAULT_ZOOM
 var _target_zoom := DEFAULT_ZOOM
 var _camera_yaw := deg_to_rad(45.0)
@@ -808,10 +809,13 @@ func _input(event: InputEvent) -> void:
 
 func _build_materials() -> void:
 	_ground_material_a = _make_material("8cc775", 0.94)
-	# A calm matte field reads better at the isometric camera distance than the
-	# previous high-frequency grass texture. Small plants and dressed lots provide
-	# detail without turning the whole island into visual noise.
-	_ground_material_a.albedo_color = Color("70975f")
+	# The authored meadow is deliberately tinted down so it reads as hand-painted
+	# ground detail instead of high-frequency wallpaper beneath the town.
+	_ground_material_a.albedo_texture = GRASS_MEADOW_ALBEDO
+	_ground_material_a.albedo_color = Color("9aaa88")
+	_ground_material_a.uv1_scale = Vector3(6.0, 6.0, 6.0)
+	_ground_material_a.texture_repeat = true
+	_ground_material_a.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	_ground_material_b = _make_material("76b15f", 0.96)
 	_ground_material_c = _make_material("a9d986", 0.93)
 	_soil_material = _make_material("6b5137", 0.98)
@@ -912,7 +916,7 @@ func _build_hud() -> void:
 	_hud_panel = panel
 
 	var stack := VBoxContainer.new()
-	stack.add_theme_constant_override("separation", 4)
+	stack.add_theme_constant_override("separation", 5)
 	panel.add_child(stack)
 
 	var top_row := HFlowContainer.new()
@@ -920,10 +924,10 @@ func _build_hud() -> void:
 	stack.add_child(top_row)
 
 	var title := Label.new()
-	title.text = "Cozy Builder"
+	title.text = "COZY BUILDER"
 	title.add_theme_color_override("font_color", Color("f8f7f3"))
-	title.add_theme_font_size_override("font_size", 16)
-	title.custom_minimum_size = Vector2(110, 0)
+	title.add_theme_font_size_override("font_size", 15)
+	title.custom_minimum_size = Vector2(122, 0)
 	top_row.add_child(title)
 	_title_label = title
 
@@ -1004,14 +1008,14 @@ func _build_hud() -> void:
 	top_row.add_child(_home_button)
 
 	_rotate_left_button = Button.new()
-	_rotate_left_button.text = "L"
+	_rotate_left_button.text = "Q"
 	_rotate_left_button.tooltip_text = "Rotate view left (Q)"
 	_rotate_left_button.custom_minimum_size = Vector2(38, 0)
 	_rotate_left_button.pressed.connect(_rotate_camera.bind(-PI * 0.5))
 	top_row.add_child(_rotate_left_button)
 
 	_rotate_right_button = Button.new()
-	_rotate_right_button.text = "R"
+	_rotate_right_button.text = "E"
 	_rotate_right_button.tooltip_text = "Rotate view right (E)"
 	_rotate_right_button.custom_minimum_size = Vector2(38, 0)
 	_rotate_right_button.pressed.connect(_rotate_camera.bind(PI * 0.5))
@@ -1061,6 +1065,7 @@ func _build_hud() -> void:
 	_hint_label.add_theme_color_override("font_color", Color("a9bec5"))
 	_hint_label.add_theme_font_size_override("font_size", 11)
 	_hint_label.text = "Choose a build tool, then place it in the world. Right drag pans; Q/E rotates."
+	_hint_label.visible = false
 	stack.add_child(_hint_label)
 
 
@@ -1326,6 +1331,7 @@ func _apply_hud_layout() -> void:
 		_selection_label.add_theme_font_size_override("font_size", 10 if compact else 11)
 	if _hint_label:
 		_hint_label.add_theme_font_size_override("font_size", 10 if compact else 11)
+		_hint_label.visible = false
 	if _tool_dropdown:
 		_tool_dropdown.custom_minimum_size = Vector2(136 if compact else 160, 0)
 	if _place_button:
@@ -2973,8 +2979,8 @@ func create_lot_base(parent: Node, preset: Dictionary, size_override: Vector2 = 
 	var lot_color := str(preset.get("lot_color", "d9d0b9"))
 	var sidewalk: Dictionary = preset.get("sidewalk", {})
 	var sidewalk_back_z := float(sidewalk.get("z", lot_size.y * 0.45)) - float(sidewalk.get("depth", SIDEWALK_WIDTH)) * 0.5
-	var curb_material := _make_material("eee8dc", 0.92)
-	var paver_material := _make_material("d8c7ab", 0.9)
+	var curb_material := _make_material("cfc8b8", 0.94)
+	var paver_material := _make_material("c5b69d", 0.92)
 	_add_shadow_disc_local(Vector3(0.0, 0.002, 0.06), Vector2(lot_size.x * 1.04, lot_size.y * 1.02), 0.1, parent)
 	_add_box(Vector3(0.0, 0.02, 0.0), Vector3(lot_size.x + 0.16, 0.028, lot_size.y + 0.14), curb_material, parent)
 	if lot_type == "residential":
@@ -3808,7 +3814,7 @@ func _exit_fullscreen() -> void:
 
 
 func _reset_camera_view() -> void:
-	_target_focus = Vector3.ZERO
+	_target_focus = Vector3(1.2, 0.0, 0.2)
 	_focus = _target_focus
 	_target_zoom = DEFAULT_ZOOM
 	_zoom = _target_zoom
@@ -4060,6 +4066,7 @@ func _reset_nature_layer() -> void:
 			clump.queue_free()
 	_grass_clumps.clear()
 	_build_meadow()
+	_build_nature()
 
 
 func _clear_nature_for_cells(cells: Array[Vector2i]) -> void:
@@ -4814,8 +4821,8 @@ func _update_day_night_visuals() -> void:
 		env.fog_light_energy = 0.0
 		env.fog_density = 0.0
 		env.glow_enabled = true
-		env.glow_bloom = lerpf(0.0, 0.014, daylight_curve)
-		env.glow_intensity = lerpf(0.0, 0.075, daylight_curve)
+		env.glow_bloom = lerpf(0.035, 0.014, daylight_curve)
+		env.glow_intensity = lerpf(0.22, 0.075, daylight_curve)
 		env.adjustment_enabled = true
 		env.adjustment_brightness = lerpf(0.76, 1.0, daylight_scale)
 		env.adjustment_contrast = lerpf(1.12, 1.08, daylight_scale)
@@ -4833,7 +4840,7 @@ func _update_day_night_visuals() -> void:
 		if is_instance_valid(band):
 			var material := band.material_override as StandardMaterial3D
 			if material:
-				material.emission_energy_multiplier = 0.08 + town_strength * 0.025 + night_amount * 0.18
+				material.emission_energy_multiplier = 0.12 + town_strength * 0.16 + night_amount * 0.92
 
 
 func _spawn_road_tile(world_position: Vector3, preview: bool) -> Node3D:
@@ -4891,43 +4898,44 @@ func _make_panel_style(fill: Color, border: Color) -> StyleBoxFlat:
 	style.border_width_top = 1
 	style.border_width_right = 1
 	style.border_width_bottom = 1
-	style.corner_radius_top_left = 14
-	style.corner_radius_top_right = 14
-	style.corner_radius_bottom_right = 14
-	style.corner_radius_bottom_left = 14
-	style.content_margin_left = 14
-	style.content_margin_top = 12
-	style.content_margin_right = 14
-	style.content_margin_bottom = 12
+	style.corner_radius_top_left = 11
+	style.corner_radius_top_right = 11
+	style.corner_radius_bottom_right = 11
+	style.corner_radius_bottom_left = 11
+	style.content_margin_left = 12
+	style.content_margin_top = 9
+	style.content_margin_right = 12
+	style.content_margin_bottom = 9
 	return style
 
 
 func _make_glass_panel_style() -> StyleBoxFlat:
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.08, 0.11, 0.16, 0.34)
-	style.border_color = Color(0.94, 0.98, 1.0, 0.16)
+	style.bg_color = Color(0.055, 0.075, 0.085, 0.72)
+	style.border_color = Color(0.78, 0.9, 0.78, 0.24)
 	style.border_width_left = 1
 	style.border_width_top = 1
 	style.border_width_right = 1
 	style.border_width_bottom = 1
-	style.corner_radius_top_left = 20
-	style.corner_radius_top_right = 20
-	style.corner_radius_bottom_right = 20
-	style.corner_radius_bottom_left = 20
-	style.shadow_color = Color(0.0, 0.0, 0.0, 0.18)
-	style.shadow_size = 18
+	style.corner_radius_top_left = 16
+	style.corner_radius_top_right = 16
+	style.corner_radius_bottom_right = 16
+	style.corner_radius_bottom_left = 16
+	style.shadow_color = Color(0.0, 0.0, 0.0, 0.24)
+	style.shadow_size = 12
 	style.content_margin_left = 12
-	style.content_margin_top = 10
+	style.content_margin_top = 8
 	style.content_margin_right = 12
-	style.content_margin_bottom = 10
+	style.content_margin_bottom = 7
 	return style
 
 
 func _build_water_ring() -> void:
+	var scenic_radius := (float(GRID_SIZE) + SCENIC_MARGIN) * 0.5
 	var water := MeshInstance3D.new()
 	var water_mesh := CylinderMesh.new()
-	water_mesh.top_radius = float(GRID_SIZE) * 0.54
-	water_mesh.bottom_radius = float(GRID_SIZE) * 0.59
+	water_mesh.top_radius = scenic_radius + 3.4
+	water_mesh.bottom_radius = scenic_radius + 5.2
 	water_mesh.height = 0.22
 	water.mesh = water_mesh
 	water.material_override = _water_material
@@ -4936,8 +4944,8 @@ func _build_water_ring() -> void:
 
 	var shallows := MeshInstance3D.new()
 	var shallow_mesh := CylinderMesh.new()
-	shallow_mesh.top_radius = float(GRID_SIZE) * 0.515
-	shallow_mesh.bottom_radius = float(GRID_SIZE) * 0.54
+	shallow_mesh.top_radius = scenic_radius + 0.8
+	shallow_mesh.bottom_radius = scenic_radius + 3.4
 	shallow_mesh.height = 0.08
 	shallows.mesh = shallow_mesh
 	shallows.material_override = _make_transparent_material(Color("d7f3ee"), 0.2, 0.28)
@@ -4945,8 +4953,8 @@ func _build_water_ring() -> void:
 	grid_root.add_child(shallows)
 
 	for ring_data in [
-		{"radius": float(GRID_SIZE) * 0.506, "height": -0.425, "alpha": 0.16},
-		{"radius": float(GRID_SIZE) * 0.472, "height": -0.43, "alpha": 0.09},
+		{"radius": scenic_radius + 1.0, "height": -0.425, "alpha": 0.16},
+		{"radius": scenic_radius - 1.2, "height": -0.43, "alpha": 0.09},
 	]:
 		var ripple := MeshInstance3D.new()
 		var ripple_mesh := TorusMesh.new()
@@ -4964,7 +4972,7 @@ func _build_water_ring() -> void:
 func _build_island_base() -> void:
 	var base := MeshInstance3D.new()
 	var base_mesh := BoxMesh.new()
-	base_mesh.size = Vector3(GRID_SIZE + 4.6, 1.1, GRID_SIZE + 4.6)
+	base_mesh.size = Vector3(GRID_SIZE + SCENIC_MARGIN + 4.6, 1.1, GRID_SIZE + SCENIC_MARGIN + 4.6)
 	base.mesh = base_mesh
 	base.material_override = _soil_material
 	base.position = Vector3(0.0, -0.66, 0.0)
@@ -4975,7 +4983,7 @@ func _build_island_base() -> void:
 	# Keep the stone support clearly below the meadow surface. Its previous top
 	# face landed at the exact same y as MeadowSurface, which caused WebGL
 	# z-fighting stripes across the entire island.
-	lip_mesh.size = Vector3(GRID_SIZE + 1.4, 0.2, GRID_SIZE + 1.4)
+	lip_mesh.size = Vector3(GRID_SIZE + SCENIC_MARGIN + 1.4, 0.2, GRID_SIZE + SCENIC_MARGIN + 1.4)
 	lip.mesh = lip_mesh
 	lip.material_override = _make_material("9b8b72", 0.95)
 	lip.position = Vector3(0.0, -0.11, 0.0)
@@ -4985,7 +4993,7 @@ func _build_island_base() -> void:
 	var turf_mesh := BoxMesh.new()
 	# Keep the structural island cap below the authored meadow. Previously its top
 	# sat at y=0.06, hiding both the detailed ground and the lower sidewalk layers.
-	turf_mesh.size = Vector3(GRID_SIZE + 0.8, 0.08, GRID_SIZE + 0.8)
+	turf_mesh.size = Vector3(GRID_SIZE + SCENIC_MARGIN + 0.8, 0.08, GRID_SIZE + SCENIC_MARGIN + 0.8)
 	turf.mesh = turf_mesh
 	turf.material_override = _make_material("8fa369", 0.98)
 	turf.position = Vector3(0.0, -0.07, 0.0)
@@ -4999,7 +5007,7 @@ func _add_shoreline_pebbles() -> void:
 		_make_material("b9ad99", 0.94),
 		_make_material("eee2cc", 0.88),
 	]
-	var radius := float(GRID_SIZE) * 0.505
+	var radius := (float(GRID_SIZE) + SCENIC_MARGIN) * 0.5 + 0.3
 	for i in range(16):
 		var angle := TAU * float(i) / 16.0 + 0.12 * sin(float(i))
 		var cluster_center := Vector3(cos(angle) * radius, -0.36, sin(angle) * radius)
@@ -5010,7 +5018,7 @@ func _add_shoreline_pebbles() -> void:
 
 
 func _add_island_edge_layers() -> void:
-	var half := (float(GRID_SIZE) + 0.9) * 0.5
+	var half := (float(GRID_SIZE) + SCENIC_MARGIN + 0.9) * 0.5
 	var grass_lip := _make_material("9fb777", 0.96)
 	var soil_mid := _make_material("7c6246", 0.97)
 	var soil_low := _make_material("5f472f", 0.98)
@@ -5022,10 +5030,10 @@ func _add_island_edge_layers() -> void:
 		var y := float(layer["y"])
 		var w := float(layer["w"])
 		var material := layer["mat"] as Material
-		_add_box(Vector3(-half, y, 0.0), Vector3(w, 0.1, GRID_SIZE + 0.92), material, grid_root)
-		_add_box(Vector3(half, y, 0.0), Vector3(w, 0.1, GRID_SIZE + 0.92), material, grid_root)
-		_add_box(Vector3(0.0, y, -half), Vector3(GRID_SIZE + 0.92, 0.1, w), material, grid_root)
-		_add_box(Vector3(0.0, y, half), Vector3(GRID_SIZE + 0.92, 0.1, w), material, grid_root)
+		_add_box(Vector3(-half, y, 0.0), Vector3(w, 0.1, GRID_SIZE + SCENIC_MARGIN + 0.92), material, grid_root)
+		_add_box(Vector3(half, y, 0.0), Vector3(w, 0.1, GRID_SIZE + SCENIC_MARGIN + 0.92), material, grid_root)
+		_add_box(Vector3(0.0, y, -half), Vector3(GRID_SIZE + SCENIC_MARGIN + 0.92, 0.1, w), material, grid_root)
+		_add_box(Vector3(0.0, y, half), Vector3(GRID_SIZE + SCENIC_MARGIN + 0.92, 0.1, w), material, grid_root)
 
 
 func _build_diorama_backdrop() -> void:
@@ -5034,7 +5042,7 @@ func _build_diorama_backdrop() -> void:
 		_make_material("789765", 0.98),
 		_make_material("5f7d58", 0.98),
 	]
-	var ridge_radius := float(GRID_SIZE) * 0.58
+	var ridge_radius := (float(GRID_SIZE) + SCENIC_MARGIN) * 0.5 + 5.2
 	for i in range(12):
 		var angle := TAU * float(i) / 12.0 + 0.08 * sin(float(i) * 1.3)
 		var hill := _add_local_sphere(
@@ -5067,7 +5075,7 @@ func _build_ground_tiles() -> void:
 	var ground := MeshInstance3D.new()
 	ground.name = "MeadowSurface"
 	var ground_mesh := BoxMesh.new()
-	ground_mesh.size = Vector3(float(GRID_SIZE) + 0.08, 0.1, float(GRID_SIZE) + 0.08)
+	ground_mesh.size = Vector3(float(GRID_SIZE) + SCENIC_MARGIN + 0.08, 0.1, float(GRID_SIZE) + SCENIC_MARGIN + 0.08)
 	ground.mesh = ground_mesh
 	ground.material_override = _ground_material_a
 	ground.position = Vector3(0.0, -0.02, 0.0)
@@ -5080,7 +5088,7 @@ func _build_ground_tiles() -> void:
 		_add_edge_post(Vector3(edge - half, 0.12, -half - 0.9))
 		_add_edge_post(Vector3(edge - half, 0.12, half + 0.9))
 
-	var shore_ring := float(GRID_SIZE) * 0.5 - 2.1
+	var shore_ring := (float(GRID_SIZE) + SCENIC_MARGIN) * 0.5 - 1.7
 	var shore_inner := float(GRID_SIZE) * 0.22
 	for shore_pos in [
 		Vector3(-shore_ring, -0.14, -shore_inner * 1.4),
@@ -5158,6 +5166,25 @@ func _build_nature() -> void:
 		Vector3(0.0, 0.04, side_ring + 2.0)
 	]:
 		_add_park_corner(park_pos)
+
+	# Curated woodland pockets frame the starter town at the default camera zoom.
+	# They are registered as removable nature, so expanding players can still build
+	# through them without changing any placement rules.
+	for cluster_variant in [
+		{"center": Vector3(-12.6, 0.18, -7.4), "count": 3, "flower": _flower_material_blue},
+		{"center": Vector3(-12.0, 0.18, 6.9), "count": 2, "flower": _flower_material_pink},
+		{"center": Vector3(11.8, 0.18, -7.1), "count": 3, "flower": _flower_material_pink},
+		{"center": Vector3(13.2, 0.18, 6.4), "count": 2, "flower": _flower_material_blue},
+	]:
+		var cluster: Dictionary = cluster_variant
+		var center: Vector3 = cluster["center"]
+		var count := int(cluster["count"])
+		for index in range(count):
+			var angle := float(index) * 2.16 + center.x * 0.07
+			var radius := 0.68 + float(index % 2) * 0.36
+			_add_tree(center + Vector3(cos(angle) * radius, 0.0, sin(angle) * radius))
+		_add_flower_patch(center + Vector3(0.7, -0.1, 0.42), 7, cluster["flower"] as StandardMaterial3D)
+		_add_grass_clump(center + Vector3(-0.72, -0.1, -0.34), 1.1)
 
 
 func _cozy_palette(kind: String, variant: int) -> Dictionary:
@@ -8302,20 +8329,10 @@ func _add_tree(position_3d: Vector3) -> void:
 	var root := Node3D.new()
 	root.position = position_3d
 	_nature_root.add_child(root)
-	_register_nature_feature(root, 0.78)
-	_add_shadow_disc_local(Vector3(0.0, 0.01, 0.0), Vector2(0.9, 0.7), 0.18, root)
-	_add_local_cylinder(Vector3(0.0, 0.18, 0.0), 0.15, 0.18, 0.18, _trunk_material, root)
-	_add_local_cylinder(Vector3(0.0, 0.44, 0.0), 0.1, 0.075, 0.72, _trunk_material, root)
-	var left_branch := _add_box(Vector3(-0.09, 0.7, 0.02), Vector3(0.08, 0.28, 0.06), _trunk_material, root)
-	left_branch.rotation_degrees.z = -18.0
-	var right_branch := _add_box(Vector3(0.1, 0.72, -0.02), Vector3(0.07, 0.24, 0.06), _trunk_material, root)
-	right_branch.rotation_degrees.z = 20.0
-	_add_local_sphere(Vector3(0.0, 0.92, 0.02), 0.52, 0.86, _leaf_material, root)
-	_add_local_sphere(Vector3(-0.24, 0.84, 0.0), 0.36, 0.66, _leaf_material_light, root)
-	_add_local_sphere(Vector3(0.24, 0.84, -0.08), 0.32, 0.58, _leaf_material_dark, root)
-	_add_local_sphere(Vector3(0.08, 1.13, -0.06), 0.26, 0.4, _leaf_material_light, root)
-	_add_local_sphere(Vector3(-0.02, 0.74, 0.12), 0.3, 0.36, _leaf_material_dark, root)
-	_add_tree_detail_local(Vector3.ZERO, root)
+	_register_nature_feature(root, 0.92)
+	var variant := posmod(int(round(position_3d.x * 5.0 + position_3d.z * 7.0)), 3)
+	var scale_factor := 0.92 + float(posmod(int(abs(position_3d.x * 3.0 + position_3d.z * 5.0)), 4)) * 0.07
+	_add_authored_tree_local(Vector3.ZERO, root, variant, scale_factor)
 
 
 func _add_grass_clump(position_3d: Vector3, scale_factor: float) -> void:
@@ -9151,15 +9168,53 @@ func _place_road_light(cell: Vector2i, local_offset: Vector3, key: String) -> vo
 
 
 func _add_local_tree(position_3d: Vector3, parent: Node) -> void:
-	_add_shadow_disc_local(position_3d + Vector3(0.0, 0.01, 0.0), Vector2(0.82, 0.64), 0.16, parent)
-	_add_local_cylinder(position_3d + Vector3(0.0, 0.18, 0.0), 0.13, 0.16, 0.18, _trunk_material, parent)
-	_add_local_cylinder(position_3d + Vector3(0.0, 0.42, 0.0), 0.1, 0.075, 0.68, _trunk_material, parent)
-	_add_local_sphere(position_3d + Vector3(0.0, 0.92, 0.02), 0.52, 0.86, _leaf_material, parent)
-	_add_local_sphere(position_3d + Vector3(-0.22, 0.84, 0.0), 0.36, 0.66, _leaf_material_light, parent)
-	_add_local_sphere(position_3d + Vector3(0.24, 0.84, -0.08), 0.32, 0.58, _leaf_material_dark, parent)
-	_add_local_sphere(position_3d + Vector3(0.06, 1.11, -0.04), 0.24, 0.38, _leaf_material_light, parent)
-	_add_local_sphere(position_3d + Vector3(-0.02, 0.74, 0.12), 0.28, 0.34, _leaf_material_dark, parent)
-	_add_tree_detail_local(position_3d, parent)
+	var variant := posmod(int(round(position_3d.x * 9.0 + position_3d.z * 13.0)), 3)
+	_add_authored_tree_local(position_3d, parent, variant, 0.92)
+
+
+func _add_authored_tree_local(position_3d: Vector3, parent: Node, variant: int, scale_factor: float = 1.0) -> Node3D:
+	var tree := Node3D.new()
+	tree.position = position_3d
+	tree.scale = Vector3.ONE * scale_factor
+	parent.add_child(tree)
+	_add_shadow_disc_local(Vector3(0.0, 0.01, 0.0), Vector2(1.05, 0.82), 0.18, tree)
+	_add_local_cylinder(Vector3(0.0, 0.16, 0.0), 0.14, 0.18, 0.24, _trunk_material, tree)
+	_add_local_cylinder(Vector3(0.0, 0.48, 0.0), 0.075, 0.12, 0.72, _trunk_material, tree)
+
+	match posmod(variant, 3):
+		0:
+			# A broad cottage-garden tree with an irregular, layered crown.
+			var left_branch := _add_local_cylinder(Vector3(-0.1, 0.69, 0.02), 0.035, 0.055, 0.38, _trunk_material, tree)
+			left_branch.rotation_degrees.z = -31.0
+			var right_branch := _add_local_cylinder(Vector3(0.11, 0.72, -0.03), 0.035, 0.055, 0.34, _trunk_material, tree)
+			right_branch.rotation_degrees.z = 29.0
+			_add_local_sphere(Vector3(-0.2, 0.94, 0.02), 0.44, 0.66, _leaf_material, tree)
+			_add_local_sphere(Vector3(0.22, 0.9, -0.08), 0.4, 0.6, _leaf_material_dark, tree)
+			_add_local_sphere(Vector3(0.02, 1.2, -0.02), 0.36, 0.5, _leaf_material_light, tree)
+			_add_local_sphere(Vector3(0.0, 0.78, 0.18), 0.3, 0.38, _leaf_material_light, tree)
+			_add_tree_detail_local(Vector3.ZERO, tree)
+		1:
+			# A tapered evergreen breaks up the round-canopy repetition and gives the
+			# neighborhood a much more intentional skyline.
+			_add_local_cylinder(Vector3(0.0, 0.68, 0.0), 0.04, 0.46, 0.62, _leaf_material_dark, tree)
+			_add_local_cylinder(Vector3(0.0, 0.96, 0.0), 0.035, 0.38, 0.58, _leaf_material, tree)
+			_add_local_cylinder(Vector3(0.0, 1.22, 0.0), 0.02, 0.27, 0.48, _leaf_material_light, tree)
+			_add_local_cylinder(Vector3(0.0, 1.47, 0.0), 0.0, 0.17, 0.34, _leaf_material, tree)
+		_:
+			# A taller orchard form with visible branching and pockets of fruit.
+			for branch_data in [
+				{"position": Vector3(-0.12, 0.74, 0.02), "rotation": -35.0},
+				{"position": Vector3(0.13, 0.79, -0.02), "rotation": 33.0},
+			]:
+				var branch: Dictionary = branch_data
+				var branch_mesh := _add_local_cylinder(branch["position"], 0.032, 0.052, 0.42, _trunk_material, tree)
+				branch_mesh.rotation_degrees.z = float(branch["rotation"])
+			_add_local_sphere(Vector3(-0.24, 1.0, 0.04), 0.36, 0.58, _leaf_material_light, tree)
+			_add_local_sphere(Vector3(0.22, 1.04, -0.08), 0.38, 0.62, _leaf_material, tree)
+			_add_local_sphere(Vector3(0.0, 1.28, 0.0), 0.34, 0.52, _leaf_material_dark, tree)
+			_add_local_sphere(Vector3(0.02, 0.86, 0.18), 0.3, 0.4, _leaf_material, tree)
+			_add_tree_detail_local(Vector3.ZERO, tree)
+	return tree
 
 
 func _add_tree_detail_local(position_3d: Vector3, parent: Node) -> void:
@@ -9544,6 +9599,7 @@ func _add_local_cylinder(position_3d: Vector3, top_radius: float, bottom_radius:
 	mesh.top_radius = top_radius
 	mesh.bottom_radius = bottom_radius
 	mesh.height = height
+	mesh.radial_segments = 10
 	mesh_instance.mesh = mesh
 	mesh_instance.material_override = material
 	mesh_instance.position = position_3d
@@ -9556,6 +9612,8 @@ func _add_local_sphere(position_3d: Vector3, radius: float, height: float, mater
 	var mesh := SphereMesh.new()
 	mesh.radius = radius
 	mesh.height = height
+	mesh.radial_segments = 12
+	mesh.rings = 6
 	mesh_instance.mesh = mesh
 	mesh_instance.material_override = material
 	mesh_instance.position = position_3d
@@ -9569,6 +9627,7 @@ func _add_cylinder(position_3d: Vector3, top_radius: float, bottom_radius: float
 	mesh.top_radius = top_radius
 	mesh.bottom_radius = bottom_radius
 	mesh.height = height
+	mesh.radial_segments = 10
 	mesh_instance.mesh = mesh
 	mesh_instance.material_override = material
 	mesh_instance.position = position_3d
@@ -9581,6 +9640,8 @@ func _add_sphere(position_3d: Vector3, radius: float, height: float, material: M
 	var mesh := SphereMesh.new()
 	mesh.radius = radius
 	mesh.height = height
+	mesh.radial_segments = 12
+	mesh.rings = 6
 	mesh_instance.mesh = mesh
 	mesh_instance.material_override = material
 	mesh_instance.position = position_3d
