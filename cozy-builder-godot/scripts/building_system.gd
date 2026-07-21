@@ -8,6 +8,7 @@ const STARTING_MONEY := 500000
 const DEFAULT_ZOOM := 15.2
 const MIN_ZOOM := 6.0
 const MAX_ZOOM := 38.0
+const RESIDENT_VISUAL_SCALE := 0.72
 const BUILD_TOOL_ROAD := "road"
 const BUILD_TOOL_HOUSE := "house"
 const BUILD_TOOL_FIRE := "fire"
@@ -3508,6 +3509,7 @@ func _add_decorative_pedestrian_local(parent: Node, position_3d: Vector3, coat: 
 	var root := Node3D.new()
 	root.position = position_3d
 	root.rotation.y = rotation_y
+	root.scale = Vector3.ONE * RESIDENT_VISUAL_SCALE
 	parent.add_child(root)
 	var coat_material := _make_material_from_color(coat, 0.8)
 	var skin_material := _make_material("f0c7a2", 0.76)
@@ -4346,9 +4348,10 @@ func _spawn_ambient_person(anchor_key: String, index: int) -> Node3D:
 	root.set_meta("arrival_routine", _resident_arrival_routine(index))
 	root.set_meta("routine_timer", 0.0)
 	root.set_meta("walk_phase", randf() * TAU)
-	_add_shadow_disc_local(Vector3(0.0, 0.005, 0.0), Vector2(0.22, 0.22), 0.16, root)
+	_add_shadow_disc_local(Vector3(0.0, 0.005, 0.0), Vector2(0.16, 0.16), 0.14, root)
 	var visual := Node3D.new()
 	visual.name = "Resident visual"
+	visual.scale = Vector3.ONE * RESIDENT_VISUAL_SCALE
 	root.add_child(visual)
 	root.set_meta("visual", visual)
 	var resident_parts := _build_extra_small_block_resident(visual, index)
@@ -9617,37 +9620,116 @@ func _add_ripple_ring_local(center: Vector3, radius_x: float, radius_z: float, p
 
 
 func _add_gabled_roof(center: Vector3, size: Vector3, material: Material, parent: Node, tilt_degrees: float = 10.0) -> void:
-	var left := _add_box(center + Vector3(0.0, 0.0, size.z * 0.16), Vector3(size.x, size.y, size.z * 0.58), material, parent)
-	var right := _add_box(center + Vector3(0.0, 0.0, -size.z * 0.16), Vector3(size.x, size.y, size.z * 0.58), material, parent)
-	left.rotation_degrees.x = -tilt_degrees
-	right.rotation_degrees.x = tilt_degrees
-	_add_box(center + Vector3(0.0, size.y * 0.24, 0.0), Vector3(size.x * 0.12, size.y * 0.8, 0.08), material, parent)
+	# Build a true ridge instead of the old inward-folding pair of slabs. Keeping
+	# the pitch math in local space also makes the roof read correctly when an
+	# entire property turns 90 degrees to face a side road.
+	var pitch := clampf(absf(tilt_degrees), 6.0, 38.0)
+	var pitch_radians := deg_to_rad(pitch)
+	var half_run := size.z * 0.5
+	var slope_length := half_run / maxf(cos(pitch_radians), 0.2)
+	var rise := half_run * tan(pitch_radians)
+	var roof_thickness := clampf(size.y * 0.46, 0.05, 0.12)
+	var peak_y := center.y + rise * 0.5
+	var eave_y := center.y - rise * 0.5
+
+	var front_plane := _add_box(
+		center + Vector3(0.0, 0.0, half_run * 0.5),
+		Vector3(size.x, roof_thickness, slope_length),
+		material,
+		parent
+	)
+	var back_plane := _add_box(
+		center + Vector3(0.0, 0.0, -half_run * 0.5),
+		Vector3(size.x, roof_thickness, slope_length),
+		material,
+		parent
+	)
+	front_plane.rotation_degrees.x = pitch
+	back_plane.rotation_degrees.x = -pitch
+
 	var trim_material := _roof_fascia_material
+	var gable_material := material
 	var material_3d := material as StandardMaterial3D
 	if material_3d != null:
 		trim_material = _make_material_from_color(material_3d.albedo_color.darkened(0.28), 0.86)
-	_add_box(center + Vector3(0.0, size.y * 0.34, 0.0), Vector3(size.x * 0.96, maxf(0.035, size.y * 0.16), 0.055), trim_material, parent)
-	_add_box(center + Vector3(0.0, -size.y * 0.42, size.z * 0.49), Vector3(size.x * 1.04, maxf(0.035, size.y * 0.14), 0.08), trim_material, parent)
-	_add_box(center + Vector3(0.0, -size.y * 0.42, -size.z * 0.49), Vector3(size.x * 1.04, maxf(0.035, size.y * 0.14), 0.08), trim_material, parent)
-	_add_box(center + Vector3(size.x * 0.51, -size.y * 0.3, 0.0), Vector3(0.07, maxf(0.035, size.y * 0.12), size.z * 0.86), trim_material, parent)
-	_add_box(center + Vector3(-size.x * 0.51, -size.y * 0.3, 0.0), Vector3(0.07, maxf(0.035, size.y * 0.12), size.z * 0.86), trim_material, parent)
-	_add_roof_ridge_details(center, size, trim_material, parent)
+		# Keep the triangular end visually attached to the wall mass. A full dark
+		# roof-colored triangle turns side-facing homes into giant arrow shapes.
+		gable_material = _make_material_from_color(material_3d.albedo_color.lightened(0.58), 0.92)
 
-
-func _add_roof_ridge_details(center: Vector3, size: Vector3, material: Material, parent: Node) -> void:
-	_add_box(center + Vector3(0.0, size.y * 0.5, 0.0), Vector3(size.x * 0.84, maxf(0.03, size.y * 0.12), 0.055), material, parent)
+	# A slim ridge, proper eaves, and sloped end rakes replace the heavy flat bars
+	# that used to cut across the end of side-facing buildings.
+	_add_box(Vector3(center.x, peak_y + roof_thickness * 0.2, center.z), Vector3(size.x * 1.02, 0.055, 0.07), trim_material, parent)
 	for z_sign in [-1.0, 1.0]:
-		for row in range(2):
-			var z: float = float(z_sign) * (size.z * (0.18 + float(row) * 0.16))
-			_add_box(center + Vector3(0.0, -size.y * 0.05 + float(row) * size.y * 0.08, z), Vector3(size.x * 0.72, 0.026, 0.035), material, parent)
-	if size.x > 0.9 and size.z > 0.8:
-		var vent_material := _make_material("efe6d6", 0.76)
-		for x_sign in [-1.0, 1.0]:
-			var vent_x: float = float(x_sign) * size.x * 0.24
-			_add_box(center + Vector3(vent_x, size.y * 0.58, -size.z * 0.1), Vector3(0.14, 0.05, 0.12), vent_material, parent)
-			_add_box(center + Vector3(vent_x, size.y * 0.64, -size.z * 0.1), Vector3(0.11, 0.04, 0.09), material, parent)
-	if size.x > 1.8:
-		_add_box(center + Vector3(-size.x * 0.32, size.y * 0.3, size.z * 0.18), Vector3(0.26, 0.035, 0.16), _window_material, parent)
+		_add_box(
+			Vector3(center.x, eave_y, center.z + float(z_sign) * half_run),
+			Vector3(size.x * 1.04, 0.055, 0.075),
+			trim_material,
+			parent
+		)
+	for x_sign in [-1.0, 1.0]:
+		var end_x := center.x + float(x_sign) * size.x * 0.505
+		var front_rake := _add_box(
+			Vector3(end_x, center.y, center.z + half_run * 0.5),
+			Vector3(0.06, 0.055, slope_length),
+			trim_material,
+			parent
+		)
+		var back_rake := _add_box(
+			Vector3(end_x, center.y, center.z - half_run * 0.5),
+			Vector3(0.06, 0.055, slope_length),
+			trim_material,
+			parent
+		)
+		front_rake.rotation_degrees.x = pitch
+		back_rake.rotation_degrees.x = -pitch
+
+	_add_gable_end_caps(center, size, eave_y, peak_y, gable_material, parent)
+	_add_roof_ridge_details(center, size, trim_material, parent, pitch, roof_thickness)
+
+
+func _add_gable_end_caps(center: Vector3, size: Vector3, eave_y: float, peak_y: float, material: Material, parent: Node) -> void:
+	# Solid triangular end panels keep a side view from exposing the overlapping
+	# undersides of roof primitives. Both windings are authored explicitly so the
+	# outward face renders correctly with back-face culling enabled.
+	var half_width := size.x * 0.5
+	var half_run := size.z * 0.5
+	var mesh := ImmediateMesh.new()
+	mesh.surface_begin(Mesh.PRIMITIVE_TRIANGLES, material)
+
+	mesh.surface_set_normal(Vector3.LEFT)
+	mesh.surface_add_vertex(Vector3(center.x - half_width, eave_y, center.z - half_run))
+	mesh.surface_add_vertex(Vector3(center.x - half_width, eave_y, center.z + half_run))
+	mesh.surface_add_vertex(Vector3(center.x - half_width, peak_y, center.z))
+
+	mesh.surface_set_normal(Vector3.RIGHT)
+	mesh.surface_add_vertex(Vector3(center.x + half_width, eave_y, center.z + half_run))
+	mesh.surface_add_vertex(Vector3(center.x + half_width, eave_y, center.z - half_run))
+	mesh.surface_add_vertex(Vector3(center.x + half_width, peak_y, center.z))
+	mesh.surface_end()
+
+	var caps := MeshInstance3D.new()
+	caps.name = "Gable end caps"
+	caps.mesh = mesh
+	parent.add_child(caps)
+
+
+func _add_roof_ridge_details(center: Vector3, size: Vector3, material: Material, parent: Node, pitch: float, roof_thickness: float) -> void:
+	# Two quiet shingle courses per side add scale without the floating vents and
+	# crossbars that made the old roofs look stacked from oblique angles.
+	var half_run := size.z * 0.5
+	var rise := half_run * tan(deg_to_rad(pitch))
+	var peak_y := center.y + rise * 0.5
+	for z_sign in [-1.0, 1.0]:
+		for course in [0.38, 0.7]:
+			var z := center.z + float(z_sign) * half_run * float(course)
+			var y := peak_y - rise * float(course) + roof_thickness * 0.52
+			var seam := _add_box(
+				Vector3(center.x, y, z),
+				Vector3(size.x * 0.88, 0.018, 0.035),
+				material,
+				parent
+			)
+			seam.rotation_degrees.x = float(z_sign) * pitch
 
 
 func _add_facade_trim_package(parent: Node, width: float, height: float, z: float, palette: Dictionary, accent_name: String = "") -> void:
