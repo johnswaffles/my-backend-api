@@ -5,10 +5,10 @@ const Kit = preload("res://scripts/cozy_visual_kit.gd")
 const PROPERTY_ROWS := [
 	{"label": "HOUSE", "variants": ["suburban cottage", "modern boxy", "farmhouse", "townhome"], "colors": ["f4e3cf", "e7eef0", "f2e8d8", "ece2d2"], "roofs": ["c87349", "55728e", "8d5b40", "7c9359"], "parking": "driveway"},
 	{"label": "FIRE DEPT", "variants": ["classic brick", "modern civic", "volunteer", "industrial"], "colors": ["c94f45", "d85c4e", "bd443f", "b93f3a"], "roofs": ["34383d", "3e4248", "4b4542", "30353a"], "parking": "apron"},
-	{"label": "BANK", "variants": ["traditional", "modern glass", "brick branch", "premium"], "colors": ["dfe8ef", "d8e3ea", "b96b58", "e9edf0"], "roofs": ["557da1", "3f6078", "53616e", "6c7f90"], "parking": "small_lot"},
+	{"label": "BANK", "variants": ["community trust", "blueglass credit", "heritage savings"], "colors": ["dfe8ef", "d8e3ea", "b96b58"], "roofs": ["557da1", "3f6078", "53616e"], "parking": "customer_lot"},
 	{"label": "GROCERY", "variants": ["milk & bread", "freshway", "harvest value"], "colors": ["f3dfc4", "e7ecd9", "dfd7c5"], "roofs": ["a95543", "4f8750", "53666a"], "parking": "grocery_front_parking"},
-	{"label": "TASTY BITES", "variants": ["diner", "bistro", "family", "upscale patio"], "colors": ["f7d9bf", "ffe4d2", "f3ddc8", "ead8c9"], "roofs": ["c96b5f", "d77758", "b85b4f", "d96f4f"], "parking": "small_lot"},
-	{"label": "QUICK MART", "variants": ["quick mart", "canopy mart", "urban shop", "mini-mart"], "colors": ["f2e8d8", "e8edf0", "fdebd7", "e7dfc4"], "roofs": ["557da1", "4f76a0", "66839a", "416d96"], "parking": "compact_lot"},
+	{"label": "RESTAURANT", "variants": ["sunset diner", "burger loop", "hearth & table"], "colors": ["f7d9bf", "f5dfc4", "f3ddc8"], "roofs": ["c96b5f", "d85b4d", "b85b4f"], "parking": "customer_lot"},
+	{"label": "CORNER STORE", "variants": ["neighborhood mart", "main street shop", "metro mini"], "colors": ["f2e8d8", "fdebd7", "e7dfc4"], "roofs": ["557da1", "66839a", "416d96"], "parking": "customer_lot"},
 ]
 
 @onready var camera: Camera3D = $Camera3D
@@ -76,7 +76,7 @@ func _build_showcase_grid() -> void:
 		for variant_index in range((row["variants"] as Array).size()):
 			var variant_label := str((row["variants"] as Array)[variant_index])
 			_add_variant_label(variant_label, Vector3(-8.5 + float(variant_index) * 5.3, 0.08, row_z + 1.0))
-			for tier in range(1, 5):
+			for tier in range(1, 6):
 				var x := -9.55 + float(variant_index) * 5.3 + float(tier - 1) * 1.04
 				_build_property_sample(row, variant_index, tier, Vector3(x, 0.0, row_z))
 

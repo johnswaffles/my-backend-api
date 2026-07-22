@@ -8,9 +8,11 @@ const SERVICE_MAX_TIER := 5
 
 const DEFAULT_TIER_LABELS := ["base", "refined", "developed", "grand"]
 const HOUSE_TIER_LABELS := ["base", "entry", "family", "two-story", "estate"]
-const RESTAURANT_TIER_LABELS := ["base", "expanded", "dining hall", "landmark", "two-story"]
+const RESTAURANT_TIER_LABELS := ["open for business", "covered entry", "expanded dining", "full-service landmark", "flagship restaurant"]
 const SERVICE_TIER_LABELS := ["base", "expanded", "developed", "landmark", "signature"]
 const GROCERY_TIER_LABELS := ["neighborhood market", "covered storefront", "department expansion", "market hall", "flagship market"]
+const BANK_TIER_LABELS := ["neighborhood branch", "protected entry", "teller expansion", "regional bank", "flagship bank"]
+const CORNER_STORE_TIER_LABELS := ["neighborhood shop", "covered storefront", "delivery expansion", "corner landmark", "flagship mart"]
 
 const UPGRADEABLE_TOOLS := {
 	"house": true,
@@ -285,6 +287,10 @@ static func _tier_labels(tool: String) -> Array:
 		return RESTAURANT_TIER_LABELS
 	if tool == "grocery":
 		return GROCERY_TIER_LABELS
+	if tool == "bank":
+		return BANK_TIER_LABELS
+	if tool == "corner_store":
+		return CORNER_STORE_TIER_LABELS
 	if tool in ["fire", "bank", "grocery", "corner_store"]:
 		return SERVICE_TIER_LABELS
 	return DEFAULT_TIER_LABELS
