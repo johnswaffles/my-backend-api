@@ -6,7 +6,7 @@ const PROPERTY_ROWS := [
 	{"label": "HOUSE", "variants": ["suburban cottage", "modern boxy", "farmhouse", "townhome"], "colors": ["f4e3cf", "e7eef0", "f2e8d8", "ece2d2"], "roofs": ["c87349", "55728e", "8d5b40", "7c9359"], "parking": "driveway"},
 	{"label": "FIRE DEPT", "variants": ["classic brick", "modern civic", "volunteer", "industrial"], "colors": ["c94f45", "d85c4e", "bd443f", "b93f3a"], "roofs": ["34383d", "3e4248", "4b4542", "30353a"], "parking": "apron"},
 	{"label": "BANK", "variants": ["traditional", "modern glass", "brick branch", "premium"], "colors": ["dfe8ef", "d8e3ea", "b96b58", "e9edf0"], "roofs": ["557da1", "3f6078", "53616e", "6c7f90"], "parking": "small_lot"},
-	{"label": "GROCERY", "variants": ["local market", "green super", "warehouse", "organic"], "colors": ["f2e8d8", "e8ecd8", "e3ddca", "f6ecd5"], "roofs": ["6faf5f", "5c9c52", "668f53", "74a66a"], "parking": "medium_lot"},
+	{"label": "GROCERY", "variants": ["milk & bread", "freshway", "harvest value"], "colors": ["f3dfc4", "e7ecd9", "dfd7c5"], "roofs": ["a95543", "4f8750", "53666a"], "parking": "grocery_front_parking"},
 	{"label": "TASTY BITES", "variants": ["diner", "bistro", "family", "upscale patio"], "colors": ["f7d9bf", "ffe4d2", "f3ddc8", "ead8c9"], "roofs": ["c96b5f", "d77758", "b85b4f", "d96f4f"], "parking": "small_lot"},
 	{"label": "QUICK MART", "variants": ["quick mart", "canopy mart", "urban shop", "mini-mart"], "colors": ["f2e8d8", "e8edf0", "fdebd7", "e7dfc4"], "roofs": ["557da1", "4f76a0", "66839a", "416d96"], "parking": "compact_lot"},
 ]
@@ -73,7 +73,7 @@ func _build_showcase_grid() -> void:
 		var row := PROPERTY_ROWS[row_index] as Dictionary
 		var row_z := 5.3 - float(row_index) * 3.25
 		_add_row_label(str(row["label"]), Vector3(-11.25, 0.08, row_z + 0.98))
-		for variant_index in range(4):
+		for variant_index in range((row["variants"] as Array).size()):
 			var variant_label := str((row["variants"] as Array)[variant_index])
 			_add_variant_label(variant_label, Vector3(-8.5 + float(variant_index) * 5.3, 0.08, row_z + 1.0))
 			for tier in range(1, 5):

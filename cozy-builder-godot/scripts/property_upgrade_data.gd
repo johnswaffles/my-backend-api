@@ -10,6 +10,7 @@ const DEFAULT_TIER_LABELS := ["base", "refined", "developed", "grand"]
 const HOUSE_TIER_LABELS := ["base", "entry", "family", "two-story", "estate"]
 const RESTAURANT_TIER_LABELS := ["base", "expanded", "dining hall", "landmark", "two-story"]
 const SERVICE_TIER_LABELS := ["base", "expanded", "developed", "landmark", "signature"]
+const GROCERY_TIER_LABELS := ["neighborhood market", "covered storefront", "department expansion", "market hall", "flagship market"]
 
 const UPGRADEABLE_TOOLS := {
 	"house": true,
@@ -190,11 +191,11 @@ const VISUAL_PROFILES := {
 		5: {"front_hall": true, "side_wing": true, "plaza": true, "upper_story": true, "grand_hall": true, "landscaping": false},
 	},
 	"grocery": {
-		1: {"awning": false, "service_wing": false, "market_hall": false, "upper_story": false, "parking_lot": false},
-		2: {"awning": true, "service_wing": false, "market_hall": false, "upper_story": false, "parking_lot": false},
-		3: {"awning": true, "service_wing": true, "market_hall": false, "upper_story": false, "parking_lot": false},
-		4: {"awning": true, "service_wing": true, "market_hall": true, "upper_story": false, "parking_lot": false},
-		5: {"awning": true, "service_wing": true, "market_hall": true, "upper_story": true, "parking_lot": true},
+		1: {"customer_entry": true, "front_parking": true, "produce_display": true, "department_wing": false, "market_hall": false, "flagship": false},
+		2: {"customer_entry": true, "front_parking": true, "covered_storefront": true, "cart_corral": true, "department_wing": false, "market_hall": false, "flagship": false},
+		3: {"customer_entry": true, "front_parking": true, "covered_storefront": true, "cart_corral": true, "department_wing": true, "second_department": true, "market_hall": false, "flagship": false},
+		4: {"customer_entry": true, "front_parking": true, "covered_storefront": true, "cart_corral": true, "department_wing": true, "second_department": true, "market_hall": true, "parking_lights": true, "flagship": false},
+		5: {"customer_entry": true, "front_parking": true, "covered_storefront": true, "cart_corral": true, "department_wing": true, "second_department": true, "market_hall": true, "parking_lights": true, "entry_vestibule": true, "flagship": true},
 	},
 	"restaurant": {
 		1: {"front_expansion": false, "dining_wing": false, "kitchen_wing": false, "signature_front": false, "second_floor": false},
@@ -282,6 +283,8 @@ static func _tier_labels(tool: String) -> Array:
 		return HOUSE_TIER_LABELS
 	if tool == "restaurant":
 		return RESTAURANT_TIER_LABELS
+	if tool == "grocery":
+		return GROCERY_TIER_LABELS
 	if tool in ["fire", "bank", "grocery", "corner_store"]:
 		return SERVICE_TIER_LABELS
 	return DEFAULT_TIER_LABELS

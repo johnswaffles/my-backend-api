@@ -215,13 +215,13 @@ const PROPERTY_VISUAL_PRESETS := {
 		"accent_color": "76d263",
 		"lot_type": "commercial",
 		"lot_color": "d5d1bc",
-		"lot_size": Vector2(5.44, LOT_DEPTH + 0.18),
+		"lot_size": Vector2(5.7, LOT_DEPTH + 0.8),
 		"building_z_offset": -BUILDING_SETBACK * 1.18,
-		"parking": "medium_lot",
-		"parking_position": Vector3(0.0, 0.0, LOT_PARKING_Z + 0.08),
-		"parking_size": Vector3(4.58, 1.0, PARKING_DEPTH + 0.06),
+		"parking": "grocery_front_parking",
+		"parking_position": Vector3(0.0, 0.0, LOT_PARKING_Z + 0.2),
+		"parking_size": Vector3(4.92, 1.0, PARKING_DEPTH + 0.48),
 		"parking_spaces": 5,
-		"sidewalk": {"width": 1.28, "z": LOT_FRONT_SIDEWALK_Z + 0.02, "depth": SIDEWALK_WIDTH},
+		"sidewalk": {"width": 1.42, "z": LOT_FRONT_SIDEWALK_Z + 0.26, "depth": 0.68},
 		"hedges": {"width": 5.1, "depth": LOT_DEPTH - 0.1},
 		"props": ["cart_rack", "produce_crates", "large_sign", "handicap_space"],
 	},
@@ -265,7 +265,7 @@ const PROPERTY_VISUAL_PRESETS := {
 const COMMERCIAL_VISUAL_PRESETS := {
 	BUILD_TOOL_FIRE: {"identity": "civic", "sign": "fire", "parking": "front_apron", "mood": "bold"},
 	BUILD_TOOL_BANK: {"identity": "formal", "sign": "bank", "parking": "small_lot", "mood": "prestige"},
-	BUILD_TOOL_GROCERY: {"identity": "market", "sign": "grocer", "parking": "medium_lot", "mood": "fresh"},
+	BUILD_TOOL_GROCERY: {"identity": "market", "sign": "grocer", "parking": "grocery_front_parking", "mood": "fresh"},
 	BUILD_TOOL_RESTAURANT: {"identity": "hospitality", "sign": "restaurant", "parking": "small_lot", "mood": "warm"},
 	BUILD_TOOL_CORNER_STORE: {"identity": "convenience", "sign": "quick_mart", "parking": "compact_lot", "mood": "bright"},
 }
@@ -365,29 +365,26 @@ const PROPERTY_VARIANTS := {
 		},
 	},
 	BUILD_TOOL_GROCERY: {
-		"local_market": {"variant_name": "Local Market", "style_notes": "small neighborhood market, warm storefront, simple sign", "wall_color": "f2e8d8", "roof_color": "6faf5f", "trim_color": "fff4df", "accent_color": "ffd067", "tiers": {
-			1: {"width": 2.66, "depth": 1.62, "height": 0.94, "center_z": -0.62, "front_z": 0.2, "wing": 0, "glass": false, "signature": false, "roof": "gabled", "awning": "round"},
-			2: {"width": 3.06, "depth": 1.84, "height": 1.02, "center_z": -0.68, "front_z": 0.28, "wing": 0, "glass": false, "signature": false, "roof": "gabled", "awning": "round"},
-			3: {"width": 3.42, "depth": 2.04, "height": 1.1, "center_z": -0.76, "front_z": 0.34, "wing": 1, "glass": true, "signature": true, "roof": "gabled", "awning": "round"},
-			4: {"width": 3.72, "depth": 2.2, "height": 1.18, "center_z": -0.82, "front_z": 0.4, "wing": 2, "glass": true, "signature": true, "roof": "gabled", "awning": "round"},
+		"local_market": {"variant_name": "Milk & Bread Market", "style_notes": "warm neighborhood grocer with a pitched market roof, produce porch, bakery bay, and obvious customer entrance", "wall_color": "f3dfc4", "roof_color": "a95543", "trim_color": "fff4df", "accent_color": "6eaa62", "tiers": {
+			1: {"width": 3.0, "depth": 1.74, "height": 0.98, "center_z": -0.72, "front_z": 0.2, "entry_x": 0.34, "wing": 0, "roof": "gabled", "stage": "neighborhood"},
+			2: {"width": 3.38, "depth": 1.92, "height": 1.06, "center_z": -0.78, "front_z": 0.22, "entry_x": 0.42, "wing": 0, "roof": "gabled", "stage": "produce_porch", "produce_porch": true},
+			3: {"width": 3.76, "depth": 2.12, "height": 1.14, "center_z": -0.86, "front_z": 0.24, "entry_x": 0.48, "wing": 1, "roof": "gabled", "stage": "bakery", "produce_porch": true, "bakery": true},
+			4: {"width": 4.14, "depth": 2.34, "height": 1.24, "center_z": -0.96, "front_z": 0.26, "entry_x": 0.54, "wing": 2, "roof": "gabled", "stage": "market_hall", "produce_porch": true, "bakery": true, "clerestory": true},
+			5: {"width": 4.5, "depth": 2.54, "height": 1.34, "center_z": -1.06, "front_z": 0.28, "entry_x": 0.58, "wing": 2, "roof": "gabled", "stage": "flagship", "produce_porch": true, "bakery": true, "clerestory": true, "vestibule": true, "signature": true},
 		}},
-		"green_supermarket": {"variant_name": "Green Supermarket", "style_notes": "green branded market, broad glass front, cart area", "wall_color": "e8ecd8", "roof_color": "5c9c52", "trim_color": "fff4df", "accent_color": "76d263", "tiers": {
-			1: {"width": 2.86, "depth": 1.7, "height": 0.96, "center_z": -0.66, "front_z": 0.22, "wing": 0, "glass": true, "signature": false, "roof": "flat", "awning": "round"},
-			2: {"width": 3.34, "depth": 1.96, "height": 1.06, "center_z": -0.72, "front_z": 0.3, "wing": 1, "glass": true, "signature": false, "roof": "flat", "awning": "round"},
-			3: {"width": 3.78, "depth": 2.18, "height": 1.16, "center_z": -0.78, "front_z": 0.36, "wing": 2, "glass": true, "signature": true, "roof": "flat", "awning": "round"},
-			4: {"width": 4.24, "depth": 2.48, "height": 1.34, "center_z": -0.88, "front_z": 0.46, "wing": 2, "glass": true, "signature": true, "roof": "flat", "awning": "round"},
+		"green_supermarket": {"variant_name": "Freshway Supermarket", "style_notes": "modern neighborhood supermarket with a broad glass facade, covered cart vestibule, pickup bay, and clerestory hall", "wall_color": "e7ecd9", "roof_color": "4f8750", "trim_color": "fff9ea", "accent_color": "72c765", "tiers": {
+			1: {"width": 3.14, "depth": 1.8, "height": 1.0, "center_z": -0.74, "front_z": 0.2, "entry_x": -0.34, "wing": 0, "roof": "flat", "stage": "fresh_shop"},
+			2: {"width": 3.54, "depth": 2.0, "height": 1.1, "center_z": -0.82, "front_z": 0.22, "entry_x": -0.42, "wing": 0, "roof": "flat", "stage": "vestibule", "vestibule": true},
+			3: {"width": 3.92, "depth": 2.2, "height": 1.2, "center_z": -0.9, "front_z": 0.24, "entry_x": -0.48, "wing": 1, "roof": "flat", "stage": "pickup", "vestibule": true, "pickup": true},
+			4: {"width": 4.32, "depth": 2.42, "height": 1.32, "center_z": -1.0, "front_z": 0.26, "entry_x": -0.54, "wing": 2, "roof": "flat", "stage": "market_hall", "vestibule": true, "pickup": true, "clerestory": true},
+			5: {"width": 4.66, "depth": 2.62, "height": 1.42, "center_z": -1.1, "front_z": 0.28, "entry_x": -0.58, "wing": 2, "roof": "flat", "stage": "flagship", "vestibule": true, "pickup": true, "clerestory": true, "second_entry": true, "signature": true},
 		}},
-		"warehouse_grocery": {"variant_name": "Warehouse-Style Grocery", "style_notes": "wide practical mass, flat roof, service loading feel", "wall_color": "e3ddca", "roof_color": "668f53", "trim_color": "e8ddcc", "accent_color": "7cc6e4", "tiers": {
-			1: {"width": 3.02, "depth": 1.76, "height": 0.92, "center_z": -0.68, "front_z": 0.22, "wing": 0, "glass": false, "signature": false, "roof": "shed", "awning": "bold"},
-			2: {"width": 3.52, "depth": 2.04, "height": 1.02, "center_z": -0.74, "front_z": 0.3, "wing": 1, "glass": false, "signature": false, "roof": "shed", "awning": "bold"},
-			3: {"width": 3.96, "depth": 2.32, "height": 1.12, "center_z": -0.82, "front_z": 0.38, "wing": 2, "glass": true, "signature": true, "roof": "shed", "awning": "bold"},
-			4: {"width": 4.32, "depth": 2.58, "height": 1.24, "center_z": -0.9, "front_z": 0.46, "wing": 3, "glass": true, "signature": true, "roof": "shed", "awning": "bold"},
-		}},
-		"organic_market": {"variant_name": "Organic Market", "style_notes": "wood accents, produce display, softer natural palette", "wall_color": "f6ecd5", "roof_color": "74a66a", "trim_color": "ead7b8", "accent_color": "5fae54", "tiers": {
-			1: {"width": 2.72, "depth": 1.66, "height": 0.94, "center_z": -0.62, "front_z": 0.22, "wing": 0, "glass": false, "signature": false, "roof": "gabled", "awning": "stripe"},
-			2: {"width": 3.16, "depth": 1.9, "height": 1.04, "center_z": -0.7, "front_z": 0.3, "wing": 1, "glass": true, "signature": false, "roof": "gabled", "awning": "stripe"},
-			3: {"width": 3.56, "depth": 2.14, "height": 1.14, "center_z": -0.78, "front_z": 0.38, "wing": 1, "glass": true, "signature": true, "roof": "gabled", "awning": "stripe"},
-			4: {"width": 3.9, "depth": 2.34, "height": 1.24, "center_z": -0.84, "front_z": 0.44, "wing": 2, "glass": true, "signature": true, "roof": "gabled", "awning": "stripe"},
+		"warehouse_grocery": {"variant_name": "Harvest Value Market", "style_notes": "practical value grocer with a masonry customer facade, broad weather canopy, bulk-food annex, and a side delivery bay", "wall_color": "dfd7c5", "roof_color": "53666a", "trim_color": "f3ead8", "accent_color": "e49a45", "tiers": {
+			1: {"width": 3.18, "depth": 1.84, "height": 1.0, "center_z": -0.76, "front_z": 0.2, "entry_x": 0.34, "wing": 0, "roof": "shed", "stage": "value_shop"},
+			2: {"width": 3.58, "depth": 2.04, "height": 1.1, "center_z": -0.84, "front_z": 0.22, "entry_x": 0.42, "wing": 0, "roof": "shed", "stage": "weather_canopy", "wide_canopy": true},
+			3: {"width": 3.98, "depth": 2.26, "height": 1.2, "center_z": -0.94, "front_z": 0.24, "entry_x": 0.48, "wing": 1, "roof": "shed", "stage": "bulk_annex", "wide_canopy": true, "bulk_annex": true},
+			4: {"width": 4.38, "depth": 2.48, "height": 1.32, "center_z": -1.04, "front_z": 0.26, "entry_x": 0.54, "wing": 2, "roof": "shed", "stage": "food_depot", "wide_canopy": true, "bulk_annex": true, "loading_bay": true, "clerestory": true},
+			5: {"width": 4.7, "depth": 2.66, "height": 1.44, "center_z": -1.13, "front_z": 0.28, "entry_x": 0.58, "wing": 2, "roof": "shed", "stage": "flagship", "wide_canopy": true, "bulk_annex": true, "loading_bay": true, "clerestory": true, "vestibule": true, "signature": true},
 		}},
 	},
 	BUILD_TOOL_RESTAURANT: {
@@ -459,7 +456,7 @@ const PROPERTY_VARIANT_ORDER := {
 	BUILD_TOOL_HOUSE: ["suburban_cottage", "modern_boxy_house", "farmhouse_style", "compact_townhome"],
 	BUILD_TOOL_FIRE: ["classic_brick_station", "modern_civic_station", "volunteer_station", "industrial_emergency_station"],
 	BUILD_TOOL_BANK: ["traditional_column_bank", "modern_glass_bank", "small_town_brick_bank", "premium_financial_center"],
-	BUILD_TOOL_GROCERY: ["local_market", "green_supermarket", "warehouse_grocery", "organic_market"],
+	BUILD_TOOL_GROCERY: ["local_market", "green_supermarket", "warehouse_grocery"],
 	BUILD_TOOL_RESTAURANT: ["classic_diner", "fast_food_drive_through", "modern_cafe", "family_restaurant", "upscale_restaurant", "food_truck_court"],
 	BUILD_TOOL_CORNER_STORE: ["small_quick_mart", "convenience_store_no_pumps", "urban_corner_shop", "modern_mini_mart"],
 }
@@ -1762,7 +1759,7 @@ func _legacy_variant_seed_for_loaded_placement(tool: String, anchor: Vector2i, s
 
 
 func _property_visual_tier(tier: int) -> int:
-	return clamp(tier, 1, 4)
+	return clamp(tier, 1, 5)
 
 
 func _property_variant_tier_config(tool: String, variant_id: String, tier: int) -> Dictionary:
@@ -1771,7 +1768,15 @@ func _property_variant_tier_config(tool: String, variant_id: String, tier: int) 
 		return {}
 	var tiers: Dictionary = config.get("tiers", {})
 	var visual_tier := _property_visual_tier(tier)
-	return tiers.get(visual_tier, {}).duplicate(true)
+	if tiers.has(visual_tier):
+		return (tiers[visual_tier] as Dictionary).duplicate(true)
+	# Most legacy property families still have four authored silhouettes. Preserve
+	# their old tier-five appearance while allowing groceries to use a real fifth
+	# stage instead of globally forcing every service building onto tier four.
+	for fallback_tier in range(visual_tier - 1, 0, -1):
+		if tiers.has(fallback_tier):
+			return (tiers[fallback_tier] as Dictionary).duplicate(true)
+	return {}
 
 
 func _palette_for_property_variant(tool: String, variant_seed: int, variant_id: String) -> Dictionary:
@@ -3050,6 +3055,9 @@ func create_parking_lot(parent: Node, preset: Dictionary, accent: Color = Color(
 	var size := Vector3(2.8, 1.0, 0.9)
 	if preset.has("parking_size"):
 		size = preset["parking_size"]
+	if parking == "grocery_front_parking":
+		_add_grocery_parking_lot(position, size, parent)
+		return
 	var root := Node3D.new()
 	root.name = "SharedParkingLot"
 	root.position = position
@@ -6704,36 +6712,116 @@ func _build_grocery_architecture(main_root: Node, signage_root: Node, upgrade_ro
 	var height := _commercial_float(profile, "height", 1.0)
 	var center_z := _commercial_float(profile, "center_z", -0.66)
 	var front_z := _commercial_float(profile, "front_z", 0.28)
-	var roof_style := str(profile.get("roof", "flat"))
-	var awning_style := str(profile.get("awning", "round"))
+	var entry_x := _commercial_float(profile, "entry_x", 0.0)
+	var visual_tier := int(profile.get("tier", 1))
 	var wall_material := _make_material_from_color(palette["wall"], 0.9)
 	var roof_material := _make_material_from_color(palette["roof"], 0.74)
 	var trim_material := _make_material_from_color(palette["trim"], 0.82)
 	var accent_material := _make_material_from_color(palette["accent"], 0.48)
-	_add_soft_block(Vector3(0.0, height * 0.5 + 0.05, center_z), Vector3(width, height, depth), wall_material, main_root, 0.16)
-	create_modular_roof(main_root, Vector3(0.0, height + 0.2, center_z), Vector3(width + 0.24, 0.18, depth + 0.22), roof_material, roof_style)
-	create_trim_layer(main_root, width, height, front_z, palette, "")
-	create_glass_frontage(main_root, width * (0.82 if _commercial_bool(profile, "glass") else 0.68), 0.48, front_z + 0.04, 4)
-	_add_restaurant_front_door_local(Vector3(0.0, 0.0, front_z + 0.08), main_root, palette["accent"])
-	create_awning(main_root, Vector3(0.0, 0.72, front_z + 0.14), width * 0.9, accent_material, trim_material, awning_style)
-	create_sign(signage_root, Vector3(0.0, height + 0.38, front_z + 0.14), Vector2(width * 0.5, 0.22), palette["accent"], _variant_sign_kind(BUILD_TOOL_GROCERY, variant_id))
-	if variant_id == "warehouse_grocery":
-		_add_box(Vector3(width * 0.42, 0.38, center_z - depth * 0.42), Vector3(0.46, 0.52, 0.06), _make_material("4d5962", 0.86), main_root)
-		_add_box(Vector3(width * 0.42, 0.7, center_z - depth * 0.42), Vector3(0.52, 0.055, 0.075), accent_material, main_root)
-	if variant_id == "organic_market":
-		_add_box(Vector3(0.0, 0.9, front_z + 0.12), Vector3(width * 0.7, 0.06, 0.06), _make_material("9f7b56", 0.78), main_root)
-		for crate_x in [-width * 0.34, width * 0.34]:
-			_add_box(Vector3(crate_x, 0.18, front_z + 0.18), Vector3(0.28, 0.14, 0.18), _make_material("9f7b56", 0.82), main_root)
-	if _commercial_int(profile, "wing", 0) >= 1:
-		_add_soft_block(Vector3(-width * 0.38, 0.56, center_z - depth * 0.42), Vector3(width * 0.34, 0.9, depth * 0.68), _make_material_from_color(palette["wall"].darkened(0.03), 0.9), upgrade_root, 0.12)
-		_add_box(Vector3(-width * 0.38, 0.58, center_z - depth * 0.08), Vector3(0.32, 0.36, 0.055), _window_material, upgrade_root)
-	if _commercial_int(profile, "wing", 0) >= 2:
-		_add_soft_block(Vector3(width * 0.34, 0.62, center_z - depth * 0.48), Vector3(width * 0.42, 1.0, depth * 0.76), _make_material_from_color(palette["wall"].lightened(0.04), 0.92), upgrade_root, 0.12)
-		_add_box(Vector3(width * 0.34, 0.72, center_z - depth * 0.08), Vector3(0.36, 0.4, 0.055), _window_material, upgrade_root)
+	_add_soft_block(Vector3(0.0, height * 0.5 + 0.05, center_z), Vector3(width, height, depth), wall_material, main_root, 0.1)
+	match variant_id:
+		"local_market":
+			create_modular_roof(main_root, Vector3(0.0, height + 0.22, center_z), Vector3(width + 0.28, 0.18, depth + 0.26), roof_material, "gabled")
+			_add_box(Vector3(0.0, height * 0.78, front_z + 0.05), Vector3(width * 0.94, 0.08, 0.07), _make_material("b7805e", 0.82), main_root)
+		"warehouse_grocery":
+			create_modular_roof(main_root, Vector3(0.0, height + 0.2, center_z), Vector3(width + 0.26, 0.18, depth + 0.24), roof_material, "shed")
+			_add_box(Vector3(0.0, height * 0.82, front_z + 0.06), Vector3(width * 0.96, 0.22, 0.1), accent_material, main_root)
+		_:
+			create_modular_roof(main_root, Vector3(0.0, height + 0.2, center_z), Vector3(width + 0.28, 0.18, depth + 0.24), roof_material, "flat")
+			_add_box(Vector3(0.0, height * 0.84, front_z + 0.06), Vector3(width * 0.96, 0.16, 0.1), accent_material, main_root)
+	_add_grocery_storefront(main_root, width, height, front_z, entry_x, palette, variant_id, visual_tier)
+	create_sign(signage_root, Vector3(0.0, height + (0.5 if variant_id == "local_market" else 0.36), front_z + 0.15), Vector2(width * 0.56, 0.24), palette["accent"], _variant_sign_kind(BUILD_TOOL_GROCERY, variant_id))
+	_add_grocery_upgrade_massing(upgrade_root, profile, palette, variant_id, width, depth, height, center_z, front_z, entry_x)
 	if _commercial_bool(profile, "signature"):
-		_add_box(Vector3(0.0, height + 0.56, front_z + 0.16), Vector3(width * 0.76, 0.16, 0.12), accent_material, upgrade_root)
-		for x in [-width * 0.32, -width * 0.12, width * 0.12, width * 0.32]:
-			_add_box(Vector3(x, 0.3, front_z + 0.12), Vector3(0.2, 0.12, 0.06), trim_material, upgrade_root)
+		_add_box(Vector3(0.0, height + 0.68, front_z + 0.17), Vector3(width * 0.72, 0.1, 0.12), trim_material, upgrade_root)
+		_add_lantern_glow_local(Vector3(-width * 0.46, 0.92, front_z + 0.18), upgrade_root)
+		_add_lantern_glow_local(Vector3(width * 0.46, 0.92, front_z + 0.18), upgrade_root)
+
+
+func _add_grocery_storefront(parent: Node, width: float, height: float, front_z: float, entry_x: float, palette: Dictionary, variant_id: String, visual_tier: int) -> void:
+	var trim_material := _make_material_from_color(palette["trim"], 0.82)
+	var accent_material := _make_material_from_color(palette["accent"], 0.5)
+	var glass_material := _make_transparent_material(Color("bfe6e8"), 0.18, 0.22)
+	var dark_material := _make_material("435055", 0.86)
+	_add_box(Vector3(0.0, 0.46, front_z + 0.045), Vector3(width * 0.94, 0.68, 0.06), trim_material, parent)
+	var pane_count := 5 if width > 3.7 else 4
+	for pane_index in range(pane_count):
+		var pane_x := lerpf(-width * 0.38, width * 0.38, 0.5 if pane_count <= 1 else float(pane_index) / float(pane_count - 1))
+		if absf(pane_x - entry_x) < 0.44:
+			continue
+		_add_box(Vector3(pane_x, 0.48, front_z + 0.085), Vector3(width * 0.14, 0.5, 0.035), glass_material, parent)
+		_add_box(Vector3(pane_x, 0.25, front_z + 0.105), Vector3(width * 0.12, 0.035, 0.025), dark_material, parent)
+	_add_grocery_sliding_entry(parent, Vector3(entry_x, 0.0, front_z + 0.13), palette, visual_tier >= 2)
+	var canopy_width := width * (0.9 if variant_id != "local_market" or visual_tier >= 2 else 0.42)
+	var canopy_x := 0.0 if canopy_width > width * 0.6 else entry_x
+	var canopy_depth := 0.3 if variant_id == "warehouse_grocery" else 0.24
+	_add_box(Vector3(canopy_x, 0.82, front_z + 0.2), Vector3(canopy_width, 0.12, canopy_depth), accent_material, parent)
+	_add_box(Vector3(canopy_x, 0.89, front_z + 0.2), Vector3(canopy_width * 0.84, 0.035, canopy_depth + 0.04), trim_material, parent)
+	# Even the first stage reads as an operating grocer: produce and bread are
+	# displayed beside a real entrance, never in the customer parking stalls.
+	if variant_id == "local_market":
+		for crate_index in range(3 if visual_tier >= 2 else 2):
+			var crate_x := -width * 0.34 + float(crate_index) * 0.24
+			_add_box(Vector3(crate_x, 0.16, front_z + 0.2), Vector3(0.2, 0.16, 0.18), _make_material("9f7650", 0.82), parent)
+			_add_local_sphere(Vector3(crate_x, 0.28, front_z + 0.2), 0.06, 0.045, _make_material_from_color(palette["accent"].lightened(float(crate_index) * 0.08), 0.8), parent)
+	elif variant_id == "warehouse_grocery":
+		_add_box(Vector3(-width * 0.34, 0.18, front_z + 0.16), Vector3(0.48, 0.18, 0.18), _make_material("9b7656", 0.84), parent)
+	else:
+		_add_box(Vector3(width * 0.36, 0.18, front_z + 0.16), Vector3(0.42, 0.16, 0.16), _make_material_from_color(palette["accent"].darkened(0.12), 0.8), parent)
+
+
+func _add_grocery_sliding_entry(parent: Node, position_3d: Vector3, palette: Dictionary, open_mark: bool = true) -> void:
+	var frame_material := _make_material_from_color(palette["trim"], 0.82)
+	var glass_material := _make_transparent_material(Color("c8edf2"), 0.16, 0.2)
+	var handle_material := _make_material("67737b", 0.78)
+	_add_box(position_3d + Vector3(0.0, 0.36, 0.0), Vector3(0.72, 0.72, 0.08), frame_material, parent)
+	for side in [-1.0, 1.0]:
+		_add_box(position_3d + Vector3(side * 0.18, 0.35, 0.045), Vector3(0.31, 0.62, 0.035), glass_material, parent)
+		_add_box(position_3d + Vector3(side * 0.025, 0.35, 0.07), Vector3(0.025, 0.42, 0.02), handle_material, parent)
+	_add_box(position_3d + Vector3(0.0, 0.04, 0.18), Vector3(0.62, 0.025, 0.3), _make_material("4f575a", 0.94), parent)
+	if open_mark:
+		_add_box(position_3d + Vector3(0.0, 0.68, 0.075), Vector3(0.24, 0.055, 0.02), _make_material_from_color(palette["accent"], 0.68), parent)
+
+
+func _add_grocery_upgrade_massing(parent: Node, profile: Dictionary, palette: Dictionary, variant_id: String, width: float, depth: float, height: float, center_z: float, front_z: float, entry_x: float) -> void:
+	var wall_material := _make_material_from_color(palette["wall"].lightened(0.035), 0.9)
+	var roof_material := _make_material_from_color(palette["roof"], 0.74)
+	var trim_material := _make_material_from_color(palette["trim"], 0.82)
+	var accent_material := _make_material_from_color(palette["accent"], 0.48)
+	var glass_material := _make_transparent_material(Color("c7e9ed"), 0.18, 0.2)
+	var wing := _commercial_int(profile, "wing", 0)
+	if wing >= 1:
+		var wing_side := -1.0 if variant_id != "warehouse_grocery" else 1.0
+		var wing_x := wing_side * width * 0.43
+		_add_soft_block(Vector3(wing_x, 0.5, center_z - depth * 0.38), Vector3(width * 0.3, 0.9, depth * 0.7), wall_material, parent, 0.08)
+		create_modular_roof(parent, Vector3(wing_x, 1.04, center_z - depth * 0.38), Vector3(width * 0.34, 0.12, depth * 0.76), roof_material, "flat" if variant_id != "local_market" else "gabled")
+		_add_box(Vector3(wing_x, 0.55, front_z - 0.08), Vector3(width * 0.18, 0.38, 0.05), glass_material, parent)
+		if _commercial_bool(profile, "bakery"):
+			create_sign(parent, Vector3(wing_x, 0.9, front_z), Vector2(width * 0.2, 0.14), palette["accent"], "bakery")
+	if wing >= 2:
+		var other_x := width * 0.42 if variant_id != "warehouse_grocery" else -width * 0.42
+		_add_soft_block(Vector3(other_x, 0.58, center_z - depth * 0.44), Vector3(width * 0.28, 1.04, depth * 0.76), _make_material_from_color(palette["wall"].darkened(0.04), 0.9), parent, 0.08)
+		create_modular_roof(parent, Vector3(other_x, 1.18, center_z - depth * 0.44), Vector3(width * 0.32, 0.13, depth * 0.82), roof_material, "flat")
+		_add_box(Vector3(other_x, 0.64, front_z - 0.06), Vector3(width * 0.17, 0.4, 0.05), glass_material, parent)
+	if _commercial_bool(profile, "vestibule"):
+		_add_soft_block(Vector3(entry_x, 0.43, front_z + 0.18), Vector3(0.94, 0.76, 0.42), glass_material, parent, 0.04)
+		_add_box(Vector3(entry_x, 0.88, front_z + 0.18), Vector3(1.04, 0.1, 0.5), accent_material, parent)
+		_add_grocery_sliding_entry(parent, Vector3(entry_x, 0.0, front_z + 0.42), palette, true)
+	if _commercial_bool(profile, "clerestory"):
+		_add_soft_block(Vector3(0.0, height + 0.32, center_z - depth * 0.16), Vector3(width * 0.62, 0.5, depth * 0.46), wall_material, parent, 0.06)
+		for window_x in [-width * 0.2, 0.0, width * 0.2]:
+			_add_box(Vector3(window_x, height + 0.34, front_z - depth * 0.18), Vector3(width * 0.12, 0.24, 0.045), glass_material, parent)
+		create_modular_roof(parent, Vector3(0.0, height + 0.65, center_z - depth * 0.16), Vector3(width * 0.7, 0.12, depth * 0.52), roof_material, "flat")
+	if _commercial_bool(profile, "pickup"):
+		var pickup_x := width * 0.47
+		_add_box(Vector3(pickup_x, 0.72, front_z + 0.26), Vector3(width * 0.22, 0.1, 0.42), accent_material, parent)
+		_add_local_cylinder(Vector3(pickup_x + width * 0.09, 0.38, front_z + 0.28), 0.025, 0.025, 0.62, trim_material, parent)
+	if _commercial_bool(profile, "loading_bay"):
+		_add_box(Vector3(width * 0.4, 0.42, center_z - depth * 0.5), Vector3(0.62, 0.62, 0.06), _make_material("59636a", 0.9), parent)
+		for slat_y in [0.24, 0.4, 0.56]:
+			_add_box(Vector3(width * 0.4, slat_y, center_z - depth * 0.54), Vector3(0.54, 0.025, 0.025), trim_material, parent)
+	if _commercial_bool(profile, "second_entry"):
+		_add_grocery_sliding_entry(parent, Vector3(width * 0.28, 0.0, front_z + 0.14), palette, true)
 
 
 func _build_restaurant_architecture(main_root: Node, signage_root: Node, upgrade_root: Node, profile: Dictionary, palette: Dictionary, variant: int) -> void:
@@ -7248,6 +7336,9 @@ func _add_commercial_dynamic_lot_details(parent: Node, tool: String, profile: Di
 	if tool == BUILD_TOOL_RESTAURANT:
 		_add_restaurant_variant_lot_details(parent, parking_position, parking_size, palette, tier, variant_id)
 		return
+	if tool == BUILD_TOOL_GROCERY:
+		_add_grocery_variant_lot_details(parent, parking_position, parking_size, palette, tier, variant_id, profile)
+		return
 	if tier >= 2:
 		for x in [-parking_size.x * 0.28, 0.0, parking_size.x * 0.28]:
 			_add_box(parking_position + Vector3(x, 0.13, -parking_size.z * 0.32), Vector3(0.32, 0.035, 0.055), _make_material_from_color(accent.lightened(0.12), 0.84), parent)
@@ -7272,12 +7363,6 @@ func _add_commercial_dynamic_lot_details(parent: Node, tool: String, profile: Di
 				_add_atm_local(parent, parking_position + Vector3(-parking_size.x * 0.44, 0.04, parking_size.z * 0.44), palette["roof"])
 			if tier >= 4:
 				_add_box(parking_position + Vector3(0.0, 0.13, parking_size.z * 0.42), Vector3(parking_size.x * 0.6, 0.045, 0.18), _make_material("d8d2c8", 0.9), parent)
-		BUILD_TOOL_GROCERY:
-			_add_grocery_variant_lot_details(parent, parking_position, parking_size, palette, tier, variant_id)
-			if tier >= 2:
-				create_cart_rack(parent, parking_position + Vector3(parking_size.x * 0.42, 0.08, parking_size.z * 0.32), deg_to_rad(90.0))
-			if tier >= 4:
-				_add_box(parking_position + Vector3(-parking_size.x * 0.42, 0.16, parking_size.z * 0.38), Vector3(0.72, 0.12, 0.24), _make_material("9f7b56", 0.82), parent)
 		BUILD_TOOL_CORNER_STORE:
 			_add_corner_store_variant_lot_details(parent, parking_position, parking_size, palette, tier, variant_id)
 			if tier >= 2:
@@ -7308,26 +7393,28 @@ func _add_fire_variant_lot_details(parent: Node, parking_position: Vector3, park
 				_add_box(parking_position + Vector3(0.0, 0.13, parking_size.z * 0.44), Vector3(parking_size.x * 0.42, 0.04, 0.09), _make_material_from_color(accent, 0.82), parent)
 
 
-func _add_grocery_variant_lot_details(parent: Node, parking_position: Vector3, parking_size: Vector3, palette: Dictionary, tier: int, variant_id: String) -> void:
+func _add_grocery_variant_lot_details(parent: Node, parking_position: Vector3, parking_size: Vector3, palette: Dictionary, tier: int, variant_id: String, profile: Dictionary = {}) -> void:
 	var accent: Color = palette["accent"]
 	var trim: Color = palette["trim"]
-	match variant_id:
-		"local_market":
-			_add_box(parking_position + Vector3(-parking_size.x * 0.38, 0.15, parking_size.z * 0.38), Vector3(0.46, 0.16, 0.2), _make_material("9f7b56", 0.82), parent)
-			if tier >= 3:
-				_add_crate_stack_local(parking_position + Vector3(parking_size.x * 0.34, 0.12, parking_size.z * 0.4), accent, parent)
-		"green_supermarket":
-			if tier >= 2:
-				create_landscape_island(parent, parking_position + Vector3(0.0, 0.12, parking_size.z * 0.36), Vector3(0.48, 0.08, 0.2), accent, 3)
-		"warehouse_grocery":
-			_add_box(parking_position + Vector3(parking_size.x * 0.42, 0.13, -parking_size.z * 0.34), Vector3(0.34, 0.05, 0.08), _make_material_from_color(trim.darkened(0.2), 0.86), parent)
-			if tier >= 3:
-				_add_small_parked_car_local(parent, parking_position + Vector3(-parking_size.x * 0.24, 0.04, -parking_size.z * 0.16), 0.0, accent)
-		"organic_market":
-			for x in [-parking_size.x * 0.32, parking_size.x * 0.32]:
-				_add_box(parking_position + Vector3(x, 0.15, parking_size.z * 0.42), Vector3(0.34, 0.14, 0.18), _make_material("9f7b56", 0.82), parent)
-			if tier >= 3:
-				create_landscape_island(parent, parking_position + Vector3(0.0, 0.12, -parking_size.z * 0.32), Vector3(parking_size.x * 0.46, 0.08, 0.18), accent, 4)
+	var entry_x := _commercial_float(profile, "entry_x", 0.0)
+	var stall_z := parking_position.z - parking_size.z * 0.18
+	var walkway_z := parking_position.z - parking_size.z * 0.78
+	# This last link aligns the protected parking walk with the door selected by
+	# each store family; customers no longer walk into a blank wall.
+	_add_box(Vector3(entry_x, 0.105, walkway_z), Vector3(0.78, 0.035, 0.58), _make_material("f3ead8", 0.9), parent)
+	_add_small_parked_car_local(parent, Vector3(parking_position.x + parking_size.x * 0.08, 0.08, stall_z), 0.0, accent.darkened(0.04))
+	if tier >= 2:
+		create_cart_rack(parent, Vector3(parking_position.x + parking_size.x * 0.46, 0.08, parking_position.z - parking_size.z * 0.64), deg_to_rad(90.0))
+	if tier >= 3:
+		_add_small_parked_car_local(parent, Vector3(parking_position.x + parking_size.x * 0.26, 0.08, stall_z), 0.0, trim.darkened(0.16))
+	if tier >= 4:
+		create_streetlamp(parent, Vector3(parking_position.x - parking_size.x * 0.49, 0.0, parking_position.z + parking_size.z * 0.34))
+		create_streetlamp(parent, Vector3(parking_position.x + parking_size.x * 0.49, 0.0, parking_position.z + parking_size.z * 0.34))
+		if variant_id == "green_supermarket":
+			create_street_sign(parent, Vector3(parking_position.x + parking_size.x * 0.46, 0.04, parking_position.z + parking_size.z * 0.42), accent, "pickup")
+	if tier >= 5:
+		_add_small_parked_car_local(parent, Vector3(parking_position.x - parking_size.x * 0.1, 0.08, stall_z), 0.0, Color("c75f54"))
+		create_street_sign(parent, Vector3(parking_position.x - parking_size.x * 0.47, 0.04, parking_position.z + parking_size.z * 0.42), accent, _variant_sign_kind(BUILD_TOOL_GROCERY, variant_id))
 
 
 func create_restaurant_parking_layout(parent: Node, parking_position: Vector3, parking_size: Vector3, palette: Dictionary, layout: String, spaces: int = 3) -> void:
@@ -8770,45 +8857,65 @@ func _add_fire_parking_lot(center: Vector3, size: Vector3, parent: Node) -> void
 
 func _add_grocery_parking_lot(center: Vector3, size: Vector3, parent: Node) -> void:
 	var lot_root := Node3D.new()
+	lot_root.name = "GroceryCustomerParking"
 	lot_root.position = center
+	lot_root.set_meta("visual_zone", "customer_parking_and_entry_walk")
 	parent.add_child(lot_root)
-	_add_shadow_disc_local(Vector3(0.0, 0.0, 0.02), Vector2(size.x * 0.96, size.z * 0.92), 0.12, lot_root)
-	var sidewalk_material := _make_material("ddd5c3", 0.94)
+	_add_shadow_disc_local(Vector3(0.0, 0.0, 0.02), Vector2(size.x * 0.98, size.z * 0.96), 0.12, lot_root)
+	var sidewalk_material := _make_material("ddd5c3", 0.92)
 	var asphalt_material := _make_material("626b72", 0.97)
 	var line_material := _make_material("f7f2df", 0.92)
 	var curb_material := _make_material("eee8dc", 0.92)
 	var stop_material := _make_material("d9c991", 0.88)
 	var accessible_material := _make_material("577da7", 0.82)
-	var planter_material := _make_material("799557", 0.86)
-	_add_box(Vector3(0.0, 0.032, 0.0), Vector3(size.x + 0.2, 0.026, size.z + 0.18), sidewalk_material, lot_root)
-	_add_box(Vector3(0.0, 0.058, 0.02), Vector3(size.x, 0.034, size.z), asphalt_material, lot_root)
-	_add_asphalt_surface_variation_local(lot_root, Vector2(size.x * 0.82, size.z * 0.68), 0.092)
-	_add_box(Vector3(0.0, 0.084, -size.z * 0.5 + 0.055), Vector3(size.x * 0.96, 0.014, 0.07), curb_material, lot_root)
-	_add_box(Vector3(0.0, 0.084, size.z * 0.5 - 0.055), Vector3(size.x * 0.96, 0.014, 0.07), curb_material, lot_root)
-	_add_box(Vector3(-size.x * 0.5 + 0.055, 0.084, 0.0), Vector3(0.07, 0.014, size.z * 0.86), curb_material, lot_root)
-	_add_box(Vector3(size.x * 0.5 - 0.055, 0.084, 0.0), Vector3(0.07, 0.014, size.z * 0.86), curb_material, lot_root)
+	var pedestrian_material := _make_material("f3ead8", 0.9)
+	var stall_center_z := -size.z * 0.18
+	var stall_depth := size.z * 0.62
+	var building_edge_z := -size.z * 0.5
+	var road_edge_z := size.z * 0.5
 
-	var accessible_x := -size.x * 0.39
-	_add_box(Vector3(accessible_x, 0.09, -0.08), Vector3(0.52, 0.012, size.z * 0.58), accessible_material, lot_root)
-	_add_box(Vector3(accessible_x, 0.104, -0.08), Vector3(0.28, 0.014, 0.035), line_material, lot_root)
-	_add_box(Vector3(accessible_x, 0.104, 0.0), Vector3(0.035, 0.014, 0.28), line_material, lot_root)
-	for hatch_index in range(5):
-		var hatch := _add_box(Vector3(accessible_x + 0.38, 0.106, -0.32 + float(hatch_index) * 0.16), Vector3(0.035, 0.012, 0.52), line_material, lot_root)
-		hatch.rotation_degrees.y = -28.0
+	# A deep field gives vehicles a real nose-in stall and leaves the roadward
+	# half as a maneuvering aisle. The building-facing curb becomes a protected
+	# customer walk instead of another row of mystery props.
+	_add_box(Vector3(0.0, 0.032, 0.0), Vector3(size.x + 0.18, 0.026, size.z + 0.14), sidewalk_material, lot_root)
+	_add_box(Vector3(0.0, 0.058, 0.0), Vector3(size.x, 0.034, size.z), asphalt_material, lot_root)
+	_add_asphalt_surface_variation_local(lot_root, Vector2(size.x * 0.9, size.z * 0.78), 0.092)
+	_add_box(Vector3(0.0, 0.092, building_edge_z - 0.2), Vector3(size.x * 0.94, 0.052, 0.36), pedestrian_material, lot_root)
+	_add_box(Vector3(0.0, 0.12, building_edge_z - 0.01), Vector3(size.x * 0.96, 0.05, 0.06), curb_material, lot_root)
+	_add_box(Vector3(-size.x * 0.5 + 0.045, 0.086, -size.z * 0.08), Vector3(0.07, 0.018, size.z * 0.82), curb_material, lot_root)
+	_add_box(Vector3(size.x * 0.5 - 0.045, 0.086, -size.z * 0.08), Vector3(0.07, 0.018, size.z * 0.82), curb_material, lot_root)
+	# Two open roadward mouths make the aisle visibly drivable; short corner
+	# curbs still frame the lot without sealing it off.
+	for curb_x in [-size.x * 0.4, size.x * 0.4]:
+		_add_box(Vector3(curb_x, 0.086, road_edge_z - 0.02), Vector3(size.x * 0.2, 0.018, 0.07), curb_material, lot_root)
 
-	var parking_left := -size.x * 0.22
-	var parking_right := size.x * 0.42
-	for stall_index in range(6):
-		var t := float(stall_index) / 5.0
-		var x := lerpf(parking_left, parking_right, t)
-		_add_box(Vector3(x, 0.1, -0.05), Vector3(0.035, 0.012, size.z * 0.62), line_material, lot_root)
-	for stop_index in range(5):
-		var t := (float(stop_index) + 0.5) / 5.0
-		var x := lerpf(parking_left, parking_right, t)
-		_add_box(Vector3(x, 0.116, -size.z * 0.3), Vector3(0.34, 0.035, 0.055), stop_material, lot_root)
-	_add_box(Vector3((parking_left + parking_right) * 0.5, 0.102, size.z * 0.2), Vector3(parking_right - parking_left, 0.012, 0.045), line_material, lot_root)
-	_add_box(Vector3(-size.x * 0.5 + 0.18, 0.12, size.z * 0.38), Vector3(0.18, 0.12, 0.28), planter_material, lot_root)
-	_add_box(Vector3(size.x * 0.5 - 0.18, 0.12, size.z * 0.38), Vector3(0.18, 0.12, 0.28), planter_material, lot_root)
+	var accessible_x := -size.x * 0.38
+	var access_aisle_x := -size.x * 0.24
+	_add_box(Vector3(accessible_x, 0.09, stall_center_z), Vector3(size.x * 0.18, 0.012, stall_depth), accessible_material, lot_root)
+	_add_box(Vector3(accessible_x, 0.105, stall_center_z), Vector3(0.28, 0.014, 0.035), line_material, lot_root)
+	_add_box(Vector3(accessible_x, 0.105, stall_center_z), Vector3(0.035, 0.014, 0.28), line_material, lot_root)
+	for hatch_index in range(6):
+		var hatch_z := stall_center_z - stall_depth * 0.42 + float(hatch_index) * stall_depth * 0.17
+		var hatch := _add_box(Vector3(access_aisle_x, 0.106, hatch_z), Vector3(0.035, 0.012, size.x * 0.1), line_material, lot_root)
+		hatch.rotation_degrees.y = -32.0
+
+	# Four regular stalls plus the accessible bay. All wheel stops sit at the
+	# storefront end, so the direction cars should pull in is immediately clear.
+	var regular_centers := [-size.x * 0.1, size.x * 0.08, size.x * 0.26, size.x * 0.43]
+	var divider_xs := [-size.x * 0.19, -size.x * 0.01, size.x * 0.17, size.x * 0.35, size.x * 0.49]
+	for divider_x in divider_xs:
+		_add_box(Vector3(float(divider_x), 0.102, stall_center_z), Vector3(0.035, 0.012, stall_depth), line_material, lot_root)
+	for stall_x in regular_centers:
+		_add_box(Vector3(float(stall_x), 0.116, building_edge_z + 0.14), Vector3(size.x * 0.12, 0.035, 0.055), stop_material, lot_root)
+	_add_box(Vector3(accessible_x, 0.116, building_edge_z + 0.14), Vector3(size.x * 0.13, 0.035, 0.055), stop_material, lot_root)
+
+	# A striped crossing joins the maneuvering aisle to the protected walk and
+	# continues as a broad entry pad toward the storefront doors.
+	for stripe_index in range(5):
+		_add_box(Vector3(0.0, 0.11, -0.1 + float(stripe_index) * 0.14), Vector3(0.58, 0.012, 0.07), line_material, lot_root)
+	_add_box(Vector3(0.0, 0.1, building_edge_z - 0.46), Vector3(1.12, 0.035, 0.56), pedestrian_material, lot_root)
+	for island_x in [-size.x * 0.48, size.x * 0.48]:
+		create_landscape_island(lot_root, Vector3(island_x, 0.11, building_edge_z - 0.2), Vector3(0.24, 0.08, 0.34), Color("6fa85b"), 2)
 
 
 func _add_bank_forecourt(center: Vector3, size: Vector3, parent: Node, accent: Color, trim: Color) -> void:
@@ -8896,10 +9003,10 @@ func _variant_sign_kind(tool: String, variant_id: String) -> String:
 			match variant_id:
 				"local_market":
 					return "local_market"
+				"green_supermarket":
+					return "freshway_market"
 				"warehouse_grocery":
 					return "warehouse_market"
-				"organic_market":
-					return "organic_market"
 				_:
 					return "grocer"
 		BUILD_TOOL_RESTAURANT:
@@ -9009,11 +9116,15 @@ func _sign_text_for_kind(kind: String) -> String:
 		"grocer", "grocery":
 			return "GROCERY"
 		"local_market":
-			return "LOCAL MARKET"
+			return "MILK & BREAD"
+		"freshway_market":
+			return "FRESHWAY"
 		"warehouse_market":
-			return "FOOD DEPOT"
-		"organic_market":
-			return "ORGANIC"
+			return "HARVEST VALUE"
+		"bakery":
+			return "BAKERY"
+		"pickup":
+			return "PICKUP"
 		"restaurant":
 			return "TASTY BITES"
 		"diner":
