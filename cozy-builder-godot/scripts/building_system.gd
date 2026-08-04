@@ -153,6 +153,7 @@ const PARKING_DEPTH := 1.22
 const BUILDING_SETBACK := 0.72
 const BACK_BUFFER := 0.64
 const LOT_DEPTH := 4.6
+const BUILDING_PLOT_SCALE := 1.5
 const LOT_FRONT_SIDEWALK_Z := 2.04
 const LOT_PARKING_Z := 0.84
 const PROPERTY_VISUAL_PRESETS := {
@@ -656,7 +657,7 @@ var _ambient_cars: Array[Node3D] = []
 var _ambient_trolleys: Array[Node3D] = []
 var _ambient_people: Array[Node3D] = []
 var _ambient_social_point := Vector3.ZERO
-var _ambient_park_seats: Array[Vector3] = []
+var _ambient_park_seats: Array[Dictionary] = []
 var _ambient_life_clock := 0.0
 var _hover_root: Node3D
 var _ghost_root: Node3D
@@ -1876,13 +1877,13 @@ func _tool_footprint(tool: String) -> Vector2i:
 		BUILD_TOOL_ROAD, BUILD_TOOL_INSPECT, BUILD_TOOL_BULLDOZE:
 			return Vector2i(1, 1)
 		BUILD_TOOL_HOUSE:
-			return Vector2i(5, 5)
+			return Vector2i(8, 8)
 		BUILD_TOOL_FIRE, BUILD_TOOL_GROCERY:
-			return Vector2i(5, 4)
+			return Vector2i(8, 6)
 		BUILD_TOOL_BANK, BUILD_TOOL_CORNER_STORE:
-			return Vector2i(5, 4)
+			return Vector2i(8, 6)
 		BUILD_TOOL_RESTAURANT:
-			return Vector2i(6, 5)
+			return Vector2i(9, 8)
 		BUILD_TOOL_PARK:
 			return Vector2i(4, 3)
 	return Vector2i(4, 3)
@@ -2988,13 +2989,44 @@ func _property_visual_preset(tool: String) -> Dictionary:
 
 func _property_visual_preset_for_variant(tool: String, variant: int, variant_id: String = "") -> Dictionary:
 	var preset := _property_visual_preset(tool).duplicate(true)
-	if tool != BUILD_TOOL_RESTAURANT:
-		return preset
-	var resolved_variant_id := _resolve_property_variant_id(tool, variant, variant_id)
-	var definition: Dictionary = RESTAURANT_VARIANT_DEFINITIONS.get(resolved_variant_id, {})
-	var lot_preset: Dictionary = definition.get("lot_preset", {})
-	for key in lot_preset.keys():
-		preset[key] = lot_preset[key]
+	if tool == BUILD_TOOL_RESTAURANT:
+		var resolved_variant_id := _resolve_property_variant_id(tool, variant, variant_id)
+		var definition: Dictionary = RESTAURANT_VARIANT_DEFINITIONS.get(resolved_variant_id, {})
+		var lot_preset: Dictionary = definition.get("lot_preset", {})
+		for key in lot_preset.keys():
+			preset[key] = lot_preset[key]
+	return _expand_building_plot_preset(preset)
+
+
+func _expand_building_plot_preset(source: Dictionary) -> Dictionary:
+	# Buildings keep their authored scale while the parcel grows around them. The
+	# extra depth is placed between the building and the road-facing sidewalk, so
+	# it becomes usable yard/parking space instead of an empty border behind it.
+	var preset := source.duplicate(true)
+	var original_lot_size: Vector2 = preset.get("lot_size", Vector2(4.0, LOT_DEPTH))
+	var expanded_lot_size := original_lot_size * BUILDING_PLOT_SCALE
+	var frontage_shift := (expanded_lot_size.y - original_lot_size.y) * 0.5
+	preset["lot_size"] = expanded_lot_size
+	var sidewalk: Dictionary = preset.get("sidewalk", {}).duplicate(true)
+	if not sidewalk.is_empty():
+		sidewalk["z"] = float(sidewalk.get("z", LOT_FRONT_SIDEWALK_Z)) + frontage_shift
+		preset["sidewalk"] = sidewalk
+	var hedges: Dictionary = preset.get("hedges", {}).duplicate(true)
+	if not hedges.is_empty():
+		hedges["width"] = float(hedges.get("width", original_lot_size.x * 0.9)) * 1.45
+		hedges["depth"] = float(hedges.get("depth", original_lot_size.y * 0.9)) * 1.45
+		preset["hedges"] = hedges
+	if preset.has("parking_position"):
+		var parking_position: Vector3 = preset["parking_position"]
+		parking_position.z += frontage_shift * 0.9
+		preset["parking_position"] = parking_position
+	if preset.has("parking_size"):
+		var parking_size: Vector3 = preset["parking_size"]
+		parking_size.x *= 1.32
+		parking_size.z *= 1.18
+		preset["parking_size"] = parking_size
+	if preset.has("parking_spaces"):
+		preset["parking_spaces"] = maxi(4, int(round(float(preset["parking_spaces"]) * 1.25)))
 	return preset
 
 
@@ -3148,13 +3180,16 @@ func create_driveway(parent: Node, preset: Dictionary, entry_offset: float = 0.0
 	var sidewalk_back_z := sidewalk_center_z - sidewalk_depth * 0.5
 	var yard_end_z := sidewalk_back_z - FRONT_BUFFER
 	var curb_cut_z := sidewalk_center_z
+	var building_approach_z := -0.08
+	var approach_depth := maxf(1.48, yard_end_z - building_approach_z)
+	var approach_center_z := (yard_end_z + building_approach_z) * 0.5
 	if has_garage:
 		var drive_x := 1.08 * garage_side
-		_add_box(Vector3(drive_x * 1.18, 0.021, yard_end_z - 0.62), Vector3(1.34, 0.028, 1.7), _make_material("b8a58b", 0.9), parent)
+		_add_box(Vector3(drive_x * 1.18, 0.021, approach_center_z), Vector3(1.34, 0.028, approach_depth), _make_material("b8a58b", 0.9), parent)
 		_add_box(Vector3(drive_x * 1.18, 0.026, curb_cut_z), Vector3(1.06, 0.026, sidewalk_depth * 0.78), _make_material("b8a58b", 0.9), parent)
-		_add_town_path(Vector3(drive_x * 1.18, 0.03, yard_end_z - 0.42), Vector2(0.9, 1.36), parent)
+		_add_town_path(Vector3(drive_x * 1.18, 0.03, approach_center_z), Vector2(0.9, approach_depth * 0.94), parent)
 	else:
-		_add_town_path(Vector3(entry_offset, 0.03, yard_end_z - 0.52), Vector2(0.74, 1.48), parent)
+		_add_town_path(Vector3(entry_offset, 0.03, approach_center_z), Vector2(0.74, approach_depth), parent)
 		_add_box(Vector3(entry_offset, 0.038, curb_cut_z), Vector3(0.58, 0.018, sidewalk_depth * 0.72), _make_material("d9cbb7", 0.9), parent)
 
 
@@ -3172,10 +3207,10 @@ func create_parking_lot(parent: Node, preset: Dictionary, accent: Color = Color(
 		_add_grocery_parking_lot(position, size, parent)
 		return
 	if parking == "bank_customer_parking":
-		_add_service_customer_parking(position, size, parent, 4, true, accent, "BankCustomerParking")
+		_add_service_customer_parking(position, size, parent, int(preset.get("parking_spaces", 5)), true, accent, "BankCustomerParking")
 		return
 	if parking == "corner_store_pull_in":
-		_add_service_customer_parking(position, size, parent, 3, true, accent, "CornerStorePullIn")
+		_add_service_customer_parking(position, size, parent, int(preset.get("parking_spaces", 4)), true, accent, "CornerStorePullIn")
 		return
 	var root := Node3D.new()
 	root.name = "SharedParkingLot"
@@ -3569,41 +3604,69 @@ func _add_flower_bed_local(parent: Node, center: Vector3, width: float, accent: 
 
 
 func _add_residential_yard_life(landscaping_root: Node3D, props_root: Node3D, lot_size: Vector2, frontage_z: float, sidewalk_back_z: float, accent: Color, trim: Color, variant: int) -> void:
-	# One legible front-yard story per home. The old composition mixed a generic
-	# bench, street sign, boundary planting, stepping stones and a full backyard
-	# vignette. Some of those props also occupied the building's own depth. These
-	# zones stay beside the approach and safely in front of the house massing.
-	var left_edge := -lot_size.x * 0.35
-	var right_edge := lot_size.x * 0.35
-	var feature_z := minf(frontage_z - 0.42, 1.08)
+	# The 50%-larger parcel is composed as a front room, side room, and backyard.
+	# This keeps the added land intentional instead of stretching a few old props
+	# across a larger slab of grass.
+	var left_edge := -lot_size.x * 0.38
+	var right_edge := lot_size.x * 0.38
+	var feature_z := sidewalk_back_z - 0.72
+	var middle_z := lerpf(0.05, feature_z, 0.48)
+	var rear_z := -lot_size.y * 0.4
 	var soil := _make_material("78563d", 0.94)
 	var stone := _make_material("c8b9a0", 0.9)
+	var timber := _make_material("9b7049", 0.86)
+	# Quiet side borders visually frame the expanded yard while preserving an open
+	# center for the walk, driveway, and resident circulation.
+	for side in [-1.0, 1.0]:
+		create_bush_cluster(
+			landscaping_root,
+			Vector3(float(side) * lot_size.x * 0.43, 0.08, middle_z * 0.42),
+			4,
+			Color("729c61") if side < 0.0 else Color("83ad69")
+		)
 	match posmod(variant, 5):
 		0:
-			# Cottage garden: one curved bed and one focal ornament.
-			_add_flower_bed_local(landscaping_root, Vector3(left_edge * 0.58, 0.1, feature_z), lot_size.x * 0.25, accent)
-			_add_bird_bath_local(landscaping_root, Vector3(right_edge * 0.62, 0.04, feature_z - 0.18), trim)
+			# Cottage garden: layered flower beds, a bird bath, and a rear shade tree.
+			_add_flower_bed_local(landscaping_root, Vector3(left_edge * 0.7, 0.1, feature_z), lot_size.x * 0.28, accent)
+			_add_flower_bed_local(landscaping_root, Vector3(left_edge * 0.58, 0.1, middle_z), lot_size.x * 0.2, trim)
+			_add_bird_bath_local(landscaping_root, Vector3(right_edge * 0.7, 0.04, feature_z - 0.14), trim)
+			create_tree(landscaping_root, Vector3(left_edge * 0.84, 0.0, rear_z))
 		1:
-			# A compact side patio, clear of the front walk and façade.
-			_add_box(Vector3(right_edge * 0.72, 0.09, feature_z - 0.14), Vector3(0.86, 0.025, 0.66), stone, landscaping_root)
-			_add_outdoor_table_local(props_root, Vector3(right_edge * 0.72, 0.04, feature_z - 0.14), accent)
-			create_planters(landscaping_root, [Vector3(left_edge * 0.7, 0.09, feature_z)], trim)
+			# Garden patio: a real outdoor room with dining space and planted corners.
+			_add_soft_block(Vector3(right_edge * 0.72, 0.09, middle_z), Vector3(1.42, 0.06, 1.08), stone, landscaping_root, 0.14)
+			_add_outdoor_table_local(props_root, Vector3(right_edge * 0.72, 0.08, middle_z), accent)
+			create_planters(landscaping_root, [
+				Vector3(right_edge * 0.48, 0.12, middle_z - 0.42),
+				Vector3(right_edge * 0.94, 0.12, middle_z + 0.42),
+				Vector3(left_edge * 0.68, 0.1, feature_z),
+			], trim)
+			create_tree(landscaping_root, Vector3(right_edge * 0.9, 0.0, rear_z))
 		2:
-			# Kitchen garden: one readable raised herb bed, not a miniature farm.
-			_add_box(Vector3(right_edge * 0.72, 0.095, feature_z - 0.12), Vector3(0.86, 0.09, 0.28), soil, landscaping_root)
-			for plant_index in range(5):
-				_add_local_sphere(Vector3(right_edge * 0.72 - 0.32 + plant_index * 0.16, 0.18, feature_z - 0.12), 0.065, 0.09, _leaf_material_light, landscaping_root)
-			_add_flower_bed_local(landscaping_root, Vector3(left_edge * 0.5, 0.1, feature_z), lot_size.x * 0.22, accent)
+			# Kitchen garden: two raised beds plus a compact potting shed.
+			for bed_z in [middle_z - 0.38, middle_z + 0.38]:
+				_add_soft_block(Vector3(right_edge * 0.7, 0.11, bed_z), Vector3(1.28, 0.16, 0.34), soil, landscaping_root, 0.06)
+				for plant_index in range(6):
+					_add_local_sphere(Vector3(right_edge * 0.7 - 0.48 + plant_index * 0.19, 0.23, bed_z), 0.068, 0.1, _leaf_material_light, landscaping_root)
+			_add_soft_block(Vector3(left_edge * 0.75, 0.36, rear_z), Vector3(0.9, 0.68, 0.74), timber, props_root, 0.08)
+			_add_gabled_roof(Vector3(left_edge * 0.75, 0.82, rear_z), Vector3(1.02, 0.12, 0.86), _make_material_from_color(accent.darkened(0.16), 0.82), props_root, 18.0)
+			_add_box(Vector3(left_edge * 0.75, 0.32, rear_z + 0.39), Vector3(0.34, 0.48, 0.05), _make_material_from_color(trim.darkened(0.1), 0.86), props_root)
 		3:
-			# Family yard: intentionally open, with one shade tree and one toy.
-			create_tree(landscaping_root, Vector3(left_edge * 0.94, 0.0, -0.76))
-			_add_local_sphere(Vector3(right_edge * 0.52, 0.115, feature_z - 0.18), 0.11, 0.09, _make_material_from_color(accent, 0.72), props_root)
+			# Family yard: shade tree and swing, sandbox, and an open play lawn.
+			var family_tree := Vector3(left_edge * 0.82, 0.0, rear_z)
+			create_tree(landscaping_root, family_tree)
+			_add_tree_swing_local(props_root, family_tree + Vector3(0.28, 0.0, 0.14), accent)
+			_add_soft_block(Vector3(right_edge * 0.66, 0.09, middle_z), Vector3(1.14, 0.12, 0.92), timber, landscaping_root, 0.08)
+			_add_box(Vector3(right_edge * 0.66, 0.13, middle_z), Vector3(0.96, 0.04, 0.74), _make_material("d6b778", 0.94), landscaping_root)
+			_add_local_sphere(Vector3(right_edge * 0.42, 0.16, feature_z), 0.12, 0.1, _make_material_from_color(accent, 0.72), props_root)
 		_:
-			# Wildflower retreat: one soft planted edge and a side reading bench.
-			for cluster_index in range(2):
-				var cluster_x := left_edge * 0.66 + float(cluster_index) * 0.34
-				_add_wildflower_cluster(Vector3(cluster_x, 0.08, feature_z - 0.08), 5, _flower_material_pink if cluster_index == 0 else _flower_material_blue, landscaping_root, 0.14)
-			_add_bench_local(Vector3(right_edge * 0.62, 0.02, feature_z - 0.2), deg_to_rad(-10.0), props_root)
+			# Wildflower retreat: planted meadow edge, reading bench, and stone pad.
+			for cluster_index in range(4):
+				var cluster_x := left_edge * 0.72 + float(cluster_index % 2) * 0.42
+				var cluster_z := middle_z + float(cluster_index / 2) * 0.42
+				_add_wildflower_cluster(Vector3(cluster_x, 0.08, cluster_z), 7, _flower_material_pink if cluster_index % 2 == 0 else _flower_material_blue, landscaping_root, 0.18)
+			_add_ellipse_disc_local(Vector3(right_edge * 0.66, 0.075, middle_z), Vector2(1.3, 1.0), 0.028, stone, landscaping_root, -8.0)
+			_add_bench_local(Vector3(right_edge * 0.66, 0.02, middle_z), deg_to_rad(-8.0), props_root)
+			create_tree(landscaping_root, Vector3(right_edge * 0.9, 0.0, rear_z))
 
 
 func _add_bird_bath_local(parent: Node3D, position_3d: Vector3, accent: Color) -> void:
@@ -4067,7 +4130,7 @@ func _build_starter_neighborhood() -> void:
 	# field. This small neighborhood also establishes the scale and visual quality
 	# that future construction is meant to continue.
 	var road_cells: Array[Vector2i] = []
-	for x in range(20, 49):
+	for x in range(15, 56):
 		road_cells.append(Vector2i(x, 31))
 	for y in range(28, 36):
 		road_cells.append(Vector2i(40, y))
@@ -4083,11 +4146,11 @@ func _build_starter_neighborhood() -> void:
 			_action_history.pop_back()
 
 	var properties := [
-		{"tool": BUILD_TOOL_HOUSE, "anchor": Vector2i(22, 25), "frontage": "south", "tier": 2, "variant": 0},
-		{"tool": BUILD_TOOL_HOUSE, "anchor": Vector2i(28, 25), "frontage": "south", "tier": 1, "variant": 3},
-		{"tool": BUILD_TOOL_HOUSE, "anchor": Vector2i(34, 25), "frontage": "south", "tier": 2, "variant": 5},
-		{"tool": BUILD_TOOL_HOUSE, "anchor": Vector2i(23, 33), "frontage": "north", "tier": 1, "variant": 2},
-		{"tool": BUILD_TOOL_HOUSE, "anchor": Vector2i(30, 33), "frontage": "north", "tier": 2, "variant": 7},
+		{"tool": BUILD_TOOL_HOUSE, "anchor": Vector2i(16, 22), "frontage": "south", "tier": 2, "variant": 0},
+		{"tool": BUILD_TOOL_HOUSE, "anchor": Vector2i(25, 22), "frontage": "south", "tier": 1, "variant": 3},
+		{"tool": BUILD_TOOL_HOUSE, "anchor": Vector2i(43, 22), "frontage": "south", "tier": 2, "variant": 5},
+		{"tool": BUILD_TOOL_HOUSE, "anchor": Vector2i(18, 33), "frontage": "north", "tier": 1, "variant": 2},
+		{"tool": BUILD_TOOL_HOUSE, "anchor": Vector2i(28, 33), "frontage": "north", "tier": 2, "variant": 7},
 		{"tool": BUILD_TOOL_PARK, "anchor": Vector2i(42, 34), "frontage": "south", "tier": 2, "variant": 2},
 	]
 	for spec_variant in properties:
@@ -4271,8 +4334,8 @@ func _rebuild_ambient_life() -> void:
 
 func _prepare_resident_activity_points(anchors: Array) -> void:
 	# Parks become genuine destinations: two people can rest while another pair
-	# meets nearby. If a town has no park yet, use the first developed lot as a
-	# modest social point so residents still feel connected.
+	# meets nearby. Bench destinations come from the rendered bench transforms, so
+	# park rotation, tier additions, and future layouts cannot desynchronize them.
 	var park_center := Vector3.ZERO
 	var found_park := false
 	for anchor_key_variant in anchors:
@@ -4285,6 +4348,9 @@ func _prepare_resident_activity_points(anchors: Array) -> void:
 		var anchor: Vector2i = placement["anchor"]
 		var footprint := _footprint_from_cells(placement["cells"])
 		park_center = _anchor_to_world(anchor, footprint)
+		var park_node := placement.get("node") as Node3D
+		if is_instance_valid(park_node):
+			_collect_resident_bench_specs(park_node, _ambient_park_seats)
 		found_park = true
 		break
 	if not found_park and not anchors.is_empty():
@@ -4293,10 +4359,23 @@ func _prepare_resident_activity_points(anchors: Array) -> void:
 			var first_placement: Dictionary = _placements[first_key]
 			park_center = _anchor_to_world(first_placement["anchor"], _footprint_from_cells(first_placement["cells"]))
 	_ambient_social_point = park_center + Vector3(0.0, 0.03, -0.25)
-	_ambient_park_seats = [
-		park_center + Vector3(-0.78, 0.03, 0.0),
-		park_center + Vector3(0.78, 0.03, 0.0),
-	]
+
+
+func _collect_resident_bench_specs(node: Node, output: Array[Dictionary]) -> void:
+	if node is Node3D and bool(node.get_meta("resident_seat", false)):
+		var bench := node as Node3D
+		var seat_surface_y := float(bench.get_meta("seat_surface_y", 0.18))
+		var forward_offset := float(bench.get_meta("seat_forward_offset", 0.018))
+		var surface_world := bench.to_global(Vector3(0.0, seat_surface_y, forward_offset))
+		var approach_world := bench.to_global(Vector3(0.0, 0.03, 0.42))
+		output.append({
+			"position": Vector3(surface_world.x, surface_world.y - RESIDENT_VISUAL_SCALE * 0.32, surface_world.z),
+			"approach": approach_world,
+			"yaw": bench.global_rotation.y,
+			"bench": bench,
+		})
+	for child in node.get_children():
+		_collect_resident_bench_specs(child, output)
 
 
 func _spawn_ambient_car(road_cell: Vector2i, index: int) -> Node3D:
@@ -4567,14 +4646,20 @@ func _spawn_ambient_person(anchor_key: String, index: int) -> Node3D:
 			frontage + side * stride + Vector3(0.0, 0.03, 0.0),
 		]
 	var start := sidewalk_route[0]
+	var activity_spec := _resident_activity_spec(index)
 	root.position = start
 	root.set_meta("mode", "person")
 	root.set_meta("speed", randf_range(0.75, 1.15))
 	root.set_meta("home_point", start)
-	root.set_meta("activity_point", _resident_activity_point(index))
-	root.set_meta("walk_target", _resident_activity_point(index))
+	root.set_meta("activity_point", activity_spec["position"])
+	root.set_meta("walk_target", activity_spec["position"])
 	root.set_meta("routine", "walking")
-	root.set_meta("arrival_routine", _resident_arrival_routine(index))
+	root.set_meta("arrival_routine", str(activity_spec.get("routine", "talking")))
+	root.set_meta("activity_routine", str(activity_spec.get("routine", "talking")))
+	if activity_spec.has("seat_position"):
+		root.set_meta("seat_position", activity_spec["seat_position"])
+		root.set_meta("seat_approach", activity_spec["position"])
+		root.set_meta("seat_yaw", float(activity_spec.get("seat_yaw", 0.0)))
 	root.set_meta("routine_timer", 0.0)
 	root.set_meta("walk_phase", randf() * TAU)
 	_add_shadow_disc_local(Vector3(0.0, 0.005, 0.0), Vector2(0.16, 0.16), 0.14, root)
@@ -4588,6 +4673,8 @@ func _spawn_ambient_person(anchor_key: String, index: int) -> Node3D:
 	root.set_meta("right_arm", resident_parts["right_arm"])
 	root.set_meta("left_leg", resident_parts["left_leg"])
 	root.set_meta("right_leg", resident_parts["right_leg"])
+	root.set_meta("left_lower_leg", resident_parts["left_lower_leg"])
+	root.set_meta("right_lower_leg", resident_parts["right_lower_leg"])
 	root.set_meta("head", resident_parts["head"])
 	root.set_meta("body", resident_parts["body"])
 	return root
@@ -4699,7 +4786,16 @@ func _build_stylized_resident(visual: Node3D, index: int, color_override: Color 
 		_add_local_cylinder(Vector3(0.18, 0.33, 0.08), 0.045, 0.035, 0.1, _make_material("f2efe7", 0.58), visual)
 		_add_box(Vector3(0.18, 0.39, 0.08), Vector3(0.1, 0.018, 0.1), clothing_dark, visual)
 
-	return {"left_arm": left_arm, "right_arm": right_arm, "left_leg": left_leg, "right_leg": right_leg, "head": head, "body": body}
+	return {
+		"left_arm": left_arm,
+		"right_arm": right_arm,
+		"left_leg": left_leg,
+		"right_leg": right_leg,
+		"left_lower_leg": left_leg.get_meta("lower_leg"),
+		"right_lower_leg": right_leg.get_meta("lower_leg"),
+		"head": head,
+		"body": body,
+	}
 
 
 func _build_stylized_resident_arm(visual: Node3D, side: float, clothing: Material, clothing_light: Material, skin: Material) -> Node3D:
@@ -4715,13 +4811,19 @@ func _build_stylized_resident_arm(visual: Node3D, side: float, clothing: Materia
 
 
 func _build_stylized_resident_leg(visual: Node3D, side: float, trousers: Material, shoes: Material) -> Node3D:
-	var pivot := Node3D.new()
-	pivot.name = "Left leg" if side < 0.0 else "Right leg"
-	pivot.position = Vector3(side * 0.075, 0.32, 0.0)
-	visual.add_child(pivot)
-	_add_local_capsule(Vector3(0.0, -0.15, 0.0), 0.058, 0.31, trousers, pivot)
-	_add_soft_block(Vector3(0.0, -0.31, 0.045), Vector3(0.12, 0.075, 0.19), shoes, pivot, 0.035)
-	return pivot
+	var hip := Node3D.new()
+	hip.name = "Left upper leg" if side < 0.0 else "Right upper leg"
+	hip.position = Vector3(side * 0.075, 0.32, 0.0)
+	visual.add_child(hip)
+	_add_local_capsule(Vector3(0.0, -0.095, 0.0), 0.058, 0.21, trousers, hip)
+	var knee := Node3D.new()
+	knee.name = "Left lower leg" if side < 0.0 else "Right lower leg"
+	knee.position = Vector3(0.0, -0.19, 0.0)
+	hip.add_child(knee)
+	_add_local_capsule(Vector3(0.0, -0.09, 0.0), 0.054, 0.2, trousers, knee)
+	_add_soft_block(Vector3(0.0, -0.205, 0.05), Vector3(0.12, 0.075, 0.19), shoes, knee, 0.035)
+	hip.set_meta("lower_leg", knee)
+	return hip
 
 
 func _build_extra_small_block_resident(visual: Node3D, index: int) -> Dictionary:
@@ -4901,20 +5003,32 @@ func _animate_life(delta: float) -> void:
 		_animate_resident_routine(person, delta)
 
 
-func _resident_activity_point(index: int) -> Vector3:
+func _resident_activity_spec(index: int) -> Dictionary:
 	if index < 2:
-		return _ambient_social_point + Vector3(-0.16 if index == 0 else 0.16, 0.03, 0.0)
+		return {
+			"position": _ambient_social_point + Vector3(-0.16 if index == 0 else 0.16, 0.03, 0.0),
+			"routine": "talking",
+		}
 	if index < 4 and _ambient_park_seats.size() >= 2:
-		return _ambient_park_seats[index - 2]
-	return _ambient_social_point + Vector3(cos(float(index) * 2.1) * 0.7, 0.03, sin(float(index) * 2.1) * 0.7)
+		var seat: Dictionary = _ambient_park_seats[index - 2]
+		return {
+			"position": seat["approach"],
+			"seat_position": seat["position"],
+			"seat_yaw": seat["yaw"],
+			"routine": "taking_seat",
+		}
+	return {
+		"position": _ambient_social_point + Vector3(cos(float(index) * 2.1) * 0.7, 0.03, sin(float(index) * 2.1) * 0.7),
+		"routine": "talking",
+	}
+
+
+func _resident_activity_point(index: int) -> Vector3:
+	return _resident_activity_spec(index)["position"]
 
 
 func _resident_arrival_routine(index: int) -> String:
-	if index < 2:
-		return "talking"
-	if index < 4:
-		return "sitting"
-	return "talking" if index % 2 == 0 else "sitting"
+	return str(_resident_activity_spec(index).get("routine", "talking"))
 
 
 func _animate_resident_routine(person: Node3D, delta: float) -> void:
@@ -4924,6 +5038,8 @@ func _animate_resident_routine(person: Node3D, delta: float) -> void:
 	var right_arm := person.get_meta("right_arm", null) as Node3D
 	var left_leg := person.get_meta("left_leg", null) as Node3D
 	var right_leg := person.get_meta("right_leg", null) as Node3D
+	var left_lower_leg := person.get_meta("left_lower_leg", null) as Node3D
+	var right_lower_leg := person.get_meta("right_lower_leg", null) as Node3D
 	var head := person.get_meta("head", null) as Node3D
 	var body := person.get_meta("body", null) as Node3D
 	if visual == null:
@@ -4951,6 +5067,8 @@ func _animate_resident_routine(person: Node3D, delta: float) -> void:
 		if right_arm: right_arm.rotation.x = stride * 0.78
 		if left_leg: left_leg.rotation.x = stride
 		if right_leg: right_leg.rotation.x = -stride
+		if left_lower_leg: left_lower_leg.rotation.x = lerpf(left_lower_leg.rotation.x, maxf(0.0, stride) * 0.18, minf(1.0, delta * 10.0))
+		if right_lower_leg: right_lower_leg.rotation.x = lerpf(right_lower_leg.rotation.x, maxf(0.0, -stride) * 0.18, minf(1.0, delta * 10.0))
 		if head:
 			head.rotation.y = sin(phase * 0.5) * 0.09
 			head.rotation.z = -sin(phase * 0.5) * 0.025
@@ -4963,8 +5081,32 @@ func _animate_resident_routine(person: Node3D, delta: float) -> void:
 		visual.visible = false
 		if timer <= 0.0:
 			person.set_meta("walk_target", person.get_meta("activity_point", person.position))
-			person.set_meta("arrival_routine", person.get_meta("next_activity", "talking"))
+			person.set_meta("arrival_routine", person.get_meta("activity_routine", "talking"))
 			_set_resident_routine(person, "walking", 0.0)
+		return
+	if routine == "taking_seat" or routine == "leaving_seat":
+		visual.visible = true
+		var seat_position: Vector3 = person.get_meta("seat_position", person.position)
+		var seat_approach: Vector3 = person.get_meta("seat_approach", person.position)
+		var seat_yaw := float(person.get_meta("seat_yaw", person.rotation.y))
+		person.rotation.y = lerp_angle(person.rotation.y, seat_yaw, minf(1.0, delta * 10.0))
+		var transition_duration := 0.9
+		var transition_amount := clampf(1.0 - timer / transition_duration, 0.0, 1.0)
+		transition_amount = smoothstep(0.0, 1.0, transition_amount)
+		if routine == "taking_seat":
+			person.position = seat_approach.lerp(seat_position, transition_amount)
+			_apply_resident_seated_pose(visual, body, head, left_arm, right_arm, left_leg, right_leg, left_lower_leg, right_lower_leg, transition_amount, phase)
+			if timer <= 0.0:
+				person.position = seat_position
+				_set_resident_routine(person, "sitting", 8.0 + fmod(phase, 5.0))
+		else:
+			person.position = seat_position.lerp(seat_approach, transition_amount)
+			_apply_resident_seated_pose(visual, body, head, left_arm, right_arm, left_leg, right_leg, left_lower_leg, right_lower_leg, 1.0 - transition_amount, phase)
+			if timer <= 0.0:
+				person.position = seat_approach
+				person.set_meta("walk_target", person.get_meta("home_point", person.position))
+				person.set_meta("arrival_routine", "inside")
+				_set_resident_routine(person, "walking", 0.0)
 		return
 
 	visual.visible = true
@@ -4986,18 +5128,37 @@ func _animate_resident_routine(person: Node3D, delta: float) -> void:
 		if right_arm: right_arm.rotation.x = -sin(_ambient_life_clock * 2.1 + phase) * 0.22
 		if left_leg: left_leg.rotation.x = lerpf(left_leg.rotation.x, 0.0, minf(1.0, delta * 8.0))
 		if right_leg: right_leg.rotation.x = lerpf(right_leg.rotation.x, 0.0, minf(1.0, delta * 8.0))
+		if left_lower_leg: left_lower_leg.rotation.x = lerpf(left_lower_leg.rotation.x, 0.0, minf(1.0, delta * 8.0))
+		if right_lower_leg: right_lower_leg.rotation.x = lerpf(right_lower_leg.rotation.x, 0.0, minf(1.0, delta * 8.0))
 	if routine == "sitting":
-		visual.position.y = -0.055
-		visual.rotation.x = -0.18
-		if left_leg: left_leg.rotation.x = -1.18
-		if right_leg: right_leg.rotation.x = -1.18
-		if left_arm: left_arm.rotation.x = -0.32
-		if right_arm: right_arm.rotation.x = -0.32
+		person.position = person.get_meta("seat_position", person.position)
+		person.rotation.y = lerp_angle(person.rotation.y, float(person.get_meta("seat_yaw", person.rotation.y)), minf(1.0, delta * 8.0))
+		_apply_resident_seated_pose(visual, body, head, left_arm, right_arm, left_leg, right_leg, left_lower_leg, right_lower_leg, 1.0, phase)
+		if timer <= 0.0:
+			_set_resident_routine(person, "leaving_seat", 0.9)
+		return
 	if timer <= 0.0:
 		person.set_meta("walk_target", person.get_meta("home_point", person.position))
 		person.set_meta("arrival_routine", "inside")
-		person.set_meta("next_activity", "sitting" if routine == "talking" else "talking")
 		_set_resident_routine(person, "walking", 0.0)
+
+
+func _apply_resident_seated_pose(visual: Node3D, body: Node3D, head: Node3D, left_arm: Node3D, right_arm: Node3D, left_leg: Node3D, right_leg: Node3D, left_lower_leg: Node3D, right_lower_leg: Node3D, amount: float, phase: float) -> void:
+	var pose := clampf(amount, 0.0, 1.0)
+	visual.position.y = 0.0
+	visual.rotation.x = lerpf(0.0, -0.035, pose)
+	visual.rotation.z = sin(_ambient_life_clock * 1.25 + phase) * 0.008 * pose
+	if body:
+		body.rotation.x = lerpf(0.0, -0.08, pose)
+	if head:
+		head.rotation.y = sin(_ambient_life_clock * 0.55 + phase) * 0.12 * pose
+		head.rotation.z = 0.0
+	if left_leg: left_leg.rotation.x = lerpf(0.0, -1.48, pose)
+	if right_leg: right_leg.rotation.x = lerpf(0.0, -1.48, pose)
+	if left_lower_leg: left_lower_leg.rotation.x = lerpf(0.0, 1.48, pose)
+	if right_lower_leg: right_lower_leg.rotation.x = lerpf(0.0, 1.48, pose)
+	if left_arm: left_arm.rotation.x = lerpf(0.0, -0.5, pose)
+	if right_arm: right_arm.rotation.x = lerpf(0.0, -0.5, pose)
 
 
 func _set_resident_routine(person: Node3D, routine: String, duration: float) -> void:
@@ -5005,6 +5166,8 @@ func _set_resident_routine(person: Node3D, routine: String, duration: float) -> 
 	person.set_meta("routine_timer", duration)
 	if routine == "inside":
 		person.set_meta("routine_timer", 5.0 + fmod(float(person.get_meta("walk_phase", 0.0)), 5.0))
+	elif routine == "taking_seat" or routine == "leaving_seat":
+		person.set_meta("routine_timer", 0.9)
 
 
 func _build_car_route(start_cell: Vector2i, index: int) -> Array[Vector3]:
@@ -5757,10 +5920,11 @@ func _populate_village_house_variant(root: Node3D, lot_root: Node3D, structure_r
 	var props_root := sections["props"] as Node3D
 	structure_root = sections["main_building"] as Node3D
 	if rebuild_lot_layout:
+		var expanded_house_preset := _property_visual_preset_for_variant(BUILD_TOOL_HOUSE, variant, resolved_variant_id)
 		if has_garage:
-			create_driveway(parking_root, _property_visual_preset(BUILD_TOOL_HOUSE), entry_offset, garage_side, true)
+			create_driveway(parking_root, expanded_house_preset, entry_offset, garage_side, true)
 		else:
-			create_driveway(parking_root, _property_visual_preset(BUILD_TOOL_HOUSE), entry_offset, garage_side, false)
+			create_driveway(parking_root, expanded_house_preset, entry_offset, garage_side, false)
 
 	var plaster := _make_material_from_color(palette.wall.lightened(0.02), 0.95)
 	var timber := _make_material("8d6848", 0.88)
@@ -9831,10 +9995,10 @@ func _add_grocery_parking_lot(center: Vector3, size: Vector3, parent: Node) -> v
 		var hatch := _add_box(Vector3(access_aisle_x, 0.106, hatch_z), Vector3(0.035, 0.012, size.x * 0.1), line_material, lot_root)
 		hatch.rotation_degrees.y = -32.0
 
-	# Four regular stalls plus the accessible bay. All wheel stops sit at the
+	# Five regular stalls plus the accessible bay use the added parcel width. All wheel stops sit at the
 	# storefront end, so the direction cars should pull in is immediately clear.
-	var regular_centers := [-size.x * 0.1, size.x * 0.08, size.x * 0.26, size.x * 0.43]
-	var divider_xs := [-size.x * 0.19, -size.x * 0.01, size.x * 0.17, size.x * 0.35, size.x * 0.49]
+	var regular_centers := [-size.x * 0.12, size.x * 0.02, size.x * 0.16, size.x * 0.3, size.x * 0.44]
+	var divider_xs := [-size.x * 0.19, -size.x * 0.05, size.x * 0.09, size.x * 0.23, size.x * 0.37, size.x * 0.49]
 	for divider_x in divider_xs:
 		_add_box(Vector3(float(divider_x), 0.102, stall_center_z), Vector3(0.035, 0.012, stall_depth), line_material, lot_root)
 	for stall_x in regular_centers:
@@ -10154,19 +10318,35 @@ func _add_lamp_fixture_local(base_position: Vector3, parent: Node, preview: bool
 
 
 func _add_bench(position_3d: Vector3, rotation_y: float) -> void:
-	var seat_material := _make_material("a57649", 0.72)
-	var bench := _add_box(position_3d + Vector3(0.0, 0.14, 0.0), Vector3(0.48, 0.08, 0.18), seat_material, building_root)
-	bench.rotation_degrees.y = rotation_y
-	var back := _add_box(position_3d + Vector3(0.0, 0.28, -0.07), Vector3(0.48, 0.18, 0.06), seat_material, building_root)
-	back.rotation_degrees.y = rotation_y
+	_add_bench_local(position_3d, rotation_y, building_root)
 
 
-func _add_bench_local(position_3d: Vector3, rotation_y: float, parent: Node) -> void:
-	var seat_material := _make_material("a57649", 0.72)
-	var bench := _add_box(position_3d + Vector3(0.0, 0.14, 0.0), Vector3(0.48, 0.08, 0.18), seat_material, parent)
-	bench.rotation_degrees.y = rotation_y
-	var back := _add_box(position_3d + Vector3(0.0, 0.28, -0.07), Vector3(0.48, 0.18, 0.06), seat_material, parent)
-	back.rotation_degrees.y = rotation_y
+func _add_bench_local(position_3d: Vector3, rotation_y: float, parent: Node) -> Node3D:
+	# Every bench is one transformable object with an authored seat anchor. This
+	# fixes both the old detached backrest rotation and residents targeting a
+	# guessed point near the park instead of the actual furniture.
+	var root := Node3D.new()
+	root.name = "Resident park bench"
+	root.position = position_3d
+	root.rotation.y = rotation_y
+	root.set_meta("resident_seat", true)
+	root.set_meta("seat_surface_y", 0.18)
+	root.set_meta("seat_forward_offset", 0.018)
+	parent.add_child(root)
+	var timber := _make_material("a57649", 0.7)
+	var timber_light := _make_material("bd8c5c", 0.66)
+	var frame := _make_material("3f484d", 0.76, 0.32)
+	# Three slats read more like park furniture than one thick block.
+	for slat_z in [-0.055, 0.0, 0.055]:
+		_add_soft_block(Vector3(0.0, 0.145, slat_z), Vector3(0.56, 0.045, 0.05), timber_light if slat_z >= 0.0 else timber, root, 0.018)
+	for slat_y in [0.255, 0.33, 0.405]:
+		_add_soft_block(Vector3(0.0, slat_y, -0.092), Vector3(0.56, 0.052, 0.045), timber, root, 0.018)
+	for side_x in [-0.23, 0.23]:
+		_add_box(Vector3(side_x, 0.075, 0.0), Vector3(0.045, 0.15, 0.05), frame, root)
+		var rear_leg := _add_box(Vector3(side_x, 0.205, -0.09), Vector3(0.04, 0.42, 0.04), frame, root)
+		rear_leg.rotation_degrees.x = -7.0
+		_add_box(Vector3(side_x, 0.25, 0.035), Vector3(0.045, 0.035, 0.22), frame, root)
+	return root
 
 
 func _add_lantern_glow_local(position_3d: Vector3, parent: Node) -> void:
