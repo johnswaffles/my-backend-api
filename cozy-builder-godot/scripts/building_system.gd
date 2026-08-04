@@ -3636,17 +3636,10 @@ func _add_decorative_pedestrian_local(parent: Node, position_3d: Vector3, coat: 
 	var root := Node3D.new()
 	root.position = position_3d
 	root.rotation.y = rotation_y
-	root.scale = Vector3.ONE * RESIDENT_VISUAL_SCALE
 	parent.add_child(root)
-	var coat_material := _make_material_from_color(coat, 0.8)
-	var skin_material := _make_material("f0c7a2", 0.76)
-	var dark_material := _make_material("2f3335", 0.88)
-	_add_local_cylinder(Vector3(0.0, 0.21, 0.0), 0.07, 0.08, 0.28, coat_material, root)
-	_add_local_sphere(Vector3(0.0, 0.43, 0.0), 0.09, 0.11, skin_material, root)
-	_add_box(Vector3(-0.035, 0.07, 0.0), Vector3(0.035, 0.14, 0.035), dark_material, root)
-	_add_box(Vector3(0.035, 0.07, 0.0), Vector3(0.035, 0.14, 0.035), dark_material, root)
-	_add_box(Vector3(-0.09, 0.25, 0.0), Vector3(0.035, 0.16, 0.035), coat_material, root)
-	_add_box(Vector3(0.09, 0.25, 0.0), Vector3(0.035, 0.16, 0.035), coat_material, root)
+	root.scale = Vector3.ONE * RESIDENT_VISUAL_SCALE
+	var style_index := posmod(int(round(position_3d.x * 11.0 + position_3d.z * 17.0)), 6)
+	_build_stylized_resident(root, style_index, coat)
 
 
 func _add_sidewalk_banner_local(parent: Node, position_3d: Vector3, accent: Color) -> void:
@@ -4322,62 +4315,171 @@ func _spawn_ambient_car(road_cell: Vector2i, index: int) -> Node3D:
 	root.set_meta("route_length", route_length)
 	root.set_meta("route_progress", randf_range(0.0, maxf(route_length * 2.0, 0.01)))
 	root.set_meta("speed", randf_range(1.4, 2.2))
-	_add_shadow_disc_local(Vector3(0.0, 0.005, 0.0), Vector2(0.48, 0.72), 0.16, root)
-
-	var palette := [
-		Color("d16758"),
-		Color("5f8cb8"),
-		Color("86a05d"),
-		Color("e3be67"),
-		Color("7e6ba1"),
-	]
-	var body_material := _make_material_from_color(palette[index % palette.size()], 0.68)
-	var trim_material := _make_material("f6f1e4", 0.82)
-	var tire_material := _make_material("26252b", 0.98)
-	var hub_material := _make_material("d8d1c6", 0.88)
-	var bumper_material := _make_material("ddd4c4", 0.86)
-	var tail_material := _make_material("e85b49", 0.4, 0.0, true, "ff6d54", 0.2)
-	var window_glass := _make_transparent_material(Color("bfe6ff"), 0.24, 0.16)
-	var dark_trim := _make_material("2f3338", 0.9)
-	var plate_material := _make_material("f8f1dc", 0.8)
-	_add_soft_block(Vector3(0.0, 0.16, 0.0), Vector3(0.4, 0.18, 0.66), body_material, root, 0.09)
-	_add_soft_block(Vector3(0.0, 0.3, -0.04), Vector3(0.28, 0.14, 0.32), trim_material, root, 0.06)
-	_add_box(Vector3(0.0, 0.255, 0.14), Vector3(0.28, 0.035, 0.22), _make_material_from_color(palette[index % palette.size()].lightened(0.12), 0.58), root)
-	_add_box(Vector3(0.0, 0.31, 0.13), Vector3(0.22, 0.08, 0.04), window_glass, root)
-	_add_box(Vector3(0.0, 0.31, -0.22), Vector3(0.2, 0.08, 0.04), window_glass, root)
-	_add_box(Vector3(-0.15, 0.3, -0.04), Vector3(0.04, 0.08, 0.2), window_glass, root)
-	_add_box(Vector3(0.15, 0.3, -0.04), Vector3(0.04, 0.08, 0.2), window_glass, root)
-	_add_box(Vector3(0.0, 0.13, 0.35), Vector3(0.26, 0.045, 0.04), bumper_material, root)
-	_add_box(Vector3(0.0, 0.13, -0.35), Vector3(0.26, 0.045, 0.04), bumper_material, root)
-	_add_box(Vector3(0.0, 0.17, 0.372), Vector3(0.12, 0.035, 0.018), plate_material, root)
-	_add_box(Vector3(0.0, 0.17, -0.372), Vector3(0.12, 0.035, 0.018), plate_material, root)
-	_add_box(Vector3(-0.14, 0.15, -0.36), Vector3(0.07, 0.04, 0.025), tail_material, root)
-	_add_box(Vector3(0.14, 0.15, -0.36), Vector3(0.07, 0.04, 0.025), tail_material, root)
-	_add_box(Vector3(0.0, 0.26, -0.04), Vector3(0.3, 0.035, 0.34), _make_material_from_color(palette[index % palette.size()].lightened(0.08), 0.62), root)
-	for side_x in [-0.215, 0.215]:
-		_add_box(Vector3(side_x, 0.2, 0.0), Vector3(0.024, 0.045, 0.5), dark_trim, root)
-		_add_box(Vector3(side_x, 0.26, 0.2), Vector3(0.026, 0.05, 0.045), dark_trim, root)
-		_add_box(Vector3(side_x, 0.26, -0.2), Vector3(0.026, 0.05, 0.045), dark_trim, root)
-	for wheel_data in [
-		Vector3(-0.19, 0.075, -0.22),
-		Vector3(0.19, 0.075, -0.22),
-		Vector3(-0.19, 0.075, 0.22),
-		Vector3(0.19, 0.075, 0.22),
-	]:
-		var wheel := _add_local_cylinder(wheel_data, 0.05, 0.05, 0.04, tire_material, root)
-		wheel.rotation_degrees.z = 90.0
-		var hub := _add_local_cylinder(wheel_data + Vector3(0.0, 0.0, 0.002), 0.026, 0.026, 0.045, hub_material, root)
-		hub.rotation_degrees.z = 90.0
-	for fender_data in [
-		Vector3(-0.2, 0.135, -0.22),
-		Vector3(0.2, 0.135, -0.22),
-		Vector3(-0.2, 0.135, 0.22),
-		Vector3(0.2, 0.135, 0.22),
-	]:
-		_add_box(fender_data, Vector3(0.06, 0.035, 0.14), body_material, root)
-	_add_car_detail_package(root, index, body_material, trim_material, dark_trim, window_glass)
-	_add_vehicle_headlights_local(root, 0.39, 0.12, 0.15, 3.2, 0.34)
+	var palette := [Color("d85f55"), Color("4f89bc"), Color("6f9b68"), Color("e2aa4f"), Color("7e6ba8"), Color("4a9a92")]
+	var vehicle_visual := Node3D.new()
+	vehicle_visual.name = "Modern vehicle visual"
+	root.add_child(vehicle_visual)
+	var vehicle_parts := _build_stylized_vehicle_model(vehicle_visual, index, palette[index % palette.size()], true)
+	root.set_meta("visual", vehicle_visual)
+	root.set_meta("wheels", vehicle_parts.get("wheels", []))
+	root.set_meta("vehicle_style", posmod(index, 5))
+	root.set_meta("motion_phase", randf() * TAU)
 	return root
+
+
+func _build_stylized_vehicle_model(parent: Node3D, index: int, body_color: Color, active_lights: bool = false) -> Dictionary:
+	var style := posmod(index, 5)
+	var width := 0.56
+	var length := 1.02
+	var body_height := 0.2
+	var cabin_height := 0.24
+	var cabin_length := 0.52
+	var cabin_z := -0.06
+	match style:
+		0: # Rounded city hatchback.
+			width = 0.53
+			length = 0.92
+			cabin_height = 0.25
+			cabin_length = 0.48
+			cabin_z = -0.05
+		1: # Family crossover with a taller, more confident stance.
+			width = 0.59
+			length = 1.06
+			body_height = 0.23
+			cabin_height = 0.3
+			cabin_length = 0.61
+			cabin_z = -0.04
+		2: # Working pickup with an open rear bed.
+			width = 0.59
+			length = 1.12
+			body_height = 0.23
+			cabin_height = 0.28
+			cabin_length = 0.46
+			cabin_z = 0.2
+		3: # Compact delivery van.
+			width = 0.61
+			length = 1.08
+			body_height = 0.25
+			cabin_height = 0.37
+			cabin_length = 0.8
+			cabin_z = -0.04
+		_: # Low electric fastback.
+			width = 0.57
+			length = 1.08
+			body_height = 0.18
+			cabin_height = 0.23
+			cabin_length = 0.58
+			cabin_z = -0.06
+
+	var body_material := _make_material_from_color(body_color, 0.34)
+	var body_light := _make_material_from_color(body_color.lightened(0.12), 0.3)
+	var body_shadow := _make_material_from_color(body_color.darkened(0.18), 0.46)
+	var glass_material := _make_transparent_material(Color("8fc8df"), 0.18, 0.38)
+	var glass_dark := _make_transparent_material(Color("426678"), 0.24, 0.52)
+	var tire_material := _make_material("202329", 0.96)
+	var hub_material := _make_material("c9d0d2", 0.32, 0.5)
+	var trim_material := _make_material("303840", 0.68)
+	var chrome_material := _make_material("d9dcda", 0.24, 0.58)
+	var plate_material := _make_material("f4eedf", 0.76)
+	var tail_material := _make_material("e34c46", 0.2, 0.0, true, "ff4f48", 0.45)
+	var amber_material := _make_material("f2a941", 0.22, 0.0, true, "ffc15b", 0.32)
+	_add_shadow_disc_local(Vector3(0.0, 0.008, 0.0), Vector2(width * 1.08, length * 0.92), 0.2, parent)
+
+	# A long, low chassis and three distinct body masses finally give the cars real proportions.
+	_add_box(Vector3(0.0, 0.115, 0.0), Vector3(width * 0.9, 0.08, length * 0.92), trim_material, parent)
+	_add_soft_block(Vector3(0.0, 0.2, 0.0), Vector3(width, body_height, length), body_material, parent, 0.11)
+	_add_soft_block(Vector3(0.0, 0.29, length * 0.31), Vector3(width * 0.9, 0.11, length * 0.31), body_light, parent, 0.08)
+	_add_box(Vector3(0.0, 0.235, length * 0.51), Vector3(width * 0.76, 0.07, 0.04), body_shadow, parent)
+
+	if style == 2:
+		# Pickup cab and genuinely open cargo bed.
+		_add_vehicle_cabin_shell(
+			Vector3(0.0, 0.39, cabin_z),
+			width * 0.84,
+			width * 0.7,
+			cabin_height,
+			cabin_length,
+			cabin_length * 0.7,
+			body_light,
+			parent
+		)
+		_add_box(Vector3(0.0, 0.31, -0.36), Vector3(width * 0.8, 0.055, 0.34), trim_material, parent)
+		for side_x in [-1.0, 1.0]:
+			_add_box(Vector3(side_x * width * 0.42, 0.33, -0.35), Vector3(0.055, 0.2, 0.39), body_material, parent)
+		_add_box(Vector3(0.0, 0.33, -0.535), Vector3(width * 0.78, 0.2, 0.055), body_material, parent)
+	else:
+		var upper_length_ratio: float = 0.78 if style == 3 else (0.68 if style == 1 else (0.58 if style == 4 else 0.62))
+		_add_vehicle_cabin_shell(
+			Vector3(0.0, 0.35 + cabin_height * 0.28, cabin_z),
+			width * 0.82,
+			width * (0.72 if style == 3 else 0.67),
+			cabin_height,
+			cabin_length,
+			cabin_length * upper_length_ratio,
+			body_light,
+			parent
+		)
+
+	var cabin_y: float = 0.39 if style != 3 else 0.45
+	var glass_offset_ratio: float = 0.45 if style == 3 else (0.43 if style == 2 else 0.41)
+	var front_glass_z: float = cabin_z + cabin_length * glass_offset_ratio
+	var rear_glass_z: float = cabin_z - cabin_length * glass_offset_ratio
+	var windshield := _add_box(Vector3(0.0, cabin_y, front_glass_z), Vector3(width * 0.68, cabin_height * 0.58, 0.035), glass_material, parent)
+	windshield.rotation_degrees.x = -20.0 if style != 3 else -9.0
+	var rear_window := _add_box(Vector3(0.0, cabin_y, rear_glass_z), Vector3(width * 0.64, cabin_height * 0.54, 0.035), glass_dark, parent)
+	rear_window.rotation_degrees.x = 20.0 if style != 3 else 8.0
+	for side_sign in [-1.0, 1.0]:
+		var side_x: float = float(side_sign) * width * 0.421
+		_add_box(Vector3(side_x, cabin_y, cabin_z + cabin_length * 0.17), Vector3(0.025, cabin_height * 0.55, cabin_length * 0.26), glass_material, parent)
+		_add_box(Vector3(side_x, cabin_y, cabin_z - cabin_length * 0.18), Vector3(0.025, cabin_height * 0.55, cabin_length * 0.25), glass_dark, parent)
+		_add_box(Vector3(side_x, cabin_y - cabin_height * 0.28, cabin_z), Vector3(0.018, 0.025, cabin_length * 0.82), trim_material, parent)
+		_add_box(Vector3(side_x * 1.09, cabin_y - 0.01, front_glass_z + 0.02), Vector3(0.07, 0.045, 0.09), body_shadow, parent)
+		_add_box(Vector3(side_x * 1.015, 0.27, cabin_z + 0.02), Vector3(0.02, 0.025, 0.13), chrome_material, parent)
+
+	var roof_y: float = cabin_y + cabin_height * 0.5 + 0.035
+	_add_soft_block(Vector3(0.0, roof_y, cabin_z - 0.015), Vector3(width * 0.78, 0.065, cabin_length * 0.88), body_light, parent, 0.055)
+	if style == 1 or style == 3:
+		for rail_x in [-1.0, 1.0]:
+			_add_box(Vector3(rail_x * width * 0.29, roof_y + 0.055, cabin_z), Vector3(0.025, 0.035, cabin_length * 0.72), chrome_material, parent)
+	if style == 4:
+		_add_box(Vector3(0.0, roof_y + 0.025, cabin_z), Vector3(width * 0.58, 0.025, cabin_length * 0.62), glass_dark, parent)
+
+	# Modern lighting signatures, grille, plates, and real wheel/hub assemblies.
+	_add_box(Vector3(0.0, 0.2, length * 0.515), Vector3(width * 0.42, 0.09, 0.03), trim_material, parent)
+	for grille_x in [-0.12, -0.06, 0.0, 0.06, 0.12]:
+		_add_box(Vector3(grille_x * width / 0.56, 0.2, length * 0.535), Vector3(0.018, 0.065, 0.018), chrome_material, parent)
+	_add_box(Vector3(0.0, 0.13, length * 0.54), Vector3(width * 0.3, 0.04, 0.025), chrome_material, parent)
+	_add_box(Vector3(0.0, 0.17, length * 0.555), Vector3(0.15, 0.045, 0.018), plate_material, parent)
+	_add_box(Vector3(0.0, 0.17, -length * 0.525), Vector3(0.15, 0.045, 0.018), plate_material, parent)
+	for side_sign in [-1.0, 1.0]:
+		_add_box(Vector3(side_sign * width * 0.31, 0.24, -length * 0.515), Vector3(width * 0.2, 0.07, 0.025), tail_material, parent)
+		_add_box(Vector3(side_sign * width * 0.37, 0.25, length * 0.515), Vector3(width * 0.15, 0.065, 0.025), amber_material, parent)
+
+	var wheel_radius := 0.105 if style == 1 or style == 2 or style == 3 else 0.09
+	var wheel_z := length * 0.315
+	var wheels: Array[Node3D] = []
+	for side_sign in [-1.0, 1.0]:
+		for z_sign in [-1.0, 1.0]:
+			var wheel_root := _build_stylized_vehicle_wheel(parent, Vector3(side_sign * width * 0.515, wheel_radius, z_sign * wheel_z), wheel_radius, tire_material, hub_material, trim_material)
+			wheels.append(wheel_root)
+			_add_soft_block(Vector3(side_sign * width * 0.47, wheel_radius + 0.055, z_sign * wheel_z), Vector3(0.06, 0.08, wheel_radius * 1.9), body_material, parent, 0.035)
+	if active_lights:
+		_add_vehicle_headlights_local(parent, length * 0.535, width * 0.29, 0.25, 4.2, 0.48)
+	return {"wheels": wheels, "width": width, "length": length, "style": style}
+
+
+func _build_stylized_vehicle_wheel(parent: Node3D, position_3d: Vector3, radius: float, tire_material: Material, hub_material: Material, trim_material: Material) -> Node3D:
+	var wheel_root := Node3D.new()
+	wheel_root.position = position_3d
+	wheel_root.rotation_degrees.z = 90.0
+	parent.add_child(wheel_root)
+	_add_local_cylinder(Vector3.ZERO, radius, radius, 0.075, tire_material, wheel_root)
+	_add_local_cylinder(Vector3(0.0, 0.043, 0.0), radius * 0.56, radius * 0.56, 0.015, hub_material, wheel_root)
+	_add_local_cylinder(Vector3(0.0, 0.052, 0.0), radius * 0.17, radius * 0.17, 0.02, trim_material, wheel_root)
+	for spoke_angle in [0.0, 45.0, 90.0, 135.0]:
+		var spoke := _add_box(Vector3(0.0, 0.064, 0.0), Vector3(radius * 0.82, 0.014, 0.018), hub_material, wheel_root)
+		spoke.rotation_degrees.y = spoke_angle
+	return wheel_root
 
 
 func _spawn_ambient_trolley(road_cell: Vector2i) -> Node3D:
@@ -4481,12 +4583,145 @@ func _spawn_ambient_person(anchor_key: String, index: int) -> Node3D:
 	visual.scale = Vector3.ONE * RESIDENT_VISUAL_SCALE
 	root.add_child(visual)
 	root.set_meta("visual", visual)
-	var resident_parts := _build_extra_small_block_resident(visual, index)
+	var resident_parts := _build_stylized_resident(visual, index)
 	root.set_meta("left_arm", resident_parts["left_arm"])
 	root.set_meta("right_arm", resident_parts["right_arm"])
 	root.set_meta("left_leg", resident_parts["left_leg"])
 	root.set_meta("right_leg", resident_parts["right_leg"])
+	root.set_meta("head", resident_parts["head"])
+	root.set_meta("body", resident_parts["body"])
 	return root
+
+
+func _build_stylized_resident(visual: Node3D, index: int, color_override: Color = Color.TRANSPARENT) -> Dictionary:
+	var clothing_palette := [Color("397fba"), Color("d45f55"), Color("63945c"), Color("8a6eb2"), Color("d39a42"), Color("348e86"), Color("ce6f96"), Color("657485")]
+	var trouser_palette := [Color("303640"), Color("493f3a"), Color("31475b"), Color("56504b"), Color("273f45")]
+	var skin_palette := [Color("f2c9a2"), Color("dfa77d"), Color("c4835d"), Color("945d43"), Color("f4d5ba"), Color("6f4435")]
+	var hair_palette := [Color("4c2f24"), Color("242228"), Color("a9673d"), Color("71432f"), Color("c49a65"), Color("353942")]
+	var clothing_color: Color = color_override if color_override.a > 0.0 else clothing_palette[index % clothing_palette.size()]
+	var clothing := _make_material_from_color(clothing_color, 0.68)
+	var clothing_light := _make_material_from_color(clothing_color.lightened(0.15), 0.62)
+	var clothing_dark := _make_material_from_color(clothing_color.darkened(0.2), 0.78)
+	var trousers := _make_material_from_color(trouser_palette[index % trouser_palette.size()], 0.86)
+	var skin := _make_material_from_color(skin_palette[index % skin_palette.size()], 0.66)
+	var skin_shadow := _make_material_from_color(skin_palette[index % skin_palette.size()].darkened(0.1), 0.72)
+	var hair := _make_material_from_color(hair_palette[index % hair_palette.size()], 0.78)
+	var shoes := _make_material("242831", 0.88)
+	var shirt := _make_material("f4efe4", 0.72)
+	var face := _make_material("2a2b30", 0.76)
+	var accent := _make_material_from_color(clothing_color.lightened(0.28), 0.54)
+	var style := posmod(index, 6)
+
+	# Clear, rounded anatomy reads as a person at normal zoom instead of dissolving into pixels.
+	var body := Node3D.new()
+	body.name = "Torso"
+	visual.add_child(body)
+	match style:
+		2:
+			_add_local_cylinder(Vector3(0.0, 0.43, 0.0), 0.12, 0.19, 0.34, clothing, body)
+			_add_box(Vector3(0.0, 0.34, 0.095), Vector3(0.24, 0.05, 0.03), clothing_light, body)
+		3:
+			_add_soft_block(Vector3(0.0, 0.46, 0.0), Vector3(0.31, 0.31, 0.2), clothing_dark, body, 0.08)
+			_add_box(Vector3(0.0, 0.47, 0.112), Vector3(0.22, 0.24, 0.025), clothing_light, body)
+			for stripe_x in [-0.065, 0.065]:
+				_add_box(Vector3(stripe_x, 0.47, 0.13), Vector3(0.025, 0.22, 0.018), accent, body)
+		_:
+			_add_soft_block(Vector3(0.0, 0.46, 0.0), Vector3(0.3, 0.32, 0.2), clothing, body, 0.085)
+
+	if style == 0:
+		_add_local_sphere(Vector3(0.0, 0.59, -0.045), 0.17, 0.2, clothing_dark, body)
+		_add_box(Vector3(0.0, 0.48, 0.111), Vector3(0.022, 0.23, 0.018), accent, body)
+	elif style == 1 or style == 5:
+		var left_lapel := _add_box(Vector3(-0.055, 0.52, 0.112), Vector3(0.085, 0.17, 0.025), shirt, body)
+		left_lapel.rotation_degrees.z = -18.0
+		var right_lapel := _add_box(Vector3(0.055, 0.52, 0.112), Vector3(0.085, 0.17, 0.025), shirt, body)
+		right_lapel.rotation_degrees.z = 18.0
+		for button_y in [0.4, 0.47]:
+			_add_local_sphere(Vector3(0.0, button_y, 0.13), 0.014, 0.018, clothing_dark, body)
+	elif style == 4:
+		_add_box(Vector3(0.0, 0.48, 0.112), Vector3(0.22, 0.06, 0.025), accent, body)
+		_add_box(Vector3(0.0, 0.4, 0.112), Vector3(0.22, 0.025, 0.025), clothing_light, body)
+
+	_add_local_cylinder(Vector3(0.0, 0.64, 0.0), 0.052, 0.058, 0.09, skin_shadow, visual)
+	var head := Node3D.new()
+	head.name = "Head"
+	head.position = Vector3(0.0, 0.76, 0.0)
+	visual.add_child(head)
+	_add_local_sphere(Vector3.ZERO, 0.14, 0.25, skin, head)
+	for ear_x in [-0.143, 0.143]:
+		_add_local_sphere(Vector3(ear_x, 0.0, 0.0), 0.025, 0.04, skin_shadow, head)
+	_add_local_sphere(Vector3(0.0, -0.012, 0.132), 0.022, 0.035, skin_shadow, head)
+	for eye_x in [-0.052, 0.052]:
+		_add_local_sphere(Vector3(eye_x, 0.03, 0.122), 0.018, 0.025, face, head)
+		_add_local_sphere(Vector3(eye_x - 0.005, 0.035, 0.137), 0.006, 0.008, shirt, head)
+	_add_box(Vector3(0.0, -0.065, 0.132), Vector3(0.052, 0.014, 0.016), _make_material("a45750", 0.68), head)
+
+	# Hair and headwear use broad sculpted masses so every resident gets a distinct silhouette.
+	_add_local_sphere(Vector3(0.0, 0.09, -0.01), 0.145, 0.13, hair, head)
+	match style:
+		0:
+			_add_soft_block(Vector3(0.0, 0.142, 0.0), Vector3(0.3, 0.075, 0.25), clothing, head, 0.06)
+			_add_box(Vector3(0.0, 0.125, 0.15), Vector3(0.2, 0.025, 0.09), clothing_dark, head)
+		1:
+			_add_local_sphere(Vector3(0.12, 0.11, -0.07), 0.09, 0.13, hair, head)
+			_add_local_sphere(Vector3(0.17, 0.02, -0.09), 0.065, 0.16, hair, head)
+		2:
+			_add_local_sphere(Vector3(-0.13, 0.04, -0.04), 0.07, 0.22, hair, head)
+			_add_local_sphere(Vector3(0.13, 0.04, -0.04), 0.07, 0.22, hair, head)
+		3:
+			for curl_x in [-0.11, 0.0, 0.11]:
+				_add_local_sphere(Vector3(curl_x, 0.11, -0.02), 0.075, 0.09, hair, head)
+		4:
+			_add_local_sphere(Vector3(0.0, 0.17, -0.02), 0.12, 0.16, clothing_light, head)
+			_add_box(Vector3(0.0, 0.095, 0.0), Vector3(0.29, 0.055, 0.25), clothing_dark, head)
+		_:
+			_add_box(Vector3(0.0, 0.055, 0.105), Vector3(0.22, 0.075, 0.06), hair, head)
+
+	if style == 2 or style == 5:
+		for lens_x in [-0.052, 0.052]:
+			_add_local_cylinder(Vector3(lens_x, 0.03, 0.143), 0.036, 0.036, 0.012, face, head).rotation_degrees.x = 90.0
+		_add_box(Vector3(0.0, 0.03, 0.15), Vector3(0.04, 0.012, 0.012), face, head)
+
+	var left_arm := _build_stylized_resident_arm(visual, -1.0, clothing, clothing_light, skin)
+	var right_arm := _build_stylized_resident_arm(visual, 1.0, clothing, clothing_light, skin)
+	var left_leg := _build_stylized_resident_leg(visual, -1.0, trousers, shoes)
+	var right_leg := _build_stylized_resident_leg(visual, 1.0, trousers, shoes)
+
+	if style == 1:
+		_add_soft_block(Vector3(-0.2, 0.38, -0.06), Vector3(0.13, 0.2, 0.12), _make_material("a36c43", 0.74), visual, 0.035)
+		var strap := _add_box(Vector3(-0.11, 0.51, -0.08), Vector3(0.035, 0.36, 0.025), clothing_dark, visual)
+		strap.rotation_degrees.z = -22.0
+	elif style == 3:
+		_add_soft_block(Vector3(0.0, 0.47, -0.14), Vector3(0.24, 0.27, 0.11), clothing_dark, visual, 0.05)
+		for strap_x in [-0.08, 0.08]:
+			_add_box(Vector3(strap_x, 0.52, -0.105), Vector3(0.035, 0.25, 0.025), accent, visual)
+	elif style == 4:
+		_add_local_cylinder(Vector3(0.18, 0.33, 0.08), 0.045, 0.035, 0.1, _make_material("f2efe7", 0.58), visual)
+		_add_box(Vector3(0.18, 0.39, 0.08), Vector3(0.1, 0.018, 0.1), clothing_dark, visual)
+
+	return {"left_arm": left_arm, "right_arm": right_arm, "left_leg": left_leg, "right_leg": right_leg, "head": head, "body": body}
+
+
+func _build_stylized_resident_arm(visual: Node3D, side: float, clothing: Material, clothing_light: Material, skin: Material) -> Node3D:
+	var pivot := Node3D.new()
+	pivot.name = "Left arm" if side < 0.0 else "Right arm"
+	pivot.position = Vector3(side * 0.185, 0.57, 0.0)
+	pivot.rotation_degrees.z = -side * 6.0
+	visual.add_child(pivot)
+	_add_local_capsule(Vector3(0.0, -0.13, 0.0), 0.052, 0.28, clothing, pivot)
+	_add_local_sphere(Vector3(0.0, -0.285, 0.018), 0.052, 0.08, skin, pivot)
+	_add_box(Vector3(0.0, -0.02, 0.045), Vector3(0.075, 0.07, 0.035), clothing_light, pivot)
+	return pivot
+
+
+func _build_stylized_resident_leg(visual: Node3D, side: float, trousers: Material, shoes: Material) -> Node3D:
+	var pivot := Node3D.new()
+	pivot.name = "Left leg" if side < 0.0 else "Right leg"
+	pivot.position = Vector3(side * 0.075, 0.32, 0.0)
+	visual.add_child(pivot)
+	_add_local_capsule(Vector3(0.0, -0.15, 0.0), 0.058, 0.31, trousers, pivot)
+	_add_soft_block(Vector3(0.0, -0.31, 0.045), Vector3(0.12, 0.075, 0.19), shoes, pivot, 0.035)
+	return pivot
 
 
 func _build_extra_small_block_resident(visual: Node3D, index: int) -> Dictionary:
@@ -4632,7 +4867,20 @@ func _animate_life(delta: float) -> void:
 		car.set_meta("route_progress", progress)
 		var sample := _sample_ping_pong_route(route_points, route_length, progress)
 		car.position = sample["position"]
-		car.rotation.y = lerp_angle(car.rotation.y, float(sample["heading"]), min(1.0, delta * 10.0))
+		var target_heading := float(sample["heading"])
+		var turn_amount := angle_difference(car.rotation.y, target_heading)
+		car.rotation.y = lerp_angle(car.rotation.y, target_heading, min(1.0, delta * 8.0))
+		var vehicle_visual := car.get_meta("visual", null) as Node3D
+		if vehicle_visual:
+			var motion_phase := float(car.get_meta("motion_phase", 0.0)) + delta * float(car.get_meta("speed", 1.6)) * 3.2
+			car.set_meta("motion_phase", motion_phase)
+			vehicle_visual.position.y = 0.008 + sin(motion_phase * 2.0) * 0.006
+			vehicle_visual.rotation.z = lerpf(vehicle_visual.rotation.z, clampf(-turn_amount * 0.18, -0.055, 0.055), minf(1.0, delta * 5.0))
+		var wheels: Array = car.get_meta("wheels", [])
+		for wheel_variant in wheels:
+			var wheel := wheel_variant as Node3D
+			if is_instance_valid(wheel):
+				wheel.rotate_object_local(Vector3.UP, delta * float(car.get_meta("speed", 1.6)) * 9.0)
 
 	for trolley in _ambient_trolleys:
 		if not is_instance_valid(trolley):
@@ -4676,6 +4924,8 @@ func _animate_resident_routine(person: Node3D, delta: float) -> void:
 	var right_arm := person.get_meta("right_arm", null) as Node3D
 	var left_leg := person.get_meta("left_leg", null) as Node3D
 	var right_leg := person.get_meta("right_leg", null) as Node3D
+	var head := person.get_meta("head", null) as Node3D
+	var body := person.get_meta("body", null) as Node3D
 	if visual == null:
 		return
 	var phase := float(person.get_meta("walk_phase", 0.0)) + delta * float(person.get_meta("speed", 0.9)) * 8.0
@@ -4693,13 +4943,18 @@ func _animate_resident_routine(person: Node3D, delta: float) -> void:
 		var direction := flat_delta.normalized()
 		person.position += direction * float(person.get_meta("speed", 0.9)) * delta
 		person.rotation.y = lerp_angle(person.rotation.y, atan2(direction.x, direction.z), min(1.0, delta * 9.0))
-		visual.position.y = abs(sin(phase)) * 0.018
-		visual.rotation.z = sin(phase * 0.5) * 0.035
-		var stride := sin(phase) * 0.52
-		if left_arm: left_arm.rotation.x = -stride * 0.72
-		if right_arm: right_arm.rotation.x = stride * 0.72
+		visual.position.y = abs(sin(phase)) * 0.026
+		visual.rotation.x = -0.035
+		visual.rotation.z = sin(phase * 0.5) * 0.028
+		var stride := sin(phase) * 0.66
+		if left_arm: left_arm.rotation.x = -stride * 0.78
+		if right_arm: right_arm.rotation.x = stride * 0.78
 		if left_leg: left_leg.rotation.x = stride
 		if right_leg: right_leg.rotation.x = -stride
+		if head:
+			head.rotation.y = sin(phase * 0.5) * 0.09
+			head.rotation.z = -sin(phase * 0.5) * 0.025
+		if body: body.rotation.x = sin(phase * 2.0) * 0.018
 		return
 
 	var timer := float(person.get_meta("routine_timer", 0.0)) - delta
@@ -4714,7 +4969,12 @@ func _animate_resident_routine(person: Node3D, delta: float) -> void:
 
 	visual.visible = true
 	visual.position.y = 0.0
+	visual.rotation.x = 0.0
 	visual.rotation.z = sin(_ambient_life_clock * 1.7 + phase) * 0.012
+	if head:
+		head.rotation.y = sin(_ambient_life_clock * 0.7 + phase) * 0.08
+		head.rotation.z = 0.0
+	if body: body.rotation.x = 0.0
 	if routine == "talking":
 		var partner: Node3D = person.get_meta("conversation_partner") as Node3D if person.has_meta("conversation_partner") else null
 		if is_instance_valid(partner):
@@ -4724,6 +4984,8 @@ func _animate_resident_routine(person: Node3D, delta: float) -> void:
 				person.rotation.y = lerp_angle(person.rotation.y, atan2(toward_partner.x, toward_partner.z), min(1.0, delta * 6.0))
 		if left_arm: left_arm.rotation.x = sin(_ambient_life_clock * 2.6 + phase) * 0.28
 		if right_arm: right_arm.rotation.x = -sin(_ambient_life_clock * 2.1 + phase) * 0.22
+		if left_leg: left_leg.rotation.x = lerpf(left_leg.rotation.x, 0.0, minf(1.0, delta * 8.0))
+		if right_leg: right_leg.rotation.x = lerpf(right_leg.rotation.x, 0.0, minf(1.0, delta * 8.0))
 	if routine == "sitting":
 		visual.position.y = -0.055
 		visual.rotation.x = -0.18
@@ -9391,15 +9653,8 @@ func _add_small_parked_car_local(parent: Node, position_3d: Vector3, rotation_y:
 	root.position = position_3d
 	root.rotation.y = rotation_y
 	parent.add_child(root)
-	var body := _make_material_from_color(color, 0.68)
-	var glass := _make_transparent_material(Color("bfe6ff"), 0.24, 0.28)
-	var tire := _make_material("26252b", 0.98)
-	_add_soft_block(Vector3(0.0, 0.16, 0.0), Vector3(0.42, 0.18, 0.72), body, root, 0.06)
-	_add_box(Vector3(0.0, 0.3, -0.06), Vector3(0.3, 0.12, 0.32), glass, root)
-	for x in [-0.21, 0.21]:
-		for z in [-0.24, 0.24]:
-			var wheel := _add_local_cylinder(Vector3(x, 0.08, z), 0.055, 0.055, 0.045, tire, root)
-			wheel.rotation_degrees.z = 90.0
+	var style_index := posmod(int(round(abs(position_3d.x * 13.0 + position_3d.z * 19.0))), 5)
+	_build_stylized_vehicle_model(root, style_index, color, false)
 
 
 func _add_frontage_detail_cluster(parent: Node, width: float, z_position: float, accent: Color, kind: String) -> void:
@@ -9412,26 +9667,57 @@ func _add_frontage_detail_cluster(parent: Node, width: float, z_position: float,
 
 func _add_fire_truck_local(position_3d: Vector3, rotation_y: float, parent: Node) -> void:
 	var root := Node3D.new()
+	root.name = "Detailed fire engine"
 	root.position = position_3d
 	root.rotation.y = rotation_y
 	parent.add_child(root)
-	_add_shadow_disc_local(Vector3(0.0, 0.005, 0.0), Vector2(0.52, 0.92), 0.18, root)
-	var body_material := _make_material("c85243", 0.76)
-	var cab_material := _make_material("f2efe5", 0.88)
-	var stripe_material := _make_material("f1d072", 0.84)
-	var tire_material := _make_material("26252b", 0.98)
-	_add_soft_block(Vector3(0.0, 0.14, 0.0), Vector3(0.5, 0.16, 0.86), body_material, root, 0.06)
-	_add_soft_block(Vector3(0.0, 0.24, -0.2), Vector3(0.38, 0.12, 0.32), cab_material, root, 0.05)
-	_add_box(Vector3(0.0, 0.18, 0.26), Vector3(0.3, 0.04, 0.04), stripe_material, root)
-	_add_box(Vector3(0.0, 0.26, -0.38), Vector3(0.22, 0.03, 0.08), stripe_material, root)
-	for wheel_data in [
-		Vector3(-0.18, 0.07, -0.3),
-		Vector3(0.18, 0.07, -0.3),
-		Vector3(-0.18, 0.07, 0.32),
-		Vector3(0.18, 0.07, 0.32),
-	]:
-		var wheel := _add_local_cylinder(wheel_data, 0.055, 0.055, 0.04, tire_material, root)
-		wheel.rotation_degrees.z = 90.0
+	_add_shadow_disc_local(Vector3(0.0, 0.005, 0.0), Vector2(0.72, 1.26), 0.2, root)
+	var red := _make_material("cf4038", 0.38)
+	var red_light := _make_material("ed6252", 0.34)
+	var red_dark := _make_material("91332f", 0.56)
+	var metal := _make_material("d5d9d8", 0.36, 0.42)
+	var dark_metal := _make_material("3a4348", 0.72)
+	var glass := _make_transparent_material(Color("8bc5df"), 0.18, 0.42)
+	var tire := _make_material("202329", 0.98)
+	var hub := _make_material("c7cdcf", 0.3, 0.48)
+	var stripe := _make_material("f6d06a", 0.56, 0.0, true, "ffd978", 0.2)
+	var red_lightbar := _make_material("df3e48", 0.16, 0.0, true, "ff3f50", 0.85)
+	var blue_lightbar := _make_material("398acf", 0.16, 0.0, true, "4aa7ff", 0.85)
+
+	# A full-length chassis, separate crew cab, and equipment body give the engine
+	# the same deliberate proportions as the new civilian vehicle family.
+	_add_box(Vector3(0.0, 0.13, -0.02), Vector3(0.58, 0.09, 1.16), dark_metal, root)
+	_add_soft_block(Vector3(0.0, 0.24, -0.26), Vector3(0.62, 0.25, 0.68), red, root, 0.07)
+	_add_vehicle_cabin_shell(Vector3(0.0, 0.39, 0.34), 0.59, 0.5, 0.4, 0.5, 0.4, red_light, root)
+	var windshield := _add_box(Vector3(0.0, 0.43, 0.565), Vector3(0.43, 0.22, 0.035), glass, root)
+	windshield.rotation_degrees.x = -10.0
+	for side in [-1.0, 1.0]:
+		var side_x: float = float(side) * 0.298
+		_add_box(Vector3(side_x, 0.43, 0.35), Vector3(0.025, 0.2, 0.24), glass, root)
+		_add_box(Vector3(side_x * 1.015, 0.34, -0.27), Vector3(0.025, 0.26, 0.55), metal, root)
+		for locker_z in [-0.47, -0.27, -0.07]:
+			_add_box(Vector3(side_x * 1.02, 0.34, locker_z), Vector3(0.032, 0.2, 0.16), metal, root)
+			_add_box(Vector3(side_x * 1.05, 0.34, locker_z + 0.055), Vector3(0.018, 0.018, 0.055), dark_metal, root)
+		_add_box(Vector3(side_x * 1.06, 0.26, 0.05), Vector3(0.018, 0.055, 1.0), stripe, root)
+
+	# Readable emergency hardware: light bar, grille, hose deck, lockers, and ladder.
+	_add_box(Vector3(0.0, 0.2, 0.61), Vector3(0.42, 0.1, 0.035), dark_metal, root)
+	for grille_x in [-0.14, -0.07, 0.0, 0.07, 0.14]:
+		_add_box(Vector3(grille_x, 0.2, 0.635), Vector3(0.022, 0.075, 0.018), metal, root)
+	_add_box(Vector3(0.0, 0.12, 0.65), Vector3(0.54, 0.055, 0.06), metal, root)
+	_add_box(Vector3(-0.13, 0.635, 0.32), Vector3(0.2, 0.055, 0.1), red_lightbar, root)
+	_add_box(Vector3(0.13, 0.635, 0.32), Vector3(0.2, 0.055, 0.1), blue_lightbar, root)
+	_add_box(Vector3(0.0, 0.53, -0.58), Vector3(0.52, 0.06, 0.08), red_dark, root)
+	for rail_x in [-0.13, 0.13]:
+		_add_box(Vector3(rail_x, 0.59, -0.28), Vector3(0.025, 0.035, 0.72), metal, root)
+	for rung_z in [-0.55, -0.4, -0.25, -0.1, 0.05]:
+		_add_box(Vector3(0.0, 0.605, rung_z), Vector3(0.29, 0.025, 0.025), metal, root)
+	_add_local_cylinder(Vector3(0.0, 0.43, -0.61), 0.11, 0.11, 0.05, dark_metal, root).rotation_degrees.z = 90.0
+	_add_local_cylinder(Vector3(-0.027, 0.43, -0.61), 0.07, 0.07, 0.058, stripe, root).rotation_degrees.z = 90.0
+
+	for side in [-1.0, 1.0]:
+		for wheel_z in [-0.4, 0.4]:
+			_build_stylized_vehicle_wheel(root, Vector3(float(side) * 0.315, 0.105, wheel_z), 0.105, tire, hub, dark_metal)
 
 
 func _add_fire_parking_lot(center: Vector3, size: Vector3, parent: Node) -> void:
@@ -10550,6 +10836,47 @@ func _add_commercial_roof_details_local(parent: Node, width: float, depth: float
 		_add_box(Vector3(width * 0.26, roof_y + 0.03, center_z + depth * 0.05), Vector3(0.34, 0.025, 0.22), glass_material, parent)
 
 
+func _add_vehicle_cabin_shell(center: Vector3, lower_width: float, upper_width: float, height: float, lower_length: float, upper_length: float, material: Material, parent: Node) -> MeshInstance3D:
+	# A purpose-built tapered prism gives every vehicle a believable beltline and
+	# sloped windshield/rear glass. Plain boxes could carry detail, but their outer
+	# silhouette always read like a toy from the game's normal three-quarter view.
+	var lower_x := lower_width * 0.5
+	var upper_x := upper_width * 0.5
+	var lower_z := lower_length * 0.5
+	var upper_z := upper_length * 0.5
+	var half_height := height * 0.5
+	var vertices := PackedVector3Array([
+		Vector3(-lower_x, -half_height, -lower_z),
+		Vector3(lower_x, -half_height, -lower_z),
+		Vector3(lower_x, -half_height, lower_z),
+		Vector3(-lower_x, -half_height, lower_z),
+		Vector3(-upper_x, half_height, -upper_z),
+		Vector3(upper_x, half_height, -upper_z),
+		Vector3(upper_x, half_height, upper_z),
+		Vector3(-upper_x, half_height, upper_z),
+	])
+	var triangle_indices := PackedInt32Array([
+		3, 2, 6, 3, 6, 7, # Front.
+		1, 0, 4, 1, 4, 5, # Rear.
+		2, 1, 5, 2, 5, 6, # Right side.
+		0, 3, 7, 0, 7, 4, # Left side.
+		7, 6, 5, 7, 5, 4, # Roof.
+		0, 1, 2, 0, 2, 3, # Underside.
+	])
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for vertex_index in triangle_indices:
+		surface.add_vertex(vertices[vertex_index])
+	surface.generate_normals()
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = "Tapered vehicle cabin"
+	mesh_instance.mesh = surface.commit()
+	mesh_instance.material_override = material
+	mesh_instance.position = center
+	parent.add_child(mesh_instance)
+	return mesh_instance
+
+
 func _add_soft_block(center: Vector3, size: Vector3, material: Material, parent: Node, corner_radius: float = 0.14) -> Node3D:
 	var root := Node3D.new()
 	root.position = center
@@ -10619,6 +10946,20 @@ func _add_local_sphere(position_3d: Vector3, radius: float, height: float, mater
 	mesh.height = height
 	mesh.radial_segments = 12
 	mesh.rings = 6
+	mesh_instance.mesh = mesh
+	mesh_instance.material_override = material
+	mesh_instance.position = position_3d
+	parent.add_child(mesh_instance)
+	return mesh_instance
+
+
+func _add_local_capsule(position_3d: Vector3, radius: float, height: float, material: Material, parent: Node) -> MeshInstance3D:
+	var mesh_instance := MeshInstance3D.new()
+	var mesh := CapsuleMesh.new()
+	mesh.radius = radius
+	mesh.height = maxf(height, radius * 2.05)
+	mesh.radial_segments = 12
+	mesh.rings = 5
 	mesh_instance.mesh = mesh
 	mesh_instance.material_override = material
 	mesh_instance.position = position_3d
