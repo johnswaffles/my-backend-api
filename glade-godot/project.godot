@@ -1,0 +1,34 @@
+; Glade — an original cozy diorama builder prototype.
+config_version=5
+
+[application]
+
+config/name="Glade"
+run/main_scene="res://scenes/main_scene.tscn"
+config/features=PackedStringArray("4.6")
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[input]
+
+tool_wall={"deadzone": 0.5, "events": [Object(InputEventKey,"physical_keycode":87)]}
+tool_cottage={"deadzone": 0.5, "events": [Object(InputEventKey,"physical_keycode":67)]}
+tool_tower={"deadzone": 0.5, "events": [Object(InputEventKey,"physical_keycode":84)]}
+tool_path={"deadzone": 0.5, "events": [Object(InputEventKey,"physical_keycode":80)]}
+tool_pond={"deadzone": 0.5, "events": [Object(InputEventKey,"physical_keycode":79)]}
+tool_nature={"deadzone": 0.5, "events": [Object(InputEventKey,"physical_keycode":78)]}
+tool_erase={"deadzone": 0.5, "events": [Object(InputEventKey,"physical_keycode":69)]}
+undo={"deadzone": 0.5, "events": [Object(InputEventKey,"ctrl_pressed":true,"physical_keycode":90), Object(InputEventKey,"meta_pressed":true,"physical_keycode":90)]}
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+anti_aliasing/quality/msaa_3d=2
+limits/opengl/max_lights_per_object=16
+textures/default_filters/use_nearest_mipmap_filter=false
