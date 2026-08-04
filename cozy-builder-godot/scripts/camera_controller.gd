@@ -1,8 +1,8 @@
 extends Node3D
 
-@export var orbit_scale := Vector3(0.82, 0.44, 0.82)
-@export var look_height := 0.66
-@export var camera_distance := 36.0
+@export var orbit_scale := Vector3(0.9, 0.38, 0.9)
+@export var look_height := 0.9
+@export var camera_distance := 40.0
 @export var min_orthographic_size := 6.0
 @export var max_orthographic_size := 38.0
 
@@ -11,7 +11,7 @@ extends Node3D
 
 func _ready() -> void:
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = 15.2
+	camera.size = 13.8
 	camera.near = 0.04
 	camera.far = 700.0
 

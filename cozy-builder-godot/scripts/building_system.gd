@@ -5,7 +5,7 @@ const TILE_SIZE := 1.0
 const SCENIC_MARGIN := 8.0
 const PAN_SPEED := 0.018
 const STARTING_MONEY := 500000
-const DEFAULT_ZOOM := 15.2
+const DEFAULT_ZOOM := 13.8
 const MIN_ZOOM := 6.0
 const MAX_ZOOM := 38.0
 const RESIDENT_VISUAL_SCALE := 0.72
@@ -622,6 +622,8 @@ var _road_top_detail_material: StandardMaterial3D
 var _road_edge_highlight_material: StandardMaterial3D
 var _crosswalk_material: StandardMaterial3D
 var _road_mark_material: StandardMaterial3D
+var _road_gutter_material: StandardMaterial3D
+var _road_reflector_material: StandardMaterial3D
 var _sidewalk_material: StandardMaterial3D
 var _window_material: StandardMaterial3D
 var _window_frame_material: StandardMaterial3D
@@ -661,6 +663,7 @@ var _ghost_root: Node3D
 var _ghost_nodes: Dictionary = {}
 var _road_lights_root: Node3D
 var _life_root: Node3D
+var _cinematic_overlay_layer: CanvasLayer
 var _hud_layer: CanvasLayer
 var _hud_margin: MarginContainer
 var _hud_panel: Control
@@ -819,7 +822,7 @@ func _build_materials() -> void:
 	# The authored meadow is deliberately tinted down so it reads as hand-painted
 	# ground detail instead of high-frequency wallpaper beneath the town.
 	_ground_material_a.albedo_texture = GRASS_MEADOW_ALBEDO
-	_ground_material_a.albedo_color = Color("9aaa88")
+	_ground_material_a.albedo_color = Color("91a47e")
 	_ground_material_a.uv1_scale = Vector3(6.0, 6.0, 6.0)
 	_ground_material_a.texture_repeat = true
 	_ground_material_a.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
@@ -831,22 +834,25 @@ func _build_materials() -> void:
 	_water_highlight_material = _make_transparent_material(Color("effffb"), 0.26, 0.42)
 	_road_material = _make_material("272d31", 0.98)
 	_road_material.albedo_texture = ASPHALT_ALBEDO
-	_road_material.albedo_color = Color(0.82, 0.84, 0.86)
+	_road_material.albedo_color = Color(0.58, 0.61, 0.63)
 	_road_material.uv1_scale = Vector3(2.5, 2.5, 2.5)
 	_road_material.texture_repeat = true
 	_road_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	_road_top_detail_material = _make_material("333a3f", 0.97)
 	_road_top_detail_material.albedo_texture = ASPHALT_ALBEDO
-	_road_top_detail_material.albedo_color = Color(0.9, 0.92, 0.94)
+	_road_top_detail_material.albedo_color = Color(0.68, 0.71, 0.73)
 	_road_top_detail_material.uv1_scale = Vector3(2.5, 2.5, 2.5)
 	_road_top_detail_material.texture_repeat = true
 	_road_top_detail_material.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	_road_edge_highlight_material = _make_material("b8c1bd", 0.92)
 	_crosswalk_material = _make_material("ddd8cb", 0.92)
 	_road_mark_material = _make_material("e8c64f", 0.8)
-	_sidewalk_material = _make_material("b9b09f", 0.94)
-	_window_material = _make_material("ffc15e", 0.12, 0.0, true, "ffe09a", 0.38)
-	_window_frame_material = _make_material("f6ecd8", 0.82)
+	_road_gutter_material = _make_material("20282b", 0.99)
+	_road_reflector_material = _make_material("f4d46b", 0.52, 0.0, true, "ffd86a", 0.08)
+	_sidewalk_material = _make_material("c8beac", 0.94)
+	_window_material = _make_material("78aeb5", 0.18, 0.04, true, "ffd28a", 0.18)
+	_window_material.metallic_specular = 0.38
+	_window_frame_material = _make_material("f2e4cf", 0.82)
 	_roof_fascia_material = _make_material("5f412b", 0.84)
 	_street_lamp_bulb_material = _make_material("fff4d8", 0.04, 0.0, true, "ffe7a8", 0.38)
 	_leaf_material = _make_material("5b8d4b", 0.93)
@@ -876,12 +882,15 @@ func _build_world() -> void:
 	_build_island_base()
 	_build_diorama_backdrop()
 	_build_ground_tiles()
+	_build_ground_surface_polish()
 	_build_meadow()
 	_build_nature()
 	_build_clouds()
 
 
 func _create_runtime_helpers() -> void:
+	_build_cinematic_post_overlay()
+
 	_hover_root = Node3D.new()
 	grid_root.add_child(_hover_root)
 
@@ -904,8 +913,40 @@ func _create_runtime_helpers() -> void:
 	_music_start_pending = _music_player.stream != null
 
 
+func _build_cinematic_post_overlay() -> void:
+	# A restrained screen-space finish makes the miniature feel photographed: cool
+	# edge falloff, a touch of warm horizon light, and just enough vignette to frame
+	# the town. It is deliberately below the HUD and ignores all mouse input.
+	_cinematic_overlay_layer = CanvasLayer.new()
+	_cinematic_overlay_layer.layer = 1
+	add_child(_cinematic_overlay_layer)
+	var overlay := ColorRect.new()
+	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_cinematic_overlay_layer.add_child(overlay)
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var shader := Shader.new()
+	shader.code = """
+shader_type canvas_item;
+render_mode unshaded, blend_mix;
+
+void fragment() {
+	vec2 p = (UV - vec2(0.5)) * vec2(0.86, 1.12);
+	float edge = smoothstep(0.34, 0.74, length(p));
+	float lower = smoothstep(0.55, 1.0, UV.y);
+	float warmth = max(0.0, 1.0 - distance(UV, vec2(0.82, 0.08)) * 1.18);
+	vec3 tint = mix(vec3(0.018, 0.032, 0.026), vec3(0.22, 0.105, 0.035), pow(warmth, 3.0));
+	float alpha = edge * 0.095 + lower * 0.018 + pow(warmth, 3.0) * 0.015;
+	COLOR = vec4(tint, alpha);
+}
+"""
+	var shader_material := ShaderMaterial.new()
+	shader_material.shader = shader
+	overlay.material = shader_material
+
+
 func _build_hud() -> void:
 	_hud_layer = CanvasLayer.new()
+	_hud_layer.layer = 10
 	add_child(_hud_layer)
 
 	var margin := MarginContainer.new()
@@ -5198,8 +5239,8 @@ func _build_ground_tiles() -> void:
 
 
 func _build_meadow() -> void:
-	# Avoid large flat discs and high-frequency wallpaper. Sparse vegetation makes
-	# the playable field feel tended while leaving buildings and roads legible.
+	# Curated vegetation sweeps frame the buildable center. The spacing is broad
+	# enough to feel lush without turning the playable area into visual noise.
 	for tuft in [
 		Vector3(-11.8, 0.06, 7.4),
 		Vector3(-9.2, 0.06, -8.1),
@@ -5209,22 +5250,39 @@ func _build_meadow() -> void:
 		Vector3(11.4, 0.06, -6.8),
 		Vector3(-11.0, 0.06, -3.4),
 		Vector3(4.4, 0.06, -10.6),
+		Vector3(-7.6, 0.06, 10.8),
+		Vector3(8.8, 0.06, 9.2),
+		Vector3(12.4, 0.06, -1.4),
+		Vector3(-12.8, 0.06, 1.1),
+		Vector3(7.3, 0.06, -11.6),
+		Vector3(-6.2, 0.06, -11.3),
 	]:
-		_add_grass_clump(tuft, 0.88)
+		_add_grass_clump(tuft, 0.82 + float(posmod(int(abs(tuft.x * 7.0 + tuft.z * 5.0)), 4)) * 0.08)
+	for flower_spec in [
+		{"position": Vector3(-10.2, 0.06, 8.8), "material": _flower_material_blue},
+		{"position": Vector3(-8.9, 0.06, 9.8), "material": _flower_material_pink},
+		{"position": Vector3(9.6, 0.06, 8.2), "material": _flower_material_pink},
+		{"position": Vector3(11.1, 0.06, 6.8), "material": _flower_material_blue},
+		{"position": Vector3(-11.4, 0.06, -7.2), "material": _flower_material_pink},
+		{"position": Vector3(10.7, 0.06, -8.4), "material": _flower_material_blue},
+	]:
+		_add_flower_patch(flower_spec.position, 7, flower_spec.material)
 
 
 func _build_ground_surface_polish() -> void:
 	var patch_specs := [
-		{"center": Vector3(-7.4, 0.045, -7.8), "size": Vector2(2.2, 1.1), "color": "9fc979", "rot": -18.0},
-		{"center": Vector3(-3.2, 0.045, -9.2), "size": Vector2(1.7, 0.78), "color": "86bb69", "rot": 12.0},
-		{"center": Vector3(5.8, 0.045, -8.0), "size": Vector2(2.0, 0.92), "color": "a9d486", "rot": 24.0},
-		{"center": Vector3(9.2, 0.045, -3.5), "size": Vector2(1.5, 0.72), "color": "7fb768", "rot": -32.0},
-		{"center": Vector3(-9.0, 0.045, 3.6), "size": Vector2(1.8, 0.84), "color": "a2c977", "rot": 35.0},
-		{"center": Vector3(-4.8, 0.045, 8.6), "size": Vector2(2.2, 1.0), "color": "82b962", "rot": -9.0},
-		{"center": Vector3(3.4, 0.045, 9.4), "size": Vector2(1.8, 0.78), "color": "a4d083", "rot": 16.0},
-		{"center": Vector3(8.6, 0.045, 4.8), "size": Vector2(1.6, 0.72), "color": "8cc06f", "rot": -22.0},
-		{"center": Vector3(-1.6, 0.045, 6.8), "size": Vector2(1.25, 0.52), "color": "9ab96b", "rot": 38.0},
-		{"center": Vector3(1.2, 0.045, -6.6), "size": Vector2(1.35, 0.58), "color": "7fb15f", "rot": -28.0},
+		{"center": Vector3(-8.2, 0.045, -8.2), "size": Vector2(4.2, 2.3), "color": "badb92", "rot": -18.0},
+		{"center": Vector3(-2.8, 0.045, -10.0), "size": Vector2(3.4, 1.7), "color": "6ea85a", "rot": 12.0},
+		{"center": Vector3(6.2, 0.045, -8.6), "size": Vector2(4.0, 2.0), "color": "c2df9b", "rot": 24.0},
+		{"center": Vector3(10.2, 0.045, -3.8), "size": Vector2(3.2, 1.7), "color": "649c56", "rot": -32.0},
+		{"center": Vector3(-9.6, 0.045, 3.9), "size": Vector2(3.7, 1.9), "color": "b5d789", "rot": 35.0},
+		{"center": Vector3(-5.0, 0.045, 9.4), "size": Vector2(4.3, 2.1), "color": "6ca154", "rot": -9.0},
+		{"center": Vector3(3.8, 0.045, 10.0), "size": Vector2(3.7, 1.8), "color": "c1df99", "rot": 16.0},
+		{"center": Vector3(9.4, 0.045, 5.2), "size": Vector2(3.4, 1.6), "color": "77ab5f", "rot": -22.0},
+		{"center": Vector3(-1.8, 0.045, 7.2), "size": Vector2(2.8, 1.2), "color": "c4d591", "rot": 38.0},
+		{"center": Vector3(1.4, 0.045, -7.2), "size": Vector2(3.0, 1.3), "color": "5f9650", "rot": -28.0},
+		{"center": Vector3(-12.0, 0.045, -0.8), "size": Vector2(2.6, 1.2), "color": "d0e39e", "rot": 8.0},
+		{"center": Vector3(12.0, 0.045, 1.0), "size": Vector2(2.8, 1.3), "color": "689d54", "rot": -14.0},
 	]
 	for spec in patch_specs:
 		_add_ground_tone_patch(spec.center, spec.size, Color(str(spec.color)), float(spec.rot))
@@ -8185,10 +8243,24 @@ func _add_town_path(center: Vector3, size: Vector2, parent: Node = null) -> void
 
 
 func _build_clouds() -> void:
-	# Clouds floating between an orthographic camera and the build surface read as
-	# white blobs that hide the town. The procedural sky provides atmosphere
-	# without obscuring player-created work.
-	return
+	# Low-contrast cloud shadows add slow atmospheric movement without placing
+	# opaque cloud meshes between the camera and the player's town.
+	var shadow_material := _make_transparent_material(Color(0.09, 0.18, 0.2, 1.0), 1.0, 0.045)
+	for cloud_spec in [
+		{"position": Vector3(-15.0, 0.056, -7.0), "speed": 0.42, "scale": 1.0},
+		{"position": Vector3(-4.0, 0.056, 7.2), "speed": 0.3, "scale": 1.28},
+		{"position": Vector3(9.0, 0.056, -1.0), "speed": 0.36, "scale": 0.84},
+	]:
+		var cloud_shadow := Node3D.new()
+		cloud_shadow.position = cloud_spec.position
+		cloud_shadow.set_meta("speed", cloud_spec.speed)
+		cloud_shadow.set_meta("base_z", cloud_spec.position.z)
+		grid_root.add_child(cloud_shadow)
+		var scale_factor: float = cloud_spec.scale
+		_add_ellipse_disc_local(Vector3.ZERO, Vector2(4.2, 1.7) * scale_factor, 0.012, shadow_material, cloud_shadow, -12.0)
+		_add_ellipse_disc_local(Vector3(-1.8, 0.0, 0.34), Vector2(2.7, 1.2) * scale_factor, 0.012, shadow_material, cloud_shadow, 8.0)
+		_add_ellipse_disc_local(Vector3(1.7, 0.0, -0.28), Vector2(2.9, 1.3) * scale_factor, 0.012, shadow_material, cloud_shadow, -4.0)
+		_clouds.append(cloud_shadow)
 
 
 func _add_meadow_patch(center: Vector3, size: Vector2, clump_count: int) -> void:
@@ -8219,7 +8291,8 @@ func _add_ground_tone_patch(center: Vector3, size: Vector2, color: Color, rotati
 	patch_mesh.bottom_radius = patch_mesh.top_radius * 1.04
 	patch_mesh.height = 0.018
 	patch.mesh = patch_mesh
-	patch.material_override = _make_material_from_color(color, 0.98)
+	patch.material_override = _make_transparent_material(color.darkened(0.22), 0.98, 0.08)
+	patch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	patch.scale = Vector3(size.x / max(size.x, size.y), 1.0, size.y / max(size.x, size.y))
 	patch.position = center
 	patch.rotation_degrees.y = rotation_degrees_y
@@ -8363,11 +8436,19 @@ func _add_intersection_center_mark_local(root: Node3D, material: Material) -> vo
 
 func _add_road_finish_details(root: Node3D, vertical_straight: bool, horizontal_straight: bool, intersection: bool, north: bool, east: bool, south: bool, west: bool) -> void:
 	if vertical_straight:
+		for x in [-1.04, 1.04]:
+			_add_box(Vector3(x, 0.149, 0.0), Vector3(0.055, 0.012, 2.42), _road_gutter_material, root)
+		for z in [-0.66, 0.66]:
+			_add_box(Vector3(-0.72, 0.158, z), Vector3(0.035, 0.014, 0.11), _road_reflector_material, root)
 		if not north:
 			_add_crosswalk_local(root, Vector3(0.0, 0.156, -1.08), false)
 		if not south:
 			_add_crosswalk_local(root, Vector3(0.0, 0.156, 1.08), false)
 	elif horizontal_straight:
+		for z in [-1.04, 1.04]:
+			_add_box(Vector3(0.0, 0.149, z), Vector3(2.42, 0.012, 0.055), _road_gutter_material, root)
+		for x in [-0.66, 0.66]:
+			_add_box(Vector3(x, 0.158, 0.72), Vector3(0.11, 0.014, 0.035), _road_reflector_material, root)
 		if not west:
 			_add_crosswalk_local(root, Vector3(-1.08, 0.156, 0.0), true)
 		if not east:
@@ -10119,6 +10200,10 @@ func _add_soft_block(center: Vector3, size: Vector3, material: Material, parent:
 		if size.y > 0.28:
 			_add_box(Vector3(0.0, -size.y * 0.5 + 0.026, size.z * 0.49), Vector3(size.x * 0.78, 0.045, 0.035), foot_material, root)
 			_add_box(Vector3(-size.x * 0.49, -size.y * 0.5 + 0.026, 0.0), Vector3(0.035, 0.045, size.z * 0.7), foot_material, root)
+			if size.x > 0.5 and size.z > 0.45:
+				var edge_material := _make_material_from_color(base_material.albedo_color.lightened(0.14), maxf(0.68, base_material.roughness - 0.08))
+				_add_box(Vector3(0.0, size.y * 0.5 - 0.018, size.z * 0.495), Vector3(size.x * 0.76, 0.028, 0.024), edge_material, root)
+				_add_box(Vector3(-size.x * 0.495, size.y * 0.5 - 0.018, 0.0), Vector3(0.024, 0.028, size.z * 0.72), edge_material, root)
 
 	return root
 
@@ -10207,7 +10292,14 @@ func _make_material(color_hex: String, roughness: float, metallic: float = 0.0, 
 	material.albedo_color = _polished_albedo_color(Color(color_hex), roughness)
 	material.roughness = roughness
 	material.metallic = metallic
-	material.metallic_specular = 0.08
+	material.metallic_specular = 0.16
+	if roughness < 0.86:
+		material.rim_enabled = true
+		material.rim = 0.12
+		material.rim_tint = 0.55
+	if roughness < 0.78:
+		material.clearcoat_enabled = true
+		material.clearcoat_roughness = 0.28
 	material.emission_enabled = emission_enabled
 	if emission_enabled:
 		material.emission = Color(emission_color_hex)
@@ -10219,7 +10311,14 @@ func _make_material_from_color(color: Color, roughness: float) -> StandardMateri
 	var material := StandardMaterial3D.new()
 	material.albedo_color = _polished_albedo_color(color, roughness)
 	material.roughness = roughness
-	material.metallic_specular = 0.08
+	material.metallic_specular = 0.16
+	if roughness < 0.86:
+		material.rim_enabled = true
+		material.rim = 0.12
+		material.rim_tint = 0.55
+	if roughness < 0.78:
+		material.clearcoat_enabled = true
+		material.clearcoat_roughness = 0.28
 	return material
 
 
@@ -10256,8 +10355,8 @@ func _animate_clouds(delta: float) -> void:
 		var base_z: float = float(cloud.get_meta("base_z", cloud.position.z))
 		cloud.position.x += delta * speed
 		cloud.position.z = base_z + sin(Time.get_ticks_msec() * 0.0004 + cloud.position.x) * 0.18
-		if cloud.position.x > 12.0:
-			cloud.position.x = -12.0
+		if cloud.position.x > 18.0:
+			cloud.position.x = -18.0
 
 
 func _animate_water(delta: float) -> void:
