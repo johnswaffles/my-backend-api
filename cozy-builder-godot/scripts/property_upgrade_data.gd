@@ -1,18 +1,71 @@
 extends RefCounted
 class_name PropertyUpgradeData
 
-const MAX_TIER := 4
+const MAX_TIER := 5
 const HOUSE_MAX_TIER := 5
 const RESTAURANT_MAX_TIER := 5
 const SERVICE_MAX_TIER := 5
 
-const DEFAULT_TIER_LABELS := ["base", "refined", "developed", "grand"]
-const HOUSE_TIER_LABELS := ["base", "entry", "family", "two-story", "estate"]
-const RESTAURANT_TIER_LABELS := ["open for business", "covered entry", "expanded dining", "full-service landmark", "flagship restaurant"]
-const SERVICE_TIER_LABELS := ["base", "expanded", "developed", "landmark", "signature"]
-const GROCERY_TIER_LABELS := ["neighborhood market", "covered storefront", "department expansion", "market hall", "flagship market"]
-const BANK_TIER_LABELS := ["neighborhood branch", "protected entry", "teller expansion", "regional bank", "flagship bank"]
-const CORNER_STORE_TIER_LABELS := ["neighborhood shop", "covered storefront", "delivery expansion", "corner landmark", "flagship mart"]
+const DEFAULT_TIER_LABELS := ["starter property", "community upgrade", "district destination", "regional landmark", "signature destination"]
+const HOUSE_TIER_LABELS := ["starter home", "expanded home", "family residence", "luxury residence", "estate compound"]
+const FIRE_TIER_LABELS := ["volunteer station", "dual-bay station", "district firehouse", "emergency command", "regional headquarters"]
+const RESTAURANT_TIER_LABELS := ["local eatery", "destination restaurant", "full-service dining", "hospitality landmark", "flagship restaurant"]
+const GROCERY_TIER_LABELS := ["neighborhood market", "full-service market", "department store", "market hall", "flagship marketplace"]
+const BANK_TIER_LABELS := ["local branch", "full-service branch", "financial campus", "regional center", "bank headquarters"]
+const CORNER_STORE_TIER_LABELS := ["neighborhood shop", "busy corner market", "service mart", "main-street landmark", "flagship emporium"]
+const PARK_TIER_LABELS := ["pocket park", "family park", "community commons", "civic gardens", "grand destination park"]
+
+const TIER_DESCRIPTIONS := {
+	"house": [
+		"A compact starter home.",
+		"Adds a full covered porch and a much larger living footprint.",
+		"Adds a garage wing and dedicated family rooms.",
+		"Adds a conservatory pavilion and premium outdoor living.",
+		"Completes an estate compound with a two-level carriage house.",
+	],
+	"fire": [
+		"A compact neighborhood response station.",
+		"Becomes a dual-bay station with a larger emergency apron.",
+		"Adds a training tower, operations wing, and full district capability.",
+		"Adds an upper command floor and emergency coordination plaza.",
+		"Becomes a regional headquarters with communications mast and civic forecourt.",
+	],
+	"bank": [
+		"A small neighborhood banking branch.",
+		"Adds a protected grand entry and expanded customer hall.",
+		"Adds a teller wing and a true multi-lane drive-through bank.",
+		"Adds an upper financial-services floor and formal civic plaza.",
+		"Becomes a headquarters campus with flagship atrium and landmark crown.",
+	],
+	"grocery": [
+		"A practical milk-and-bread neighborhood market.",
+		"Adds a broad produce arcade, cart vestibule, and larger storefront.",
+		"Adds bakery, deli, and pickup departments in a new service wing.",
+		"Adds a clerestory market hall, expanded parking, and covered pickup lanes.",
+		"Becomes a flagship marketplace with two entrances and a landmark food hall.",
+	],
+	"restaurant": [
+		"A small local dining room.",
+		"Adds a major covered entry and furnished outdoor dining terrace.",
+		"Adds a full dining wing, private room, and expanded guest capacity.",
+		"Adds a professional kitchen wing, service court, and landmark frontage.",
+		"Becomes a two-level flagship with roof terrace and event dining.",
+	],
+	"corner_store": [
+		"A compact neighborhood convenience shop.",
+		"Adds a wide weather canopy, cooler wall, and larger sales floor.",
+		"Adds a delivery wing, fresh-food counter, and pickup services.",
+		"Adds a landmark corner tower and expanded glass storefront.",
+		"Becomes a two-level flagship emporium with an apartment loft and full forecourt.",
+	],
+	"park": [
+		"A simple green pocket for the neighborhood.",
+		"Adds a playground, looping paths, shade trees, and family seating.",
+		"Adds a large community pavilion, picnic lawn, and event space.",
+		"Adds a fountain plaza, formal gardens, and civic promenade.",
+		"Becomes a destination park with a grand bandstand, pond, and illuminated gardens.",
+	],
+}
 
 const UPGRADEABLE_TOOLS := {
 	"house": true,
@@ -25,57 +78,57 @@ const UPGRADEABLE_TOOLS := {
 }
 
 const UPGRADE_COST_FACTORS := {
-	"house": [0.0, 0.56, 0.80, 1.02, 1.22],
-	"fire": [0.0, 0.58, 0.82, 1.06, 1.28],
-	"bank": [0.0, 0.56, 0.78, 1.02, 1.24],
-	"grocery": [0.0, 0.54, 0.76, 0.98, 1.18],
-	"restaurant": [0.0, 0.54, 0.76, 0.98, 1.20],
-	"corner_store": [0.0, 0.52, 0.74, 0.96, 1.16],
-	"park": [0.0, 0.46, 0.68, 0.92],
+	"house": [0.0, 0.72, 1.10, 1.62, 2.30],
+	"fire": [0.0, 0.68, 1.08, 1.58, 2.24],
+	"bank": [0.0, 0.70, 1.12, 1.68, 2.38],
+	"grocery": [0.0, 0.68, 1.08, 1.62, 2.28],
+	"restaurant": [0.0, 0.66, 1.06, 1.60, 2.30],
+	"corner_store": [0.0, 0.64, 1.02, 1.54, 2.20],
+	"park": [0.0, 0.58, 0.94, 1.42, 2.04],
 }
 
 const TOOL_YIELDS := {
 	"house": {
-		"population": [14, 18, 23, 29, 36],
+		"population": [14, 24, 38, 56, 82],
 		"jobs": [0, 0, 0, 0, 0],
-		"cashflow": [168, 228, 302, 382, 474],
-		"appeal": [6, 9, 13, 17, 22],
+		"cashflow": [168, 292, 468, 706, 1040],
+		"appeal": [6, 13, 23, 38, 60],
 	},
 	"fire": {
 		"population": [0, 0, 0, 0, 0],
-		"jobs": [14, 16, 18, 21, 25],
-		"cashflow": [-38, -42, -47, -53, -60],
-		"appeal": [16, 22, 29, 37, 46],
+		"jobs": [14, 24, 38, 56, 78],
+		"cashflow": [-38, -48, -62, -80, -104],
+		"appeal": [16, 34, 58, 88, 126],
 	},
 	"bank": {
 		"population": [0, 0, 0, 0, 0],
-		"jobs": [18, 20, 23, 27, 32],
-		"cashflow": [286, 352, 430, 522, 640],
-		"appeal": [10, 13, 16, 20, 26],
+		"jobs": [18, 32, 50, 74, 104],
+		"cashflow": [286, 520, 850, 1300, 1900],
+		"appeal": [10, 20, 34, 54, 82],
 	},
 	"grocery": {
 		"population": [0, 0, 0, 0, 0],
-		"jobs": [26, 30, 35, 41, 48],
-		"cashflow": [278, 352, 442, 548, 674],
-		"appeal": [10, 12, 15, 18, 24],
+		"jobs": [26, 44, 68, 98, 138],
+		"cashflow": [278, 500, 820, 1260, 1840],
+		"appeal": [10, 19, 32, 50, 76],
 	},
 	"restaurant": {
 		"population": [0, 0, 0, 0, 0],
-		"jobs": [20, 24, 29, 35, 42],
-		"cashflow": [246, 312, 392, 486, 612],
-		"appeal": [12, 15, 19, 24, 31],
+		"jobs": [20, 36, 56, 84, 120],
+		"cashflow": [246, 460, 760, 1180, 1740],
+		"appeal": [12, 24, 40, 64, 96],
 	},
 	"corner_store": {
 		"population": [0, 0, 0, 0, 0],
-		"jobs": [12, 14, 16, 18, 22],
-		"cashflow": [178, 220, 270, 332, 410],
-		"appeal": [8, 10, 12, 15, 20],
+		"jobs": [12, 22, 36, 54, 78],
+		"cashflow": [178, 340, 570, 890, 1320],
+		"appeal": [8, 16, 28, 44, 68],
 	},
 	"park": {
-		"population": [0, 0, 0, 0],
-		"jobs": [0, 0, 0, 0],
-		"cashflow": [-8, -10, -12, -14],
-		"appeal": [28, 42, 56, 72],
+		"population": [0, 0, 0, 0, 0],
+		"jobs": [0, 2, 5, 9, 14],
+		"cashflow": [-8, -12, -18, -26, -38],
+		"appeal": [28, 52, 82, 120, 168],
 	},
 	"pond_small": {
 		"population": [0, 0, 0, 0],
@@ -218,6 +271,7 @@ const VISUAL_PROFILES := {
 		2: {"extra_trees": true, "gazebo": false, "fountain": false, "paths": true},
 		3: {"extra_trees": true, "gazebo": true, "fountain": false, "paths": true},
 		4: {"extra_trees": true, "gazebo": true, "fountain": true, "paths": true},
+		5: {"extra_trees": true, "gazebo": true, "fountain": true, "paths": true, "bandstand": true, "pond": true, "illuminated": true},
 	},
 }
 
@@ -285,12 +339,28 @@ static func _tier_labels(tool: String) -> Array:
 		return HOUSE_TIER_LABELS
 	if tool == "restaurant":
 		return RESTAURANT_TIER_LABELS
+	if tool == "fire":
+		return FIRE_TIER_LABELS
 	if tool == "grocery":
 		return GROCERY_TIER_LABELS
 	if tool == "bank":
 		return BANK_TIER_LABELS
 	if tool == "corner_store":
 		return CORNER_STORE_TIER_LABELS
-	if tool in ["fire", "bank", "grocery", "corner_store"]:
-		return SERVICE_TIER_LABELS
+	if tool == "park":
+		return PARK_TIER_LABELS
 	return DEFAULT_TIER_LABELS
+
+
+static func tier_label(tool: String, tier: int) -> String:
+	var labels := _tier_labels(tool)
+	if labels.is_empty():
+		return "tier %d" % tier
+	return str(labels[clamp(tier, 1, labels.size()) - 1])
+
+
+static func tier_description(tool: String, tier: int) -> String:
+	var descriptions: Array = TIER_DESCRIPTIONS.get(tool, [])
+	if descriptions.is_empty():
+		return "A major property expansion."
+	return str(descriptions[clamp(tier, 1, descriptions.size()) - 1])

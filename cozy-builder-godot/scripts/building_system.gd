@@ -98,7 +98,7 @@ const BUILDING_MAX_TIERS := {
 	BUILD_TOOL_GROCERY: 5,
 	BUILD_TOOL_RESTAURANT: 5,
 	BUILD_TOOL_CORNER_STORE: 5,
-	BUILD_TOOL_PARK: 4,
+	BUILD_TOOL_PARK: 5,
 }
 const SCENIC_TOOL_SPECS := {
 	BUILD_TOOL_POND_SMALL: {"label": "Small Pond", "footprint": Vector2i(7, 6), "kind": "pond", "water_size": Vector2(5.5, 4.8), "shore_size": Vector2(6.5, 5.6), "cost": 260, "appeal": 10},
@@ -179,10 +179,10 @@ const PROPERTY_VISUAL_PRESETS := {
 		"accent_color": "f1d072",
 		"lot_type": "civic",
 		"lot_color": "c9c7b2",
-		"lot_size": Vector2(5.24, LOT_DEPTH + 0.2),
+		"lot_size": Vector2(5.24, LOT_DEPTH + 0.56),
 		"building_z_offset": -BUILDING_SETBACK * 0.82,
 		"parking": "front_apron",
-		"parking_position": Vector3(0.0, 0.0, LOT_PARKING_Z + 0.08),
+		"parking_position": Vector3(0.0, 0.0, LOT_PARKING_Z - 0.08),
 		"parking_size": Vector3(4.08, 1.0, PARKING_DEPTH + 0.16),
 		"parking_spaces": 3,
 		"sidewalk": {"width": 1.18, "z": LOT_FRONT_SIDEWALK_Z, "depth": SIDEWALK_WIDTH},
@@ -1151,14 +1151,23 @@ func _refresh_tool_ui() -> void:
 		var can_upgrade := _can_upgrade_selected_property()
 		_style_tool_button(_upgrade_button, can_upgrade)
 		_upgrade_button.disabled = not can_upgrade
+		_upgrade_button.tooltip_text = "Select an upgradeable property to see its next transformation."
 		if _selected_anchor_key != "" and _placements.has(_selected_anchor_key):
 			var selected_tool := str(_placements[_selected_anchor_key]["tool"])
 			var selected_tier := int(_placements[_selected_anchor_key].get("tier", 1))
 			if PropertyUpgradeData.is_upgradeable(selected_tool) and selected_tier < PropertyUpgradeData.max_tier(selected_tool):
 				var upgrade_cost := _selected_upgrade_cost()
 				_upgrade_button.text = "Upgrade $%d" % upgrade_cost
+				var next_tier := selected_tier + 1
+				_upgrade_button.tooltip_text = "%s: %s\nResult: %s" % [
+					PropertyUpgradeData.tier_label(selected_tool, next_tier).capitalize(),
+					PropertyUpgradeData.tier_description(selected_tool, next_tier),
+					_upgrade_delta_text(selected_tool, selected_tier),
+				]
 			else:
 				_upgrade_button.text = "Upgrade"
+				if PropertyUpgradeData.is_upgradeable(selected_tool):
+					_upgrade_button.tooltip_text = "%s is fully upgraded." % PropertyUpgradeData.tier_label(selected_tool, selected_tier).capitalize()
 		else:
 			_upgrade_button.text = "Upgrade"
 		_upgrade_debug("ui refresh selected=%s can_upgrade=%s disabled=%s text=%s" % [
@@ -1825,7 +1834,20 @@ func _property_variant_tier_config(tool: String, variant_id: String, tier: int) 
 	# stage instead of globally forcing every service building onto tier four.
 	for fallback_tier in range(visual_tier - 1, 0, -1):
 		if tiers.has(fallback_tier):
-			return (tiers[fallback_tier] as Dictionary).duplicate(true)
+			var synthesized := (tiers[fallback_tier] as Dictionary).duplicate(true)
+			var missing_steps := visual_tier - fallback_tier
+			# A missing authored tier used to repeat the previous silhouette and add a
+			# trinket. Synthesize a genuinely larger flagship stage instead.
+			synthesized["width"] = float(synthesized.get("width", 2.8)) * (1.0 + 0.12 * missing_steps)
+			synthesized["depth"] = float(synthesized.get("depth", 1.8)) * (1.0 + 0.12 * missing_steps)
+			synthesized["height"] = float(synthesized.get("height", 1.0)) * (1.0 + 0.14 * missing_steps)
+			synthesized["center_z"] = float(synthesized.get("center_z", -0.6)) - 0.1 * missing_steps
+			synthesized["front_z"] = float(synthesized.get("front_z", 0.3)) + 0.04 * missing_steps
+			synthesized["wing"] = maxi(int(synthesized.get("wing", 0)), 3)
+			synthesized["upper"] = true
+			synthesized["signature"] = true
+			synthesized["flagship"] = true
+			return synthesized
 	return {}
 
 
@@ -2430,7 +2452,12 @@ func _upgrade_selected_property() -> void:
 		str(_upgrade_button.disabled if _upgrade_button else false)
 	])
 	if _hint_label:
-		_hint_label.text = "%s upgraded to tier %d." % [_tool_name(tool), next_tier]
+		_hint_label.text = "%s is now a %s. %s New output: %s." % [
+			_tool_name(tool),
+			PropertyUpgradeData.tier_label(tool, next_tier),
+			PropertyUpgradeData.tier_description(tool, next_tier),
+			_upgrade_delta_text(tool, current_tier),
+		]
 
 
 func _selection_name() -> String:
@@ -2455,14 +2482,22 @@ func _selection_text() -> String:
 	var variant_id := _resolve_property_variant_id(tool, int(placement.get("variant", -1)), str(placement.get("variant_id", "")))
 	var variant_name := _property_variant_display_name(tool, variant_id)
 	var max_tier: int = PropertyUpgradeData.max_tier(tool)
-	var upgrade_text := "Upgrade: maxed"
+	var stage_name := PropertyUpgradeData.tier_label(tool, tier).capitalize()
+	var upgrade_text := "Fully upgraded"
 	if tier < max_tier:
-		upgrade_text = "Upgrade: $%d" % _selected_upgrade_cost()
+		var next_tier := tier + 1
+		upgrade_text = "Next: %s ($%d) — %s  |  Gain: %s" % [
+			PropertyUpgradeData.tier_label(tool, next_tier).capitalize(),
+			_selected_upgrade_cost(),
+			PropertyUpgradeData.tier_description(tool, next_tier),
+			_upgrade_delta_text(tool, tier),
+		]
 	var display_name := _tool_name(tool)
 	if variant_name != "":
 		display_name = "%s (%s)" % [display_name, variant_name]
-	return "Selection: %s  |  Tier: %d/%d  |  Footprint: %dx%d  |  Build Cost: $%d  |  %s  |  %s" % [
+	return "Selection: %s  |  Stage: %s (%d/%d)  |  Footprint: %dx%d  |  Build Cost: $%d  |  %s\n%s" % [
 		display_name,
+		stage_name,
 		tier,
 		max_tier,
 		footprint.x,
@@ -2471,6 +2506,30 @@ func _selection_text() -> String:
 		road_status,
 		upgrade_text
 	]
+
+
+func _upgrade_delta_text(tool: String, current_tier: int) -> String:
+	var max_tier := PropertyUpgradeData.max_tier(tool)
+	if current_tier >= max_tier:
+		return "maximum output reached"
+	var current_yield: Dictionary = PropertyUpgradeData.tier_yield(tool, current_tier)
+	var next_yield: Dictionary = PropertyUpgradeData.tier_yield(tool, current_tier + 1)
+	var parts: PackedStringArray = []
+	var population_gain := int(next_yield.get("population", 0)) - int(current_yield.get("population", 0))
+	var jobs_gain := int(next_yield.get("jobs", 0)) - int(current_yield.get("jobs", 0))
+	var cashflow_gain := int(next_yield.get("cashflow", 0)) - int(current_yield.get("cashflow", 0))
+	var appeal_gain := int(next_yield.get("appeal", 0)) - int(current_yield.get("appeal", 0))
+	if population_gain != 0:
+		parts.append("%+d population" % population_gain)
+	if jobs_gain != 0:
+		parts.append("%+d jobs" % jobs_gain)
+	if cashflow_gain > 0:
+		parts.append("+$%d/day" % cashflow_gain)
+	elif cashflow_gain < 0:
+		parts.append("-$%d/day upkeep" % abs(cashflow_gain))
+	if appeal_gain != 0:
+		parts.append("%+d appeal" % appeal_gain)
+	return ", ".join(parts) if not parts.is_empty() else "major visual transformation"
 
 
 func _build_stats_text() -> String:
@@ -6204,8 +6263,8 @@ func _add_park_variant(position_3d: Vector3, variant: int) -> Node3D:
 	_add_local_sphere(Vector3(0.0, 0.08, 0.0), 0.17, 0.08, _make_material_from_color(palette.accent, 0.44), lot_root)
 	_add_bench_local(Vector3(-0.78, 0.0, 0.0), PI * 0.5, lot_root)
 	_add_bench_local(Vector3(0.78, 0.0, 0.0), -PI * 0.5, lot_root)
-	_add_local_tree(Vector3(-1.06, 0.0, -0.72), lot_root)
-	_add_local_tree(Vector3(1.06, 0.0, 0.62), lot_root)
+	_add_authored_tree_local(Vector3(-1.18, 0.0, -0.82), lot_root, variant, 0.64)
+	_add_authored_tree_local(Vector3(1.18, 0.0, 0.76), lot_root, variant + 1, 0.64)
 	_add_local_flower_patch(Vector3(0.82, 0.05, -0.54), 6, _make_material_from_color(palette.trim, 0.8), lot_root)
 	return root
 
@@ -6228,6 +6287,248 @@ func _apply_property_tier_visuals(root: Node3D, tool: String, tier: int, variant
 			_apply_service_tier_visuals(root, tool, tier, variant, profile, resolved_variant_id)
 		BUILD_TOOL_PARK:
 			_apply_park_tier_visuals(root, tier, variant, profile)
+	_add_substantial_upgrade_milestones(root, tool, tier, variant, resolved_variant_id)
+	root.set_meta("substantial_upgrade_tier", tier)
+
+
+func _add_substantial_upgrade_milestones(root: Node3D, tool: String, tier: int, variant: int, variant_id: String) -> void:
+	if tier <= 1:
+		return
+	var palette: Dictionary = _house_palette(variant, variant_id) if tool == BUILD_TOOL_HOUSE else _palette_for_property_variant(tool, variant, variant_id)
+	var structure_root := _property_upgrade_visual_root(root)
+	var dynamic_root := _property_dynamic_props_root(root)
+	match tool:
+		BUILD_TOOL_HOUSE:
+			_add_substantial_house_milestones(structure_root, dynamic_root, tier, palette)
+		BUILD_TOOL_FIRE:
+			_add_substantial_fire_milestones(structure_root, dynamic_root, tier, palette)
+		BUILD_TOOL_BANK:
+			_add_substantial_bank_milestones(structure_root, dynamic_root, tier, palette)
+		BUILD_TOOL_GROCERY:
+			_add_substantial_grocery_milestones(structure_root, dynamic_root, tier, palette)
+		BUILD_TOOL_RESTAURANT:
+			_add_substantial_restaurant_milestones(structure_root, dynamic_root, tier, palette)
+		BUILD_TOOL_CORNER_STORE:
+			_add_substantial_corner_store_milestones(structure_root, dynamic_root, tier, palette)
+
+
+func _add_substantial_house_milestones(parent: Node, lot_parent: Node, tier: int, palette: Dictionary) -> void:
+	var wall := _make_material_from_color(palette["wall"].lightened(0.05), 0.92)
+	var roof := _make_house_roof_material(palette["roof"].darkened(0.07))
+	var trim := _make_material_from_color(palette["trim"], 0.84)
+	var accent := _make_material_from_color(palette["accent"], 0.66)
+	var glass := _make_transparent_material(Color("bfe9ee"), 0.16, 0.24)
+	if tier >= 2:
+		# The first upgrade is a full-width living porch, not a decorative stoop.
+		_add_box(Vector3(0.0, 0.12, 0.68), Vector3(2.92, 0.1, 0.82), _make_material("9a7552", 0.82), parent)
+		_add_box(Vector3(0.0, 0.86, 0.74), Vector3(3.08, 0.1, 0.94), roof, parent)
+		for x in [-1.28, -0.64, 0.64, 1.28]:
+			_add_box(Vector3(x, 0.48, 0.96), Vector3(0.06, 0.72, 0.06), trim, parent)
+		_add_house_entry_steps_local(Vector3(0.0, 0.0, 1.12), parent, false, 1.0)
+	if tier >= 3:
+		# A proper garage/family wing nearly doubles the useful ground-floor mass.
+		_add_soft_block(Vector3(1.94, 0.53, -0.96), Vector3(1.3, 0.94, 1.62), wall, parent, 0.12)
+		_add_gabled_roof(Vector3(1.94, 1.18, -0.96), Vector3(1.5, 0.16, 1.82), roof, parent, 17.0)
+		_add_box(Vector3(1.94, 0.4, -0.1), Vector3(0.78, 0.62, 0.07), _make_material("6b655c", 0.86), parent)
+		for rail_y in [0.22, 0.4, 0.58]:
+			_add_box(Vector3(1.94, rail_y, -0.055), Vector3(0.66, 0.035, 0.025), trim, parent)
+	if tier >= 4:
+		# The fourth tier gets an unmistakable glass conservatory pavilion.
+		_add_soft_block(Vector3(-1.84, 0.48, -1.08), Vector3(1.28, 0.82, 1.46), glass, parent, 0.1)
+		_add_box(Vector3(-1.84, 0.94, -1.08), Vector3(1.46, 0.1, 1.64), roof, parent)
+		for x in [-2.22, -1.84, -1.46]:
+			_add_box(Vector3(x, 0.48, -0.32), Vector3(0.05, 0.72, 0.05), trim, parent)
+		_add_box(Vector3(-1.84, 0.12, -0.24), Vector3(1.5, 0.06, 0.48), accent, parent)
+	if tier >= 5:
+		# The estate stage turns the garage into a two-level carriage house.
+		_add_soft_block(Vector3(1.94, 1.48, -1.08), Vector3(1.36, 0.86, 1.42), wall, parent, 0.1)
+		_add_gabled_roof(Vector3(1.94, 2.08, -1.08), Vector3(1.56, 0.16, 1.62), roof, parent, 19.0)
+		_add_window_band_local(Vector3(1.94, 1.5, -0.32), Vector3(0.54, 0.34, 0.05), parent)
+		_add_house_side_window_local(Vector3(2.66, 1.48, -1.04), Vector3(0.28, 0.34, 0.05), parent, 1.0)
+		_add_box(Vector3(1.94, 1.12, -0.26), Vector3(1.18, 0.08, 0.38), trim, parent)
+		for x in [1.46, 1.94, 2.42]:
+			_add_lantern_glow_local(Vector3(x, 1.26, -0.02), parent)
+		create_streetlamp(lot_parent, Vector3(-2.1, 0.02, 1.74))
+
+
+func _add_substantial_fire_milestones(parent: Node, lot_parent: Node, tier: int, palette: Dictionary) -> void:
+	var wall := _make_material_from_color(palette["wall"].darkened(0.04), 0.9)
+	var roof := _make_material_from_color(palette["roof"], 0.76)
+	var trim := _make_material_from_color(palette["trim"], 0.82)
+	var accent := _make_material_from_color(palette["accent"], 0.5)
+	if tier >= 2:
+		# A deep apparatus canopy and marked emergency apron make tier two operational.
+		_add_box(Vector3(0.0, 1.08, 0.64), Vector3(3.5, 0.12, 0.78), roof, parent)
+		for x in [-1.48, -0.5, 0.5, 1.48]:
+			_add_local_cylinder(Vector3(x, 0.56, 0.92), 0.035, 0.035, 0.98, trim, parent)
+		for x in [-1.3, 0.0, 1.3]:
+			_add_box(Vector3(x, 0.108, 0.86), Vector3(0.08, 0.025, 1.22), accent, lot_parent)
+	if tier >= 3:
+		# A tall drill tower and training annex create a new civic silhouette.
+		_add_soft_block(Vector3(1.68, 1.25, -1.18), Vector3(0.92, 2.36, 0.94), wall, parent, 0.1)
+		_add_box(Vector3(1.68, 2.5, -1.18), Vector3(1.08, 0.16, 1.1), roof, parent)
+		for level_y in [0.72, 1.18, 1.64, 2.1]:
+			_add_window_band_local(Vector3(1.68, level_y, -0.68), Vector3(0.24, 0.24, 0.05), parent)
+	if tier >= 4:
+		# An upper glass command bridge spans the working bays.
+		var command_glass := _make_transparent_material(Color("b9e3ed"), 0.18, 0.24)
+		_add_soft_block(Vector3(-0.34, 1.72, -0.22), Vector3(2.78, 0.68, 1.08), command_glass, parent, 0.1)
+		_add_box(Vector3(-0.34, 2.1, -0.22), Vector3(2.98, 0.12, 1.24), roof, parent)
+		for x in [-1.28, -0.64, 0.0, 0.64]:
+			_add_box(Vector3(x, 1.72, 0.36), Vector3(0.045, 0.56, 0.04), trim, parent)
+	if tier >= 5:
+		# The headquarters stage gets a visible communications array and civic forecourt.
+		_add_local_cylinder(Vector3(-1.5, 2.5, -1.3), 0.055, 0.07, 2.1, trim, parent)
+		for antenna_y in [2.82, 3.2, 3.58]:
+			_add_box(Vector3(-1.5, antenna_y, -1.3), Vector3(0.62, 0.045, 0.045), accent, parent)
+		_add_box(Vector3(0.0, 0.115, 1.52), Vector3(3.62, 0.045, 0.48), _make_material("b8afa1", 0.9), lot_parent)
+		for x in [-1.52, 1.52]:
+			create_streetlamp(lot_parent, Vector3(x, 0.02, 1.52))
+
+
+func _add_substantial_bank_milestones(parent: Node, lot_parent: Node, tier: int, palette: Dictionary) -> void:
+	var wall := _make_material_from_color(palette["wall"].lightened(0.04), 0.9)
+	var roof := _make_material_from_color(palette["roof"], 0.74)
+	var trim := _make_material_from_color(palette["trim"], 0.82)
+	var accent := _make_material_from_color(palette["accent"], 0.48)
+	var glass := _make_transparent_material(Color("bfe5ef"), 0.16, 0.24)
+	if tier >= 2:
+		_add_box(Vector3(0.0, 1.16, 0.64), Vector3(3.0, 0.14, 0.72), roof, parent)
+		for x in [-1.24, -0.62, 0.62, 1.24]:
+			_add_local_cylinder(Vector3(x, 0.58, 0.9), 0.05, 0.06, 1.08, trim, parent)
+		_add_box(Vector3(0.0, 0.16, 0.98), Vector3(2.72, 0.08, 0.54), _make_material("c8bda8", 0.88), parent)
+	if tier >= 3:
+		# A two-lane drive-through is a large, readable functional expansion.
+		_add_box(Vector3(1.78, 1.02, -0.82), Vector3(1.42, 0.14, 2.0), roof, parent)
+		for x in [1.24, 2.32]:
+			for z in [-1.52, -0.12]:
+				_add_local_cylinder(Vector3(x, 0.54, z), 0.035, 0.035, 0.92, trim, parent)
+		for x in [1.5, 2.06]:
+			_add_box(Vector3(x, 0.09, -0.3), Vector3(0.08, 0.025, 1.52), accent, parent)
+	if tier >= 4:
+		# A glass civic atrium makes the regional-center stage visible from every angle.
+		_add_soft_block(Vector3(-1.34, 1.44, -0.58), Vector3(1.18, 1.22, 1.42), glass, parent, 0.12)
+		_add_box(Vector3(-1.34, 2.12, -0.58), Vector3(1.36, 0.12, 1.6), roof, parent)
+		_add_box(Vector3(-1.34, 0.16, 1.22), Vector3(1.22, 0.05, 0.62), trim, lot_parent)
+		_add_park_fountain_local(Vector3(-1.82, 0.14, 1.24), lot_parent)
+	if tier >= 5:
+		# The headquarters gains a complete top-floor boardroom and landmark crown.
+		_add_soft_block(Vector3(0.0, 2.3, -0.76), Vector3(2.86, 0.86, 1.46), wall, parent, 0.12)
+		_add_box(Vector3(0.0, 2.8, -0.76), Vector3(3.08, 0.14, 1.66), roof, parent)
+		for x in [-0.92, -0.46, 0.0, 0.46, 0.92]:
+			_add_window_band_local(Vector3(x, 2.3, 0.0), Vector3(0.28, 0.36, 0.05), parent)
+		_add_box(Vector3(0.0, 3.02, -0.76), Vector3(1.68, 0.12, 0.54), accent, parent)
+
+
+func _add_substantial_grocery_milestones(parent: Node, lot_parent: Node, tier: int, palette: Dictionary) -> void:
+	var wall := _make_material_from_color(palette["wall"].lightened(0.04), 0.9)
+	var roof := _make_material_from_color(palette["roof"], 0.74)
+	var trim := _make_material_from_color(palette["trim"], 0.82)
+	var accent := _make_material_from_color(palette["accent"], 0.48)
+	var glass := _make_transparent_material(Color("bfe8e9"), 0.16, 0.24)
+	if tier >= 2:
+		# A deep produce arcade spans the entire storefront.
+		_add_box(Vector3(0.0, 1.0, 0.68), Vector3(4.26, 0.14, 0.92), roof, parent)
+		for x in [-1.78, -0.9, 0.0, 0.9, 1.78]:
+			_add_local_cylinder(Vector3(x, 0.5, 0.98), 0.035, 0.035, 0.9, trim, parent)
+		for x in [-1.44, -0.84, 0.84, 1.44]:
+			_add_box(Vector3(x, 0.18, 0.92), Vector3(0.44, 0.24, 0.36), accent, parent)
+	if tier >= 3:
+		# Bakery and deli move into a complete department wing.
+		_add_soft_block(Vector3(-1.78, 0.62, -0.92), Vector3(1.52, 1.12, 1.82), wall, parent, 0.14)
+		_add_gabled_roof(Vector3(-1.78, 1.38, -0.92), Vector3(1.72, 0.16, 2.04), roof, parent, 10.0)
+		_add_box(Vector3(-1.78, 0.62, 0.04), Vector3(0.82, 0.48, 0.06), glass, parent)
+		_add_box(Vector3(-1.78, 1.06, 0.08), Vector3(1.1, 0.16, 0.06), accent, parent)
+	if tier >= 4:
+		# A covered pickup lane and tall clerestory transform the market hall.
+		_add_box(Vector3(2.04, 1.02, -0.82), Vector3(1.24, 0.14, 2.08), roof, parent)
+		for z in [-1.58, -0.06]:
+			for x in [1.62, 2.46]:
+				_add_local_cylinder(Vector3(x, 0.52, z), 0.035, 0.035, 0.92, trim, parent)
+		_add_soft_block(Vector3(0.0, 1.68, -1.08), Vector3(2.72, 0.56, 1.18), glass, parent, 0.1)
+		_add_box(Vector3(0.0, 2.02, -1.08), Vector3(2.98, 0.12, 1.38), roof, parent)
+	if tier >= 5:
+		# The flagship gets a two-level glass food hall and a second grand entrance.
+		_add_soft_block(Vector3(0.82, 1.82, -0.74), Vector3(2.24, 1.18, 1.62), wall, parent, 0.12)
+		_add_gabled_roof(Vector3(0.82, 2.62, -0.74), Vector3(2.52, 0.18, 1.86), roof, parent, 12.0)
+		for x in [0.12, 0.82, 1.52]:
+			_add_window_band_local(Vector3(x, 1.86, 0.12), Vector3(0.38, 0.42, 0.055), parent)
+		_add_box(Vector3(0.82, 2.78, 0.02), Vector3(1.76, 0.18, 0.08), accent, parent)
+		for x in [-2.12, 2.12]:
+			create_streetlamp(lot_parent, Vector3(x, 0.02, 1.42))
+
+
+func _add_substantial_restaurant_milestones(parent: Node, lot_parent: Node, tier: int, palette: Dictionary) -> void:
+	var wall := _make_material_from_color(palette["wall"].lightened(0.04), 0.9)
+	var roof := _make_material_from_color(palette["roof"], 0.74)
+	var trim := _make_material_from_color(palette["trim"], 0.82)
+	var accent := _make_material_from_color(palette["accent"], 0.48)
+	var glass := _make_transparent_material(Color("c7e8e9"), 0.16, 0.22)
+	if tier >= 2:
+		# A furnished terrace under a large pergola is visible at town scale.
+		_add_box(Vector3(-1.5, 0.14, 0.86), Vector3(2.42, 0.08, 1.08), _make_material("b7956c", 0.82), parent)
+		_add_box(Vector3(-1.5, 1.12, 0.86), Vector3(2.52, 0.1, 1.16), roof, parent)
+		for x in [-2.48, -1.82, -1.18, -0.52]:
+			_add_box(Vector3(x, 0.6, 1.2), Vector3(0.05, 0.96, 0.05), trim, parent)
+		for x in [-1.92, -1.08]:
+			_add_outdoor_table_local(parent, Vector3(x, 0.12, 0.86), palette["accent"])
+	if tier >= 3:
+		# A glazed private-dining pavilion adds a complete new room.
+		_add_soft_block(Vector3(1.62, 0.62, -0.54), Vector3(1.48, 1.08, 1.76), glass, parent, 0.12)
+		_add_gabled_roof(Vector3(1.62, 1.36, -0.54), Vector3(1.7, 0.16, 1.98), roof, parent, 12.0)
+		_add_box(Vector3(1.62, 1.0, 0.38), Vector3(1.0, 0.14, 0.06), accent, parent)
+	if tier >= 4:
+		# The professional kitchen is a full rear service block with loading cover.
+		_add_soft_block(Vector3(0.0, 0.64, -1.82), Vector3(3.16, 1.1, 1.24), wall, parent, 0.12)
+		_add_box(Vector3(0.0, 1.28, -1.82), Vector3(3.38, 0.14, 1.44), roof, parent)
+		_add_box(Vector3(0.0, 0.52, -1.16), Vector3(1.26, 0.62, 0.07), _make_material("535a5e", 0.88), parent)
+		create_rooftop_detail(parent, Vector3(0.76, 1.56, -1.84), palette["roof"])
+	if tier >= 5:
+		# A true upper event room and roof terrace define the flagship.
+		_add_soft_block(Vector3(0.0, 1.86, -0.72), Vector3(3.06, 1.0, 1.64), wall, parent, 0.12)
+		_add_gabled_roof(Vector3(0.0, 2.56, -0.72), Vector3(3.34, 0.18, 1.9), roof, parent, 13.0)
+		for x in [-1.02, -0.5, 0.0, 0.5, 1.02]:
+			_add_window_band_local(Vector3(x, 1.9, 0.14), Vector3(0.28, 0.38, 0.05), parent)
+		_add_box(Vector3(1.82, 1.52, -0.66), Vector3(1.18, 0.08, 1.36), trim, parent)
+		for z in [-1.12, -0.66, -0.2]:
+			_add_box(Vector3(2.34, 1.76, z), Vector3(0.045, 0.42, 0.045), accent, parent)
+		create_streetlamp(lot_parent, Vector3(2.12, 0.02, 1.42))
+
+
+func _add_substantial_corner_store_milestones(parent: Node, lot_parent: Node, tier: int, palette: Dictionary) -> void:
+	var wall := _make_material_from_color(palette["wall"].lightened(0.04), 0.9)
+	var roof := _make_material_from_color(palette["roof"], 0.74)
+	var trim := _make_material_from_color(palette["trim"], 0.82)
+	var accent := _make_material_from_color(palette["accent"], 0.48)
+	var glass := _make_transparent_material(Color("bfe5ea"), 0.16, 0.24)
+	if tier >= 2:
+		_add_box(Vector3(0.0, 0.98, 0.68), Vector3(3.3, 0.14, 0.86), roof, parent)
+		for x in [-1.38, -0.7, 0.7, 1.38]:
+			_add_local_cylinder(Vector3(x, 0.5, 0.94), 0.035, 0.035, 0.86, trim, parent)
+		for x in [-1.12, 1.12]:
+			_add_box(Vector3(x, 0.32, 0.82), Vector3(0.48, 0.52, 0.34), accent, parent)
+	if tier >= 3:
+		# A complete service-and-delivery wing makes this a true service mart.
+		_add_soft_block(Vector3(1.48, 0.58, -0.74), Vector3(1.22, 1.02, 1.64), wall, parent, 0.12)
+		_add_box(Vector3(1.48, 1.16, -0.74), Vector3(1.4, 0.12, 1.84), roof, parent)
+		_add_box(Vector3(1.48, 0.54, 0.12), Vector3(0.66, 0.58, 0.07), glass, parent)
+		_add_box(Vector3(1.48, 0.94, 0.16), Vector3(0.84, 0.14, 0.06), accent, parent)
+	if tier >= 4:
+		# The fourth tier gains a tall corner lantern/tower for wayfinding.
+		_add_soft_block(Vector3(-1.34, 1.12, -0.46), Vector3(1.0, 2.08, 1.18), wall, parent, 0.1)
+		_add_gabled_roof(Vector3(-1.34, 2.34, -0.46), Vector3(1.18, 0.16, 1.36), roof, parent, 15.0)
+		for level_y in [0.62, 1.12, 1.62]:
+			_add_window_band_local(Vector3(-1.34, level_y, 0.18), Vector3(0.3, 0.32, 0.05), parent)
+		_add_lantern_glow_local(Vector3(-1.34, 2.56, -0.46), parent)
+	if tier >= 5:
+		# The emporium adds a full apartment loft, not a token roof ornament.
+		_add_soft_block(Vector3(0.18, 1.82, -0.72), Vector3(3.18, 0.98, 1.62), wall, parent, 0.12)
+		_add_gabled_roof(Vector3(0.18, 2.5, -0.72), Vector3(3.44, 0.18, 1.88), roof, parent, 14.0)
+		for x in [-0.92, -0.36, 0.2, 0.76, 1.32]:
+			_add_window_band_local(Vector3(x, 1.84, 0.14), Vector3(0.26, 0.36, 0.05), parent)
+		_add_box(Vector3(0.18, 2.68, 0.02), Vector3(2.1, 0.16, 0.08), accent, parent)
+		for x in [-1.92, 1.92]:
+			create_streetlamp(lot_parent, Vector3(x, 0.02, 1.4))
 
 
 func _apply_house_tier_visuals(root: Node3D, tier: int, variant: int, profile: Dictionary, variant_id: String = "") -> void:
@@ -6487,7 +6788,7 @@ func _commercial_tier_architecture(tool: String, tier: int, variant_id: String =
 		variant_profile["variant_id"] = variant_id
 		variant_profile["variant_config"] = _property_variant_config(tool, variant_id)
 		variant_profile["visual_preset"] = COMMERCIAL_VISUAL_PRESETS.get(tool, {})
-		return variant_profile
+		return _strengthen_commercial_architecture(tool, variant_profile, tier)
 	var tier_map: Dictionary = COMMERCIAL_TIER_ARCHITECTURE.get(tool, {})
 	if tier_map.is_empty():
 		return {}
@@ -6497,7 +6798,40 @@ func _commercial_tier_architecture(tool: String, tier: int, variant_id: String =
 	profile["gameplay_tier"] = tier
 	profile["variant_id"] = variant_id
 	profile["visual_preset"] = COMMERCIAL_VISUAL_PRESETS.get(tool, {})
-	return profile
+	return _strengthen_commercial_architecture(tool, profile, tier)
+
+
+func _strengthen_commercial_architecture(tool: String, profile: Dictionary, tier: int) -> Dictionary:
+	var strengthened := profile.duplicate(true)
+	var visual_tier := clampi(tier, 1, 5)
+	if visual_tier <= 1:
+		return strengthened
+	var width_caps := {
+		BUILD_TOOL_FIRE: 4.82,
+		BUILD_TOOL_BANK: 4.78,
+		BUILD_TOOL_GROCERY: 5.28,
+		BUILD_TOOL_RESTAURANT: 5.56,
+		BUILD_TOOL_CORNER_STORE: 4.5,
+	}
+	var boost: float = float([1.0, 1.05, 1.09, 1.13, 1.17][visual_tier - 1])
+	var old_depth: float = float(strengthened.get("depth", 1.8))
+	var new_depth: float = old_depth * boost
+	strengthened["width"] = minf(float(strengthened.get("width", 2.8)) * boost, float(width_caps.get(tool, 5.0)))
+	strengthened["depth"] = new_depth
+	strengthened["height"] = float(strengthened.get("height", 1.0)) * (1.0 + 0.045 * float(visual_tier - 1))
+	strengthened["center_z"] = float(strengthened.get("center_z", -0.6)) - (new_depth - old_depth) * 0.48
+	if visual_tier >= 2:
+		strengthened["wing"] = maxi(int(strengthened.get("wing", 0)), 1)
+	if visual_tier >= 3:
+		strengthened["wing"] = maxi(int(strengthened.get("wing", 0)), 2)
+		strengthened["signature"] = true
+	if visual_tier >= 4:
+		strengthened["upper"] = true
+	if visual_tier >= 5:
+		strengthened["wing"] = maxi(int(strengthened.get("wing", 0)), 3)
+		strengthened["signature"] = true
+		strengthened["flagship"] = true
+	return strengthened
 
 
 func _rebuild_commercial_tier_visuals(root: Node3D, tool: String, tier: int, variant: int, palette: Dictionary, variant_id: String = "") -> void:
@@ -8213,27 +8547,72 @@ func _apply_corner_store_tier_visuals(lot_root: Node3D, structure_root: Node3D, 
 
 
 func _apply_park_tier_visuals(root: Node3D, tier: int, variant: int, profile: Dictionary) -> void:
-	var palette := _cozy_palette("house", variant)
+	var palette := _cozy_palette("grocery", variant)
 	var lot_root := _property_lot_root(root)
+	var path_material := _make_material("dec9aa", 0.88)
+	var timber_material := _make_material("a97849", 0.78)
+	var pavilion_material := _make_material_from_color(palette.wall.lightened(0.08), 0.86)
+	var roof_material := _make_material_from_color(palette.roof.darkened(0.02), 0.76)
+	var accent_material := _make_material_from_color(palette.accent, 0.72)
 	if tier >= 2:
-		if bool(profile.get("extra_trees", false)):
-			_add_wildflower_cluster(Vector3(-0.88, 0.06, -0.56), 5, _make_material_from_color(palette.accent, 0.8), lot_root, 0.12)
-			_add_wildflower_cluster(Vector3(0.88, 0.06, 0.56), 5, _make_material_from_color(palette.trim, 0.8), lot_root, 0.12)
-		if bool(profile.get("paths", false)):
-			_add_box(Vector3(0.0, 0.04, 0.86), Vector3(0.18, 0.02, 0.96), _make_material("d8c7ab", 0.9), lot_root)
-			_add_box(Vector3(0.0, 0.04, -0.86), Vector3(0.18, 0.02, 0.96), _make_material("d8c7ab", 0.9), lot_root)
+		# Family park: a real playground, broader circulation, shade, and seating.
+		_add_box(Vector3(0.0, 0.055, 0.0), Vector3(3.28, 0.025, 0.28), path_material, lot_root)
+		_add_box(Vector3(0.0, 0.056, 0.0), Vector3(0.28, 0.025, 2.38), path_material, lot_root)
+		_add_ellipse_disc_local(Vector3(0.88, 0.058, -0.68), Vector2(1.14, 0.92), 0.024, _make_material("c8ab78", 0.94), lot_root, -12.0)
+		# Playground tower, roof, slide, ladder, and two swings.
+		_add_soft_block(Vector3(0.72, 0.38, -0.68), Vector3(0.46, 0.12, 0.46), timber_material, lot_root, 0.05)
+		for post_x in [0.54, 0.9]:
+			for post_z in [-0.86, -0.5]:
+				_add_local_cylinder(Vector3(post_x, 0.28, post_z), 0.035, 0.035, 0.52, timber_material, lot_root)
+		_add_gabled_roof(Vector3(0.72, 0.72, -0.68), Vector3(0.62, 0.1, 0.62), accent_material, lot_root, 18.0)
+		var slide := _add_box(Vector3(1.08, 0.25, -0.68), Vector3(0.56, 0.07, 0.24), accent_material, lot_root)
+		slide.rotation_degrees.z = -24.0
+		for rung_index in range(4):
+			_add_box(Vector3(0.4, 0.14 + float(rung_index) * 0.1, -0.68), Vector3(0.05, 0.025, 0.3), pavilion_material, lot_root)
+		_add_box(Vector3(1.26, 0.55, -0.22), Vector3(0.74, 0.055, 0.055), timber_material, lot_root)
+		for swing_x in [1.05, 1.46]:
+			_add_local_cylinder(Vector3(swing_x, 0.34, -0.22), 0.01, 0.01, 0.42, timber_material, lot_root)
+			_add_box(Vector3(swing_x, 0.13, -0.22), Vector3(0.18, 0.035, 0.14), accent_material, lot_root)
+		_add_authored_tree_local(Vector3(-1.38, 0.0, 0.82), lot_root, variant + 2, 0.58)
+		_add_bench_local(Vector3(-0.82, 0.0, 0.72), PI, lot_root)
 	if tier >= 3:
-		if bool(profile.get("gazebo", false)):
-			_add_soft_block(Vector3(-0.54, 0.1, 0.08), Vector3(0.44, 0.32, 0.44), _make_material_from_color(palette.wall, 0.88), lot_root, 0.08)
-			_add_gabled_roof(Vector3(-0.54, 0.3, 0.08), Vector3(0.56, 0.08, 0.56), _make_material_from_color(palette.roof, 0.74), lot_root, 18.0)
-		_add_bench_local(Vector3(0.52, 0.0, -0.16), -0.9, lot_root)
+		# Community commons: an event pavilion with an actual raised stage and picnic lawn.
+		_add_soft_block(Vector3(-0.88, 0.12, 0.58), Vector3(1.28, 0.14, 0.92), path_material, lot_root, 0.12)
+		for column_x in [-1.4, -0.36]:
+			for column_z in [0.24, 0.92]:
+				_add_local_cylinder(Vector3(column_x, 0.52, column_z), 0.055, 0.07, 0.82, pavilion_material, lot_root)
+		_add_gabled_roof(Vector3(-0.88, 1.0, 0.58), Vector3(1.48, 0.16, 1.08), roof_material, lot_root, 19.0)
+		_add_box(Vector3(-0.88, 0.28, 0.72), Vector3(0.9, 0.12, 0.34), timber_material, lot_root)
+		_add_box(Vector3(-0.88, 0.44, 0.91), Vector3(0.96, 0.42, 0.055), pavilion_material, lot_root)
+		_add_outdoor_table_local(lot_root, Vector3(0.82, 0.04, 0.16), palette.accent)
+		_add_outdoor_table_local(lot_root, Vector3(1.3, 0.04, 0.62), palette.trim)
 	if tier >= 4:
-		if bool(profile.get("fountain", false)):
-			_add_park_fountain_local(Vector3(0.0, 0.07, 0.0), lot_root)
-		if bool(profile.get("paths", false)):
-			_add_box(Vector3(0.0, 0.06, 0.0), Vector3(0.82, 0.03, 0.82), _make_material_from_color(palette.trim, 0.56), lot_root)
-			_add_box(Vector3(0.0, 0.12, 0.0), Vector3(0.08, 0.24, 1.34), _make_material("d8c7ab", 0.9), lot_root)
-			_add_box(Vector3(0.0, 0.12, 0.0), Vector3(1.34, 0.24, 0.08), _make_material("d8c7ab", 0.9), lot_root)
+		# Civic gardens: a fountain plaza, formal planted borders, promenade, and lighting.
+		_add_ellipse_disc_local(Vector3(0.0, 0.065, 0.0), Vector2(1.18, 1.18), 0.035, _make_material_from_color(palette.trim.lightened(0.22), 0.64), lot_root)
+		_add_park_fountain_local(Vector3(0.0, 0.105, 0.0), lot_root)
+		for garden_x in [-1.35, 1.35]:
+			_add_soft_block(Vector3(garden_x, 0.09, 0.0), Vector3(0.34, 0.1, 1.38), _make_material("9a714c", 0.84), lot_root, 0.08)
+			for garden_z in [-0.46, 0.0, 0.46]:
+				_add_wildflower_cluster(Vector3(garden_x, 0.17, garden_z), 5, _flower_material_pink if garden_z <= 0.0 else _flower_material_blue, lot_root, 0.12)
+		create_streetlamp(lot_root, Vector3(-1.55, 0.0, -1.02))
+		create_streetlamp(lot_root, Vector3(1.55, 0.0, 1.02))
+	if tier >= 5:
+		# Destination park: enlarge the pavilion into a landmark bandstand, then add water and festival lights.
+		_add_soft_block(Vector3(-0.88, 0.16, 0.58), Vector3(1.66, 0.18, 1.2), _make_material_from_color(palette.trim.lightened(0.2), 0.72), lot_root, 0.16)
+		for column_x in [-1.55, -0.21]:
+			for column_z in [0.12, 1.02]:
+				_add_local_cylinder(Vector3(column_x, 0.67, column_z), 0.07, 0.085, 1.02, pavilion_material, lot_root)
+		_add_gabled_roof(Vector3(-0.88, 1.32, 0.58), Vector3(1.94, 0.2, 1.42), roof_material, lot_root, 23.0)
+		_add_box(Vector3(-0.88, 1.41, 0.58), Vector3(0.34, 0.2, 0.34), accent_material, lot_root)
+		_add_local_sphere(Vector3(-0.88, 1.58, 0.58), 0.12, 0.14, accent_material, lot_root)
+		var pond_border := _make_material("c7b38e", 0.86)
+		var pond_water := _make_transparent_material(Color("8fcfdf"), 0.22, 0.36)
+		_add_ellipse_disc_local(Vector3(0.98, 0.07, 0.72), Vector2(1.24, 0.78), 0.045, pond_border, lot_root, -12.0)
+		_add_ellipse_disc_local(Vector3(0.98, 0.105, 0.72), Vector2(1.02, 0.58), 0.018, pond_water, lot_root, -12.0)
+		for lily_position in [Vector3(0.72, 0.13, 0.66), Vector3(1.12, 0.13, 0.82), Vector3(1.3, 0.13, 0.56)]:
+			_add_ellipse_disc_local(lily_position, Vector2(0.12, 0.1), 0.01, _make_material("78a85f", 0.9), lot_root)
+		create_string_lights(lot_root, Vector3(-1.62, 0.0, -1.08), Vector3(1.62, 0.0, -1.08), palette, 9)
+		create_string_lights(lot_root, Vector3(-1.62, 0.0, 1.08), Vector3(1.62, 0.0, 1.08), palette, 9)
 
 
 func _add_town_path(center: Vector3, size: Vector2, parent: Node = null) -> void:
