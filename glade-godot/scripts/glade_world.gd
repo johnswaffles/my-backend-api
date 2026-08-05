@@ -24,6 +24,7 @@ var camera: Camera3D
 var sun: DirectionalLight3D
 var world_environment: WorldEnvironment
 var meadow_root: Node3D
+var meadow_detail_root: Node3D
 var creation_root: Node3D
 var preview_root: Node3D
 var life_root: Node3D
@@ -405,28 +406,89 @@ func _build_meadow() -> void:
 	earth.name = "Meadow earth"
 	var grass := _cylinder(Vector3(0.0, -0.035, 0.0), GLade_RADIUS, GLade_RADIUS, 0.18, _painterly_grass_material(), meadow_root, 96)
 	grass.name = "Soft meadow"
+	meadow_detail_root = Node3D.new()
+	meadow_detail_root.name = "Placement-aware meadow details"
+	meadow_root.add_child(meadow_detail_root)
 	_add_distant_landscape()
-	_add_meadow_patches()
-	_add_wind_grass()
 	_add_meadow_border()
 	_add_clouds()
 
 
+func _rebuild_meadow_details() -> void:
+	if not meadow_detail_root:
+		return
+	_clear_children(meadow_detail_root)
+	_add_meadow_patches()
+	_add_wind_grass()
+	_add_open_meadow_details()
+
+
 func _add_meadow_patches() -> void:
-	var light_grass := _material(Color("87a968"), 1.0)
-	var deep_grass := _material(Color("587e51"), 1.0)
-	for index in 42:
+	# Low, quiet color variation adds depth without reading as more vegetation.
+	var light_ground := _material(Color("688954"), 1.0)
+	var deep_ground := _material(Color("4f7048"), 1.0)
+	for index in 26:
 		var angle := float(index) * 2.3999
-		var radius := 2.2 + fmod(float(index * 37), 105.0) / 105.0 * 11.0
-		var position := Vector3(cos(angle) * radius, 0.07, sin(angle) * radius)
-		var patch := _cylinder(position, 0.28 + fmod(float(index * 13), 22.0) * 0.018, 0.34, 0.025, light_grass if index % 3 else deep_grass, meadow_root, 12)
-		patch.scale.z = 0.55 + float(index % 5) * 0.11
+		var radius := 2.4 + fmod(float(index * 37), 105.0) / 105.0 * 10.5
+		var position := Vector3(cos(angle) * radius, 0.066, sin(angle) * radius)
+		if not _is_meadow_detail_allowed(position, 0.38):
+			continue
+		var patch := _cylinder(position, 0.24 + fmod(float(index * 13), 22.0) * 0.014, 0.3, 0.018, light_ground if index % 3 else deep_ground, meadow_detail_root, 12)
+		patch.name = "Subtle meadow color wash"
+		patch.scale.z = 0.58 + float(index % 4) * 0.1
 		patch.rotation.y = angle * 1.7
-	for index in 34:
-		var angle := float(index) * 2.167
-		var radius := 3.0 + fmod(float(index * 29), 118.0) / 118.0 * 10.2
-		var pos := Vector3(cos(angle) * radius, 0.12, sin(angle) * radius)
-		_add_grass_tuft(pos, meadow_root, index % 4 == 0)
+
+
+func _add_open_meadow_details() -> void:
+	# Stones and small flower notes carry visual interest that previously came
+	# almost entirely from tall grass.
+	for index in 10:
+		var angle := float(index) * 2.71 + 0.44
+		var radius := 3.2 + fmod(float(index * 41), 87.0) / 87.0 * 9.0
+		var position := Vector3(cos(angle) * radius, 0.09, sin(angle) * radius)
+		if not _is_meadow_detail_allowed(position, 0.34):
+			continue
+		var stone := _sphere(position, Vector3(0.14 + float(index % 3) * 0.035, 0.07, 0.11), stone_materials[(index + 1) % stone_materials.size()], meadow_detail_root, 8, 5)
+		stone.name = "Meadow fieldstone"
+	for index in 7:
+		var angle := float(index) * 2.33 + 1.05
+		var radius := 4.0 + fmod(float(index * 31), 71.0) / 71.0 * 7.7
+		var position := Vector3(cos(angle) * radius, 0.015, sin(angle) * radius)
+		if _is_meadow_detail_allowed(position, 0.48):
+			_add_flower_cluster(position, meadow_detail_root, 730 + index)
+
+
+func _is_meadow_detail_allowed(point: Vector3, clearance: float = 0.3) -> bool:
+	if Vector2(point.x, point.z).length() > DRAW_LIMIT - 0.2:
+		return false
+	for command in commands:
+		var type := str(command.get("type", ""))
+		var position := _vec_from_pair(command.get("pos", [0.0, 0.0]))
+		if type == "path":
+			var path_a := _vec_from_pair(command.get("a", [0.0, 0.0]))
+			var path_b := _vec_from_pair(command.get("b", [0.0, 0.0]))
+			if _distance_to_segment_2d(Vector2(point.x, point.z), Vector2(path_a.x, path_a.z), Vector2(path_b.x, path_b.z)) < 0.78 + clearance:
+				return false
+		elif type == "pond":
+			var pond_delta := Vector2((point.x - position.x) / (2.7 + clearance), (point.z - position.z) / (2.08 + clearance))
+			if pond_delta.length() < 1.0:
+				return false
+		elif type == "cottage":
+			var size_data: Array = command.get("size", [4.4, 3.4])
+			if absf(point.x - position.x) < float(size_data[0]) * 0.5 + 0.48 + clearance and absf(point.z - position.z) < float(size_data[1]) * 0.5 + 0.48 + clearance:
+				return false
+		elif type == "tower":
+			if Vector2(point.x, point.z).distance_to(Vector2(position.x, position.z)) < 2.02 + clearance:
+				return false
+		elif type == "nature":
+			if Vector2(point.x, point.z).distance_to(Vector2(position.x, position.z)) < 0.9 + clearance:
+				return false
+		elif type == "wall":
+			var wall_a := _vec_from_pair(command.get("a", [0.0, 0.0]))
+			var wall_b := _vec_from_pair(command.get("b", [0.0, 0.0]))
+			if _distance_to_segment_2d(Vector2(point.x, point.z), Vector2(wall_a.x, wall_a.z), Vector2(wall_b.x, wall_b.z)) < 0.4 + clearance:
+				return false
+	return true
 
 
 func _add_meadow_border() -> void:
@@ -480,10 +542,10 @@ uniform vec4 blade_color : source_color;
 uniform float phase_offset = 0.0;
 void vertex() {
 	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	float height_mask = clamp(VERTEX.y + 0.32, 0.0, 0.7);
+	float height_mask = clamp(VERTEX.y / 0.48, 0.0, 1.0);
 	float gust = sin(TIME * 1.45 + world.x * 0.55 + world.z * 0.38 + phase_offset);
-	VERTEX.x += gust * height_mask * 0.16;
-	VERTEX.z += cos(TIME * 1.05 + world.z * 0.42) * height_mask * 0.055;
+	VERTEX.x += gust * height_mask * 0.075;
+	VERTEX.z += cos(TIME * 1.05 + world.z * 0.42) * height_mask * 0.035;
 }
 void fragment() {
 	ALBEDO = blade_color.rgb;
@@ -498,28 +560,53 @@ void fragment() {
 
 
 func _add_wind_grass() -> void:
-	var colors := [Color("4f793d"), Color("6c9148"), Color("87a956")]
+	var colors := [Color("426438"), Color("537742"), Color("66884a")]
 	for layer in 3:
-		var mesh := BoxMesh.new()
-		mesh.size = Vector3(0.055, 0.56 + float(layer) * 0.08, 0.022)
-		mesh.material = _wind_grass_material(colors[layer], float(layer) * 2.17)
+		var material := _wind_grass_material(colors[layer], float(layer) * 2.17)
+		var mesh := _grass_clump_mesh(material, 0.38 + float(layer) * 0.035)
+		var transforms: Array[Transform3D] = []
+		var accepted_positions: Array[Vector3] = []
+		for candidate_index in 74:
+			var sequence := candidate_index + layer * 97
+			var angle := float(sequence) * 2.399963
+			var radius := 2.2 + fmod(float(sequence * 47), 100.0) / 100.0 * 10.8
+			var position := Vector3(cos(angle) * radius, 0.075, sin(angle) * radius)
+			if not _is_meadow_detail_allowed(position, 0.28):
+				continue
+			var height_scale := 0.78 + fmod(float(sequence * 23), 31.0) / 31.0 * 0.4
+			var rotation := angle * 3.1 + float(sequence % 7) * 0.2
+			transforms.append(Transform3D(Basis(Vector3.UP, rotation).scaled(Vector3(0.88 + float(sequence % 3) * 0.1, height_scale, 0.88 + float((sequence + 1) % 3) * 0.08)), position))
+			accepted_positions.append(position)
 		var multimesh := MultiMesh.new()
 		multimesh.transform_format = MultiMesh.TRANSFORM_3D
 		multimesh.mesh = mesh
-		multimesh.instance_count = 120
-		for index in 120:
-			var sequence := index + layer * 120
-			var angle := float(sequence) * 2.399963
-			var radius := 6.0 + fmod(float(sequence * 47), 100.0) / 100.0 * 7.4
-			var height_scale := 0.72 + fmod(float(sequence * 23), 31.0) / 31.0 * 0.56
-			var rotation := angle * 3.1 + float(sequence % 7) * 0.2
-			var transform := Transform3D(Basis(Vector3.UP, rotation).scaled(Vector3(0.8 + float(sequence % 3) * 0.14, height_scale, 1.0)), Vector3(cos(angle) * radius, 0.3 * height_scale, sin(angle) * radius))
-			multimesh.set_instance_transform(index, transform)
+		multimesh.instance_count = transforms.size()
+		for index in transforms.size():
+			multimesh.set_instance_transform(index, transforms[index])
 		var field := MultiMeshInstance3D.new()
-		field.name = "Wind grass layer " + str(layer + 1)
+		field.name = "Sparse filtered grass layer " + str(layer + 1)
 		field.multimesh = multimesh
+		field.set_meta("accepted_positions", accepted_positions)
 		field.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		meadow_root.add_child(field)
+		meadow_detail_root.add_child(field)
+
+
+func _grass_clump_mesh(material: Material, blade_height: float) -> ArrayMesh:
+	var surface := SurfaceTool.new()
+	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for blade_index in 3:
+		var angle := TAU * float(blade_index) / 3.0
+		var right := Vector3(cos(angle), 0.0, sin(angle)) * (0.024 + float(blade_index) * 0.004)
+		var forward := Vector3(-sin(angle), 0.0, cos(angle))
+		var base := forward * (float(blade_index) - 1.0) * 0.022
+		var tip := base + forward * (0.035 + float(blade_index) * 0.012) + Vector3(0.0, blade_height * (0.86 + float(blade_index) * 0.07), 0.0)
+		surface.add_vertex(base - right)
+		surface.add_vertex(base + right)
+		surface.add_vertex(tip)
+	surface.generate_normals()
+	var mesh := surface.commit() as ArrayMesh
+	mesh.surface_set_material(0, material)
+	return mesh
 
 
 func _add_distant_landscape() -> void:
@@ -831,6 +918,7 @@ func _rebuild_creations() -> void:
 	_clear_children(creation_root)
 	for command in commands:
 		_build_command(command, creation_root, false)
+	_rebuild_meadow_details()
 	_relocate_sheep_if_blocked()
 
 
@@ -1146,6 +1234,7 @@ func _build_path(command: Dictionary, parent: Node3D, preview: bool) -> void:
 	var seed_value := int(command.get("seed", 1))
 	var stone_path := _material(Color("b8aa8e").lightened(0.1) if preview else Color("b8aa8e"), 0.96, 0.0, 0.5 if preview else 1.0)
 	var stone_alt := _material(Color("d0c3a3").lightened(0.1) if preview else Color("d0c3a3"), 0.95, 0.0, 0.5 if preview else 1.0)
+	var path_soil := _material(Color("907a59").lightened(0.08) if preview else Color("907a59"), 1.0, 0.0, 0.42 if preview else 1.0)
 	var wood := _material(Color("7d5c42").lightened(0.12) if preview else Color("7d5c42"), 0.88, 0.0, 0.5 if preview else 1.0)
 	var step_count := maxi(2, int(ceil(length / 0.54)))
 	for index in step_count + 1:
@@ -1158,19 +1247,23 @@ func _build_path(command: Dictionary, parent: Node3D, preview: bool) -> void:
 			var plank := _box(center + Vector3(0.0, 0.22, 0.0), Vector3(1.12, 0.11, 0.42), wood, root)
 			plank.rotation.y = -atan2(direction.z, direction.x) + PI * 0.5
 		else:
+			var soil_patch := _cylinder(center + Vector3(0.0, 0.064, 0.0), 0.58 + absf(jitter) * 0.18, 0.54, 0.026, path_soil, root, 10)
+			soil_patch.name = "Packed earth path bed"
+			soil_patch.scale.z = 0.72 + float((index + seed_value) % 3) * 0.05
 			var pebble := _cylinder(center + Vector3(0.0, 0.08, 0.0), 0.48 + absf(jitter) * 0.25, 0.43, 0.11, stone_alt if (index + seed_value) % 3 == 0 else stone_path, root, 10)
 			pebble.scale.z = 0.72 + float((index + seed_value) % 4) * 0.06
 			pebble.rotation.y = float(index * 37 % 180) * PI / 180.0
-	# Soft edges, tiny flowers and grass make the path feel embedded rather than stamped.
+	# Sparse flowers and fieldstones soften the edge without putting grass back
+	# onto the walking surface.
 	if not preview:
 		for index in maxi(2, int(length / 1.25)):
 			var along := (float(index) + 0.4) / float(maxi(2, int(length / 1.25)))
 			var side := -1.0 if (index + seed_value) % 2 else 1.0
-			var edge := a.lerp(b, along) + normal * side * (0.56 + float(index % 3) * 0.08)
+			var edge := a.lerp(b, along) + normal * side * (0.88 + float(index % 3) * 0.08)
 			if index % 3 == 0:
 				_add_flower_cluster(edge, root, seed_value + index)
 			else:
-				_add_grass_tuft(edge, root, index % 2 == 0)
+				_sphere(edge + Vector3(0.0, 0.085, 0.0), Vector3(0.13 + float(index % 2) * 0.035, 0.07, 0.11), stone_materials[(seed_value + index) % stone_materials.size()], root, 8, 5)
 
 
 func _point_over_pond(point: Vector3) -> bool:
@@ -1183,6 +1276,50 @@ func _point_over_pond(point: Vector3) -> bool:
 	return false
 
 
+func _point_near_any_path(point: Vector3, clearance: float) -> bool:
+	var flat_point := Vector2(point.x, point.z)
+	for command in commands:
+		if str(command.get("type", "")) != "path":
+			continue
+		var path_a := _vec_from_pair(command.get("a", [0.0, 0.0]))
+		var path_b := _vec_from_pair(command.get("b", [0.0, 0.0]))
+		if _distance_to_segment_2d(flat_point, Vector2(path_a.x, path_a.z), Vector2(path_b.x, path_b.z)) < clearance:
+			return true
+	return false
+
+
+func _pond_has_crossing_path(pond_center: Vector3) -> bool:
+	return _point_near_any_path(pond_center, 2.0)
+
+
+func _animated_pond_material() -> ShaderMaterial:
+	var shader := Shader.new()
+	shader.code = """
+shader_type spatial;
+render_mode blend_mix, depth_draw_opaque, cull_disabled, diffuse_burley;
+uniform vec4 deep_color : source_color;
+uniform vec4 light_color : source_color;
+varying vec3 world_position;
+void vertex() {
+	world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
+void fragment() {
+	float broad_ripple = sin(world_position.x * 3.1 + TIME * 0.72) * cos(world_position.z * 3.7 - TIME * 0.54);
+	float fine_ripple = sin((world_position.x + world_position.z) * 7.2 + TIME * 1.1) * 0.5;
+	float shimmer = clamp(0.5 + broad_ripple * 0.2 + fine_ripple * 0.08, 0.0, 1.0);
+	ALBEDO = mix(deep_color.rgb, light_color.rgb, shimmer);
+	ROUGHNESS = 0.2;
+	SPECULAR = 0.62;
+	ALPHA = 0.8;
+}
+"""
+	var material := ShaderMaterial.new()
+	material.shader = shader
+	material.set_shader_parameter("deep_color", Color("376f78"))
+	material.set_shader_parameter("light_color", Color("72b5ae"))
+	return material
+
+
 func _build_pond(command: Dictionary, parent: Node3D, preview: bool) -> void:
 	var root := Node3D.new()
 	root.name = "Ghost pond" if preview else "Mirror pond"
@@ -1191,7 +1328,7 @@ func _build_pond(command: Dictionary, parent: Node3D, preview: bool) -> void:
 	var seed_value := int(command.get("seed", 1))
 	var alpha := 0.48 if preview else 0.78
 	var bank := _material(Color("6d7650").lightened(0.1) if preview else Color("6d7650"), 0.98, 0.0, 0.62 if preview else 1.0)
-	var water := _material(Color("5c9da0"), 0.12, 0.05, alpha, Color("69a8a2") if not preview else Color.BLACK, 0.08)
+	var water: Material = _material(Color("5c9da0"), 0.12, 0.05, alpha) if preview else _animated_pond_material()
 	var shadow_water := _material(Color("376e78"), 0.2, 0.0, alpha)
 	var bank_mesh := _cylinder(Vector3(0.0, 0.035, 0.0), 2.65, 2.38, 0.09, bank, root, 48)
 	bank_mesh.scale.z = 0.76
@@ -1207,23 +1344,32 @@ func _build_pond(command: Dictionary, parent: Node3D, preview: bool) -> void:
 		var angle := TAU * float(index) / 15.0 + sin(float(index) * 1.7) * 0.16
 		var radius := 2.38 + sin(float(index) * 2.4) * 0.18
 		var position := Vector3(cos(angle) * radius, 0.13, sin(angle) * radius * 0.74)
+		if _point_near_any_path(root.position + position, 0.86):
+			continue
 		_sphere(position, Vector3(0.28 + float(index % 3) * 0.06, 0.15, 0.22), stone_materials[(index + seed_value) % stone_materials.size()], root, 8, 5)
 	for index in 9:
 		var angle := float(index) * 1.91 + float(seed_value) * 0.07
 		var radius := 1.85 + float(index % 3) * 0.17
 		var base := Vector3(cos(angle) * radius, 0.19, sin(angle) * radius * 0.7)
+		if _point_near_any_path(root.position + base, 0.98):
+			continue
 		_add_reed(base, root, index)
 	var lily_material := _material(Color("5f8a58"), 0.86)
 	for index in 5:
-		var lily := _cylinder(Vector3(-0.9 + float(index) * 0.43, 0.17, sin(float(index) * 2.0) * 0.55), 0.21 + float(index % 2) * 0.05, 0.21, 0.025, lily_material, root, 12)
+		var lily_position := Vector3(-0.9 + float(index) * 0.43, 0.17, sin(float(index) * 2.0) * 0.55)
+		if _point_near_any_path(root.position + lily_position, 0.8):
+			continue
+		var lily := _cylinder(lily_position, 0.21 + float(index % 2) * 0.05, 0.21, 0.025, lily_material, root, 12)
 		lily.scale.z = 0.72
 		if index % 2 == 0:
 			_add_flower(Vector3(lily.position.x, 0.28, lily.position.z), Color("f3d3dc"), root, 0.5)
-	# A tiny wooden footbridge rewards a path that reaches the pond even before it crosses.
-	var bridge_angle := -0.18
-	for index in 7:
-		var plank := _box(Vector3(-1.25 + float(index) * 0.4, 0.28, -0.35 + sin(float(index) * 0.45) * 0.05), Vector3(0.34, 0.1, 0.92), _material(Color("826248"), 0.9), root)
-		plank.rotation.y = bridge_angle
+	# Keep the decorative footbridge only when the user has not already drawn a
+	# real crossing. This prevents doubled planks and clutter in the pond.
+	if not _pond_has_crossing_path(root.position):
+		var bridge_angle := -0.18
+		for index in 7:
+			var plank := _box(Vector3(-1.25 + float(index) * 0.4, 0.28, -0.35 + sin(float(index) * 0.45) * 0.05), Vector3(0.34, 0.1, 0.92), _material(Color("826248"), 0.9), root)
+			plank.rotation.y = bridge_angle
 
 
 func _build_nature(command: Dictionary, parent: Node3D, preview: bool) -> void:
