@@ -37,9 +37,9 @@ var draw_current := Vector3.ZERO
 var orbit_active := false
 var pan_active := false
 var orbit_yaw := -42.0
-var orbit_pitch := -42.0
-var camera_distance := 22.0
-var camera_target := Vector3(0.0, 0.7, 0.0)
+var orbit_pitch := -36.0
+var camera_distance := 24.0
+var camera_target := Vector3(0.0, 0.85, 0.0)
 var current_mood := 0
 var mood_label: Label
 var hint_label: Label
@@ -53,6 +53,8 @@ var action_index := 400
 var sheep: Array[Node3D] = []
 var butterflies: Array[Node3D] = []
 var fireflies: Array[Node3D] = []
+var wind_trees: Array[Node3D] = []
+var drifting_clouds: Array[Node3D] = []
 var stone_materials: Array[StandardMaterial3D] = []
 var stone_preview_materials: Array[StandardMaterial3D] = []
 
@@ -74,6 +76,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_update_camera()
 	_animate_life(delta)
+	_animate_environment(delta)
 	if toast_timer > 0.0:
 		toast_timer -= delta
 		if toast_timer <= 0.0 and toast_panel:
@@ -83,6 +86,10 @@ func _process(delta: float) -> void:
 		clear_timer -= delta
 		if clear_timer <= 0.0:
 			clear_armed = false
+
+
+func _physics_process(delta: float) -> void:
+	_update_sheep_physics(delta)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -330,7 +337,7 @@ func _update_camera() -> void:
 func _build_camera() -> void:
 	camera = Camera3D.new()
 	camera.name = "StorybookCamera"
-	camera.fov = 37.0
+	camera.fov = 35.0
 	camera.near = 0.15
 	camera.far = 100.0
 	add_child(camera)
@@ -349,6 +356,11 @@ func _build_environment() -> void:
 	environment.reflected_light_source = Environment.REFLECTION_SOURCE_BG
 	environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	environment.tonemap_exposure = 0.9
+	environment.fog_enabled = true
+	environment.fog_light_color = Color("c5d8cf")
+	environment.fog_light_energy = 0.52
+	environment.fog_density = 0.006
+	environment.fog_sky_affect = 0.28
 	world_environment.environment = environment
 	add_child(world_environment)
 	sun = DirectionalLight3D.new()
@@ -391,10 +403,13 @@ func _build_meadow() -> void:
 
 	var earth := _cylinder(Vector3(0.0, -0.42, 0.0), GLade_RADIUS + 0.7, GLade_RADIUS + 0.35, 0.82, _material(Color("6d5c45"), 1.0), meadow_root, 96)
 	earth.name = "Meadow earth"
-	var grass := _cylinder(Vector3(0.0, -0.035, 0.0), GLade_RADIUS, GLade_RADIUS, 0.18, _material(Color("72965c"), 0.98), meadow_root, 96)
+	var grass := _cylinder(Vector3(0.0, -0.035, 0.0), GLade_RADIUS, GLade_RADIUS, 0.18, _painterly_grass_material(), meadow_root, 96)
 	grass.name = "Soft meadow"
+	_add_distant_landscape()
 	_add_meadow_patches()
+	_add_wind_grass()
 	_add_meadow_border()
+	_add_clouds()
 
 
 func _add_meadow_patches() -> void:
@@ -407,7 +422,7 @@ func _add_meadow_patches() -> void:
 		var patch := _cylinder(position, 0.28 + fmod(float(index * 13), 22.0) * 0.018, 0.34, 0.025, light_grass if index % 3 else deep_grass, meadow_root, 12)
 		patch.scale.z = 0.55 + float(index % 5) * 0.11
 		patch.rotation.y = angle * 1.7
-	for index in 95:
+	for index in 34:
 		var angle := float(index) * 2.167
 		var radius := 3.0 + fmod(float(index * 29), 118.0) / 118.0 * 10.2
 		var pos := Vector3(cos(angle) * radius, 0.12, sin(angle) * radius)
@@ -428,6 +443,126 @@ func _add_meadow_border() -> void:
 		var radius := 15.0
 		var rock_position := Vector3(cos(angle) * radius, 0.05, sin(angle) * radius)
 		_sphere(rock_position, Vector3(0.42, 0.24, 0.34) * (0.8 + float(index % 3) * 0.18), stone_materials[index % stone_materials.size()], meadow_root, 8, 5)
+
+
+func _painterly_grass_material() -> ShaderMaterial:
+	var shader := Shader.new()
+	shader.code = """
+shader_type spatial;
+render_mode diffuse_burley;
+varying vec3 world_position;
+void vertex() {
+	world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
+void fragment() {
+	float broad = sin(world_position.x * 0.47 + sin(world_position.z * 0.31) * 1.8);
+	float fine = sin(world_position.x * 2.1 + world_position.z * 1.7) * 0.5 + 0.5;
+	float wash = clamp(broad * 0.18 + fine * 0.16 + 0.46, 0.0, 1.0);
+	// Shader literals are linear color values. These restrained values resolve
+	// to mossy storybook greens instead of the electric lime of sRGB literals.
+	vec3 shadow_grass = vec3(0.065, 0.165, 0.04);
+	vec3 sun_grass = vec3(0.19, 0.34, 0.07);
+	ALBEDO = mix(shadow_grass, sun_grass, wash);
+	ROUGHNESS = 0.96;
+}
+"""
+	var material := ShaderMaterial.new()
+	material.shader = shader
+	return material
+
+
+func _wind_grass_material(color: Color, phase_offset: float) -> ShaderMaterial:
+	var shader := Shader.new()
+	shader.code = """
+shader_type spatial;
+render_mode cull_disabled, diffuse_burley;
+uniform vec4 blade_color : source_color;
+uniform float phase_offset = 0.0;
+void vertex() {
+	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	float height_mask = clamp(VERTEX.y + 0.32, 0.0, 0.7);
+	float gust = sin(TIME * 1.45 + world.x * 0.55 + world.z * 0.38 + phase_offset);
+	VERTEX.x += gust * height_mask * 0.16;
+	VERTEX.z += cos(TIME * 1.05 + world.z * 0.42) * height_mask * 0.055;
+}
+void fragment() {
+	ALBEDO = blade_color.rgb;
+	ROUGHNESS = 0.95;
+}
+"""
+	var material := ShaderMaterial.new()
+	material.shader = shader
+	material.set_shader_parameter("blade_color", color)
+	material.set_shader_parameter("phase_offset", phase_offset)
+	return material
+
+
+func _add_wind_grass() -> void:
+	var colors := [Color("4f793d"), Color("6c9148"), Color("87a956")]
+	for layer in 3:
+		var mesh := BoxMesh.new()
+		mesh.size = Vector3(0.055, 0.56 + float(layer) * 0.08, 0.022)
+		mesh.material = _wind_grass_material(colors[layer], float(layer) * 2.17)
+		var multimesh := MultiMesh.new()
+		multimesh.transform_format = MultiMesh.TRANSFORM_3D
+		multimesh.mesh = mesh
+		multimesh.instance_count = 120
+		for index in 120:
+			var sequence := index + layer * 120
+			var angle := float(sequence) * 2.399963
+			var radius := 6.0 + fmod(float(sequence * 47), 100.0) / 100.0 * 7.4
+			var height_scale := 0.72 + fmod(float(sequence * 23), 31.0) / 31.0 * 0.56
+			var rotation := angle * 3.1 + float(sequence % 7) * 0.2
+			var transform := Transform3D(Basis(Vector3.UP, rotation).scaled(Vector3(0.8 + float(sequence % 3) * 0.14, height_scale, 1.0)), Vector3(cos(angle) * radius, 0.3 * height_scale, sin(angle) * radius))
+			multimesh.set_instance_transform(index, transform)
+		var field := MultiMeshInstance3D.new()
+		field.name = "Wind grass layer " + str(layer + 1)
+		field.multimesh = multimesh
+		field.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		meadow_root.add_child(field)
+
+
+func _add_distant_landscape() -> void:
+	var horizon_root := Node3D.new()
+	horizon_root.name = "Painterly horizon"
+	meadow_root.add_child(horizon_root)
+	var hill_colors := [Color("4b714d"), Color("5c8056"), Color("456848"), Color("6d8b5d")]
+	for index in 16:
+		var angle := TAU * float(index) / 16.0 + sin(float(index) * 1.7) * 0.12
+		var radius := 19.0 + float(index % 4) * 1.1
+		var hill_position := Vector3(cos(angle) * radius, -1.7 + float(index % 3) * 0.12, sin(angle) * radius)
+		var hill_scale := Vector3(4.2 + float(index % 3) * 0.8, 2.0 + float(index % 4) * 0.28, 4.8 + float((index + 1) % 4) * 0.65)
+		_sphere(hill_position, hill_scale, _material(hill_colors[index % hill_colors.size()], 1.0), horizon_root, 12, 7)
+	var mountain_colors := [Color("73828a"), Color("687982"), Color("87928e"), Color("5e7077")]
+	for index in 9:
+		var angle := TAU * float(index) / 9.0 + 0.34
+		var radius := 31.0 + float(index % 3) * 3.4
+		var height := 7.8 + float(index % 4) * 1.35
+		var mountain := _cylinder(Vector3(cos(angle) * radius, height * 0.5 - 1.4, sin(angle) * radius), 0.18, 4.6 + float(index % 3) * 0.75, height, _material(mountain_colors[index % mountain_colors.size()], 1.0), horizon_root, 9)
+		mountain.rotation.y = angle
+		var shoulder := _sphere(Vector3(cos(angle) * (radius - 3.4), 0.1, sin(angle) * (radius - 3.4)), Vector3(3.4, 1.8, 3.1), _material(hill_colors[(index + 1) % hill_colors.size()], 1.0), horizon_root, 10, 6)
+		shoulder.rotation.y = angle
+	# Rocky shelves break the perfect island silhouette and give the glade a sense of geology.
+	for index in 13:
+		var angle := TAU * float(index) / 13.0 + 0.18
+		var radius := 16.1 + sin(float(index) * 2.7) * 0.45
+		var shelf_position := Vector3(cos(angle) * radius, -0.35 + float(index % 2) * 0.18, sin(angle) * radius)
+		var shelf := _sphere(shelf_position, Vector3(1.1 + float(index % 3) * 0.22, 0.62, 0.9 + float((index + 2) % 3) * 0.18), stone_materials[(index + 2) % stone_materials.size()], horizon_root, 9, 5)
+		shelf.rotation.y = angle
+
+
+func _add_clouds() -> void:
+	var cloud_material := _material(Color("eef2e9"), 1.0, 0.0, 0.42)
+	for index in 5:
+		var cloud := Node3D.new()
+		cloud.name = "Drifting cloud"
+		cloud.position = Vector3(-20.0 + float(index) * 9.0, 9.0 + float(index % 2) * 1.1, -15.0 + float(index % 3) * 7.0)
+		cloud.set_meta("speed", 0.22 + float(index % 3) * 0.07)
+		cloud.set_meta("origin_z", cloud.position.z)
+		meadow_root.add_child(cloud)
+		for puff in 4:
+			_sphere(Vector3((float(puff) - 1.5) * 1.0, sin(float(puff) * 1.8) * 0.28, cos(float(puff) * 1.4) * 0.32), Vector3(1.25 + float(puff % 2) * 0.35, 0.52, 0.82), cloud_material, cloud, 10, 6)
+		drifting_clouds.append(cloud)
 
 
 func _build_interface() -> void:
@@ -696,6 +831,7 @@ func _rebuild_creations() -> void:
 	_clear_children(creation_root)
 	for command in commands:
 		_build_command(command, creation_root, false)
+	_relocate_sheep_if_blocked()
 
 
 func _build_command(command: Dictionary, parent: Node3D, preview: bool) -> void:
@@ -764,6 +900,7 @@ func _build_wall(command: Dictionary, parent: Node3D, preview: bool) -> void:
 	for gate_distance in gate_positions:
 		_build_gateway(a + direction * float(gate_distance), angle, root, preview, seed_value)
 	if not preview:
+		_add_wall_collision_runs(a, b, gate_positions, angle, root)
 		_add_wall_life(a, b, angle, root, seed_value, gate_positions)
 
 
@@ -906,6 +1043,13 @@ func _build_cottage(command: Dictionary, parent: Node3D, preview: bool) -> void:
 	_box(Vector3(chimney_x, wall_height + roof_rise * 0.86, -depth * 0.12), Vector3(0.48, 1.7, 0.48), stone_preview_materials[1] if preview else stone_materials[1], root)
 	_box(Vector3(chimney_x, wall_height + roof_rise * 1.7, -depth * 0.12), Vector3(0.62, 0.16, 0.62), stone_preview_materials[3] if preview else stone_materials[3], root)
 	if not preview:
+		_add_box_obstacle(
+			Vector3(0.0, (wall_height + roof_rise + 0.7) * 0.5, 0.0),
+			Vector3(width + 0.38, wall_height + roof_rise + 0.7, depth + 0.38),
+			0.0,
+			root,
+			"Cottage collision"
+		)
 		for smoke_index in 3:
 			var smoke := _sphere(Vector3(chimney_x + float(smoke_index) * 0.13, wall_height + roof_rise * 1.9 + float(smoke_index) * 0.42, -depth * 0.12), Vector3.ONE * (0.16 + float(smoke_index) * 0.07), _material(Color(0.78, 0.8, 0.76, 0.38), 1.0, 0.0, 0.38), root, 8, 5)
 			smoke.name = "Lazy chimney smoke"
@@ -978,6 +1122,7 @@ func _build_tower(command: Dictionary, parent: Node3D, preview: bool) -> void:
 	var flag := _box(Vector3(0.28, height + 2.72, 0.0), Vector3(0.52, 0.28, 0.035), _material(Color("b56c55"), 0.76, 0.0, alpha), root)
 	flag.rotation.z = -0.08
 	if not preview:
+		_add_cylinder_obstacle(Vector3(0.0, (height + 0.8) * 0.5, 0.0), radius + 0.22, height + 0.8, root, "Tower collision")
 		for index in 8:
 			var angle := float(index) * 0.58 + float(seed_value) * 0.13
 			var y := 0.48 + float(index) * 0.36
@@ -1056,6 +1201,7 @@ func _build_pond(command: Dictionary, parent: Node3D, preview: bool) -> void:
 	surface.scale.z = 0.7
 	if preview:
 		return
+	_add_cylinder_obstacle(Vector3(0.0, 0.45, 0.0), 2.18, 0.9, root, "Pond boundary")
 	# Pebbles, reeds and lily pads create readable scale and an inviting shoreline.
 	for index in 15:
 		var angle := TAU * float(index) / 15.0 + sin(float(index) * 1.7) * 0.16
@@ -1115,13 +1261,31 @@ func _build_nature(command: Dictionary, parent: Node3D, preview: bool) -> void:
 
 
 func _build_ambient_life() -> void:
-	# Two sheep roam at different rhythms and become visual scale references.
+	# Sheep are real moving bodies. Their targets and behavior change over time,
+	# while the collision layer keeps them out of every authored structure.
 	for index in 2:
-		var sheep_root := Node3D.new()
-		sheep_root.name = "Wandering sheep"
+		var sheep_root := CharacterBody3D.new()
+		sheep_root.name = "Grounded roaming sheep"
+		sheep_root.motion_mode = CharacterBody3D.MOTION_MODE_FLOATING
+		sheep_root.collision_layer = 2
+		sheep_root.collision_mask = 1
+		sheep_root.safe_margin = 0.05
 		sheep_root.set_meta("phase", float(index) * 2.6)
-		sheep_root.set_meta("radius", 6.6 + float(index) * 2.2)
+		sheep_root.set_meta("state", "walking")
+		sheep_root.set_meta("state_timer", 7.0 + float(index) * 2.0)
+		sheep_root.set_meta("walk_speed", 0.72 + float(index) * 0.08)
+		sheep_root.set_meta("stuck_timer", 0.0)
+		sheep_root.position = Vector3(-7.2, 0.0, -2.6) if index == 0 else Vector3(6.7, 0.0, 5.2)
+		sheep_root.set_meta("target", Vector3(-8.4, 0.0, 4.8) if index == 0 else Vector3(7.8, 0.0, -2.8))
 		life_root.add_child(sheep_root)
+		var collision := CollisionShape3D.new()
+		collision.name = "Sheep body collision"
+		collision.position = Vector3(0.0, 0.48, 0.0)
+		var capsule := CapsuleShape3D.new()
+		capsule.radius = 0.34
+		capsule.height = 0.9
+		collision.shape = capsule
+		sheep_root.add_child(collision)
 		_build_sheep_model(sheep_root, index)
 		sheep.append(sheep_root)
 	# Butterflies are deliberately oversized enough to read at isometric scale.
@@ -1151,30 +1315,241 @@ func _build_ambient_life() -> void:
 
 
 func _build_sheep_model(parent: Node3D, index: int) -> void:
-	var wool := _material(Color("eee8d4") if index == 0 else Color("d6d0be"), 1.0)
-	var face := _material(Color("464840"), 0.95)
-	_sphere(Vector3(0.0, 0.54, 0.0), Vector3(0.48, 0.36, 0.32), wool, parent, 12, 7)
-	for puff_index in 5:
-		var angle := float(puff_index) * TAU / 5.0
-		_sphere(Vector3(cos(angle) * 0.27, 0.62 + sin(float(puff_index) * 2.1) * 0.08, sin(angle) * 0.19), Vector3.ONE * 0.22, wool, parent, 10, 6)
-	_sphere(Vector3(0.0, 0.56, 0.37), Vector3(0.22, 0.25, 0.2), face, parent, 10, 6)
-	for x in [-0.22, 0.22]:
-		for z in [-0.14, 0.14]:
-			_cylinder(Vector3(x, 0.2, z), 0.035, 0.04, 0.38, face, parent, 6)
-	for x in [-0.16, 0.16]:
-		_sphere(Vector3(x, 0.64, 0.54), Vector3.ONE * 0.032, _material(Color("151917"), 0.45), parent, 8, 5)
+	var visual := Node3D.new()
+	visual.name = "Articulated sheep model"
+	parent.add_child(visual)
+	parent.set_meta("visual", visual)
+	var wool_color := Color("eee9d7") if index == 0 else Color("d8d2bd")
+	var wool_shadow := Color("d5cfbb") if index == 0 else Color("bbb6a5")
+	var wool := _material(wool_color, 1.0)
+	var wool_deep := _material(wool_shadow, 1.0)
+	var face := _material(Color("41453f") if index == 0 else Color("5a5148"), 0.94)
+	var hoof := _material(Color("252b29"), 0.86)
+	# An elongated ribcage plus overlapping wool puffs gives the animal a real
+	# front/back silhouette instead of reading as one floating cotton ball.
+	_sphere(Vector3(0.0, 0.58, -0.04), Vector3(0.46, 0.34, 0.58), wool_deep, visual, 14, 8)
+	var puff_positions := [
+		Vector3(-0.28, 0.68, -0.29), Vector3(0.28, 0.68, -0.29),
+		Vector3(-0.3, 0.67, 0.08), Vector3(0.3, 0.67, 0.08),
+		Vector3(-0.22, 0.61, 0.34), Vector3(0.22, 0.61, 0.34),
+		Vector3(0.0, 0.82, -0.08), Vector3(0.0, 0.74, -0.43),
+	]
+	for puff_index in puff_positions.size():
+		var puff_scale := 0.24 + float(puff_index % 3) * 0.025
+		_sphere(puff_positions[puff_index], Vector3(puff_scale, puff_scale * 0.88, puff_scale * 1.08), wool if puff_index % 3 else wool_deep, visual, 10, 6)
+	var head := Node3D.new()
+	head.name = "Grazing head rig"
+	head.position = Vector3(0.0, 0.58, 0.42)
+	visual.add_child(head)
+	parent.set_meta("head", head)
+	_sphere(Vector3(0.0, 0.03, 0.18), Vector3(0.22, 0.25, 0.29), face, head, 12, 7)
+	_sphere(Vector3(0.0, -0.08, 0.4), Vector3(0.16, 0.13, 0.18), _material(Color("777066"), 0.92), head, 10, 6)
+	# Ears, eyes and nostrils keep the face readable from a moving isometric camera.
+	var ears: Array[Node3D] = []
+	for side in [-1.0, 1.0]:
+		var ear := _sphere(Vector3(side * 0.23, 0.16, 0.12), Vector3(0.14, 0.055, 0.08), face, head, 9, 5)
+		ear.rotation.z = side * 0.24
+		ears.append(ear)
+		_sphere(Vector3(side * 0.105, 0.11, 0.405), Vector3.ONE * 0.035, _material(Color("111614"), 0.38), head, 8, 5)
+	for side in [-1.0, 1.0]:
+		_sphere(Vector3(side * 0.055, -0.055, 0.565), Vector3.ONE * 0.018, _material(Color("242320"), 0.45), head, 7, 4)
+	parent.set_meta("ears", ears)
+	var legs: Array[Node3D] = []
+	var leg_positions := [Vector3(-0.25, 0.38, 0.29), Vector3(0.25, 0.38, 0.29), Vector3(-0.25, 0.38, -0.31), Vector3(0.25, 0.38, -0.31)]
+	for leg_index in leg_positions.size():
+		var leg := Node3D.new()
+		leg.name = "Walking leg " + str(leg_index + 1)
+		leg.position = leg_positions[leg_index]
+		visual.add_child(leg)
+		_cylinder(Vector3(0.0, -0.17, 0.0), 0.045, 0.055, 0.34, face, leg, 7)
+		var lower := _cylinder(Vector3(0.0, -0.37, 0.015), 0.034, 0.042, 0.22, hoof, leg, 7)
+		lower.rotation.x = -0.08
+		_box(Vector3(0.0, -0.5, 0.055), Vector3(0.11, 0.09, 0.17), hoof, leg)
+		legs.append(leg)
+	parent.set_meta("legs", legs)
+	var tail := Node3D.new()
+	tail.name = "Wagging wool tail"
+	tail.position = Vector3(0.0, 0.7, -0.59)
+	visual.add_child(tail)
+	_sphere(Vector3(0.0, 0.0, -0.08), Vector3(0.18, 0.16, 0.2), wool, tail, 9, 5)
+	parent.set_meta("tail", tail)
+
+
+func _update_sheep_physics(delta: float) -> void:
+	for index in sheep.size():
+		var animal := sheep[index] as CharacterBody3D
+		if not animal or not is_instance_valid(animal):
+			continue
+		var state := str(animal.get_meta("state", "walking"))
+		var timer := float(animal.get_meta("state_timer", 0.0)) - delta
+		animal.set_meta("state_timer", timer)
+		if not _is_sheep_point_clear(animal.position, 0.12):
+			_relocate_sheep(animal, index)
+			continue
+		if state == "walking":
+			var target: Vector3 = animal.get_meta("target", Vector3.ZERO)
+			var to_target := target - animal.position
+			to_target.y = 0.0
+			if to_target.length() < 0.55 or timer <= 0.0:
+				animal.set_meta("state", "grazing")
+				animal.set_meta("state_timer", 3.4 + randf() * 3.8)
+				animal.velocity = Vector3.ZERO
+				continue
+			var desired := to_target.normalized()
+			# A small flock-separation force prevents visual overlap without making
+			# the sheep collide and jitter against one another.
+			for other_node in sheep:
+				if other_node == animal:
+					continue
+				var separation := animal.position - other_node.position
+				separation.y = 0.0
+				if separation.length() < 1.25 and separation.length() > 0.01:
+					desired = (desired + separation.normalized() * 0.8).normalized()
+			var speed := float(animal.get_meta("walk_speed", 0.75))
+			animal.velocity = animal.velocity.lerp(desired * speed, clampf(delta * 3.4, 0.0, 1.0))
+			var before := animal.position
+			animal.move_and_slide()
+			animal.position.y = 0.0
+			var desired_yaw := atan2(desired.x, desired.z)
+			animal.rotation.y = lerp_angle(animal.rotation.y, desired_yaw, clampf(delta * 4.2, 0.0, 1.0))
+			var moved := Vector2(before.x, before.z).distance_to(Vector2(animal.position.x, animal.position.z))
+			var stuck_timer := float(animal.get_meta("stuck_timer", 0.0))
+			if animal.get_slide_collision_count() > 0 or moved < speed * delta * 0.16:
+				stuck_timer += delta
+			else:
+				stuck_timer = maxf(0.0, stuck_timer - delta * 2.0)
+			animal.set_meta("stuck_timer", stuck_timer)
+			if stuck_timer > 0.55:
+				_choose_sheep_target(animal, index)
+		else:
+			animal.velocity = Vector3.ZERO
+			if timer <= 0.0:
+				_choose_sheep_target(animal, index)
+
+
+func _choose_sheep_target(animal: CharacterBody3D, index: int) -> void:
+	for attempt in 28:
+		var angle := randf() * TAU
+		var radius := 3.8 + randf() * 8.0
+		var candidate := Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)
+		if not _is_sheep_point_clear(candidate, 0.45):
+			continue
+		var too_close := false
+		for other in sheep:
+			if other != animal and other.position.distance_to(candidate) < 1.7:
+				too_close = true
+		if too_close:
+			continue
+		animal.set_meta("target", candidate)
+		animal.set_meta("state", "walking")
+		animal.set_meta("state_timer", 12.0 + randf() * 8.0)
+		animal.set_meta("stuck_timer", 0.0)
+		return
+	# Deterministic fallback if a densely built glade has very little meadow left.
+	var fallback_angle := float(index) * PI + 0.7
+	var fallback := Vector3(cos(fallback_angle) * 10.5, 0.0, sin(fallback_angle) * 10.5)
+	if _is_sheep_point_clear(fallback, 0.2):
+		animal.set_meta("target", fallback)
+		animal.set_meta("state", "walking")
+		animal.set_meta("state_timer", 10.0)
+
+
+func _is_sheep_point_clear(point: Vector3, clearance: float = 0.35) -> bool:
+	if Vector2(point.x, point.z).length() > DRAW_LIMIT - 0.45:
+		return false
+	for command in commands:
+		var type := str(command.get("type", ""))
+		var position := _vec_from_pair(command.get("pos", [0.0, 0.0]))
+		if type == "cottage":
+			var size_data: Array = command.get("size", [4.4, 3.4])
+			if absf(point.x - position.x) < float(size_data[0]) * 0.5 + clearance + 0.35 and absf(point.z - position.z) < float(size_data[1]) * 0.5 + clearance + 0.35:
+				return false
+		elif type == "tower":
+			if Vector2(point.x, point.z).distance_to(Vector2(position.x, position.z)) < 2.05 + clearance:
+				return false
+		elif type == "pond":
+			var pond_delta := Vector2((point.x - position.x) / (2.7 + clearance), (point.z - position.z) / (2.05 + clearance))
+			if pond_delta.length() < 1.0:
+				return false
+		elif type == "nature":
+			if Vector2(point.x, point.z).distance_to(Vector2(position.x, position.z)) < 0.8 + clearance:
+				return false
+		elif type == "wall":
+			var a := _vec_from_pair(command.get("a", [0.0, 0.0]))
+			var b := _vec_from_pair(command.get("b", [0.0, 0.0]))
+			var flat_point := Vector2(point.x, point.z)
+			var flat_a := Vector2(a.x, a.z)
+			var flat_b := Vector2(b.x, b.z)
+			if _distance_to_segment_2d(flat_point, flat_a, flat_b) < 0.44 + clearance:
+				var wall_length := flat_a.distance_to(flat_b)
+				var along := clampf((flat_point - flat_a).dot((flat_b - flat_a).normalized()), 0.0, wall_length)
+				var in_gateway := false
+				for gate_distance in _wall_gate_positions(a, b):
+					if absf(along - float(gate_distance)) < 0.78 - clearance * 0.2:
+						in_gateway = true
+				if not in_gateway:
+					return false
+	return true
+
+
+func _relocate_sheep(animal: CharacterBody3D, index: int) -> void:
+	for attempt in 32:
+		var angle := float(attempt) * 2.399 + float(index) * 1.1
+		var radius := 5.0 + fmod(float(attempt * 17), 65.0) / 65.0 * 6.5
+		var candidate := Vector3(cos(angle) * radius, 0.0, sin(angle) * radius)
+		if _is_sheep_point_clear(candidate, 0.55):
+			animal.position = candidate
+			animal.velocity = Vector3.ZERO
+			_choose_sheep_target(animal, index)
+			return
+
+
+func _relocate_sheep_if_blocked() -> void:
+	for index in sheep.size():
+		var animal := sheep[index] as CharacterBody3D
+		if animal and not _is_sheep_point_clear(animal.position, 0.12):
+			_relocate_sheep(animal, index)
+
+
+func _animate_sheep_model(animal: CharacterBody3D, elapsed: float, index: int) -> void:
+	var visual := animal.get_meta("visual") as Node3D
+	var head := animal.get_meta("head") as Node3D
+	var tail := animal.get_meta("tail") as Node3D
+	var legs: Array = animal.get_meta("legs", [])
+	var ears: Array = animal.get_meta("ears", [])
+	if not visual or not head:
+		return
+	var phase := float(animal.get_meta("phase", 0.0))
+	var state := str(animal.get_meta("state", "walking"))
+	if state == "walking":
+		var gait := elapsed * 6.2 + phase
+		visual.position.y = absf(sin(gait * 2.0)) * 0.018
+		head.rotation.x = lerpf(head.rotation.x, -0.08, 0.12)
+		for leg_index in legs.size():
+			var leg := legs[leg_index] as Node3D
+			var opposing_phase := 0.0 if leg_index in [0, 3] else PI
+			leg.rotation.x = sin(gait + opposing_phase) * 0.48
+		if tail:
+			tail.rotation.x = sin(gait * 0.7) * 0.22
+	else:
+		visual.position.y = sin(elapsed * 1.6 + phase) * 0.008
+		head.rotation.x = lerpf(head.rotation.x, 0.88, 0.055)
+		for leg in legs:
+			(leg as Node3D).rotation.x = lerpf((leg as Node3D).rotation.x, 0.0, 0.12)
+		if tail:
+			tail.rotation.x = sin(elapsed * 2.1 + phase) * 0.1
+	for ear_index in ears.size():
+		var ear := ears[ear_index] as Node3D
+		var side := -1.0 if ear_index == 0 else 1.0
+		ear.rotation.z = side * (0.24 + sin(elapsed * 2.8 + phase + float(ear_index)) * 0.055)
 
 
 func _animate_life(delta: float) -> void:
 	var elapsed := Time.get_ticks_msec() * 0.001
 	for index in sheep.size():
-		var animal := sheep[index]
-		var phase := float(animal.get_meta("phase", 0.0))
-		var radius := float(animal.get_meta("radius", 7.0))
-		var angle := elapsed * (0.07 + float(index) * 0.018) + phase
-		animal.position = Vector3(cos(angle) * radius, 0.0, sin(angle * 0.92) * radius * 0.72)
-		animal.rotation.y = -angle + PI * 0.5
-		animal.position.y = sin(elapsed * 3.2 + phase) * 0.025
+		var animal := sheep[index] as CharacterBody3D
+		if animal:
+			_animate_sheep_model(animal, elapsed, index)
 	for index in butterflies.size():
 		var butterfly := butterflies[index]
 		var phase := float(butterfly.get_meta("phase", 0.0))
@@ -1197,11 +1572,30 @@ func _animate_life(delta: float) -> void:
 		fly.scale = Vector3.ONE * (0.75 + sin(elapsed * 2.6 + phase) * 0.22)
 
 
+func _animate_environment(delta: float) -> void:
+	var elapsed := Time.get_ticks_msec() * 0.001
+	for index in wind_trees.size():
+		var tree := wind_trees[index]
+		if not is_instance_valid(tree):
+			continue
+		tree.rotation.z = sin(elapsed * 0.72 + float(index) * 1.71) * 0.016
+		tree.rotation.x = cos(elapsed * 0.58 + float(index) * 1.13) * 0.009
+	for index in drifting_clouds.size():
+		var cloud := drifting_clouds[index]
+		if not is_instance_valid(cloud):
+			continue
+		cloud.position.x += float(cloud.get_meta("speed", 0.25)) * delta
+		if cloud.position.x > 27.0:
+			cloud.position.x = -27.0
+		cloud.position.z = float(cloud.get_meta("origin_z", 0.0)) + sin(elapsed * 0.08 + float(index)) * 1.2
+
+
 func _build_border_tree(position: Vector3, tree_scale: float, parent: Node3D, seed_value: int) -> void:
 	var root := Node3D.new()
 	root.position = position
 	root.rotation.y = float(seed_value) * 0.73
 	parent.add_child(root)
+	wind_trees.append(root)
 	var trunk := _material(Color("64523b"), 0.96)
 	_cylinder(Vector3(0.0, 1.15 * tree_scale, 0.0), 0.2 * tree_scale, 0.3 * tree_scale, 2.3 * tree_scale, trunk, root, 9)
 	var greens := [Color("4f784d"), Color("5f8955"), Color("739760"), Color("466d49")]
@@ -1280,6 +1674,60 @@ func _add_reed(position: Vector3, parent: Node3D, seed_value: int) -> void:
 		var height := 0.55 + float((index + seed_value) % 3) * 0.14
 		_cylinder(position + offset + Vector3(0.0, height * 0.5, 0.0), 0.014, 0.018, height, stem, parent, 6)
 		_cylinder(position + offset + Vector3(0.0, height + 0.07, 0.0), 0.035, 0.045, 0.18, head, parent, 7)
+
+
+func _add_box_obstacle(position: Vector3, size: Vector3, yaw: float, parent: Node3D, label: String) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.name = label
+	body.position = position
+	body.rotation.y = yaw
+	body.collision_layer = 1
+	body.collision_mask = 2
+	parent.add_child(body)
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = size
+	collision.shape = shape
+	body.add_child(collision)
+	return body
+
+
+func _add_cylinder_obstacle(position: Vector3, radius: float, height: float, parent: Node3D, label: String) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	body.name = label
+	body.position = position
+	body.collision_layer = 1
+	body.collision_mask = 2
+	parent.add_child(body)
+	var collision := CollisionShape3D.new()
+	var shape := CylinderShape3D.new()
+	shape.radius = radius
+	shape.height = height
+	collision.shape = shape
+	body.add_child(collision)
+	return body
+
+
+func _add_wall_collision_runs(a: Vector3, b: Vector3, gate_positions: Array[float], yaw: float, parent: Node3D) -> void:
+	var length := a.distance_to(b)
+	var direction := (b - a).normalized()
+	var sorted_gates: Array = gate_positions.duplicate()
+	sorted_gates.sort()
+	var run_start := 0.0
+	for gate_value in sorted_gates:
+		var gate_distance := clampf(float(gate_value), 0.0, length)
+		var run_end := maxf(run_start, gate_distance - 0.84)
+		if run_end - run_start > 0.12:
+			_add_wall_collision_run(a, direction, run_start, run_end, yaw, parent)
+		run_start = minf(length, gate_distance + 0.84)
+	if length - run_start > 0.12:
+		_add_wall_collision_run(a, direction, run_start, length, yaw, parent)
+
+
+func _add_wall_collision_run(a: Vector3, direction: Vector3, run_start: float, run_end: float, yaw: float, parent: Node3D) -> void:
+	var run_length := run_end - run_start
+	var midpoint := a + direction * ((run_start + run_end) * 0.5) + Vector3(0.0, 1.08, 0.0)
+	_add_box_obstacle(midpoint, Vector3(run_length, 2.16, 0.62), yaw, parent, "Wall collision")
 
 
 func _box(position: Vector3, size: Vector3, material: Material, parent: Node) -> MeshInstance3D:
